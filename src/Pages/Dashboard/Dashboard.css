@@ -1,0 +1,119 @@
+.table-container {
+    margin: 20px auto;
+    width: 80%;
+    max-width: 1000px;
+    background-color: #fff;
+    padding: 20px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    text-align: center;
+    font-family: poppins;
+  }
+  
+  .table-container h2 {
+    font-size: 1.5rem;
+    margin-bottom: 20px;
+    color: #333;
+  }
+  .header-section {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-bottom: 1px solid #000;
+    padding-bottom: 20px;
+    margin-bottom: 20px;
+  }
+  
+  .logo {
+    max-width: 120px; /* Adjust the size of the logo */
+    margin-right: 20px;
+  }
+  
+  .header-text {
+    text-align: center;
+    width: 50%;
+    background-color:#b4efc2;
+    border-color: #000 solid 5px;
+    border-radius: 5px;
+    margin-left: 1rem;
+  }
+  
+  .main-title {
+    font-size: 1.8rem;
+    font-weight: bold;
+    color: #333;
+  }
+  
+  .subtitle {
+    font-size: 1rem;
+    color: #555;
+    margin-top: -10px; /* Adjust spacing between title and subtitle */
+  }
+  
+  /* Table Styles */
+  .styled-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+    text-align: left;
+  }
+  
+  .styled-table th,
+  .styled-table td {
+    border: 1px solid #000;
+    padding: 8px 12px;
+    text-align: center;
+  }
+  
+  .styled-table thead th {
+    background-color: #f1f1f1;
+    font-weight: bold;
+  }
+  
+  .styled-table tbody tr:nth-child(even) {
+    background-color: #f9f9f9;
+  }
+  
+  .styled-table tbody tr:hover {
+    background-color: #f2f2f2;
+  }
+  .button-container {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 1rem;
+    margin-bottom: 20px;
+    margin-right: 10px;
+
+}
+
+.button-container button {
+    display: flex;
+    align-items: center;
+    justify-content: center; /* Center content horizontally */
+    padding: 10px 20px;
+    border: none;
+    background-color: #155724;
+    color: #f2f2f2;
+    cursor: pointer;
+    font-size: 16px;
+    border-radius: 3px;
+}
+
+.button-container button svg {
+    margin-right: 8px;
+    font-size: 28px; /* Adjust icon size as needed */
+}
+
+.button-container button.delete {
+    background-color: red;
+    color: #f2f2f2;
+}
+
+.button-container button.delete svg {
+    font-size: 28px; /* Larger icon size for delete button */
+}
+
+ 
+
+  
