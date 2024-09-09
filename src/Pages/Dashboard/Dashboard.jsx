@@ -1,16 +1,52 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import axios from 'axios';
 import './Dashboard.css'; 
 import logo from '../../assets/image/LOGO_-_Avocado_Society_of_Rwanda.png';
-import { IoAddCircleOutline } from "react-icons/io5";
 import { MdOutlineDeleteOutline } from "react-icons/md";
 import { FiEdit } from "react-icons/fi";
+import * as XLSX from 'xlsx';
 
-const Dashboard = ({ userData }) => {
-  // Ensure userData is an object, use an empty object as fallback
-  const data = userData || [];
+const Dashboard = () => {
+  const [farmers, setFarmers] = useState([]);
+  const [selectedFarmer, setSelectedFarmer] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  useEffect(() => {
+    axios.get('https://applicanion-api.onrender.com/api/users')
+      .then(response => {
+        setFarmers(response.data);
+      })
+      .catch(error => {
+        console.error('There was an error fetching the data!', error);
+      });
+  }, []);
+
+  const openModal = (farmer) => {
+    setSelectedFarmer(farmer);
+    setIsModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setSelectedFarmer(null);
+  };
+
+  const handleOverlayClick = (e) => {
+    if (e.target.className === 'modal-overlay') {
+      closeModal();
+    }
+  };
+
+  const exportToExcel = () => {
+    const worksheet = XLSX.utils.json_to_sheet(farmers);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Farmers');
+    XLSX.writeFile(workbook, 'FarmersData.xlsx');
+  };
 
   return (
     <div className="dashboard-container">
+      {/* Header Section */}
       <div className="header-section">
         <img src={logo} alt="Logo" className="logo" />
         <div className="header-text">
@@ -21,54 +57,80 @@ const Dashboard = ({ userData }) => {
         </div>
       </div>
 
+      {/* Actions Header */}
       <div className="action-header">
         <h2>Farmers</h2>
-        <button className="add-employee-btn">
-          Add Farmer
-        </button>
+        <div className="action-buttons">
+          <button className="add-employee-btn">Add Farmer</button>
+          <button className="export-btn" onClick={exportToExcel}>Export to Excel</button>
+        </div>
       </div>
 
-      <table className="styled-table">
-        <thead>
-          <tr>
-            <th><input type="checkbox" /></th>
-            <th>Amazina</th>
-            <th>Imyaka</th>
-            <th>Umudugudu</th>
-            <th>Akagari</th>
-            <th>Umurenge</th>
-            <th>Akarere</th>
-            <th>Telefone</th>
-            <th>Ubuso (Ha)</th>
-            <th>Action</th>
-          </tr>
-        </thead>
-        <tbody>
-          {data.length > 0 ? (
-            data.map((farmer, index) => (
-              <tr key={index}>
-                <td><input type="checkbox" /></td>
-                <td>{farmer.amazina || 'N/A'}</td>
-                <td>{farmer.imyaka || 'N/A'}</td>
-                <td>{farmer.umudugudu || 'N/A'}</td>
-                <td>{farmer.akagari || 'N/A'}</td>
-                <td>{farmer.umurenge || 'N/A'}</td>
-                <td>{farmer.akarere || 'N/A'}</td>
-                <td>{farmer.telefone || 'N/A'}</td>
-                <td>{farmer.ubuso || 'N/A'}</td>
-                <td>
-                  <button className="edit-btn"><FiEdit /></button>
-                  <button className="delete-btn"><MdOutlineDeleteOutline /></button>
-                </td>
-              </tr>
-            ))
-          ) : (
+      {/* Farmers Table */}
+      <div className="table-container">
+        <table className="styled-table">
+          <thead>
             <tr>
-              <td colSpan="10">No Farmers Available</td>
+              <th>ID</th>
+              <th>First Name</th>
+              <th>Last Name</th>
+              <th>Telephone</th>
+              <th>Village</th>
+              <th>Sector</th>
+              <th>District</th>
+              <th>Action</th>
             </tr>
-          )}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {farmers.length > 0 ? (
+              farmers.map((farmer, index) => (
+                <tr key={index}>
+                  <td>{farmer.id || 'N/A'}</td>
+                  <td>{farmer.firstName || 'N/A'}</td>
+                  <td>{farmer.lastName || 'N/A'}</td>
+                  <td>{farmer.telephone || 'N/A'}</td>
+                  <td>{farmer.village || 'N/A'}</td>
+                  <td>{farmer.sector || 'N/A'}</td>
+                  <td>{farmer.district || 'N/A'}</td>
+                  <td>
+                    <button className="view-details-btn" onClick={() => openModal(farmer)}>View</button>
+                    <button className="edit-btn"><FiEdit /></button>
+                    <button className="delete-btn"><MdOutlineDeleteOutline /></button>
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan="8">No Farmers Available</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Modal for Farmer Details */}
+      {isModalOpen && selectedFarmer && (
+        <div className="modal-overlay" onClick={handleOverlayClick}>
+          <div className="modal-content">
+            <span className="close-btn" onClick={closeModal}>&times;</span>
+            <h2>Farmer Details</h2>
+            <p><strong>First Name:</strong> {selectedFarmer.firstName}</p>
+            <p><strong>Last Name:</strong> {selectedFarmer.lastName}</p>
+            <p><strong>Telephone:</strong> {selectedFarmer.telephone}</p>
+            <p><strong>ID Number:</strong> {selectedFarmer.idNumber}</p>
+            <p><strong>Village:</strong> {selectedFarmer.village}</p>
+            <p><strong>Sector:</strong> {selectedFarmer.sector}</p>
+            <p><strong>District:</strong> {selectedFarmer.district}</p>
+            <p><strong>Province:</strong> {selectedFarmer.province}</p>
+            <p><strong>Farm Size:</strong> {selectedFarmer.farmSize}</p>
+            <p><strong>Tree Count:</strong> {selectedFarmer.treeCount}</p>
+            <p><strong>UPI Number:</strong> {selectedFarmer.upiNumber}</p>
+            <p><strong>Assistance Needed:</strong> {selectedFarmer.assistance}</p>
+            <p><strong>Created At:</strong> {new Date(selectedFarmer.createdAt).toLocaleDateString()}</p>
+            <p><strong>Updated At:</strong> {new Date(selectedFarmer.updatedAt).toLocaleDateString()}</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
