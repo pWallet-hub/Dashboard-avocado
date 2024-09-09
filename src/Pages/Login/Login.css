@@ -1,63 +1,79 @@
+/* Overall Page Styling */
+/* body {
+  font-family: 'Arial', sans-serif;
+  background-color: #f0f4f8;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  margin: 0;
+} */
 
 .login-container {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 97vh;
-    background-color: #f0f4f8;
-    font-family: poppins;
-    margin: 0;
-    padding: 0;
-    
-   
-    background-image: url('../../assets/image/image (2).jpeg'); 
-    background-size: cover; 
-    background-position: center; 
-    background-repeat: no-repeat; 
-    object-fit: cover;
-  }
-  
-  .login-box {
-    background-color: white;
-    padding: 40px;
-    border-radius: 8px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-    width: 350px;
-    text-align: center;
-  }
-  
-  .login-box h2 {
-    margin-bottom: 20px;
-    color: #333;
-  }
-  
-  .login-box input {
-    width: 100%;
-    padding: 10px;
-    margin: 10px 0;
-    border-radius: 4px;
-    border: 1px solid #ccc;
-    font-size: 16px;
-  }
-  
-  .login-box button {
-    width: 100%;
-    padding: 10px;
-    background-color: #4caf50;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    font-size: 16px;
-    cursor: pointer;
-    transition: background-color 0.3s ease;
-  }
-  
-  .login-box button:hover {
-    background-color: #45a049;
-  }
-  
-  .login-box input:focus {
-    border-color: #4caf50;
-    outline: none;
-  }
-  
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+}
+
+.login-box {
+  background-color: white;
+  padding: 40px;
+  border-radius: 10px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  width: 350px;
+  text-align: center;
+}
+
+h2 {
+  margin-bottom: 20px;
+  font-size: 24px;
+  font-weight: bold;
+  color: #2d3748;
+}
+
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+input[type="text"],
+input[type="password"] {
+  padding: 12px;
+  border-radius: 5px;
+  border: 1px solid #cbd5e0;
+  font-size: 16px;
+  transition: border-color 0.3s;
+}
+
+input[type="text"]:focus,
+input[type="password"]:focus {
+  border-color: #48bb78;
+  outline: none;
+}
+
+button[type="submit"] {
+  background-color: #48bb78;
+  color: white;
+  border: none;
+  padding: 12px;
+  border-radius: 5px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+button[type="submit"]:hover {
+  background-color: #38a169;
+}
+
+button[type="submit"]:active {
+  background-color: #2f855a;
+}
+
+input::placeholder {
+  color: #a0aec0;
+  opacity: 0.8;
+}
+
