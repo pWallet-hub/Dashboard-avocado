@@ -1,118 +1,174 @@
-/* Container Styling */
+/* Overall page styles */
+body {
+  font-family: 'Arial', sans-serif;
+  background-color: #f5f7fa;
+  color: #333;
+}
+
 .dashboard-container {
   padding: 20px;
-  background-color: #f9f9f9;
-  font-family: 'Poppins', sans-serif;
 }
 
 .header-section {
   display: flex;
-  flex-direction: row; /* Stack the logo and text vertically */
-  align-items: center; /* Center horizontally */
-  justify-content: center; /* Center vertically */
-  text-align: center;
+  align-items: center;
+  background-color: #2c7a7b;
+  color: white;
+  padding: 20px;
+  border-radius: 10px;
   margin-bottom: 20px;
-  gap: 1rem;
-  margin-left: 1rem;
 }
 
 .logo {
-  width: 80px;
-  margin-bottom: 10px; /* Add space between the logo and the text */
+  width: 100px;
+  margin-right: 20px;
 }
 
 .header-text {
-  max-width: 600px;
-  text-align: center;
-  width: 50%;
-  background-color:#b4efc2;
-  border-color: #000 solid 5px;
-  border-radius: 5px;
-  margin-left: 1rem;
+  flex-grow: 1;
 }
 
 .main-title {
-  font-size: 24px;
+  font-size: 28px;
   font-weight: bold;
-  margin-bottom: 10px;
+  margin-bottom: 5px;
 }
 
 .subtitle {
   font-size: 16px;
-  color: #666;
+  opacity: 0.8;
 }
 
-/* Action header section */
 .action-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 10px;
+  margin-bottom: 20px;
 }
 
-.add-employee-btn {
-  background-color: #007bff;
+.action-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.add-employee-btn,
+.export-btn {
+  background-color: #38a169;
   color: white;
-  padding: 10px 20px;
   border: none;
+  padding: 10px 20px;
   border-radius: 5px;
   cursor: pointer;
+  transition: background-color 0.3s;
 }
 
-.add-employee-btn:hover {
-  background-color: #0056b3;
+.add-employee-btn:hover,
+.export-btn:hover {
+  background-color: #2f855a;
 }
 
-/* Table Styling */
+/* Table styles */
+.table-container {
+  background-color: white;
+  border-radius: 10px;
+  padding: 20px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
 .styled-table {
   width: 100%;
   border-collapse: collapse;
-  margin-bottom: 20px;
-  background-color: white;
+  text-align: left;
 }
 
 .styled-table th, .styled-table td {
   padding: 12px 15px;
-  text-align: left;
 }
 
 .styled-table th {
+  background-color: #48bb78;
+  color: white;
+}
+
+.styled-table tr {
+  border-bottom: 1px solid #ddd;
+}
+
+.styled-table tr:nth-of-type(even) {
   background-color: #f3f3f3;
 }
 
-.styled-table tbody tr {
-  border-bottom: 1px solid #dddddd;
+.styled-table tr:hover {
+  background-color: #f1f1f1;
 }
 
-.styled-table tbody tr:last-of-type {
-  border-bottom: 2px solid #007bff;
+/* Modal styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
-.styled-table tbody tr td input[type="checkbox"] {
-  margin-right: 10px;
+.modal-content {
+  background-color: white;
+  padding: 30px;
+  width: 400px;
+  border-radius: 10px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  position: relative;
 }
 
-/* Edit and Delete Buttons */
-.edit-btn, .delete-btn {
+.close-btn {
+  position: absolute;
+  top: 10px;
+  right: 20px;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.view-details-btn, .edit-btn, .delete-btn {
   background: none;
   border: none;
   cursor: pointer;
-  font-size: 18px;
-  margin-right: 10px;
+  margin-right: 5px;
+  padding: 5px 10px;
+  border-radius: 5px;
+  transition: background-color 0.3s, color 0.3s;
+}
+
+.view-details-btn {
+  background-color: #007bff;
+  color: white;
+}
+
+.view-details-btn:hover {
+  background-color: #007bff;
+  color: white;
 }
 
 .edit-btn {
-  color: #007bff;
+  background-color: #ffc107;
+  color: #ffffff;
 }
 
 .edit-btn:hover {
-  color: #0056b3;
+  background-color: #ffc107;
+  color: white;
 }
 
 .delete-btn {
-  color: #ff4d4d;
+  background-color: #dc3545;
+  color: white;
 }
 
 .delete-btn:hover {
-  color: #e60000;
+  background-color: #dc3545;
+  color: white;
 }
+
+
