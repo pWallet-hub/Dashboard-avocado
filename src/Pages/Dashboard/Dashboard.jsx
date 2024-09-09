@@ -86,8 +86,8 @@ const Dashboard = () => {
               farmers.map((farmer, index) => (
                 <tr key={index}>
                   <td>{farmer.id || 'N/A'}</td>
-                  <td>{farmer.firstName || 'N/A'}</td>
-                  <td>{farmer.lastName || 'N/A'}</td>
+                  <td>{farmer.firstname || 'N/A'}</td>
+                  <td>{farmer.lastname || 'N/A'}</td>
                   <td>{farmer.telephone || 'N/A'}</td>
                   <td>{farmer.village || 'N/A'}</td>
                   <td>{farmer.sector || 'N/A'}</td>
@@ -114,20 +114,20 @@ const Dashboard = () => {
           <div className="modal-content">
             <span className="close-btn" onClick={closeModal}>&times;</span>
             <h2>Farmer Details</h2>
-            <p><strong>First Name:</strong> {selectedFarmer.firstName}</p>
-            <p><strong>Last Name:</strong> {selectedFarmer.lastName}</p>
+            <p><strong>First Name:</strong> {selectedFarmer.firstname}</p>
+            <p><strong>Last Name:</strong> {selectedFarmer.lastname}</p>
             <p><strong>Telephone:</strong> {selectedFarmer.telephone}</p>
-            <p><strong>ID Number:</strong> {selectedFarmer.idNumber}</p>
+            <p><strong>ID Number:</strong> {selectedFarmer.idnumber}</p>
             <p><strong>Village:</strong> {selectedFarmer.village}</p>
             <p><strong>Sector:</strong> {selectedFarmer.sector}</p>
             <p><strong>District:</strong> {selectedFarmer.district}</p>
             <p><strong>Province:</strong> {selectedFarmer.province}</p>
-            <p><strong>Farm Size:</strong> {selectedFarmer.farmSize}</p>
-            <p><strong>Tree Count:</strong> {selectedFarmer.treeCount}</p>
-            <p><strong>UPI Number:</strong> {selectedFarmer.upiNumber}</p>
+            <p><strong>Farm Size:</strong> {selectedFarmer.farmsize}</p>
+            <p><strong>Tree Count:</strong> {selectedFarmer.treecount}</p>
+            <p><strong>UPI Number:</strong> {selectedFarmer.upinumber}</p>
             <p><strong>Assistance Needed:</strong> {selectedFarmer.assistance}</p>
-            <p><strong>Created At:</strong> {new Date(selectedFarmer.createdAt).toLocaleDateString()}</p>
-            <p><strong>Updated At:</strong> {new Date(selectedFarmer.updatedAt).toLocaleDateString()}</p>
+            {/* <p><strong>Created At:</strong> {new Date(selectedFarmer.createdAt).toLocaleDateString()}</p>
+            <p><strong>Updated At:</strong> {new Date(selectedFarmer.updatedAt).toLocaleDateString()}</p> */}
           </div>
         </div>
       )}
