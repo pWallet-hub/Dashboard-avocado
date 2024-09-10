@@ -5,16 +5,20 @@ import logo from '../../assets/image/LOGO_-_Avocado_Society_of_Rwanda.png';
 import { MdOutlineDeleteOutline } from "react-icons/md";
 import { FiEdit } from "react-icons/fi";
 import * as XLSX from 'xlsx';
+import { CiLogout } from "react-icons/ci";
 
 const Dashboard = () => {
   const [farmers, setFarmers] = useState([]);
   const [selectedFarmer, setSelectedFarmer] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedDistrict, setSelectedDistrict] = useState('');
 
   useEffect(() => {
     axios.get('https://applicanion-api.onrender.com/api/users')
       .then(response => {
+        console.log(response.data);
         setFarmers(response.data);
+        
       })
       .catch(error => {
         console.error('There was an error fetching the data!', error);
@@ -44,6 +48,22 @@ const Dashboard = () => {
     XLSX.writeFile(workbook, 'FarmersData.xlsx');
   };
 
+  const handleDistrictChange = (e) => {
+    setSelectedDistrict(e.target.value);
+  };
+
+  const filteredFarmers = selectedDistrict
+    ? farmers.filter(farmer => farmer.district === selectedDistrict)
+    : farmers;
+
+  // Logout logic
+  const handleLogout = () => {
+    // Clear token from localStorage
+    localStorage.removeItem('authToken'); 
+    // Redirect to login page
+    window.location.href = '/login';
+  };
+
   return (
     <div className="dashboard-container">
       {/* Header Section */}
@@ -55,6 +75,8 @@ const Dashboard = () => {
             Ibarura ry’abahinzi bafite ubutaka bakaba bifuza gutera no gukora Ubuhinzi bw’ avoka by’ umwuga
           </p>
         </div>
+        {/* Logout Button */}
+        <button className="logout-btn" onClick={handleLogout}><CiLogout /> Logout</button>
       </div>
 
       {/* Actions Header */}
@@ -64,6 +86,26 @@ const Dashboard = () => {
           <button className="add-employee-btn">Add Farmer</button>
           <button className="export-btn" onClick={exportToExcel}>Export to Excel</button>
         </div>
+      </div>
+
+      {/* District Selection */}
+      <div className="filter-section">
+        <label htmlFor="district-select">Filter by District: </label>
+        <select
+          id="district-select"
+          value={selectedDistrict}
+          onChange={handleDistrictChange}
+        >
+          <option value="">All Districts</option>
+          {farmers
+            .map(farmer => farmer.district)
+            .filter((value, index, self) => self.indexOf(value) === index)
+            .map(district => (
+              <option key={district} value={district}>
+                {district}
+              </option>
+            ))}
+        </select>
       </div>
 
       {/* Farmers Table */}
@@ -82,8 +124,8 @@ const Dashboard = () => {
             </tr>
           </thead>
           <tbody>
-            {farmers.length > 0 ? (
-              farmers.map((farmer, index) => (
+            {filteredFarmers.length > 0 ? (
+              filteredFarmers.map((farmer, index) => (
                 <tr key={index}>
                   <td>{farmer.id || 'N/A'}</td>
                   <td>{farmer.firstname || 'N/A'}</td>
@@ -126,8 +168,6 @@ const Dashboard = () => {
             <p><strong>Tree Count:</strong> {selectedFarmer.treecount}</p>
             <p><strong>UPI Number:</strong> {selectedFarmer.upinumber}</p>
             <p><strong>Assistance Needed:</strong> {selectedFarmer.assistance}</p>
-            {/* <p><strong>Created At:</strong> {new Date(selectedFarmer.createdAt).toLocaleDateString()}</p>
-            <p><strong>Updated At:</strong> {new Date(selectedFarmer.updatedAt).toLocaleDateString()}</p> */}
           </div>
         </div>
       )}

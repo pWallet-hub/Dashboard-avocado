@@ -1,5 +1,5 @@
-/* Overall Page Styling */
-/* body {
+
+ /* body {
   font-family: 'Arial', sans-serif;
   background-color: #f0f4f8;
   display: flex;
@@ -23,6 +23,7 @@
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
   width: 350px;
   text-align: center;
+  
 }
 
 h2 {
