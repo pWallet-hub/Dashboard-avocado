@@ -7,10 +7,12 @@ import { IoIosLogIn } from "react-icons/io";
 function Login() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleLogin = async (e) => {
     e.preventDefault();
+    setLoading(true);
     try {
       const response = await axios.post('https://applicanion-api.onrender.com/api/auth/login', {
         username,
@@ -21,6 +23,8 @@ function Login() {
       navigate('/dashboard');
     } catch (error) {
       alert('Invalid username or password');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -43,6 +47,7 @@ function Login() {
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               required
+              disabled={loading}
             />
             <input
               type="password"
@@ -50,8 +55,11 @@ function Login() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              disabled={loading}
             />
-            <button type="submit"><IoIosLogIn />Sign In</button>
+            <button type="submit" disabled={loading}>
+              {loading ? 'Logging in...' : <><IoIosLogIn />Sign In</>}
+            </button>
           </form>
         </div>
       </div>
