@@ -13,16 +13,29 @@ const Dashboard = () => {
   const [selectedFarmer, setSelectedFarmer] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedDistrict, setSelectedDistrict] = useState(null); // Updated to match react-select
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    axios.get('https://applicanion-api.onrender.com/api/users')
-      .then(response => {
-        console.log(response.data);
+    const fetchFarmers = async () => {
+      setLoading(true);
+      setError(null);
+      const token = localStorage.getItem('token');
+      try {
+        const response = await axios.get('https://applicanion-api.onrender.com/api/users', {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        });
         setFarmers(response.data);
-      })
-      .catch(error => {
-        console.error('There was an error fetching the data!', error);
-      });
+      } catch (error) {
+        setError('There was an error fetching the data!');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchFarmers();
   }, []);
 
   const openModal = (farmer) => {
@@ -65,7 +78,7 @@ const Dashboard = () => {
     : farmers;
 
   const handleLogout = () => {
-    localStorage.removeItem('authToken');
+    localStorage.removeItem('token');
     window.location.href = '/';
   };
 
@@ -106,45 +119,48 @@ const Dashboard = () => {
 
       {/* Farmers Table */}
       <div className="table-container">
-        <table className="styled-table">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>First Name</th>
-              <th>Last Name</th>
-              <th>Telephone</th>
-              <th>District</th>
-              <th>Sector</th>
-              <th>Cell</th>
-              <th>Village</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredFarmers.length > 0 ? (
-              filteredFarmers.map((farmer, index) => (
+        {loading ? (
+          <p>Loading data...</p>
+        ) : error ? (
+          <p>{error}</p>
+        ) : filteredFarmers.length > 0 ? (
+          <table className="styled-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>First Name</th>
+                <th>Last Name</th>
+                <th>Telephone</th>
+                <th>District</th>
+                <th>Sector</th>
+                <th>Cell</th>
+                <th>Village</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredFarmers.map((farmer, index) => (
                 <tr key={index}>
                   <td>{farmer.id || 'N/A'}</td>
                   <td>{farmer.firstname || 'N/A'}</td>
                   <td>{farmer.lastname || 'N/A'}</td>
                   <td>{farmer.telephone || 'N/A'}</td>
-                  <td>{farmer.village || 'N/A'}</td>
-                  <td>{farmer.sector || 'N/A'}</td>
                   <td>{farmer.district || 'N/A'}</td>
+                  <td>{farmer.sector || 'N/A'}</td>
+                  <td>{farmer.cell || 'N/A'}</td>
+                  <td>{farmer.village || 'N/A'}</td>
                   <td>
                     <button className="view-details-btn" onClick={() => openModal(farmer)}>View</button>
                     <button className="edit-btn"><FiEdit /></button>
                     <button className="delete-btn"><MdOutlineDeleteOutline /></button>
                   </td>
                 </tr>
-              ))
-            ) : (
-              <tr>
-                <td colSpan="8">No Farmers Available</td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <p>No Farmers Available</p>
+        )}
       </div>
 
       {/* Modal for Farmer Details */}
