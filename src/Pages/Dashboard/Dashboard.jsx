@@ -1,19 +1,23 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import './Dashboard.css'; 
+import './Dashboard.css';
 import logo from '../../assets/image/LOGO_-_Avocado_Society_of_Rwanda.png';
 import { MdOutlineDeleteOutline } from "react-icons/md";
 import { FiEdit } from "react-icons/fi";
 import * as XLSX from 'xlsx';
+import { CiLogout } from "react-icons/ci";
+import Select from 'react-select'; // Import react-select
 
 const Dashboard = () => {
   const [farmers, setFarmers] = useState([]);
   const [selectedFarmer, setSelectedFarmer] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedDistrict, setSelectedDistrict] = useState(null); // Updated to match react-select
 
   useEffect(() => {
     axios.get('https://applicanion-api.onrender.com/api/users')
       .then(response => {
+        console.log(response.data);
         setFarmers(response.data);
       })
       .catch(error => {
@@ -44,6 +48,27 @@ const Dashboard = () => {
     XLSX.writeFile(workbook, 'FarmersData.xlsx');
   };
 
+  const handleDistrictChange = (selectedOption) => {
+    setSelectedDistrict(selectedOption ? selectedOption.value : '');
+  };
+
+  const districtOptions = farmers
+    .map(farmer => farmer.district)
+    .filter((value, index, self) => self.indexOf(value) === index)
+    .map(district => ({
+      label: district,
+      value: district
+    }));
+
+  const filteredFarmers = selectedDistrict
+    ? farmers.filter(farmer => farmer.district === selectedDistrict)
+    : farmers;
+
+  const handleLogout = () => {
+    localStorage.removeItem('authToken');
+    window.location.href = '/';
+  };
+
   return (
     <div className="dashboard-container">
       {/* Header Section */}
@@ -55,6 +80,7 @@ const Dashboard = () => {
             Ibarura ry’abahinzi bafite ubutaka bakaba bifuza gutera no gukora Ubuhinzi bw’ avoka by’ umwuga
           </p>
         </div>
+        <button className="logout-btn" onClick={handleLogout}><CiLogout /> Logout</button>
       </div>
 
       {/* Actions Header */}
@@ -66,6 +92,18 @@ const Dashboard = () => {
         </div>
       </div>
 
+      {/* District Selection with Searchable Dropdown */}
+      <div className="filter-section">
+        <label htmlFor="district-select">Filter by District: </label>
+        <Select
+          id="district-select"
+          options={districtOptions}
+          isClearable
+          onChange={handleDistrictChange}
+          placeholder="Select or search district"
+        />
+      </div>
+
       {/* Farmers Table */}
       <div className="table-container">
         <table className="styled-table">
@@ -75,15 +113,16 @@ const Dashboard = () => {
               <th>First Name</th>
               <th>Last Name</th>
               <th>Telephone</th>
-              <th>Village</th>
-              <th>Sector</th>
               <th>District</th>
+              <th>Sector</th>
+              <th>Cell</th>
+              <th>Village</th>
               <th>Action</th>
             </tr>
           </thead>
           <tbody>
-            {farmers.length > 0 ? (
-              farmers.map((farmer, index) => (
+            {filteredFarmers.length > 0 ? (
+              filteredFarmers.map((farmer, index) => (
                 <tr key={index}>
                   <td>{farmer.id || 'N/A'}</td>
                   <td>{farmer.firstname || 'N/A'}</td>
@@ -119,15 +158,17 @@ const Dashboard = () => {
             <p><strong>Telephone:</strong> {selectedFarmer.telephone}</p>
             <p><strong>ID Number:</strong> {selectedFarmer.idnumber}</p>
             <p><strong>Village:</strong> {selectedFarmer.village}</p>
+            <p><strong>Cell:</strong> {selectedFarmer.cell}</p>
             <p><strong>Sector:</strong> {selectedFarmer.sector}</p>
             <p><strong>District:</strong> {selectedFarmer.district}</p>
             <p><strong>Province:</strong> {selectedFarmer.province}</p>
+            <p><strong>Planted Date:</strong> {selectedFarmer.planted}</p>
+            <p><strong>Avocado Type:</strong> {selectedFarmer.avocadotype}</p>
+            <p><strong>Mixed Percentage:</strong> {selectedFarmer.mixedpercentage}</p>
             <p><strong>Farm Size:</strong> {selectedFarmer.farmsize}</p>
             <p><strong>Tree Count:</strong> {selectedFarmer.treecount}</p>
             <p><strong>UPI Number:</strong> {selectedFarmer.upinumber}</p>
             <p><strong>Assistance Needed:</strong> {selectedFarmer.assistance}</p>
-            {/* <p><strong>Created At:</strong> {new Date(selectedFarmer.createdAt).toLocaleDateString()}</p>
-            <p><strong>Updated At:</strong> {new Date(selectedFarmer.updatedAt).toLocaleDateString()}</p> */}
           </div>
         </div>
       )}
