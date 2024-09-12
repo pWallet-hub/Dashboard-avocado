@@ -1,24 +1,24 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import './Dashboard.css'; 
+import './Dashboard.css';
 import logo from '../../assets/image/LOGO_-_Avocado_Society_of_Rwanda.png';
 import { MdOutlineDeleteOutline } from "react-icons/md";
 import { FiEdit } from "react-icons/fi";
 import * as XLSX from 'xlsx';
 import { CiLogout } from "react-icons/ci";
+import Select from 'react-select'; // Import react-select
 
 const Dashboard = () => {
   const [farmers, setFarmers] = useState([]);
   const [selectedFarmer, setSelectedFarmer] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedDistrict, setSelectedDistrict] = useState('');
+  const [selectedDistrict, setSelectedDistrict] = useState(null); // Updated to match react-select
 
   useEffect(() => {
     axios.get('https://applicanion-api.onrender.com/api/users')
       .then(response => {
         console.log(response.data);
         setFarmers(response.data);
-        
       })
       .catch(error => {
         console.error('There was an error fetching the data!', error);
@@ -48,20 +48,25 @@ const Dashboard = () => {
     XLSX.writeFile(workbook, 'FarmersData.xlsx');
   };
 
-  const handleDistrictChange = (e) => {
-    setSelectedDistrict(e.target.value);
+  const handleDistrictChange = (selectedOption) => {
+    setSelectedDistrict(selectedOption ? selectedOption.value : '');
   };
+
+  const districtOptions = farmers
+    .map(farmer => farmer.district)
+    .filter((value, index, self) => self.indexOf(value) === index)
+    .map(district => ({
+      label: district,
+      value: district
+    }));
 
   const filteredFarmers = selectedDistrict
     ? farmers.filter(farmer => farmer.district === selectedDistrict)
     : farmers;
 
-  // Logout logic
   const handleLogout = () => {
-    // Clear token from localStorage
-    localStorage.removeItem('authToken'); 
-    // Redirect to login page
-    window.location.href = '/login';
+    localStorage.removeItem('authToken');
+    window.location.href = '/';
   };
 
   return (
@@ -75,7 +80,6 @@ const Dashboard = () => {
             Ibarura ry’abahinzi bafite ubutaka bakaba bifuza gutera no gukora Ubuhinzi bw’ avoka by’ umwuga
           </p>
         </div>
-        {/* Logout Button */}
         <button className="logout-btn" onClick={handleLogout}><CiLogout /> Logout</button>
       </div>
 
@@ -88,24 +92,16 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* District Selection */}
+      {/* District Selection with Searchable Dropdown */}
       <div className="filter-section">
         <label htmlFor="district-select">Filter by District: </label>
-        <select
+        <Select
           id="district-select"
-          value={selectedDistrict}
+          options={districtOptions}
+          isClearable
           onChange={handleDistrictChange}
-        >
-          <option value="">All Districts</option>
-          {farmers
-            .map(farmer => farmer.district)
-            .filter((value, index, self) => self.indexOf(value) === index)
-            .map(district => (
-              <option key={district} value={district}>
-                {district}
-              </option>
-            ))}
-        </select>
+          placeholder="Select or search district"
+        />
       </div>
 
       {/* Farmers Table */}
@@ -117,9 +113,10 @@ const Dashboard = () => {
               <th>First Name</th>
               <th>Last Name</th>
               <th>Telephone</th>
-              <th>Village</th>
-              <th>Sector</th>
               <th>District</th>
+              <th>Sector</th>
+              <th>Cell</th>
+              <th>Village</th>
               <th>Action</th>
             </tr>
           </thead>
@@ -161,9 +158,13 @@ const Dashboard = () => {
             <p><strong>Telephone:</strong> {selectedFarmer.telephone}</p>
             <p><strong>ID Number:</strong> {selectedFarmer.idnumber}</p>
             <p><strong>Village:</strong> {selectedFarmer.village}</p>
+            <p><strong>Cell:</strong> {selectedFarmer.cell}</p>
             <p><strong>Sector:</strong> {selectedFarmer.sector}</p>
             <p><strong>District:</strong> {selectedFarmer.district}</p>
             <p><strong>Province:</strong> {selectedFarmer.province}</p>
+            <p><strong>Planted Date:</strong> {selectedFarmer.planted}</p>
+            <p><strong>Avocado Type:</strong> {selectedFarmer.avocadotype}</p>
+            <p><strong>Mixed Percentage:</strong> {selectedFarmer.mixedpercentage}</p>
             <p><strong>Farm Size:</strong> {selectedFarmer.farmsize}</p>
             <p><strong>Tree Count:</strong> {selectedFarmer.treecount}</p>
             <p><strong>UPI Number:</strong> {selectedFarmer.upinumber}</p>

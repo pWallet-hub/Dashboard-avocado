@@ -1,6 +1,6 @@
 /* Overall page styles */
 body {
-  font-family: 'Arial', sans-serif;
+  font-family: 'poppins', sans-seriArialf;
   background-color: #f5f7fa;
   color: #333;
 }
@@ -51,12 +51,18 @@ body {
 }
 .filter-section {
   margin-bottom: 20px;
+  display: flex;
+  gap: 2rem;
+  align-items: center;
+  margin-left: 1rem;
+
+
 }
 
 #district-select {
   padding: 10px;
   background: #38a169;
-  border-radius: 4px;
+  border-radius: 1px;
   font-size: 16px;
 }
 .add-employee-btn,
