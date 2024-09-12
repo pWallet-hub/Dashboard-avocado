@@ -84,7 +84,6 @@ const Dashboard = () => {
 
   return (
     <div className="dashboard-container">
-      {/* Header Section */}
       <div className="header-section">
         <img src={logo} alt="Logo" className="logo" />
         <div className="header-text">
@@ -95,8 +94,6 @@ const Dashboard = () => {
         </div>
         <button className="logout-btn" onClick={handleLogout}><CiLogout /> Logout</button>
       </div>
-
-      {/* Actions Header */}
       <div className="action-header">
         <h2>Farmers</h2>
         <div className="action-buttons">
@@ -105,7 +102,6 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* District Selection with Searchable Dropdown */}
       <div className="filter-section">
         <label htmlFor="district-select">Filter by District: </label>
         <Select
@@ -116,8 +112,6 @@ const Dashboard = () => {
           placeholder="Select or search district"
         />
       </div>
-
-      {/* Farmers Table */}
       <div className="table-container">
         {loading ? (
           <p>Loading data...</p>
@@ -162,8 +156,6 @@ const Dashboard = () => {
           <p>No Farmers Available</p>
         )}
       </div>
-
-      {/* Modal for Farmer Details */}
       {isModalOpen && selectedFarmer && (
         <div className="modal-overlay" onClick={handleOverlayClick}>
           <div className="modal-content">
