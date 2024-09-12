@@ -159,7 +159,6 @@ const Dashboard = () => {
           <table className="styled-table">
             <thead>
               <tr>
-                <th>ID</th>
                 <th>First Name</th>
                 <th>Last Name</th>
                 <th>Telephone</th>
@@ -173,7 +172,6 @@ const Dashboard = () => {
             <tbody>
               {filteredFarmers.map((farmer, index) => (
                 <tr key={index}>
-                  <td>{farmer.id || 'N/A'}</td>
                   <td>{farmer.firstname || 'N/A'}</td>
                   <td>{farmer.lastname || 'N/A'}</td>
                   <td>{farmer.telephone || 'N/A'}</td>
