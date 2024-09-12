@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import './Login.css'; // Import the CSS file
+import axios from 'axios';
+import './Login.css';
 import { IoIosLogIn } from "react-icons/io";
 
 function Login() {
@@ -8,11 +9,17 @@ function Login() {
   const [password, setPassword] = useState('');
   const navigate = useNavigate();
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    if (username === 'admin' && password === 'admin') {
+    try {
+      const response = await axios.post('https://applicanion-api.onrender.com/api/auth/login', {
+        username,
+        password
+      });
+      const token = response.data.token;
+      localStorage.setItem('token', token);
       navigate('/dashboard');
-    } else {
+    } catch (error) {
       alert('Invalid username or password');
     }
   };
@@ -25,7 +32,6 @@ function Login() {
           <h2>Urakaza neza kuri </h2>
           <h4>Avocado Society of Rwanda</h4>
           <p>Ibarura ry’abahinzi bafite ubutaka bakaba bifuza gutera no gukora Ubuhinzi bw’ avoka by’ umwuga</p>
-          
         </div>
         {/* Right Side - Login Form Section */}
         <div className="login-form-section">
@@ -45,7 +51,7 @@ function Login() {
               onChange={(e) => setPassword(e.target.value)}
               required
             />
-            <button  type="submit"><IoIosLogIn />Sign In</button>
+            <button type="submit"><IoIosLogIn />Sign In</button>
           </form>
         </div>
       </div>
