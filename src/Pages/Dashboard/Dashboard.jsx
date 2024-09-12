@@ -15,6 +15,7 @@ const Dashboard = () => {
   const [selectedDistrict, setSelectedDistrict] = useState(null); // Updated to match react-select
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [isEditMode, setIsEditMode] = useState(false);
 
   useEffect(() => {
     const fetchFarmers = async () => {
@@ -38,14 +39,16 @@ const Dashboard = () => {
     fetchFarmers();
   }, []);
 
-  const openModal = (farmer) => {
+  const openModal = (farmer, editMode = false) => {
     setSelectedFarmer(farmer);
+    setIsEditMode(editMode);
     setIsModalOpen(true);
   };
 
   const closeModal = () => {
     setIsModalOpen(false);
     setSelectedFarmer(null);
+    setIsEditMode(false);
   };
 
   const handleOverlayClick = (e) => {
@@ -80,6 +83,35 @@ const Dashboard = () => {
   const handleLogout = () => {
     localStorage.removeItem('token');
     window.location.href = '/';
+  };
+
+  const handleEdit = async (farmer) => {
+    const token = localStorage.getItem('token');
+    try {
+      const response = await axios.put(`https://applicanion-api.onrender.com/api/users/${farmer.id}`, farmer, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      setFarmers(farmers.map(f => (f.id === farmer.id ? response.data : f)));
+      closeModal();
+    } catch (error) {
+      setError('There was an error updating the farmer!');
+    }
+  };
+
+  const handleDelete = async (farmerId) => {
+    const token = localStorage.getItem('token');
+    try {
+      await axios.delete(`https://applicanion-api.onrender.com/api/users/${farmerId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      setFarmers(farmers.filter(f => f.id !== farmerId));
+    } catch (error) {
+      setError('There was an error deleting the farmer!');
+    }
   };
 
   return (
@@ -150,9 +182,9 @@ const Dashboard = () => {
                   <td>{farmer.cell || 'N/A'}</td>
                   <td>{farmer.village || 'N/A'}</td>
                   <td>
-                    <button className="view-details-btn" onClick={() => openModal(farmer)}>View</button>
-                    <button className="edit-btn"><FiEdit /></button>
-                    <button className="delete-btn"><MdOutlineDeleteOutline /></button>
+                    <button className="view-details-btn" onClick={() => openModal(farmer, false)}>View</button>
+                    <button className="edit-btn" onClick={() => openModal(farmer, true)}><FiEdit /></button>
+                    <button className="delete-btn" onClick={() => handleDelete(farmer.id)}><MdOutlineDeleteOutline /></button>
                   </td>
                 </tr>
               ))}
@@ -185,6 +217,9 @@ const Dashboard = () => {
             <p><strong>Tree Count:</strong> {selectedFarmer.treecount}</p>
             <p><strong>UPI Number:</strong> {selectedFarmer.upinumber}</p>
             <p><strong>Assistance Needed:</strong> {selectedFarmer.assistance}</p>
+            {isEditMode && (
+              <button className="edit-btn" onClick={() => handleEdit(selectedFarmer)}>Save Changes</button>
+            )}
           </div>
         </div>
       )}
