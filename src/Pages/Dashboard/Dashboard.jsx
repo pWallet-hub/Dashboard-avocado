@@ -99,18 +99,22 @@ const Dashboard = () => {
       setError('There was an error updating the farmer!');
     }
   };
-
   const handleDelete = async (farmerId) => {
     const token = localStorage.getItem('token');
+    setLoading(true);
+    setError(null);
     try {
       await axios.delete(`https://applicanion-api.onrender.com/api/users/${farmerId}`, {
         headers: {
           Authorization: `Bearer ${token}`
         }
       });
-      setFarmers(farmers.filter(f => f.id !== farmerId));
+      setFarmers(prevFarmers => prevFarmers.filter(f => f.id !== farmerId));
+      setLoading(false);
     } catch (error) {
-      setError('There was an error deleting the farmer!');
+      console.error('Error deleting farmer:', error);
+      setError('There was an error deleting the farmer. Please try again.');
+      setLoading(false);
     }
   };
 
@@ -148,7 +152,7 @@ const Dashboard = () => {
         {loading ? (
           <p>Loading data...</p>
         ) : error ? (
-          <p>{error}</p>
+          <p className="error-message">{error}</p>
         ) : filteredFarmers.length > 0 ? (
           <table className="styled-table">
             <thead>
@@ -178,7 +182,16 @@ const Dashboard = () => {
                   <td>
                     <button className="view-details-btn" onClick={() => openModal(farmer, false)}>View</button>
                     <button className="edit-btn" onClick={() => openModal(farmer, true)}><FiEdit /></button>
-                    <button className="delete-btn" onClick={() => handleDelete(farmer.id)}><MdOutlineDeleteOutline /></button>
+                    <button 
+                      className="delete-btn" 
+                      onClick={() => {
+                        if (window.confirm('Are you sure you want to delete this farmer?')) {
+                          handleDelete(farmer.id);
+                        }
+                      }}
+                    >
+                      <MdOutlineDeleteOutline />
+                    </button>
                   </td>
                 </tr>
               ))}
