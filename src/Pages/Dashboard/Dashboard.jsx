@@ -215,6 +215,11 @@ const Dashboard = () => {
             <p><strong>Sector:</strong> {selectedFarmer.sector}</p>
             <p><strong>District:</strong> {selectedFarmer.district}</p>
             <p><strong>Province:</strong> {selectedFarmer.province}</p>
+            <p><strong>Province:</strong> {selectedFarmer.province}</p>
+            <p><strong>District:</strong> {selectedFarmer.district}</p>
+            <p><strong>Sector:</strong> {selectedFarmer.sector}</p>
+            <p><strong>Cell:</strong> {selectedFarmer.cell}</p>
+            <p><strong>Village:</strong> {selectedFarmer.village}</p>
             <p><strong>Planted Date:</strong> {selectedFarmer.planted}</p>
             <p><strong>Avocado Type:</strong> {selectedFarmer.avocadotype}</p>
             <p><strong>Mixed Percentage:</strong> {selectedFarmer.mixedpercentage}</p>
