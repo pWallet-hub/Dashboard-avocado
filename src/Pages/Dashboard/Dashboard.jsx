@@ -99,24 +99,27 @@ const Dashboard = () => {
       setError('There was an error updating the farmer!');
     }
   };
-
   const handleDelete = async (farmerId) => {
     const token = localStorage.getItem('token');
+    setLoading(true);
+    setError(null);
     try {
       await axios.delete(`https://applicanion-api.onrender.com/api/users/${farmerId}`, {
         headers: {
           Authorization: `Bearer ${token}`
         }
       });
-      setFarmers(farmers.filter(f => f.id !== farmerId));
+      setFarmers(prevFarmers => prevFarmers.filter(f => f.id !== farmerId));
+      setLoading(false);
     } catch (error) {
-      setError('There was an error deleting the farmer!');
+      console.error('Error deleting farmer:', error);
+      setError('There was an error deleting the farmer. Please try again.');
+      setLoading(false);
     }
   };
 
   return (
     <div className="dashboard-container">
-      {/* Header Section */}
       <div className="header-section">
         <img src={logo} alt="Logo" className="logo" />
         <div className="header-text">
@@ -127,8 +130,6 @@ const Dashboard = () => {
         </div>
         <button className="logout-btn" onClick={handleLogout}><CiLogout /> Logout</button>
       </div>
-
-      {/* Actions Header */}
       <div className="action-header">
         <h2>Farmers</h2>
         <div className="action-buttons">
@@ -137,7 +138,6 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* District Selection with Searchable Dropdown */}
       <div className="filter-section">
         <label htmlFor="district-select">Filter by District: </label>
         <Select
@@ -148,13 +148,11 @@ const Dashboard = () => {
           placeholder="Select or search district"
         />
       </div>
-
-      {/* Farmers Table */}
       <div className="table-container">
         {loading ? (
           <p>Loading data...</p>
         ) : error ? (
-          <p>{error}</p>
+          <p className="error-message">{error}</p>
         ) : filteredFarmers.length > 0 ? (
           <table className="styled-table">
             <thead>
@@ -182,7 +180,16 @@ const Dashboard = () => {
                   <td>
                     <button className="view-details-btn" onClick={() => openModal(farmer, false)}>View</button>
                     <button className="edit-btn" onClick={() => openModal(farmer, true)}><FiEdit /></button>
-                    <button className="delete-btn" onClick={() => handleDelete(farmer.id)}><MdOutlineDeleteOutline /></button>
+                    <button 
+                      className="delete-btn" 
+                      onClick={() => {
+                        if (window.confirm('Are you sure you want to delete this farmer?')) {
+                          handleDelete(farmer.id);
+                        }
+                      }}
+                    >
+                      <MdOutlineDeleteOutline />
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -192,8 +199,6 @@ const Dashboard = () => {
           <p>No Farmers Available</p>
         )}
       </div>
-
-      {/* Modal for Farmer Details */}
       {isModalOpen && selectedFarmer && (
         <div className="modal-overlay" onClick={handleOverlayClick}>
           <div className="modal-content">
