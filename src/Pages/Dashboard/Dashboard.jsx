@@ -99,6 +99,7 @@ const Dashboard = () => {
       setError('There was an error updating the farmer!');
     }
   };
+
   const handleDelete = async (farmerId) => {
     const token = localStorage.getItem('token');
     setLoading(true);
@@ -208,11 +209,16 @@ const Dashboard = () => {
             <p><strong>Last Name:</strong> {selectedFarmer.lastname}</p>
             <p><strong>Telephone:</strong> {selectedFarmer.telephone}</p>
             <p><strong>ID Number:</strong> {selectedFarmer.idnumber}</p>
-            <p><strong>Village:</strong> {selectedFarmer.village}</p>
-            <p><strong>Cell:</strong> {selectedFarmer.cell}</p>
-            <p><strong>Sector:</strong> {selectedFarmer.sector}</p>
-            <p><strong>District:</strong> {selectedFarmer.district}</p>
             <p><strong>Province:</strong> {selectedFarmer.province}</p>
+            <p><strong>District:</strong> {selectedFarmer.district}</p>
+            <p><strong>Sector:</strong> {selectedFarmer.sector}</p>
+            <p><strong>Cell:</strong> {selectedFarmer.cell}</p>
+            <p><strong>Village:</strong> {selectedFarmer.village}</p>
+            <p><strong>Farm Province:</strong> {selectedFarmer.farm_province}</p>
+            <p><strong>Farm District:</strong> {selectedFarmer.farm_district}</p>
+            <p><strong>Farm Sector:</strong> {selectedFarmer.farm_sector}</p>
+            <p><strong>Farm Cell:</strong> {selectedFarmer.farm_cell}</p>
+            <p><strong>Farm Village:</strong> {selectedFarmer.farm_village}</p>
             <p><strong>Planted Date:</strong> {selectedFarmer.planted}</p>
             <p><strong>Avocado Type:</strong> {selectedFarmer.avocadotype}</p>
             <p><strong>Mixed Percentage:</strong> {selectedFarmer.mixedpercentage}</p>
