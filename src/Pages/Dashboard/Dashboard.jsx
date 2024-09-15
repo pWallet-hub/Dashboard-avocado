@@ -99,6 +99,7 @@ const Dashboard = () => {
       setError('There was an error updating the farmer!');
     }
   };
+
   const handleDelete = async (farmerId) => {
     const token = localStorage.getItem('token');
     setLoading(true);
@@ -157,7 +158,6 @@ const Dashboard = () => {
           <table className="styled-table">
             <thead>
               <tr>
-                <th>ID</th>
                 <th>First Name</th>
                 <th>Last Name</th>
                 <th>Telephone</th>
@@ -171,7 +171,6 @@ const Dashboard = () => {
             <tbody>
               {filteredFarmers.map((farmer, index) => (
                 <tr key={index}>
-                  <td>{farmer.id || 'N/A'}</td>
                   <td>{farmer.firstname || 'N/A'}</td>
                   <td>{farmer.lastname || 'N/A'}</td>
                   <td>{farmer.telephone || 'N/A'}</td>
@@ -210,16 +209,9 @@ const Dashboard = () => {
             <p><strong>Last Name:</strong> {selectedFarmer.lastname}</p>
             <p><strong>Telephone:</strong> {selectedFarmer.telephone}</p>
             <p><strong>ID Number:</strong> {selectedFarmer.idnumber}</p>
-            <p><strong>Village:</strong> {selectedFarmer.village}</p>
-            <p><strong>Cell:</strong> {selectedFarmer.cell}</p>
-            <p><strong>Sector:</strong> {selectedFarmer.sector}</p>
-            <p><strong>District:</strong> {selectedFarmer.district}</p>
-            <p><strong>Province:</strong> {selectedFarmer.province}</p>
             <p><strong>Province:</strong> {selectedFarmer.province}</p>
             <p><strong>District:</strong> {selectedFarmer.district}</p>
-            <p><strong>Sector:</strong> {selectedFarmer.sector}</p>
-            <p><strong>Cell:</strong> {selectedFarmer.cell}</p>
-            <p><strong>Village:</strong> {selectedFarmer.village}</p>
+            <p><strong>Province:</strong> {selectedFarmer.province}</p>
             <p><strong>Planted Date:</strong> {selectedFarmer.planted}</p>
             <p><strong>Avocado Type:</strong> {selectedFarmer.avocadotype}</p>
             <p><strong>Mixed Percentage:</strong> {selectedFarmer.mixedpercentage}</p>
