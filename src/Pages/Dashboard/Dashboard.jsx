@@ -161,6 +161,7 @@ const Dashboard = () => {
                 <th>First Name</th>
                 <th>Last Name</th>
                 <th>Telephone</th>
+                <th>Age</th>
                 <th>District</th>
                 <th>Sector</th>
                 <th>Cell</th>
@@ -174,6 +175,7 @@ const Dashboard = () => {
                   <td>{farmer.firstname || 'N/A'}</td>
                   <td>{farmer.lastname || 'N/A'}</td>
                   <td>{farmer.telephone || 'N/A'}</td>
+                  <td>{farmer.age || 'N/A'}</td>
                   <td>{farmer.district || 'N/A'}</td>
                   <td>{farmer.sector || 'N/A'}</td>
                   <td>{farmer.cell || 'N/A'}</td>
@@ -205,9 +207,11 @@ const Dashboard = () => {
           <div className="modal-content">
             <span className="close-btn" onClick={closeModal}>&times;</span>
             <h2>Farmer Details</h2>
+            <div className='scrollable-content'>
             <p><strong>First Name:</strong> {selectedFarmer.firstname}</p>
             <p><strong>Last Name:</strong> {selectedFarmer.lastname}</p>
             <p><strong>Telephone:</strong> {selectedFarmer.telephone}</p>
+            <p><strong>Age:</strong> {selectedFarmer.age}</p>
             <p><strong>ID Number:</strong> {selectedFarmer.idnumber}</p>
             <p><strong>Province:</strong> {selectedFarmer.province}</p>
             <p><strong>District:</strong> {selectedFarmer.district}</p>
@@ -219,13 +223,14 @@ const Dashboard = () => {
             <p><strong>Farm Sector:</strong> {selectedFarmer.farm_sector}</p>
             <p><strong>Farm Cell:</strong> {selectedFarmer.farm_cell}</p>
             <p><strong>Farm Village:</strong> {selectedFarmer.farm_village}</p>
-            <p><strong>Planted Date:</strong> {selectedFarmer.planted}</p>
+            <p><strong>Planted Date:</strong> {selectedFarmer.farm_age}</p>
             <p><strong>Avocado Type:</strong> {selectedFarmer.avocadotype}</p>
             <p><strong>Mixed Percentage:</strong> {selectedFarmer.mixedpercentage}</p>
             <p><strong>Farm Size:</strong> {selectedFarmer.farmsize}</p>
             <p><strong>Tree Count:</strong> {selectedFarmer.treecount}</p>
             <p><strong>UPI Number:</strong> {selectedFarmer.upinumber}</p>
             <p><strong>Assistance Needed:</strong> {selectedFarmer.assistance}</p>
+            </div>
             {isEditMode && (
               <button className="edit-btn" onClick={() => handleEdit(selectedFarmer)}>Save Changes</button>
             )}

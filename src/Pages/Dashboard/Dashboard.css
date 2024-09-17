@@ -44,6 +44,11 @@ body {
   justify-content: space-between;
   margin-bottom: 20px;
 }
+.scrollable-content {
+  flex-grow: 1;
+  overflow-y: auto;
+  padding-right: 15px; /* Add some padding to account for the scrollbar */
+}
 
 .action-buttons {
   display: flex;
@@ -135,6 +140,9 @@ body {
   border-radius: 10px;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
   position: relative;
+  max-height: 80vh; /* Limit the height to 80% of the viewport height */
+  display: flex;
+  flex-direction: column;
 }
 
 .close-btn {
