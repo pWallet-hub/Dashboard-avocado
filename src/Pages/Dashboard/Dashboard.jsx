@@ -6,16 +6,17 @@ import { MdOutlineDeleteOutline } from "react-icons/md";
 import { FiEdit } from "react-icons/fi";
 import * as XLSX from 'xlsx';
 import { CiLogout } from "react-icons/ci";
-import Select from 'react-select'; // Import react-select
+import Select from 'react-select';
 
 const Dashboard = () => {
   const [farmers, setFarmers] = useState([]);
   const [selectedFarmer, setSelectedFarmer] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedDistrict, setSelectedDistrict] = useState(null); // Updated to match react-select
+  const [selectedDistrict, setSelectedDistrict] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [editedFarmer, setEditedFarmer] = useState(null);
 
   useEffect(() => {
     const fetchFarmers = async () => {
@@ -41,14 +42,21 @@ const Dashboard = () => {
 
   const openModal = (farmer, editMode = false) => {
     setSelectedFarmer(farmer);
+    setEditedFarmer({ ...farmer });
     setIsEditMode(editMode);
     setIsModalOpen(true);
+  };
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setEditedFarmer(prev => ({ ...prev, [name]: value }));
   };
 
   const closeModal = () => {
     setIsModalOpen(false);
     setSelectedFarmer(null);
     setIsEditMode(false);
+    setError(null);
   };
 
   const handleOverlayClick = (e) => {
@@ -85,18 +93,30 @@ const Dashboard = () => {
     window.location.href = '/';
   };
 
-  const handleEdit = async (farmer) => {
+  const handleEdit = async () => {
     const token = localStorage.getItem('token');
+    setLoading(true);
+    setError(null);
     try {
-      const response = await axios.put(`https://applicanion-api.onrender.com/api/users/${farmer.id}`, farmer, {
+      const response = await axios.put(`https://applicanion-api.onrender.com/api/users/${editedFarmer.id}`, editedFarmer, {
         headers: {
-          Authorization: `Bearer ${token}`
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
         }
       });
-      setFarmers(farmers.map(f => (f.id === farmer.id ? response.data : f)));
+      setFarmers(prevFarmers =>
+        prevFarmers.map(farmer =>
+          farmer.id === editedFarmer.id ? response.data : farmer
+        )
+      );
+      setSelectedFarmer(response.data);
+      setIsEditMode(false);
       closeModal();
     } catch (error) {
-      setError('There was an error updating the farmer!');
+      console.error('Error updating farmer:', error);
+      setError(error.response?.data?.message || 'There was an error updating the farmer!');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -111,22 +131,22 @@ const Dashboard = () => {
         }
       });
       setFarmers(prevFarmers => prevFarmers.filter(f => f.id !== farmerId));
-      setLoading(false);
     } catch (error) {
       console.error('Error deleting farmer:', error);
       setError('There was an error deleting the farmer. Please try again.');
+    } finally {
       setLoading(false);
     }
   };
 
   return (
     <div className="dashboard-container">
-      <div className="header-section">
+        <div className="header-section">
         <img src={logo} alt="Logo" className="logo" />
         <div className="header-text">
           <h1 className="main-title">Avocado Society of Rwanda</h1>
           <p className="subtitle">
-            Ibarura ry’abahinzi bafite ubutaka bakaba bifuza gutera no gukora Ubuhinzi bw’ avoka by’ umwuga
+            Ibarura ry'abahinzi bafite ubutaka bakaba bifuza gutera no gukora Ubuhinzi bw' avoka by' umwuga
           </p>
         </div>
         <button className="logout-btn" onClick={handleLogout}><CiLogout /> Logout</button>
@@ -208,32 +228,31 @@ const Dashboard = () => {
             <span className="close-btn" onClick={closeModal}>&times;</span>
             <h2>Farmer Details</h2>
             <div className='scrollable-content'>
-            <p><strong>First Name:</strong> {selectedFarmer.firstname}</p>
-            <p><strong>Last Name:</strong> {selectedFarmer.lastname}</p>
-            <p><strong>Telephone:</strong> {selectedFarmer.telephone}</p>
-            <p><strong>Age:</strong> {selectedFarmer.age}</p>
-            <p><strong>ID Number:</strong> {selectedFarmer.idnumber}</p>
-            <p><strong>Province:</strong> {selectedFarmer.province}</p>
-            <p><strong>District:</strong> {selectedFarmer.district}</p>
-            <p><strong>Sector:</strong> {selectedFarmer.sector}</p>
-            <p><strong>Cell:</strong> {selectedFarmer.cell}</p>
-            <p><strong>Village:</strong> {selectedFarmer.village}</p>
-            <p><strong>Farm Province:</strong> {selectedFarmer.farm_province}</p>
-            <p><strong>Farm District:</strong> {selectedFarmer.farm_district}</p>
-            <p><strong>Farm Sector:</strong> {selectedFarmer.farm_sector}</p>
-            <p><strong>Farm Cell:</strong> {selectedFarmer.farm_cell}</p>
-            <p><strong>Farm Village:</strong> {selectedFarmer.farm_village}</p>
-            <p><strong>Planted Date:</strong> {selectedFarmer.farm_age}</p>
-            <p><strong>Avocado Type:</strong> {selectedFarmer.avocadotype}</p>
-            <p><strong>Mixed Percentage:</strong> {selectedFarmer.mixedpercentage}</p>
-            <p><strong>Farm Size:</strong> {selectedFarmer.farmsize}</p>
-            <p><strong>Tree Count:</strong> {selectedFarmer.treecount}</p>
-            <p><strong>UPI Number:</strong> {selectedFarmer.upinumber}</p>
-            <p><strong>Assistance Needed:</strong> {selectedFarmer.assistance}</p>
+              {Object.entries(editedFarmer).map(([key, value]) => (
+                <p key={key}>
+                  <strong>{key.charAt(0).toUpperCase() + key.slice(1)}:</strong>
+                  {isEditMode ? (
+                    <input
+                      type="text"
+                      name={key}
+                      value={value || ''}
+                      onChange={handleInputChange}
+                    />
+                  ) : (
+                    ` ${value || 'N/A'}`
+                  )}
+                </p>
+              ))}
             </div>
             {isEditMode && (
-              <button className="edit-btn" onClick={() => handleEdit(selectedFarmer)}>Save Changes</button>
+              <div className='edit-buttons'>
+                <button className="edit-btn" onClick={handleEdit} disabled={loading}>
+                  {loading ? 'Saving...' : 'Save Changes'}
+                </button>
+                <button className="cancel-btn" onClick={closeModal}>Cancel</button>
+              </div>
             )}
+            {error && <p className="error-message">{error}</p>}
           </div>
         </div>
       )}
