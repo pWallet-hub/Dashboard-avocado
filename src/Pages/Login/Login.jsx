@@ -1,70 +1,59 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { IoIosLogIn } from "react-icons/io";
-
+import axios from 'axios';
 function Login() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
- const handleLogin = (e) => {
+//  const handleLogin = (e) => {
+//     e.preventDefault();
+//     setLoading(true);
+
+//     // Simulate API call delay
+//     setTimeout(() => {
+//       setLoading(false);
+//       switch (username.toLowerCase()) {
+//         case 'admin':
+//           localStorage.setItem('role', 'admin');
+//           break;
+//         case 'agent':
+//           localStorage.setItem('role', 'agent');
+//           break;
+//         case 'farmer':
+//           localStorage.setItem('role', 'farmer');
+//           break;
+//         default:
+//           alert('Invalid username or password');
+//           break;
+//       }
+//       navigate('/dashboard');
+//     }, 1000); // Simulate a 1 second delay
+  // };
+  
+   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
+    try {
+      const response = await axios.post('https://pwallet-api.onrender.com/api/auth/login', {
+        username,
+        password
+      });
+      const { token, user } = response.data;
+      localStorage.setItem('token', token);
+      localStorage.setItem('role',  user.role);
 
-    // Simulate API call delay
-    setTimeout(() => {
-      setLoading(false);
-      switch (username.toLowerCase()) {
-        case 'admin':
-          localStorage.setItem('role', 'admin');
-          break;
-        case 'agent':
-          localStorage.setItem('role', 'agent');
-          break;
-        case 'farmer':
-          localStorage.setItem('role', 'farmer');
-          break;
-        default:
-          alert('Invalid username or password');
-          break;
-      }
+      // 
       navigate('/dashboard');
-    }, 1000); // Simulate a 1 second delay
+    } catch (error) {
+      alert('Invalid username or password');
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
   };
-  
-  //  const handleLogin = async (e) => {
-  //   e.preventDefault();
-  //   setLoading(true);
-  //   try {
-  //     const response = await axios.post('https://applicanion-api.onrender.com/api/auth/login', {
-  //       username,
-  //       password
-  //     });
-  //     const { token, role } = response.data;
-  //     localStorage.setItem('token', token);
-  //     localStorage.setItem('role', role);
-
-  //     switch (role) {
-  //       case 'admin':
-  //         navigate('/admin');
-  //         break;
-  //       case 'agent':
-  //         navigate('/agent');
-  //         break;
-  //       case 'farmer':
-  //         navigate('/farmer');
-  //         break;
-  //       default:
-  //         navigate('/');
-  //         break;
-  //     }
-  //   } catch (error) {
-  //     alert('Invalid username or password');
-  //   } finally {
-  //     setLoading(false);
-  //   }
-  // };
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gradient-to-r from-green-400 to-green-500">
