@@ -1,6 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import  { useEffect, useState } from 'react';
 import axios from 'axios';
-import Layout from '../../components/Layout/Layout';
 
 export default function Agent() {
   const [agentProfile, setAgentProfile] = useState({});
@@ -12,14 +11,16 @@ export default function Agent() {
       setLoading(true);
       setError(null);
       const token = localStorage.getItem('token');
+      const agentId = localStorage.getItem('id'); // Replace with dynamic ID if needed
       try {
-        const response = await axios.get('https://applicanion-api.onrender.com/api/agent/profile', {
+        const response = await axios.get(`https://pwallet-api.onrender.com/api/agents/profile/${agentId}`, {
           headers: {
             Authorization: `Bearer ${token}`
           }
         });
         setAgentProfile(response.data);
       } catch (error) {
+        console.log(error)
         setError('There was an error fetching the profile data!');
       } finally {
         setLoading(false);
@@ -28,6 +29,7 @@ export default function Agent() {
 
     fetchAgentProfile();
   }, []);
+    
 
   const handleLogout = () => {
     localStorage.removeItem('token');
