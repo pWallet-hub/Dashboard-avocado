@@ -23,7 +23,7 @@ const Sidebar = ({ role }) => {
                 <Link to="/dashboard/admin/agents" className="sidebar-link">Manage Agents</Link>
             </li>
              <li className="mb-2 sidebar-item">
-                <Link to="/dashboard/admin/reports" className="sidebar-link">Reports</Link>
+                <Link to="/dashboard/admin/reports" className="sidebar-link">Manage Account</Link>
             </li>
              <li className="mb-2 sidebar-item">
                 <Link to="/dashboard/admin/shops" className="sidebar-link">Manage shops</Link>
