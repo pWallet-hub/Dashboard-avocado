@@ -22,7 +22,7 @@ const Users = () => {
       setError(null);
       const token = localStorage.getItem('token');
       try {
-        const response = await axios.get('https://applicanion-api.onrender.com/api/users', {
+        const response = await axios.get('https://pwallet-api.onrender.com/api/farmers/', {
           headers: {
             Authorization: `Bearer ${token}`
           }
@@ -142,8 +142,7 @@ const Users = () => {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr>
-                <th className="p-3 text-white bg-green-500">First Name</th>
-                <th className="p-3 text-white bg-green-500">Last Name</th>
+                <th className="p-3 text-white bg-green-500">Full Name</th>
                 <th className="p-3 text-white bg-green-500">Telephone</th>
                 <th className="p-3 text-white bg-green-500">Age</th>
                 <th className="p-3 text-white bg-green-500">District</th>
@@ -156,8 +155,7 @@ const Users = () => {
             <tbody>
               {filteredUsers.map((user, index) => (
                 <tr key={index} className="border-b">
-                  <td className="p-3">{user.firstname || 'N/A'}</td>
-                  <td className="p-3">{user.lastname || 'N/A'}</td>
+                  <td className="p-3">{user.full_name || 'N/A'}</td>
                   <td className="p-3">{user.telephone || 'N/A'}</td>
                   <td className="p-3">{user.age || 'N/A'}</td>
                   <td className="p-3">{user.district || 'N/A'}</td>
