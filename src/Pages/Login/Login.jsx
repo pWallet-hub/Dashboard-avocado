@@ -44,6 +44,7 @@ function Login() {
       const { token, user } = response.data;
       localStorage.setItem('token', token);
       localStorage.setItem('role',  user.role);
+      localStorage.setItem('id', user.id);
 
       // 
       navigate('/dashboard');
