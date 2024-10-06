@@ -11,14 +11,16 @@ function Admin() {
       setLoading(true);
       setError(null);
       const token = localStorage.getItem('token');
+      const id = localStorage.getItem('id');
       try {
-        const response = await axios.get('https://applicanion-api.onrender.com/api/admin/profile', {
+        const response = await axios.get(`https://pwallet-api.onrender.com/api/auth/admin-profile/${id}`, {
           headers: {
             Authorization: `Bearer ${token}`
           }
         });
         setAdminProfile(response.data);
       } catch (error) {
+        console.error(error);
         setError('There was an error fetching the profile data!');
       } finally {
         setLoading(false);
@@ -44,7 +46,7 @@ function Admin() {
         <div className="p-6 bg-white rounded-lg shadow-md">
           <div className="mb-4">
             <h2 className="text-xl font-bold">Profile Information</h2>
-            <p><strong>Name:</strong> {adminProfile.name || 'N/A'}</p>
+            <p><strong>Name:</strong> {adminProfile.username || 'N/A'}</p>
             <p><strong>Email:</strong> {adminProfile.email || 'N/A'}</p>
             <p><strong>Phone Number:</strong> {adminProfile.phoneNumber || 'N/A'}</p>
             <p><strong>Role:</strong> {adminProfile.role || 'N/A'}</p>
