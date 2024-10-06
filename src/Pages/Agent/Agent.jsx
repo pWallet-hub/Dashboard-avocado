@@ -11,7 +11,7 @@ export default function Agent() {
       setLoading(true);
       setError(null);
       const token = localStorage.getItem('token');
-      const agentId = localStorage.getItem('id'); // Replace with dynamic ID if needed
+      const agentId = localStorage.getItem('id'); 
       try {
         const response = await axios.get(`https://pwallet-api.onrender.com/api/agents/profile/${agentId}`, {
           headers: {
