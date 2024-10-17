@@ -7,31 +7,6 @@ function Login() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-
-//  const handleLogin = (e) => {
-//     e.preventDefault();
-//     setLoading(true);
-
-//     // Simulate API call delay
-//     setTimeout(() => {
-//       setLoading(false);
-//       switch (username.toLowerCase()) {
-//         case 'admin':
-//           localStorage.setItem('role', 'admin');
-//           break;
-//         case 'agent':
-//           localStorage.setItem('role', 'agent');
-//           break;
-//         case 'farmer':
-//           localStorage.setItem('role', 'farmer');
-//           break;
-//         default:
-//           alert('Invalid username or password');
-//           break;
-//       }
-//       navigate('/dashboard');
-//     }, 1000); // Simulate a 1 second delay
-  // };
   
    const handleLogin = async (e) => {
     e.preventDefault();

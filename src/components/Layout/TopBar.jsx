@@ -16,7 +16,7 @@ const TopBar = ({ onLogout, user }) => {
           <div className="flex items-center space-x-4">
             <div className="flex items-center">
               <img 
-                src="/api/placeholder/48/48"
+                src="/assets/image/LOGO_-_Avocado_Society_of_Rwanda.png"
                 alt="Logo" 
                 className="w-10 h-10 transition-transform duration-300 rounded-lg hover:scale-105"
               />
@@ -40,7 +40,7 @@ const TopBar = ({ onLogout, user }) => {
                 <div className="w-8 h-8 overflow-hidden bg-teal-600 rounded-full">
                   <User className="w-full h-full p-1" />
                 </div>
-                <span className="hidden md:block">{user?.name || 'Admin'}</span>
+                <span className="hidden md:block">{user?.name || 'N/A'}</span>
                 <ChevronDown className="hidden w-4 h-4 md:block" />
               </button>
 
