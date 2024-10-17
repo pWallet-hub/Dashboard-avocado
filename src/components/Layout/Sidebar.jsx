@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   Home, 
@@ -6,7 +6,7 @@ import {
   Users, 
   UserCheck, 
   FileText, 
-  ShoppingCart, // Replaced Shopping with ShoppingCart
+  ShoppingCart,
   BarChart2,
   Settings,
   ShoppingBag,
@@ -38,7 +38,7 @@ const Sidebar = ({ role }) => {
     { to: "/dashboard/admin/users", icon: Users, text: "Manage Users" },
     { to: "/dashboard/admin/agents", icon: UserCheck, text: "Manage Agents" },
     { to: "/dashboard/admin/reports", icon: FileText, text: "Manage Account" },
-    { to: "/dashboard/admin/shops", icon: ShoppingCart, text: "Manage Shops" }, // Replaced Shopping with ShoppingCart
+    { to: "/dashboard/admin/shops", icon: ShoppingCart, text: "Manage Shops" }, 
     { to: "/dashboard/admin/statistics", icon: BarChart2, text: "System Usage" },
   ];
 
@@ -51,7 +51,7 @@ const Sidebar = ({ role }) => {
   ];
 
   const farmerLinks = [
-    { to: "/dashboard/farmer/market", icon: ShoppingCart, text: "Market" }, // Replaced Shopping with ShoppingCart
+    { to: "/dashboard/farmer/market", icon: ShoppingCart, text: "Market" },
     { to: "/dashboard/farmer/service", icon: Settings, text: "Service" },
     { to: "/dashboard/farmer/profile", icon: User, text: "Profile" },
   ];
@@ -74,7 +74,7 @@ const Sidebar = ({ role }) => {
       {/* Mobile Menu Button */}
       <button
         onClick={() => setIsMobileOpen(!isMobileOpen)}
-        className="fixed p-2 bg-gray-800 rounded-lg top-4 left-4 lg:hidden"
+        className="fixed p-2 bg-gray-800 rounded-lg top-4 left-4 lg:hidden z-50"
       >
         {isMobileOpen ? <X className="w-6 h-6 text-white" /> : <Menu className="w-6 h-6 text-white" />}
       </button>
@@ -82,7 +82,7 @@ const Sidebar = ({ role }) => {
       {/* Backdrop for mobile */}
       {isMobileOpen && (
         <div
-          className="fixed inset-0 bg-black/50 lg:hidden"
+          className="fixed inset-0 bg-black/50 lg:hidden z-40"
           onClick={() => setIsMobileOpen(false)}
         />
       )}
@@ -93,7 +93,7 @@ const Sidebar = ({ role }) => {
           ${isMobileOpen ? 'translate-x-0' : '-translate-x-full'} 
           lg:translate-x-0 lg:static
           ${isCollapsed ? 'lg:w-20' : 'lg:w-64'}
-          w-64`}
+          w-64 lg:w-64` /* Adjust width based on collapse state */}
       >
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-700">
