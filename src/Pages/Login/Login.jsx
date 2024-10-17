@@ -45,6 +45,7 @@ function Login() {
       localStorage.setItem('token', token);
       localStorage.setItem('role',  user.role);
       localStorage.setItem('id', user.id);
+      localStorage.setItem('username', user.username);
 
       // 
       navigate('/dashboard');
