@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import axios from 'axios';
 
 const Home = () => {
@@ -21,6 +21,7 @@ const Home = () => {
         const response = await axios.get('https://pwallet-api.onrender.com/api/announcements');
         setAnnouncements(response.data);
       } catch (error) {
+        console.log(error);
         setError('There was an error fetching the announcements!');
       } finally {
         setLoading(false);
