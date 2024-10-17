@@ -209,16 +209,16 @@ const Users = () => {
             </div>
             {isEditMode && (
               <div className="flex justify-center gap-5 mt-4">
-                <button className="px-4 py-2 text-white transition duration-300 bg-yellow-500 rounded hover:bg-yellow-600" onClick={() => handleEdit(selectedUser)} disabled={loading}>
-                  {loading ? 'Saving...' : 'Save Changes'}
-                </button>
-                <button className="px-4 py-2 text-white transition duration-300 bg-red-500 rounded hover:bg-red-600" onClick={closeModal}>Cancel</button>
+                <button className="px-4 py-2 text-white bg-blue-500 rounded hover:bg-blue-600" onClick={() => handleEdit(selectedUser)}>Save</button>
+                <button className="px-4 py-2 text-white bg-gray-500 rounded hover:bg-gray-600" onClick={closeModal}>Cancel</button>
               </div>
             )}
-            {error && <p className="mt-4 text-red-500">{error}</p>}
           </div>
         </div>
       )}
+      <button className="flex items-center gap-1 px-4 py-2 mt-6 text-white bg-green-600 rounded hover:bg-green-700" onClick={handleLogout}>
+        Logout <CiLogout size={20} />
+      </button>
     </div>
   );
 };
