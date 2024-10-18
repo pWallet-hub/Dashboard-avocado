@@ -61,7 +61,7 @@ export default function Shop() {
       });
       setProducts(products.map(product => product.id === productId ? response.data : product));
     } catch (error) {
-      setError('There was an error updating the stock!');
+      setError(error.response?.data?.message || 'There was an error updating the stock!');
     } finally {
       setLoading(false);
     }
