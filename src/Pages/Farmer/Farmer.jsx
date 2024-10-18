@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import axios from 'axios';
 
 export default function Farmer() {
@@ -32,7 +32,7 @@ export default function Farmer() {
         const availableProductsResponse = await axios.get('https://applicanion-api.onrender.com/api/products');
         setAvailableProducts(availableProductsResponse.data);
       } catch (error) {
-        setError('There was an error fetching the data!');
+        setError(error.response?.data?.message || 'There was an error fetching the data!');
       } finally {
         setLoading(false);
       }
@@ -55,7 +55,7 @@ export default function Farmer() {
       setProductsForSale([...productsForSale, response.data]);
       setNewProduct({ name: '', price: 0, stock: 0 });
     } catch (error) {
-      setError('There was an error adding the product!');
+      setError(error.response?.data?.message || 'There was an error adding the product!');
     } finally {
       setLoading(false);
     }
@@ -73,7 +73,7 @@ export default function Farmer() {
       });
       alert('Product bought successfully!');
     } catch (error) {
-      setError('There was an error buying the product!');
+      setError(error.response?.data?.message || 'There was an error buying the product!');
     } finally {
       setLoading(false);
     }

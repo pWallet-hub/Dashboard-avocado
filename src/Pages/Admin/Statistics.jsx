@@ -7,7 +7,7 @@ export default function Statistics() {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">System Usage Statistics</h1>
-          <p className="mt-2 text-gray-600">Overview of your system's performance</p>
+          <p className="mt-2 text-gray-600">Overview of your system``s performance</p>
         </div>
 
         {/* Stats Grid */}

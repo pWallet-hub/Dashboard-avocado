@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { ClipLoader } from 'react-spinners';
 import Select from 'react-select';
@@ -38,10 +38,7 @@ export default function ShopView() {
     }
   };
 
-  const openModal = (shop) => {
-    setSelectedShop(shop);
-    setIsModalOpen(true);
-  };
+  
 
   const closeModal = () => {
     setIsModalOpen(false);
@@ -57,10 +54,7 @@ export default function ShopView() {
     : shops;
 
   const exportToExcel = () => {
-    const worksheet = XLSX.utils.json_to_sheet(shops);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Shops');
-    XLSX.writeFile(workbook, 'ShopsData.xlsx');
+    alert('Exporting to Excel...');
   };
 
   return (

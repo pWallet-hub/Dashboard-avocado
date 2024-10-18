@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import axios from 'axios';
 
 export default function FarmerList() {
@@ -20,7 +20,7 @@ export default function FarmerList() {
         });
         setFarmers(response.data);
       } catch (error) {
-        setError('There was an error fetching the data!');
+        setError(error.response?.data?.message || 'There was an error fetching the farmers!');
       } finally {
         setLoading(false);
       }

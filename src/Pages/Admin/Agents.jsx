@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
-import Modal from '../../components/Ui/Modal';
+
 
 export default function Agents() {
   const [agents, setAgents] = useState([]);
