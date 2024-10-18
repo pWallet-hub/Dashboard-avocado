@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { ClipLoader } from 'react-spinners';
 
@@ -15,7 +15,7 @@ export default function Market() {
         const response = await axios.get('https://applicanion-api.onrender.com/api/products');
         setProducts(response.data);
       } catch (error) {
-        setError('There was an error fetching the products!');
+        setError(error.response?.data?.message || 'There was an error fetching the data!');
       } finally {
         setLoading(false);
       }
@@ -36,7 +36,7 @@ export default function Market() {
       });
       alert('Product bought successfully!');
     } catch (error) {
-      setError('There was an error buying the product!');
+      setError(error.response?.data?.message || 'There was an error buying the product!');
     } finally {
       setLoading(false);
     }

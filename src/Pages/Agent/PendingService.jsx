@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import axios from 'axios';
 
 export default function PendingService() {
@@ -19,7 +19,7 @@ export default function PendingService() {
         });
         setPendingRequests(response.data);
       } catch (error) {
-        setError('There was an error fetching the data!');
+        setError(error.response.data.message);
       } finally {
         setLoading(false);
       }
