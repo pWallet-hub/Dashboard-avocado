@@ -179,6 +179,7 @@ const Dashboard = () => {
                   <td>{farmer.cell || 'N/A'}</td>
                   <td>{farmer.village || 'N/A'}</td>
                   <td>
+                    <div className='action-buttons'>
                     <button className="view-details-btn" onClick={() => openModal(farmer, false)}>View</button>
                     <button className="edit-btn" onClick={() => openModal(farmer, true)}><FiEdit /></button>
                     <button 
@@ -191,6 +192,7 @@ const Dashboard = () => {
                     >
                       <MdOutlineDeleteOutline />
                     </button>
+                    </div>
                   </td>
                 </tr>
               ))}
