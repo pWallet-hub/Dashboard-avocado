@@ -1,0 +1,97 @@
+.market-container {
+    min-height: 100vh;
+    display: flex;
+    gap: 20px;
+  }
+  
+  .market-wrapper {
+    max-width: 1200px;
+    margin: 0 auto;
+    background: linear-gradient(to bottom, #f8f8f8, #eaeaea);
+    width: 78%;
+    padding: 20px;
+  }
+  
+  .market-header {
+    margin-bottom: 20px;
+  }
+  
+  .market-title {
+    font-size: 28px;
+    font-weight: bold;
+    background: linear-gradient(to right, #38a169, #2c7a7b);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  
+  .market-subtitle {
+    font-size: 18px;
+    color: #555;
+  }
+  
+  .market-table-container {
+    background: #ffffff;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+  }
+  
+  .market-table-wrapper {
+    overflow-x: auto;
+  }
+  
+  .market-loader,
+  .market-error,
+  .market-no-products {
+    padding: 20px;
+    text-align: center;
+    font-size: 16px;
+  }
+  
+  .market-error {
+    color: #e53e3e;
+  }
+  
+  .market-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  
+  .market-table-header {
+    padding: 15px;
+    text-align: left;
+    font-size: 14px;
+    font-weight: bold;
+    color: #4a5568;
+    background-color: #edf2f7;
+  }
+  
+  .market-row {
+    transition: background-color 0.3s ease;
+  }
+  
+  .market-row:hover {
+    background-color: #f7fafc;
+  }
+  
+  .market-cell {
+    padding: 15px;
+    font-size: 14px;
+    color: #2d3748;
+    border-bottom: 1px solid #e2e8f0;
+  }
+  
+  .market-button {
+    padding: 8px 12px;
+    background-color: #4198e0;
+    color: #ffffff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+  }
+  
+  .market-button:hover {
+    background-color: #3182ce;
+  }
+  

@@ -1,0 +1,53 @@
+.advertisement{
+    box-shadow: 0 4px 200px 0 rgba(0, 0, 0, 0.1);
+    width: 25%;
+    border-radius: 3px;
+    display: block;
+    text-align: center;
+  }
+  .advertisement-head{
+    color: white;
+    padding: 20px 0 0 0;
+  }
+  .advertisement h4{
+    font-size: 1.4em;
+    margin: 10px 10px;
+  }
+  .advertisement-head button{
+    background-color: white;
+    border: none;
+    border-radius: 20px;
+    padding: 6px 30px;
+    color: #3182ce;
+    font-size: .9em;
+    font-weight: 500;
+    margin: 17px auto 25px auto;
+  }
+  .advertisement-picture{
+    background-image: url('../../assets/image/avoca.webp');
+    background-size: cover;
+    background-position: center;
+    width: 100%;
+    height: 250px;
+  }
+  .advertisement h3{
+    font-size: 1.2em;
+    font-weight: 600;
+    color: #2c7a7b;
+    margin: 15px 0;
+  }
+  .advertisement a button{
+    background-color: #3182ce;
+    border: none;
+    border-radius: 3px;
+    width: 190px;
+    padding: 8px 0;
+    color: white;
+    font-size: .9em;
+    font-weight: 500;
+    margin: 10px auto;
+    transition: all .4s;
+  }
+  .advertisement a button:hover{
+    background-color: #0383fb;
+  }
