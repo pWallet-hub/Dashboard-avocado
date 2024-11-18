@@ -1,0 +1,184 @@
+/* styles.css */
+.statistics-container {
+    padding: 1.5rem;
+    background-color: rgb(249, 250, 251);
+  }
+  
+  .statistics-wrapper {
+    max-width: 80rem;
+    margin: 0 auto;
+  }
+  
+  .header {
+    margin-bottom: 2rem;
+  }
+  
+  .header-title {
+    font-size: 1.875rem;
+    line-height: 2.25rem;
+    font-weight: 700;
+    color: rgb(17, 24, 39);
+  }
+  
+  .header-subtitle {
+    margin-top: 0.5rem;
+    color: rgb(75, 85, 99);
+  }
+  
+  .stats-grid {
+    display: grid;
+    gap: 1.5rem;
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+  }
+  
+  @media (min-width: 768px) {
+    .stats-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  
+  @media (min-width: 1024px) {
+    .stats-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+  
+  .stat-card {
+    padding: 1.5rem;
+    background-color: white;
+    border: 1px solid rgb(243, 244, 246);
+    border-radius: 0.75rem;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    transition: all 200ms;
+  }
+  
+  .stat-card:hover {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  }
+  
+  .stat-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  
+  .stat-info {
+    flex: 1;
+  }
+  
+  .stat-label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: rgb(107, 114, 128);
+  }
+  
+  .stat-value {
+    margin-top: 0.5rem;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: rgb(17, 24, 39);
+  }
+  
+  .stat-icon {
+    padding: 0.75rem;
+    border-radius: 0.5rem;
+    transition: background-color 200ms;
+  }
+  
+  .stat-footer {
+    display: flex;
+    align-items: center;
+    margin-top: 1rem;
+    font-size: 0.875rem;
+  }
+  
+  .stat-trend {
+    font-weight: 500;
+  }
+  
+  .stat-comparison {
+    margin-left: 0.5rem;
+    color: rgb(107, 114, 128);
+  }
+  
+  /* Icon background colors */
+  .icon-blue {
+    background-color: rgb(239, 246, 255);
+  }
+  
+  .stat-card:hover .icon-blue {
+    background-color: rgb(219, 234, 254);
+  }
+  
+  .icon-green {
+    background-color: rgb(240, 253, 244);
+  }
+  
+  .stat-card:hover .icon-green {
+    background-color: rgb(220, 252, 231);
+  }
+  
+  .icon-purple {
+    background-color: rgb(245, 243, 255);
+  }
+  
+  .stat-card:hover .icon-purple {
+    background-color: rgb(237, 233, 254);
+  }
+  
+  .icon-yellow {
+    background-color: rgb(254, 252, 232);
+  }
+  
+  .stat-card:hover .icon-yellow {
+    background-color: rgb(254, 249, 195);
+  }
+  
+  .icon-indigo {
+    background-color: rgb(238, 242, 255);
+  }
+  
+  .stat-card:hover .icon-indigo {
+    background-color: rgb(224, 231, 255);
+  }
+  
+  .icon-pink {
+    background-color: rgb(253, 242, 248);
+  }
+  
+  .stat-card:hover .icon-pink {
+    background-color: rgb(252, 231, 243);
+  }
+  
+  /* Text colors */
+  .text-green {
+    color: rgb(22, 163, 74);
+  }
+  
+  .text-red {
+    color: rgb(220, 38, 38);
+  }
+  
+  .icon-blue svg {
+    color: rgb(37, 99, 235);
+  }
+  
+  .icon-green svg {
+    color: rgb(22, 163, 74);
+  }
+  
+  .icon-purple svg {
+    color: rgb(124, 58, 237);
+  }
+  
+  .icon-yellow svg {
+    color: rgb(202, 138, 4);
+  }
+  
+  .icon-indigo svg {
+    color: rgb(79, 70, 229);
+  }
+  
+  .icon-pink svg {
+    color: rgb(219, 39, 119);
+  }

@@ -35,7 +35,7 @@ const Sidebar = ({ role }) => {
 
   const adminLinks = [
     { to: "/dashboard/admin", icon: User, text: "Profile" },
-    { to: "/dashboard/admin/users", icon: Users, text: "Manage Users" },
+    { to: "/dashboard/admin/users", icon: Users, text: "Manage Growers" },
     { to: "/dashboard/admin/agents", icon: UserCheck, text: "Manage Agents" },
     { to: "/dashboard/admin/reports", icon: FileText, text: "Manage Account" },
     { to: "/dashboard/admin/shops", icon: ShoppingCart, text: "Manage Shops" }, 
