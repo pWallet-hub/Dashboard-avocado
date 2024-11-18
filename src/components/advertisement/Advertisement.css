@@ -4,21 +4,30 @@
     border-radius: 3px;
     display: block;
     text-align: center;
+    font-family: poppins;
+   
+   
+  }
+  .advertisement-container{
+    background: #1F310A;
+    padding: 0.5rem;
+    color: white;
   }
   .advertisement-head{
     color: white;
     padding: 20px 0 0 0;
   }
   .advertisement h4{
-    font-size: 1.4em;
+    font-size: 20px;
     margin: 10px 10px;
+    text-align: left;
   }
-  .advertisement-head button{
+  .advertisement-container button{
     background-color: white;
     border: none;
     border-radius: 20px;
     padding: 6px 30px;
-    color: #3182ce;
+    color: #1F310A;
     font-size: .9em;
     font-weight: 500;
     margin: 17px auto 25px auto;
@@ -31,13 +40,13 @@
     height: 250px;
   }
   .advertisement h3{
-    font-size: 1.2em;
+    font-size: 20px;
     font-weight: 600;
-    color: #2c7a7b;
+    color: #FFC029;
     margin: 15px 0;
   }
   .advertisement a button{
-    background-color: #3182ce;
+    background-color: #3A4A27;
     border: none;
     border-radius: 3px;
     width: 190px;
