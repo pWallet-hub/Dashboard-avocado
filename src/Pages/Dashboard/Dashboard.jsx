@@ -1,12 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import axios from 'axios';
-import './Dashboard.css';
 import logo from '../../assets/image/LOGO_-_Avocado_Society_of_Rwanda.png';
 import { MdOutlineDeleteOutline } from "react-icons/md";
 import { FiEdit } from "react-icons/fi";
 import * as XLSX from 'xlsx';
 import { CiLogout } from "react-icons/ci";
-import Select from 'react-select'; // Import react-select
+import Select from 'react-select'; 
 
 const Dashboard = () => {
   const [farmers, setFarmers] = useState([]);
@@ -102,44 +101,41 @@ const Dashboard = () => {
 
   const handleDelete = async (farmerId) => {
     const token = localStorage.getItem('token');
-    setLoading(true);
-    setError(null);
     try {
       await axios.delete(`https://applicanion-api.onrender.com/api/users/${farmerId}`, {
         headers: {
           Authorization: `Bearer ${token}`
         }
       });
-      setFarmers(prevFarmers => prevFarmers.filter(f => f.id !== farmerId));
-      setLoading(false);
+      setFarmers(farmers.filter(f => f.id !== farmerId));
     } catch (error) {
-      console.error('Error deleting farmer:', error);
-      setError('There was an error deleting the farmer. Please try again.');
-      setLoading(false);
+      setError('There was an error deleting the farmer!');
     }
   };
 
   return (
-    <div className="dashboard-container">
-      <div className="header-section">
-        <img src={logo} alt="Logo" className="logo" />
-        <div className="header-text">
-          <h1 className="main-title">Avocado Society of Rwanda</h1>
-          <p className="subtitle">
-            Ibarura ry’abahinzi bafite ubutaka bakaba bifuza gutera no gukora Ubuhinzi bw’ avoka by’ umwuga
+    <div className="p-5">
+      <div className="flex items-center p-5 mb-5 text-white bg-teal-700 rounded-lg">
+        <img src={logo} alt="Logo" className="w-24 mr-5" />
+        <div className="flex-grow">
+          <h1 className="mb-1 text-2xl font-bold">Avocado Society of Rwanda</h1>
+          <p className="text-lg opacity-80">
+            Ibarura ry'abahinzi bafite ubutaka bakaba bifuza gutera no gukora Ubuhinzi bw' avoka by' umwuga
           </p>
         </div>
-        <button className="logout-btn" onClick={handleLogout}><CiLogout /> Logout</button>
+        <button className="flex items-center px-4 py-2 ml-auto text-white transition duration-300 bg-green-500 rounded hover:bg-green-600" onClick={handleLogout}>
+          <CiLogout className="mr-2 text-2xl" /> Logout
+        </button>
       </div>
-      <div className="action-header">
-        <h2>Farmers</h2>
-        <div className="action-buttons">
-          <button className="add-employee-btn">Add Farmer</button>
-          <button className="export-btn" onClick={exportToExcel}>Export to Excel</button>
+      <div className="flex justify-between mb-5">
+        <h2 className="text-xl">Farmers</h2>
+        <div className="flex gap-2">
+          <button className="px-4 py-2 text-white transition duration-300 bg-green-600 rounded hover:bg-green-700">Add Farmer</button>
+          <button className="px-4 py-2 text-white transition duration-300 bg-green-600 rounded hover:bg-green-700" onClick={exportToExcel}>Export to Excel</button>
         </div>
       </div>
 
-      <div className="filter-section">
+      <div className="flex items-center gap-8 mb-5 ml-4">
         <label htmlFor="district-select">Filter by District: </label>
         <Select
           id="district-select"
@@ -149,41 +145,42 @@ const Dashboard = () => {
           placeholder="Select or search district"
         />
       </div>
-      <div className="table-container">
+      <div className="p-5 bg-white rounded-lg shadow-md">
         {loading ? (
           <p>Loading data...</p>
         ) : error ? (
-          <p className="error-message">{error}</p>
+          <p className="text-red-500">{error}</p>
         ) : filteredFarmers.length > 0 ? (
-          <table className="styled-table">
+          <table className="w-full text-left border-collapse">
             <thead>
               <tr>
-                <th>First Name</th>
-                <th>Last Name</th>
-                <th>Telephone</th>
-                <th>District</th>
-                <th>Sector</th>
-                <th>Cell</th>
-                <th>Village</th>
-                <th>Action</th>
+                <th className="p-3 text-white bg-green-500">First Name</th>
+                <th className="p-3 text-white bg-green-500">Last Name</th>
+                <th className="p-3 text-white bg-green-500">Telephone</th>
+                <th className="p-3 text-white bg-green-500">Age</th>
+                <th className="p-3 text-white bg-green-500">District</th>
+                <th className="p-3 text-white bg-green-500">Sector</th>
+                <th className="p-3 text-white bg-green-500">Cell</th>
+                <th className="p-3 text-white bg-green-500">Village</th>
+                <th className="p-3 text-white bg-green-500">Action</th>
               </tr>
             </thead>
             <tbody>
               {filteredFarmers.map((farmer, index) => (
-                <tr key={index}>
-                  <td>{farmer.firstname || 'N/A'}</td>
-                  <td>{farmer.lastname || 'N/A'}</td>
-                  <td>{farmer.telephone || 'N/A'}</td>
-                  <td>{farmer.district || 'N/A'}</td>
-                  <td>{farmer.sector || 'N/A'}</td>
-                  <td>{farmer.cell || 'N/A'}</td>
-                  <td>{farmer.village || 'N/A'}</td>
-                  <td>
-                    <div className='action-buttons'>
-                    <button className="view-details-btn" onClick={() => openModal(farmer, false)}>View</button>
-                    <button className="edit-btn" onClick={() => openModal(farmer, true)}><FiEdit /></button>
+                <tr key={index} className="border-b">
+                  <td className="p-3">{farmer.firstname || 'N/A'}</td>
+                  <td className="p-3">{farmer.lastname || 'N/A'}</td>
+                  <td className="p-3">{farmer.telephone || 'N/A'}</td>
+                  <td className="p-3">{farmer.age || 'N/A'}</td>
+                  <td className="p-3">{farmer.district || 'N/A'}</td>
+                  <td className="p-3">{farmer.sector || 'N/A'}</td>
+                  <td className="p-3">{farmer.cell || 'N/A'}</td>
+                  <td className="p-3">{farmer.village || 'N/A'}</td>
+                  <td className="flex gap-2 ml-[-1rem]">
+                    <button className="px-2 py-1 text-white transition duration-300 bg-blue-500 rounded hover:bg-blue-600" onClick={() => openModal(farmer, false)}>View</button>
+                    <button className="px-2 py-1 text-white transition duration-300 bg-yellow-500 rounded hover:bg-yellow-600" onClick={() => openModal(farmer, true)}><FiEdit /></button>
                     <button 
-                      className="delete-btn" 
+                      className="px-2 py-1 text-white transition duration-300 bg-red-500 rounded hover:bg-red-600" 
                       onClick={() => {
                         if (window.confirm('Are you sure you want to delete this farmer?')) {
                           handleDelete(farmer.id);
@@ -192,7 +189,7 @@ const Dashboard = () => {
                     >
                       <MdOutlineDeleteOutline />
                     </button>
-                    </div>
+
                   </td>
                 </tr>
               ))}
@@ -203,27 +200,37 @@ const Dashboard = () => {
         )}
       </div>
       {isModalOpen && selectedFarmer && (
-        <div className="modal-overlay" onClick={handleOverlayClick}>
-          <div className="modal-content">
-            <span className="close-btn" onClick={closeModal}>&times;</span>
-            <h2>Farmer Details</h2>
-            <p><strong>First Name:</strong> {selectedFarmer.firstname}</p>
-            <p><strong>Last Name:</strong> {selectedFarmer.lastname}</p>
-            <p><strong>Telephone:</strong> {selectedFarmer.telephone}</p>
-            <p><strong>ID Number:</strong> {selectedFarmer.idnumber}</p>
-            <p><strong>Province:</strong> {selectedFarmer.province}</p>
-            <p><strong>District:</strong> {selectedFarmer.district}</p>
-            <p><strong>Province:</strong> {selectedFarmer.province}</p>
-            <p><strong>Planted Date:</strong> {selectedFarmer.planted}</p>
-            <p><strong>Avocado Type:</strong> {selectedFarmer.avocadotype}</p>
-            <p><strong>Mixed Percentage:</strong> {selectedFarmer.mixedpercentage}</p>
-            <p><strong>Farm Size:</strong> {selectedFarmer.farmsize}</p>
-            <p><strong>Tree Count:</strong> {selectedFarmer.treecount}</p>
-            <p><strong>UPI Number:</strong> {selectedFarmer.upinumber}</p>
-            <p><strong>Assistance Needed:</strong> {selectedFarmer.assistance}</p>
+        <div className="fixed top-0 left-0 flex items-center justify-center w-full h-full bg-black bg-opacity-50" onClick={handleOverlayClick}>
+          <div className="bg-white p-8 w-96 rounded-lg shadow-lg relative max-h-[80vh] flex flex-col">
+            <span className="absolute text-2xl cursor-pointer top-2 right-5" onClick={closeModal}>&times;</span>
+            <h2 className="mb-4 text-xl">Farmer Details</h2>
+            <div className="flex-grow overflow-y-auto pr-4 mr-[-1rem]">
+              {Object.entries(selectedFarmer).map(([key, value]) => (
+                <p key={key} className="flex items-center justify-between mb-4 text-sm text-green-600">
+                  <strong>{key.charAt(0).toUpperCase() + key.slice(1)}:</strong>
+                  {isEditMode ? (
+                    <input
+                      type="text"
+                      name={key}
+                      value={value || ''}
+                      onChange={(e) => setSelectedFarmer({ ...selectedFarmer, [key]: e.target.value })}
+                      className="flex-grow p-1 ml-4 text-sm border border-gray-300 rounded"
+                    />
+                  ) : (
+                    ` ${value || 'N/A'}`
+                  )}
+                </p>
+              ))}
+            </div>
             {isEditMode && (
-              <button className="edit-btn" onClick={() => handleEdit(selectedFarmer)}>Save Changes</button>
+              <div className="flex justify-center gap-5 mt-4">
+                <button className="px-4 py-2 text-white transition duration-300 bg-yellow-500 rounded hover:bg-yellow-600" onClick={() => handleEdit(selectedFarmer)} disabled={loading}>
+                  {loading ? 'Saving...' : 'Save Changes'}
+                </button>
+                <button className="px-4 py-2 text-white transition duration-300 bg-red-500 rounded hover:bg-red-600" onClick={closeModal}>Cancel</button>
+              </div>
             )}
+            {error && <p className="mt-4 text-red-500">{error}</p>}
           </div>
         </div>
       )}

@@ -1,0 +1,343 @@
+/* Layout and Container Styles */
+.min-h-screen {
+    min-height: 100vh;
+  }
+  
+  .bg-gradient-to-b {
+    background: linear-gradient(to bottom, #f9fafb, #f3f4f6);
+  }
+  
+  .container {
+    max-width: 80rem;
+    margin: 0 auto;
+    padding: 2rem 1rem;
+  }
+  
+  @media (min-width: 640px) {
+    .container {
+      padding: 2rem 1.5rem;
+    }
+  }
+  
+  @media (min-width: 1024px) {
+    .container {
+      padding: 2rem;
+    }
+  }
+  
+  /* Header Section */
+  .header {
+    margin-bottom: 2rem;
+  }
+  
+  .header-content {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+  
+  @media (min-width: 640px) {
+    .header-content {
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+    }
+  }
+  
+  .header-title {
+    font-size: 1.875rem;
+    font-weight: bold;
+    background: linear-gradient(to right, #2563eb, #4f46e5);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  
+  .header-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-top: 1rem;
+  }
+  
+  @media (min-width: 640px) {
+    .header-buttons {
+      flex-direction: row;
+      margin-top: 0;
+    }
+  }
+  
+  /* Button Styles */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.5rem 1rem;
+    font-weight: 500;
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transition: all 0.2s;
+  }
+  
+  .btn:hover {
+    box-shadow: 0 8px 12px rgba(0, 0, 0, 0.15);
+    transform: translateY(-1px);
+  }
+  
+  .btn-primary {
+    background: linear-gradient(to right, #2563eb, #4f46e5);
+    color: white;
+  }
+  
+  .btn-success {
+    background: linear-gradient(to right, #16a34a, #15803d);
+    color: white;
+  }
+  
+  /* Stats Card */
+  .stats-grid {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: 1fr;
+  }
+  
+  @media (min-width: 640px) {
+    .stats-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+  
+  @media (min-width: 1024px) {
+    .stats-grid {
+      grid-template-columns: repeat(4, 1fr);
+    }
+  }
+  
+  .stats-card {
+    margin-bottom: 1rem;
+    background-color: white;
+    padding: 1.5rem;
+    border-radius: 0.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    transition: box-shadow 0.2s;
+  }
+  
+  .stats-card:hover {
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
+  
+  /* Filter Section */
+  .filter-section {
+    background-color: white;
+    padding: 1rem;
+    border-radius: 0.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+  
+  .filter-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  @media (min-width: 768px) {
+    .filter-container {
+      flex-direction: row;
+      align-items: center;
+    }
+  }
+  
+  .filter-label {
+    color: #4b5563;
+    white-space: nowrap;
+  }
+  
+  .filter-select {
+    width: 100%;
+  }
+  
+  @media (min-width: 768px) {
+    .filter-select {
+      width: 16rem;
+    }
+  }
+  
+  /* Table Styles */
+  .table-container {
+    background-color: white;
+    border-radius: 0.75rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+  }
+  
+  .table {
+    min-width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+  
+  .table th {
+    padding: 0.75rem 1.5rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    text-align: left;
+    color: #6b7280;
+    background-color: #f9fafb;
+  }
+  
+  .table td {
+    padding: 1rem 1.5rem;
+    white-space: nowrap;
+  }
+  
+  .table tr {
+    transition: background-color 0.2s;
+  }
+  
+  .table tr:hover {
+    background-color: #f9fafb;
+  }
+  
+  .table tbody tr {
+    border-top: 1px solid #e5e7eb;
+  }
+  
+  /* User Avatar */
+  .user-avatar {
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 9999px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: bold;
+    background: linear-gradient(to right, #3b82f6, #4f46e5);
+  }
+  
+  /* Action Buttons */
+  .btn-view {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.75rem;
+    color: #2563eb;
+    background-color: #dbeafe;
+    border-radius: 0.375rem;
+    transition: background-color 0.2s;
+  }
+  
+  .btn-view:hover {
+    background-color: #bfdbfe;
+  }
+  
+  .btn-edit {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.75rem;
+    color: #4f46e5;
+    background-color: #e0e7ff;
+    border-radius: 0.375rem;
+    transition: background-color 0.2s;
+  }
+  
+  .btn-edit:hover {
+    background-color: #c7d2fe;
+  }
+  
+  .btn-delete {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.75rem;
+    color: #dc2626;
+    background-color: #fee2e2;
+    border-radius: 0.375rem;
+    transition: background-color 0.2s;
+  }
+  
+  .btn-delete:hover {
+    background-color: #fecaca;
+  }
+  
+  /* Modal Styles */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(31, 41, 55, 0.5);
+  }
+  
+  .modal-container {
+    position: relative;
+    width: 100%;
+    max-width: 36rem;
+    padding: 1.5rem;
+    background-color: white;
+    border-radius: 0.5rem;
+    box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
+  }
+  
+  .modal-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+  }
+  
+  .modal-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #374151;
+  }
+  
+  .modal-close {
+    color: #6b7280;
+  }
+  
+  .modal-close:hover {
+    color: #374151;
+  }
+  
+  .modal-content {
+    margin-top: 1rem;
+    max-height: 24rem;
+    overflow-y: auto;
+  }
+  
+  .modal-footer {
+    margin-top: 1.5rem;
+    text-align: right;
+  }
+  
+  /* Loading Spinner */
+  .loading-container {
+    padding: 1.5rem;
+    text-align: center;
+  }
+  
+  /* Error Message */
+  .error-message {
+    padding: 1.5rem;
+    text-align: center;
+    color: #dc2626;
+  }
+  
+  /* Logout Button */
+  .logout-btn {
+    position: fixed;
+    bottom: 1rem;
+    right: 1rem;
+    padding: 1rem;
+    color: white;
+    background-color: #dc2626;
+    border-radius: 9999px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transition: background-color 0.2s;
+  }
+  
+  .logout-btn:hover {
+    background-color: #b91c1c;
+  }
