@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   Home, 
@@ -14,6 +14,8 @@ import {
   X,
   ChevronRight
 } from 'lucide-react';
+import asr from '../../assets/image/LOGO_-_Avocado_Society_of_Rwanda.png';
+import './Sidebar.css';
 
 const Sidebar = ({ role }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -23,10 +25,10 @@ const Sidebar = ({ role }) => {
     <li className="group">
       <Link 
         to={to}
-        className="flex items-center p-3 space-x-3 transition-all duration-200 rounded-lg hover:bg-gray-700"
+        className={`nav-item ${isCollapsed ? 'justify-center' : ''}`}
       >
-        <Icon className="flex-shrink-0 w-5 h-5 text-gray-400 group-hover:text-white" />
-        <span className={`text-gray-300 group-hover:text-white ${isCollapsed ? 'lg:hidden' : ''}`}>
+        <Icon className="nav-item-icon" />
+        <span className={`nav-item-text ${isCollapsed ? 'hidden hidden-on-collapse' : ''}`}>
           {children}
         </span>
       </Link>
@@ -74,7 +76,7 @@ const Sidebar = ({ role }) => {
       {/* Mobile Menu Button */}
       <button
         onClick={() => setIsMobileOpen(!isMobileOpen)}
-        className="fixed p-2 bg-gray-800 rounded-lg top-4 left-4 lg:hidden z-50"
+        className="mobile-menu-button"
       >
         {isMobileOpen ? <X className="w-6 h-6 text-white" /> : <Menu className="w-6 h-6 text-white" />}
       </button>
@@ -82,29 +84,36 @@ const Sidebar = ({ role }) => {
       {/* Backdrop for mobile */}
       {isMobileOpen && (
         <div
-          className="fixed inset-0 bg-black/50 lg:hidden z-40"
+          className="mobile-backdrop"
           onClick={() => setIsMobileOpen(false)}
         />
       )}
 
       {/* Sidebar */}
       <div
-        className={`fixed inset-y-0 left-0 z-50 flex flex-col transition-all duration-300 ease-in-out bg-gray-800 border-r border-gray-700
-          ${isMobileOpen ? 'translate-x-0' : '-translate-x-full'} 
-          lg:translate-x-0 lg:static
-          ${isCollapsed ? 'lg:w-20' : 'lg:w-64'}
-          w-64 lg:w-64` /* Adjust width based on collapse state */}
+        className={`sidebar 
+          ${isMobileOpen ? 'sidebar-mobile-open' : 'sidebar-mobile-closed'} 
+          ${isCollapsed ? 'sidebar-collapsed' : ''}`}
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-700">
-          <h2 className={`text-xl font-bold text-white ${isCollapsed ? 'lg:hidden' : ''}`}>
-            Dashboard
+        <div className="sidebar-header">
+        <img
+                src={asr}
+                alt="Logo"
+                className="topbar-logo"
+              />
+          <h2 className={`sidebar-header-title ${isCollapsed ? 'hidden hidden-on-collapse' : ''}`}>
+              AS-Rwanda
           </h2>
+
           <button
             onClick={() => setIsCollapsed(!isCollapsed)}
             className="hidden lg:block"
           >
-            <ChevronRight className={`w-5 h-5 text-gray-400 transition-all duration-300 ${isCollapsed ? 'rotate-180' : ''}`} />
+            <ChevronRight 
+              className={`w-5 h-5 text-gray-400 collapse-button 
+                ${isCollapsed ? 'collapse-button-rotated' : ''}`} 
+            />
           </button>
         </div>
 

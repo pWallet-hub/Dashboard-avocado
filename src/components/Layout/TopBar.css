@@ -1,0 +1,141 @@
+/* topbar.css */
+.topbar {
+  position: relative;
+  z-index: 20;
+  background-color: #ffff; /* teal-700 */
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.topbar-container {
+  padding: 0.5rem 1rem;
+}
+
+@media (min-width: 1024px) {
+  .topbar-container {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+}
+
+.topbar-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.topbar-logo-section {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.topbar-logo {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 0.5rem;
+  transition: transform 0.3s;
+}
+
+.topbar-logo:hover {
+  transform: scale(1.05);
+}
+
+.topbar-title-full {
+  display: none;
+  margin-left: 0.75rem;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #000;
+}
+
+.topbar-title-mobile {
+  margin-left: 0.75rem;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: white;
+}
+
+@media (min-width: 768px) {
+  .topbar-title-full {
+    display: block;
+  }
+  .topbar-title-mobile {
+    display: none;
+  }
+}
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.profile-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #374151;
+}
+
+.profile-avatar {
+  width: 2rem;
+  height: 2rem;
+  overflow: hidden;
+  
+  border-radius: 9999px;
+}
+
+.profile-avatar-icon {
+  width: 100%;
+  height: 100%;
+  padding: 0.25rem;
+}
+
+.profile-name {
+  display: none;
+  
+  
+}
+
+.profile-dropdown {
+  position: absolute;
+  right: 0;
+  width: 12rem;
+  margin-top: 0.5rem;
+  overflow: hidden;
+  background-color: white;
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+.profile-dropdown-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 0.5rem 1rem;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: #374151;
+  transition: background-color 0.2s;
+}
+
+.profile-dropdown-item:hover {
+  background-color: #f3f4f6;
+}
+
+.logout-button {
+  color: #dc2626;
+}
+
+.logout-button:hover {
+  background-color: #fee2e2;
+}
+
+@media (min-width: 768px) {
+  .profile-name {
+    display: block;
+  }
+  .profile-chevron {
+    display: block;
+  }
+}

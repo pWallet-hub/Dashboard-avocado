@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import Advertisement from '../../components/advertisement/advertisement';
 import './Profile.css';
+import image from '../../assets/image/nopic.jpg';
 
 export default function Profile() {
   const [profile, setProfile] = useState(null);
@@ -94,9 +95,7 @@ export default function Profile() {
               <div className="profile-header-content">
                 <div className='profile-info'>
                 <div className="profile-avatar">
-                  <svg className="avatar-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                  </svg>
+                  <img src={image} alt="" />
                 </div>
                 <h1 className="profile-name">{profile.full_name}</h1>
                 </div>

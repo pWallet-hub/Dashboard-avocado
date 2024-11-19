@@ -1,64 +1,60 @@
-// TopBar.js
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { Bell, User, Settings, LogOut, Search, ChevronDown } from 'lucide-react';
+import asr from '../../assets/image/LOGO_-_Avocado_Society_of_Rwanda.png';
+import './TopBar.css';
 
 const TopBar = ({ onLogout, user }) => {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
-  const [showNotifications, setShowNotifications] = useState(false);
-  const [showSearch, setShowSearch] = useState(false);
 
   return (
-    <div className="relative z-20 bg-teal-700 shadow-md">
-      {/* Main Topbar */}
-      <div className="px-4 py-2 lg:px-6">
-        <div className="flex items-center justify-between">
-          {/* Left Section - Logo & Title */}
-          <div className="flex items-center space-x-4">
+    <div className="topbar">
+      <div className="topbar-container">
+        <div className="topbar-content">
+          <div className="topbar-logo-section">
             <div className="flex items-center">
-              <img 
-                src="/assets/image/LOGO_-_Avocado_Society_of_Rwanda.png"
-                alt="Logo" 
-                className="w-10 h-10 transition-transform duration-300 rounded-lg hover:scale-105"
+              <img
+                src={asr}
+                alt="Logo"
+                className="topbar-logo"
               />
-              <h1 className="hidden ml-3 text-lg font-semibold text-white md:block">
+              <h1 className="topbar-title-full">
                 Avocado Society of Rwanda
               </h1>
-              <h1 className="ml-3 text-lg font-semibold text-white md:hidden">
+              <h1 className="topbar-title-mobile">
                 ASR
               </h1>
             </div>
           </div>
 
-          {/* Right Section - Search, Notifications, Profile */}
-          <div className="flex items-center space-x-4">
-            {/* Notifications and Profile */}
+          
+          <div className="topbar-actions">
             <div className="relative">
               <button
-                className="flex items-center space-x-2 text-white"
+                className="profile-button"
                 onClick={() => setShowProfileMenu(!showProfileMenu)}
               >
-                <div className="w-8 h-8 overflow-hidden bg-teal-600 rounded-full">
-                  <User className="w-full h-full p-1" />
+                <div className="profile-avatar1">
+                  <User className="profile-avatar-icon" />
                 </div>
-                <span className="hidden md:block">{user?.name || 'N/A'}</span>
-                <ChevronDown className="hidden w-4 h-4 md:block" />
+                <span className="profile-name1">{user?.name || 'N/A'}</span>
+                <ChevronDown className="profile-chevron hidden w-4 h-4" />
               </button>
 
               {/* Profile Dropdown */}
               {showProfileMenu && (
-                <div className="absolute right-0 w-48 mt-2 overflow-hidden bg-white rounded-lg shadow-lg">
+                <div className="profile-dropdown">
                   <div className="py-2">
-                    <button className="flex items-center w-full px-4 py-2 space-x-2 text-sm text-gray-700 transition-colors hover:bg-gray-100">
+                    <button className="profile-dropdown-item">
                       <User className="w-4 h-4" />
                       <span>Profile</span>
                     </button>
-                    <button className="flex items-center w-full px-4 py-2 space-x-2 text-sm text-gray-700 transition-colors hover:bg-gray-100">
+                    <button className="profile-dropdown-item">
                       <Settings className="w-4 h-4" />
                       <span>Settings</span>
                     </button>
-                    <button 
-                      onClick={onLogout}  // Trigger logout function
-                      className="flex items-center w-full px-4 py-2 space-x-2 text-sm text-red-600 transition-colors hover:bg-red-50"
+                    <button
+                      onClick={onLogout}
+                      className="profile-dropdown-item logout-button"
                     >
                       <LogOut className="w-4 h-4" />
                       <span>Logout</span>
