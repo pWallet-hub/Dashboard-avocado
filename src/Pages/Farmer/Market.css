@@ -94,4 +94,39 @@
   .market-button:hover {
     background-color: #3182ce;
   }
-  
+  .market-slide{
+    width: 100%;
+  }
+  .market-slide h2{
+    color: white;
+    font-size: 2.2em;
+    font-weight: 600;
+  }
+  .market-slide .shop-now{
+    background-color: #FFC029;
+    padding: 20px 50px;
+    border-radius: 50px;
+    font-weight: 600;
+  } 
+  .slide-content{
+    margin-bottom: 40px;
+  }
+  .market-tabs button{
+    width : 100%;
+    text-align: left;
+    padding: 20px 20px;
+    background: linear-gradient(135deg,black,#3A4A27,#3A4A27,#4e6039);
+    color: white;
+    font-size: 1.1em;
+    font-weight: 600;
+    margin-bottom: 20px;
+    border-radius: 10px;
+  }
+  .market-tabs-grid{
+    display: grid;
+    grid-template-columns: repeat(3,1fr);
+    gap: 20px;
+  }
+  .market-tabs-grid button{
+    padding: 14px 20px;
+  }

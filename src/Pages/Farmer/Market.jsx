@@ -3,6 +3,13 @@ import axios from 'axios';
 import { ClipLoader } from 'react-spinners';
 import './market.css';
 import Advertisement from '../../components/advertisement/advertisement';
+import SlideShow from "../../components/Slide/Slide";
+import image1 from '../../assets/image/slide1.jpg'
+import image2 from '../../assets/image/slide2.jpg'
+import image3 from '../../assets/image/slide3.jpg'
+import { Link } from 'react-router-dom';
+
+
 
 export default function Market() {
   const [products, setProducts] = useState([]);
@@ -44,14 +51,69 @@ export default function Market() {
     }
   };
 
+
+
+  const text1 = (
+    <div className='market-slide' >
+      <div className='slide-head'>
+      <h2 >Discover the power of pWallet:</h2>
+    </div>
+    <div className='slide-content'>
+      <h2>Empowering Avocado Farmers</h2>
+    </div>
+    <div className='slide-button'>
+      <Link className="shop-now" to="/About">Shop Now</Link></div>
+  </div>
+  );
+  const text2 = (
+  <div className='market-slide' >
+      <div className='slide-head'>
+      <h2 >Negotiations is our carrier</h2>
+    </div>
+    <div className='slide-content'>
+      <h2>To deliver</h2>
+    </div>
+    <div className='slide-button'>
+      <Link className="shop-now" to="/About">Shop Now</Link></div>
+  </div>
+  );
+  const text3 = (
+    <div className='market-slide' >
+      <div className='slide-head'>
+        <h2 >Explore your farming</h2>
+      </div>
+      <div className='slide-content'>
+        <h2>Power harvestment</h2>
+      </div>
+      <div className='slide-button'>
+        <Link className="shop-now" to="/market">Shop Now</Link></div>
+    </div>
+);
+
+const images = [
+  { url: image1, text: text1 },
+  { url: image2, text: text2 },
+  { url: image3, text: text3 },
+];
+
   return (
     <div className="market-container">
       <div className="market-wrapper">
         {/* Header Section */}
         <div className="market-header">
-          <h1 className="market-title">Market</h1>
-          <p className="market-subtitle">Browse and buy products available in the market.</p>
+         <SlideShow images={images}/>
         </div>
+      <div className="market-tabs">
+        <button>All Categories</button>
+        <div className="market-tabs-grid">
+          <button>Irrigation Kits</button>
+          <button>Harvesting Kits</button>
+          <button>Safety & Protection</button>
+          <button>Container</button>
+          <button>Pest Management</button>
+          <button>Bee Keeping</button>
+        </div>
+      </div>
 
         {/* Products Section */}
         <div className="market-table-container">
