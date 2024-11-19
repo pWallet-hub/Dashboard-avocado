@@ -189,6 +189,7 @@ const Dashboard = () => {
                     >
                       <MdOutlineDeleteOutline />
                     </button>
+
                   </td>
                 </tr>
               ))}

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
+import '../Pages/Styles/Home.css';
 
 const Home = () => {
   const [role, setRole] = useState('');
@@ -67,27 +68,23 @@ const Home = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Hero Section */}
-      <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white">
-        <div className="container mx-auto px-4 py-16">
-          <h1 className="text-4xl md:text-5xl font-bold text-center mb-4">
-            Welcome to Your Dashboard
-          </h1>
-          <p className="text-blue-100 text-center max-w-2xl mx-auto text-lg">
+    <div className="page-wrapper">
+      <div className="hero">
+        <div className="container hero-content">
+          <h1 className="hero-title">Welcome to Your Dashboard</h1>
+          <p className="hero-subtitle">
             Stay updated with the latest announcements and important information
           </p>
         </div>
       </div>
 
-      <div className="container mx-auto px-4 py-8">
-        {/* Admin Create Announcement Section */}
+      <div className="container main-content">
         {role === 'admin' && (
-          <div className="mb-8">
+          <div style={{ marginBottom: '2rem' }}>
             {!showCreateForm ? (
               <button
                 onClick={() => setShowCreateForm(true)}
-                className="flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors shadow-md"
+                className="create-button"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
@@ -95,12 +92,12 @@ const Home = () => {
                 Create New Announcement
               </button>
             ) : (
-              <div className="bg-white rounded-xl shadow-md p-6 transition-all duration-300 animate-fade-in">
-                <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-2xl font-semibold text-gray-800">Create Announcement</h2>
+              <div className="create-form">
+                <div className="form-header">
+                  <h2 className="form-title">Create Announcement</h2>
                   <button
                     onClick={() => setShowCreateForm(false)}
-                    className="text-gray-500 hover:text-gray-700"
+                    className="close-button"
                   >
                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
@@ -108,21 +105,21 @@ const Home = () => {
                   </button>
                 </div>
                 <textarea
-                  className="w-full p-4 border border-gray-200 rounded-lg mb-4 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-none"
+                  className="form-textarea"
                   rows="4"
                   value={newAnnouncement}
                   onChange={(e) => setNewAnnouncement(e.target.value)}
                   placeholder="Write your announcement here..."
                 ></textarea>
-                <div className="flex justify-end gap-3">
+                <div className="form-actions">
                   <button
-                    className="px-6 py-2 text-gray-600 hover:text-gray-800"
+                    className="cancel-button"
                     onClick={() => setShowCreateForm(false)}
                   >
                     Cancel
                   </button>
                   <button
-                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                    className="submit-button"
                     onClick={handleCreateAnnouncement}
                     disabled={loading || !newAnnouncement.trim()}
                   >
@@ -130,7 +127,7 @@ const Home = () => {
                   </button>
                 </div>
                 {error && (
-                  <div className="mt-4 p-4 bg-red-50 text-red-600 rounded-lg">
+                  <div className="error-message">
                     {error}
                   </div>
                 )}
@@ -139,43 +136,40 @@ const Home = () => {
           </div>
         )}
 
-        {/* Announcements Section */}
-        <div className="bg-white rounded-xl shadow-md p-6 mb-8">
-          <h2 className="text-2xl font-semibold text-gray-800 mb-6">Recent Announcements</h2>
+        <div className="announcements-section">
+          <h2 className="section-title">Recent Announcements</h2>
           
           {loading ? (
-            <div className="flex justify-center items-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+            <div className="loading-spinner">
+              <div className="spinner"></div>
             </div>
           ) : error ? (
-            <div className="p-4 bg-red-50 text-red-600 rounded-lg">
+            <div className="error-message">
               {error}
             </div>
           ) : announcements.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">
-              <svg className="w-16 h-16 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="empty-state">
+              <svg className="empty-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
               </svg>
               <p className="text-lg">No announcements yet</p>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="announcement-list">
               {announcements.map((announcement) => (
                 <div
                   key={announcement.id}
-                  className="p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                  className="announcement-item"
                 >
-                  <div className="flex items-start gap-4">
-                    <div className="flex-shrink-0">
-                      <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
-                        <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
-                        </svg>
-                      </div>
+                  <div className="announcement-content">
+                    <div className="announcement-icon">
+                      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
+                      </svg>
                     </div>
-                    <div className="flex-1">
-                      <p className="text-gray-800 mb-2">{announcement.content}</p>
-                      <p className="text-sm text-gray-500">
+                    <div>
+                      <p className="announcement-text">{announcement.content}</p>
+                      <p className="announcement-date">
                         {announcement.createdAt && formatDate(announcement.createdAt)}
                       </p>
                     </div>

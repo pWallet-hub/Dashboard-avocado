@@ -5,7 +5,8 @@ import { FiEdit } from "react-icons/fi";
 import * as XLSX from 'xlsx';
 import { CiLogout } from "react-icons/ci";
 import Select from 'react-select';
-import { ClipLoader } from "react-spinners"; // Add spinner for loading state
+import { ClipLoader } from "react-spinners";
+import '../Styles/Users.css';
 
 const Users = () => {
   const [users, setUsers] = useState([]);
@@ -72,24 +73,24 @@ const Users = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100">
-      <div className="px-4 py-8 mx-auto max-w-7xl sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gradient-to-b">
+      <div className="container">
         {/* Header Section */}
-        <div className="mb-8 space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-            <h1 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">
-              Users Management
+        <div className="header">
+          <div className="header-content">
+            <h1 className="header-title">
+              Growers Management
             </h1>
-            <div className="flex flex-col gap-2 mt-4 sm:flex-row sm:mt-0">
+            <div className="header-buttons">
               <button
                 onClick={() => openModal(null, true)}
-                className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-medium rounded-lg shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200"
+                className="btn btn-primary"
               >
                 + Add New User
               </button>
               <button 
                 onClick={exportToExcel}
-                className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-green-600 to-green-700 text-white font-medium rounded-lg shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200"
+                className="btn btn-success"
               >
                 Export to Excel
               </button>
@@ -97,19 +98,18 @@ const Users = () => {
           </div>
 
           {/* Stats Cards */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="p-6 transition-shadow bg-white rounded-lg shadow-md hover:shadow-lg">
+          <div className="stats-grid">
+            <div className="stats-card">
               <p className="text-sm text-gray-500">Total Users</p>
               <p className="text-2xl font-bold text-gray-800">{users.length}</p>
             </div>
-            {/* Add more stats as needed */}
           </div>
 
           {/* Filter Section */}
-          <div className="p-4 bg-white rounded-lg shadow-md">
-            <div className="flex flex-col items-start gap-4 md:flex-row md:items-center">
-              <label className="text-gray-600 whitespace-nowrap">Filter by District:</label>
-              <div className="w-full md:w-64">
+          <div className="filter-section">
+            <div className="filter-container">
+              <label className="filter-label">Filter by District:</label>
+              <div className="filter-select">
                 <Select
                   options={users.map(user => ({
                     label: user.district, 
@@ -118,7 +118,6 @@ const Users = () => {
                   isClearable
                   onChange={handleDistrictChange}
                   placeholder="Select or search district"
-                  className="text-sm"
                 />
               </div>
             </div>
@@ -126,83 +125,66 @@ const Users = () => {
         </div>
 
         {/* Table Section */}
-        <div className="overflow-hidden bg-white shadow-lg rounded-xl">
+        <div className="table-container">
           <div className="overflow-x-auto">
             <div className="inline-block min-w-full align-middle">
               {loading ? (
-                <div className="p-6 text-center">
+                <div className="loading-container">
                   <ClipLoader color="#3498db" loading={loading} size={50} />
                 </div>
               ) : error ? (
-                <div className="p-6 text-center text-red-500">{error}</div>
+                <div className="error-message">{error}</div>
               ) : filteredUsers.length > 0 ? (
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
+                <table className="table">
+                  <thead>
                     <tr>
-                      <th className="px-6 py-3 text-xs font-semibold tracking-wider text-left text-gray-500 uppercase">User Details</th>
-                      <th className="hidden px-6 py-3 text-xs font-semibold tracking-wider text-left text-gray-500 uppercase md:table-cell">Contact</th>
-                      <th className="hidden px-6 py-3 text-xs font-semibold tracking-wider text-left text-gray-500 uppercase lg:table-cell">Location</th>
-                      {/* <th className="hidden px-6 py-3 text-xs font-semibold tracking-wider text-left text-gray-500 uppercase lg:table-cell">Farm Details</th> */}
-                      <th className="px-6 py-3 text-xs font-semibold tracking-wider text-left text-gray-500 uppercase">Actions</th>
+                      <th>User Details</th>
+                      <th className="hidden md:table-cell">Contact</th>
+                      <th className="hidden lg:table-cell">Location</th>
+                      <th>Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
+                  <tbody>
                     {filteredUsers.map((user) => (
-                      <tr key={user.id} className="transition-colors hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap">
+                      <tr key={user.id}>
+                        <td>
                           <div className="flex items-center">
-                            <div className="flex-shrink-0 w-10 h-10">
-                              <div className="flex items-center justify-center w-10 h-10 font-bold text-white rounded-full bg-gradient-to-r from-blue-500 to-indigo-500">
-                                {user.full_name ? user.full_name.charAt(0) : 'U'}
-                              </div>
+                            <div className="user-avatar">
+                              {user.full_name ? user.full_name.charAt(0) : 'U'}
                             </div>
-                            <div className="ml-4">
+                            <div style={{ marginLeft: '1rem' }}>
                               <div className="text-sm font-medium text-gray-900">{user.full_name || 'N/A'}</div>
                               <div className="text-sm text-gray-500">Age: {user.age || 'N/A'}</div>
                               <div className="text-sm text-gray-500">Gender: {user.gender || 'N/A'}</div>
                               <div className="text-sm text-gray-500">Marital Status: {user.marital_status || 'N/A'}</div>
-                              {/* <div className="text-sm text-gray-500">Education Level: {user.education_level || 'N/A'}</div> */}
                             </div>
                           </div>
                         </td>
-                        <td className="hidden px-6 py-4 whitespace-nowrap md:table-cell">
+                        <td className="hidden md:table-cell">
                           <div className="text-sm text-gray-900">{user.telephone || 'N/A'}</div>
                           <div className="text-sm text-gray-500">{user.email || 'N/A'}</div>
                         </td>
-                        <td className="hidden px-6 py-4 whitespace-nowrap lg:table-cell">
+                        <td className="hidden lg:table-cell">
                           <div className="text-sm text-gray-900">{user.province || 'N/A'}</div>
-                          <div className="text-sm text-gray-500">{user.district || 'N/A'}, {user.sector || 'N/A'}, {user.cell || 'N/A'}, {user.village || 'N/A'}</div>
+                          <div className="text-sm text-gray-500">
+                            {user.district || 'N/A'}, {user.sector || 'N/A'}, {user.cell || 'N/A'}, {user.village || 'N/A'}
+                          </div>
                         </td>
-                        {/* <td className="hidden px-6 py-4 whitespace-nowrap lg:table-cell">
-                          <div className="text-sm text-gray-900">Farm Province: {user.farm_province || 'N/A'}</div>
-                          <div className="text-sm text-gray-500">Farm District: {user.farm_district || 'N/A'}</div>
-                          <div className="text-sm text-gray-500">Farm Sector: {user.farm_sector || 'N/A'}</div>
-                          <div className="text-sm text-gray-500">Farm Cell: {user.farm_cell || 'N/A'}</div>
-                          <div className="text-sm text-gray-500">Farm Village: {user.farm_village || 'N/A'}</div>
-                          <div className="text-sm text-gray-500">Farm Age: {user.farm_age || 'N/A'} years</div>
-                          <div className="text-sm text-gray-500">Planted: {user.planted || 'N/A'}</div>
-                          <div className="text-sm text-gray-500">Avocado Type: {user.avocado_type || 'N/A'}</div>
-                          <div className="text-sm text-gray-500">Mixed Percentage: {user.mixed_percentage || 'N/A'}</div>
-                          <div className="text-sm text-gray-500">Farm Size: {user.farm_size || 'N/A'}</div>
-                          <div className="text-sm text-gray-500">Tree Count: {user.tree_count || 'N/A'}</div>
-                          <div className="text-sm text-gray-500">UPI Number: {user.upi_number || 'N/A'}</div>
-                          <div className="text-sm text-gray-500">Assistance: {user.assistance.join(', ') || 'N/A'}</div>
-                        </td> */}
-                        <td className="px-6 py-4 space-x-2 text-sm font-medium whitespace-nowrap">
+                        <td>
                           <button
                             onClick={() => openModal(user, false)}
-                            className="inline-flex items-center px-3 py-1 text-blue-600 transition-colors bg-blue-100 rounded-md hover:bg-blue-200"
+                            className="btn-view"
                           >
                             View
                           </button>
                           <button
                             onClick={() => openModal(user, true)}
-                            className="inline-flex items-center px-3 py-1 text-indigo-600 transition-colors bg-indigo-100 rounded-md hover:bg-indigo-200"
+                            className="btn-edit"
                           >
-                            <FiEdit className="mr-2" /> Edit
+                            <FiEdit style={{ marginRight: '0.5rem' }} /> Edit
                           </button>
-                          <button className="inline-flex items-center px-3 py-1 text-red-600 transition-colors bg-red-100 rounded-md hover:bg-red-200">
-                            <MdOutlineDeleteOutline className="mr-2" /> Delete
+                          <button className="btn-delete">
+                            <MdOutlineDeleteOutline style={{ marginRight: '0.5rem' }} /> Delete
                           </button>
                         </td>
                       </tr>
@@ -210,24 +192,24 @@ const Users = () => {
                   </tbody>
                 </table>
               ) : (
-                <div className="p-6 text-center">No users found.</div>
+                <div className="loading-container">No users found.</div>
               )}
             </div>
           </div>
         </div>
       </div>
 
-      {/* Modal for viewing/editing users */}
+      {/* Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-800 bg-opacity-50">
-          <div className="relative w-full max-w-xl p-6 bg-white rounded-lg shadow-lg">
-            <div className="flex items-start justify-between">
-              <h2 className="text-lg font-semibold text-gray-700">{isEditMode ? 'Edit User' : 'User Details'}</h2>
-              <button onClick={closeModal} className="text-gray-500 hover:text-gray-700">
+        <div className="modal-overlay">
+          <div className="modal-container">
+            <div className="modal-header">
+              <h2 className="modal-title">{isEditMode ? 'Edit User' : 'User Details'}</h2>
+              <button onClick={closeModal} className="modal-close">
                 &times;
               </button>
             </div>
-            <div className="mt-4 overflow-y-auto max-h-96"> {/* Set fixed height and enable scrolling */}
+            <div className="modal-content">
               {selectedUser && (
                 <div className="grid gap-4">
                   <p className="text-sm text-gray-500">Full Name: {selectedUser.full_name}</p>
@@ -258,15 +240,15 @@ const Users = () => {
                 </div>
               )}
             </div>
-            <div className="mt-6 text-right">
+            <div className="modal-footer">
               <button
                 onClick={closeModal}
-                className="inline-flex items-center px-4 py-2 text-sm text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300"
+                className="btn-view"
               >
                 Close
               </button>
               {isEditMode && (
-                <button className="inline-flex items-center px-4 py-2 ml-4 text-sm text-white bg-blue-600 rounded-md hover:bg-blue-700">
+                <button className="btn-primary" style={{ marginLeft: '0.5rem' }}>
                   Save Changes
                 </button>
               )}
@@ -278,7 +260,7 @@ const Users = () => {
       {/* Logout Button */}
       <button
         onClick={handleLogout}
-        className="fixed p-4 text-white bg-red-600 rounded-full shadow-lg bottom-4 right-4 hover:bg-red-700"
+        className="logout-btn"
       >
         <CiLogout size={24} />
       </button>

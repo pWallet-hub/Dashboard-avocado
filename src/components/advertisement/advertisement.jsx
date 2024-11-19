@@ -3,7 +3,7 @@ export default function Advertisement () {
     return(
         <>
         <div className="advertisement">
-        <div className="advertisement-head bg-blue-800">
+        <div className="advertisement-container">
           <h4>Take your Agribusiness to the next level</h4>
           <button>Get started</button>
           <div className="advertisement-picture">
