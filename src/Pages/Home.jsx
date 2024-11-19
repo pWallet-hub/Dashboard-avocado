@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import '../Pages/Styles/Home.css';
+import Advertisement from '../components/advertisement/advertisement';
 
 const Home = () => {
   const [role, setRole] = useState('');
@@ -68,10 +69,12 @@ const Home = () => {
   };
 
   return (
+    
     <div className="page-wrapper">
+      <div className='page-container'>
       <div className="hero">
-        <div className="container hero-content">
-          <h1 className="hero-title">Welcome to Your Dashboard</h1>
+        <div className="container-hero-content">
+          <h1 className="hero-title">Welcome to Your avovado-society rwanda</h1>
           <p className="hero-subtitle">
             Stay updated with the latest announcements and important information
           </p>
@@ -180,6 +183,8 @@ const Home = () => {
           )}
         </div>
       </div>
+      </div>
+      <Advertisement/>
     </div>
   );
 };
