@@ -141,8 +141,7 @@ export default function Profile() {
               <div className="content-section">
                 {/* <h2 className="section-title">Personal Information</h2> */}
                 <div className="info-grid">
-                  <p ><InfoItem label="Age" value={profile.age} /></p>
-                  
+                  <InfoItem label="Age" value={profile.age} />
                   <InfoItem label="ID Number" value={profile.id_number} />
                   <InfoItem label="Gender" value={profile.gender} />
                   <InfoItem label="Marital Status" value={profile.marital_status} />
@@ -153,7 +152,6 @@ export default function Profile() {
 
             {activeTab === 'location' && (
               <div className="content-section">
-                <h2 className="section-title">Location Information</h2>
                 <div className="info-grid">
                   <InfoItem label="Province" value={profile.province} />
                   <InfoItem label="District" value={profile.district} />
@@ -167,7 +165,6 @@ export default function Profile() {
             {activeTab === 'farm' && (
               <>
                 <div className="content-section">
-                  <h2 className="section-title">Farm Details</h2>
                   <div className="info-grid">
                     <InfoItem label="Farm Age" value={`${profile.farm_age} years`} />
                     <InfoItem label="Avocado Type" value={profile.avocado_type} />
@@ -179,7 +176,6 @@ export default function Profile() {
                   </div>
                 </div>
                 <div className="content-section">
-                  <h2 className="section-title">Farm Location</h2>
                   <div className="info-grid">
                     <InfoItem label="Province" value={profile.farm_province} />
                     <InfoItem label="District" value={profile.farm_district} />
@@ -192,7 +188,7 @@ export default function Profile() {
             )}
 
             {activeTab === 'assistance' && (
-              <div className="content-section">
+              <div className="assistance-content-section">
                 <h2 className="section-title">Assistance Information</h2>
                 <div className="assistance-tags">
                   {profile.assistance.map((item, index) => (
