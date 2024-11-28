@@ -86,6 +86,23 @@
   .market-tabs-grid button{
     padding: 14px 20px;
   }
+  .market-products-listing h2{
+    margin: -25px 0 35px 0;
+    font-weight: 600;
+    color: #1F310A;
+    font-size: 1.3em;
+    position: relative;
+  }
+  .market-products-listing h2:after{
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: -5px;
+    width:50px;
+    height: 3px;
+    border-radius: 3px;
+    background-color: #1F310A;
+  }
   .market-products-container{
     padding: 50px;
     background-color: whitesmoke;
@@ -142,3 +159,24 @@
     font-size: .9em;
     align-items: center;
   }
+@media (max-width:910px){
+  .market-products-grid{
+    grid-template-columns: repeat(3,1fr);
+    gap: 30px;
+  }
+}
+@media (max-width:680px){
+  .market-products-grid{
+    grid-template-columns: repeat(2,1fr);
+    gap: 30px;
+  }
+  .market-tabs-grid{
+    grid-template-columns: repeat(2,1fr);
+  }
+}
+@media (max-width:480px){
+  .market-products-grid{
+    grid-template-columns: 1fr;
+    gap: 30px;
+  }
+}

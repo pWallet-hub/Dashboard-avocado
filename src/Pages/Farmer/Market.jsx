@@ -74,7 +74,8 @@ export default function Market() {
       <h2>To deliver</h2>
     </div>
     <div className='slide-button'>
-      <Link className="shop-now" to="/market">Shop Now</Link></div>
+      <Link className="shop-now" to="/market">Shop Now</Link>
+    </div>
   </div>
   );
   const text3 = (
@@ -128,7 +129,10 @@ const images = [
                 <ClipLoader color="#3498db" loading={loading} size={50} />
               </div>
             ) :  (
+              <div className='market-products-listing'>
+              <h2>Get yours</h2>
               <div className="market-products-grid">
+                <Link to="/dashboard/farmer/product">
                 <div className="market-product-card">
                   <div className="product-head">
                     <img src={product} alt="Product Image" />
@@ -140,6 +144,7 @@ const images = [
                     <p>10,000rwf</p>
                   </div>
                 </div>
+                </Link>
                 <div className="market-product-card">
                   <div className="product-head">
                     <img src={product} alt="Product Image" />
@@ -186,7 +191,7 @@ const images = [
                 </div>
                 
               </div>
-              
+            </div>
             )}
           </div>
         </div>

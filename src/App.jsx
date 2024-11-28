@@ -10,6 +10,7 @@ import Layout from './components/Layout/Layout';
 import Market from './Pages/Farmer/Market'
 import Profile from './Pages/Farmer/Profile'
 import Service from './Pages/Farmer/Service'
+import Product from './Pages/Farmer/Product'
 import FarmerList from './Pages/Agent/FarmerList'
 import PendingService from './Pages/Agent/PendingService'
 import Report from './Pages/Agent/Report'
@@ -42,6 +43,7 @@ function App() {
           <Route path='farmer/market' element={<Market />} />
           <Route path='farmer/service' element={<Service/>}/>
           <Route path='farmer/profile' element={<Profile/>}/>
+          <Route path='farmer/product' element={<Product/>}/>
         </Route>
         <Route path="*" element={<h1>Not Found</h1>} />
       </Routes>
