@@ -2,13 +2,14 @@
     min-height: 100vh;
     display: flex;
     gap: 20px;
+    font-family: poppins;
   }
   
   .market-wrapper {
     max-width: 1200px;
     margin: 0 auto;
     background: linear-gradient(to bottom, #f8f8f8, #eaeaea);
-    width: 78%;
+    width: 75%;
     padding: 20px;
   }
   
@@ -36,9 +37,6 @@
     overflow: hidden;
   }
   
-  .market-table-wrapper {
-    overflow-x: auto;
-  }
   
   .market-loader,
   .market-error,
@@ -51,49 +49,7 @@
   .market-error {
     color: #e53e3e;
   }
-  
-  .market-table {
-    width: 100%;
-    border-collapse: collapse;
-  }
-  
-  .market-table-header {
-    padding: 15px;
-    text-align: left;
-    font-size: 14px;
-    font-weight: bold;
-    color: #4a5568;
-    background-color: #edf2f7;
-  }
-  
-  .market-row {
-    transition: background-color 0.3s ease;
-  }
-  
-  .market-row:hover {
-    background-color: #f7fafc;
-  }
-  
-  .market-cell {
-    padding: 15px;
-    font-size: 14px;
-    color: #2d3748;
-    border-bottom: 1px solid #e2e8f0;
-  }
-  
-  .market-button {
-    padding: 8px 12px;
-    background-color: #4198e0;
-    color: #ffffff;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: background-color 0.3s ease;
-  }
-  
-  .market-button:hover {
-    background-color: #3182ce;
-  }
+
   .market-slide{
     width: 100%;
   }
@@ -129,4 +85,60 @@
   }
   .market-tabs-grid button{
     padding: 14px 20px;
+  }
+  .market-products-container{
+    padding: 50px;
+    background-color: whitesmoke;
+    box-shadow: 0 4px 10px 0 rgba(0, 0, 0, 0.1);
+    margin-top: 50px;
+    border-radius: 10px;
+    font-family: poppins;
+  }
+  .market-products-grid{
+    display: grid;
+    grid-template-columns: repeat(4,1fr);
+    gap: 40px;
+    align-items: center;
+    justify-content: space-around;
+  }
+  .market-product-card{
+    border-color: white;
+    box-shadow: 0 4px 10px 0 rgba(0, 0, 0, 0.1);
+    height: 40vh;
+    border-radius: 20px;
+    padding: 0;
+    position: relative;
+    transition: all .4s;
+  }
+  .market-product-card:hover{
+    transform: scale(1.01);
+    cursor: pointer;
+  }
+  .market-product-card .product-head img{
+    height: 34vh;
+    border-top-left-radius: 20px;
+    border-top-right-radius: 20px;
+  }
+  .market-product-card .product-head .product-name{
+    position: absolute;
+    height: 34vh;
+    width: 100%;
+    top: 0;
+    background-color: rgba(0, 0, 0, 0.2);
+    border-top-left-radius: 20px;
+    border-top-right-radius: 20px;
+    font-size: 1.1em;
+    font-weight: 600;
+    padding: 20px;
+    color: white;
+  }
+  .market-product-card .product-head .product-name p{
+    position: absolute;
+    bottom: 20px;
+  }
+  .market-product-card .product-footer{
+    padding: 0 10px;
+    margin-top: 10px;
+    font-size: .9em;
+    align-items: center;
   }

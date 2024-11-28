@@ -8,7 +8,7 @@ import image1 from '../../assets/image/slide1.jpg'
 import image2 from '../../assets/image/slide2.jpg'
 import image3 from '../../assets/image/slide3.jpg'
 import { Link } from 'react-router-dom';
-
+import product from '../../assets/image/product.jpg';
 
 
 export default function Market() {
@@ -74,7 +74,7 @@ export default function Market() {
       <h2>To deliver</h2>
     </div>
     <div className='slide-button'>
-      <Link className="shop-now" to="/About">Shop Now</Link></div>
+      <Link className="shop-now" to="/market">Shop Now</Link></div>
   </div>
   );
   const text3 = (
@@ -97,6 +97,7 @@ const images = [
 ];
 
   return (
+    <>
     <div className="market-container">
       <div className="market-wrapper">
         {/* Header Section */}
@@ -115,50 +116,81 @@ const images = [
         </div>
       </div>
 
-        {/* Products Section */}
-        <div className="market-table-container">
-          <div className="market-table-wrapper">
-            {loading ? (
-              <div className="market-loader">
-                <ClipLoader color="#3498db" loading={loading} size={50} />
-              </div>
-            ) : error ? (
-              <div className="market-error">{error}</div>
-            ) : products.length > 0 ? (
-              <table className="market-table">
-                <thead>
-                  <tr>
-                    <th className="market-table-header">Product Name</th>
-                    <th className="market-table-header">Price</th>
-                    <th className="market-table-header">Stock</th>
-                    <th className="market-table-header">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {products.map((product) => (
-                    <tr key={product.id} className="market-row">
-                      <td className="market-cell">{product.name}</td>
-                      <td className="market-cell">${product.price.toFixed(2)}</td>
-                      <td className="market-cell">{product.stock}</td>
-                      <td className="market-cell">
-                        <button
-                          className="market-button"
-                          onClick={() => handleBuyProduct(product.id)}
-                        >
-                          Buy
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            ) : (
-              <div className="market-no-products">No products available.</div>
-            )}
-          </div>
-        </div>
+        
       </div>
       <Advertisement/>
     </div>
+      {/* Products Section */}
+      <div className="market-products-container">
+          <div className="market-products-wrapper">
+            {loading ? (
+              <div className="products-loader">
+                <ClipLoader color="#3498db" loading={loading} size={50} />
+              </div>
+            ) :  (
+              <div className="market-products-grid">
+                <div className="market-product-card">
+                  <div className="product-head">
+                    <img src={product} alt="Product Image" />
+                    <div className="product-name">
+                      <p>Sprinkler</p>
+                    </div>
+                  </div>
+                  <div className="product-footer">
+                    <p>10,000rwf</p>
+                  </div>
+                </div>
+                <div className="market-product-card">
+                  <div className="product-head">
+                    <img src={product} alt="Product Image" />
+                    <div className="product-name">
+                      <p>Sprinkler</p>
+                    </div>
+                  </div>
+                  <div className="product-footer">
+                    <p>10,000rwf</p>
+                  </div>
+                </div>
+                <div className="market-product-card">
+                  <div className="product-head">
+                    <img src={product} alt="Product Image" />
+                    <div className="product-name">
+                      <p>Sprinkler</p>
+                    </div>
+                  </div>
+                  <div className="product-footer">
+                    <p>10,000rwf</p>
+                  </div>
+                </div>
+                <div className="market-product-card">
+                  <div className="product-head">
+                    <img src={product} alt="Product Image" />
+                    <div className="product-name">
+                      <p>Sprinkler</p>
+                    </div>
+                  </div>
+                  <div className="product-footer">
+                    <p>10,000rwf</p>
+                  </div>
+                </div>
+                <div className="market-product-card">
+                  <div className="product-head">
+                    <img src={product} alt="Product Image" />
+                    <div className="product-name">
+                      <p>Sprinkler</p>
+                    </div>
+                  </div>
+                  <div className="product-footer">
+                    <p>10,000rwf</p>
+                  </div>
+                </div>
+                
+              </div>
+              
+            )}
+          </div>
+        </div>
+    
+    </>
   );
 }
