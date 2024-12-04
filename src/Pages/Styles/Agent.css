@@ -1,6 +1,6 @@
 /* General Styling */
 body {
-  font-family: 'Arial', sans-serif;
+  font-family: poppins;
   background-color: #f8f9fa;
 }
 
@@ -22,7 +22,7 @@ body {
 }
 
 .btn-primary {
-  background: linear-gradient(to right, #1d4ed8, #6366f1);
+  background: linear-gradient(to right, #192D01, #1c3003c3);
   color: white;
   padding: 10px 20px;
   border: none;
@@ -42,8 +42,9 @@ body {
   margin: 20px 0;
 }
 
-.stats-card {
-  background: white;
+.stats-card1 {
+  background: #192D01;
+  color: #dcfce7;
   padding: 15px;
   border-radius: 10px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
@@ -81,7 +82,7 @@ body {
 }
 
 .agents-table tr:hover {
-  background: #f9fafb;
+  background: #d9e4ef;
 }
 
 /* Buttons */
@@ -90,10 +91,11 @@ body {
   border: none;
   border-radius: 5px;
   cursor: pointer;
+  
 }
 
 .btn-view {
-  background: #bfdbfe;
+  /* background: #bfdbfe; */
 }
 
 .btn-edit {
@@ -101,7 +103,15 @@ body {
 }
 
 .btn-delete {
-  background: #fecaca;
+  /* background: #fecaca; */
+}
+.agents-table td > button {
+  margin-right: 15px;
+  margin-bottom: 5px;
+}
+
+.agents-table td > button:last-child {
+  margin-right: 0;
 }
 
 /* Modal */
