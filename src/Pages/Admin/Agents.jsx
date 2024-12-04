@@ -76,21 +76,21 @@ export default function Agents() {
       </div>
       
       <div className="stats-container">
-        <div className="stats-card">
+        <div className="stats-card1">
           <p>Total Agents</p>
           <p className="stats-number">{agents.length}</p>
         </div>
-        <div className="stats-card">
+        <div className="stats-card1">
           <p>Active Agents</p>
           <p className="stats-number">{agents.length}</p>
         </div>
-        <div className="stats-card">
+        <div className="stats-card1">
           <p>Provinces Covered</p>
           <p className="stats-number">
             {new Set(agents.map(a => a.province)).size}
           </p>
         </div>
-        <div className="stats-card">
+        <div className="stats-card1">
           <p>Districts Covered</p>
           <p className="stats-number">
             {new Set(agents.map(a => a.district)).size}
