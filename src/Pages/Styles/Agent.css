@@ -17,8 +17,14 @@ body {
 }
 
 .agents-header h1 {
-  font-size: 24px;
+  /* font-size: 24px; */
   font-weight: bold;
+  font-size: 2rem;
+    margin-right: 2rem;
+    font-weight: bold;
+    background: linear-gradient(to right, #2563eb, #4f46e5);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
 }
 
 .btn-primary1 {

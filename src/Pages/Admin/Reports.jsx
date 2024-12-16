@@ -135,9 +135,9 @@ export default function Reports() {
 
           {/* Stats Cards */}
           <div className="stats-grid">
-            <div className="stat-card">
-              <p className="stat-label">Total Farmers</p>
-              <p className="stat-value">{farmers.length}</p>
+            <div className="stat-card-R">
+              <p className="stat-R-label">Total Farmers</p>
+              <p className="stat-R-value">{farmers.length}</p>
             </div>
           </div>
         </div>

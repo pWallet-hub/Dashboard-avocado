@@ -85,8 +85,8 @@ body {
     }
 }
 
-.stat-card {
-    background-color: white;
+.stat-card-R {
+    background: #192D01;
     padding: 1.5rem;
     border-radius: 0.5rem;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
@@ -97,13 +97,13 @@ body {
     box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
 }
 
-.stat-label {
-    color: #6b7280;
+.stat-R-label {
+    color: #FFFF;
     font-size: 0.875rem;
 }
 
-.stat-value {
-    color: #1f2937;
+.stat-R-value {
+    color: #FFFF;
     font-size: 1.5rem;
     font-weight: bold;
 }
