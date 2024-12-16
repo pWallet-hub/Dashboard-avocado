@@ -12,12 +12,42 @@ const Users = () => {
   const [users, setUsers] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [selectedDistrict, setSelectedDistrict] = useState(null);
   const [selectedProvince, setSelectedProvince] = useState(null);
   const [selectedGender, setSelectedGender] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [isEditMode, setIsEditMode] = useState(false);
+
+  // New state for add/edit form
+  const [newUserForm, setNewUserForm] = useState({
+    full_name: '',
+    age: '',
+    telephone: '',
+    email: '',
+    gender: '',
+    marital_status: '',
+    education_level: '',
+    province: '',
+    district: '',
+    sector: '',
+    cell: '',
+    village: '',
+    farm_province: '',
+    farm_district: '',
+    farm_sector: '',
+    farm_cell: '',
+    farm_village: '',
+    farm_age: '',
+    planted: '',
+    avocado_type: '',
+    mixed_percentage: '',
+    farm_size: '',
+    tree_count: '',
+    upi_number: '',
+    assistance: []
+  });
 
   useEffect(() => {
     const fetchUsers = async () => {
@@ -52,6 +82,82 @@ const Users = () => {
     setIsModalOpen(false);
     setSelectedUser(null);
     setIsEditMode(false);
+  };
+
+  const openAddModal = () => {
+    // Reset form when opening add modal
+    setNewUserForm({
+      full_name: '',
+      age: '',
+      telephone: '',
+      email: '',
+      gender: '',
+      marital_status: '',
+      education_level: '',
+      province: '',
+      district: '',
+      sector: '',
+      cell: '',
+      village: '',
+      farm_province: '',
+      farm_district: '',
+      farm_sector: '',
+      farm_cell: '',
+      farm_village: '',
+      farm_age: '',
+      planted: '',
+      avocado_type: '',
+      mixed_percentage: '',
+      farm_size: '',
+      tree_count: '',
+      upi_number: '',
+      assistance: []
+    });
+    setIsAddModalOpen(true);
+  };
+
+  const closeAddModal = () => {
+    setIsAddModalOpen(false);
+  };
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setNewUserForm(prevState => ({
+      ...prevState,
+      [name]: value
+    }));
+  };
+
+  const handleSubmitNewUser = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+
+    const token = localStorage.getItem('token');
+
+    try {
+      const response = await axios.post(
+        'https://pwallet-api.onrender.com/api/farmers/', 
+        newUserForm, 
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      // Update users list with new user
+      setUsers(prevUsers => [...prevUsers, response.data]);
+      
+      // Close modal and reset form
+      closeAddModal();
+    } catch (error) {
+      setError('Error adding new user: ' + (error.response?.data?.message || error.message));
+      console.error('Error adding user:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const exportToExcel = () => {
@@ -129,6 +235,13 @@ const Users = () => {
     window.location.href = '/';
   };
 
+  const assistanceOptions = [
+    { value: 'Training', label: 'Training' },
+    { value: 'Financial Support', label: 'Financial Support' },
+    { value: 'Equipment', label: 'Equipment' },
+    { value: 'Technical Advice', label: 'Technical Advice' }
+  ];
+
   return (
     <div className="users-container">
       <div className="container">
@@ -140,7 +253,7 @@ const Users = () => {
             </h1>
             <div className="header-buttons">
               <button
-                onClick={() => openModal(null, true)}
+                onClick={openAddModal}
                 className="btn btn-primary"
               >
                 + Add New User
@@ -286,7 +399,7 @@ const Users = () => {
         </div>
       </div>
 
-      {/* Modal */}
+      {/* View/Edit User Modal */}
       {isModalOpen && (
         <div className="modal-overlay">
           <div className="modal-container">
@@ -305,64 +418,365 @@ const Users = () => {
                     { label: 'Phone', value: selectedUser.telephone },
                     { label: 'Email', value: selectedUser.email },
                     { label: 'Gender', value: selectedUser.gender },
-                    { label: 'Marital Status', value: selectedUser.marital_status },
-                    { label: 'Education Level', value: selectedUser.education_level },
-                    { label: 'Province', value: selectedUser.province },
-                    { label: 'District', value: selectedUser.district },
-                    { label: 'Sector', value: selectedUser.sector },
-                    { label: 'Cell', value: selectedUser.cell },
-                    { label: 'Village', value: selectedUser.village },
-                    { label: 'Farm Province', value: selectedUser.farm_province },
-                    { label: 'Farm District', value: selectedUser.farm_district },
-                    { label: 'Farm Sector', value: selectedUser.farm_sector },
-                    { label: 'Farm Cell', value: selectedUser.farm_cell },
-                    { label: 'Farm Village', value: selectedUser.farm_village },
-                    { label: 'Farm Age', value: selectedUser.farm_age ? `${selectedUser.farm_age} years` : null },
-                    { label: 'Planted', value: selectedUser.planted },
-                    { label: 'Avocado Type', value: selectedUser.avocado_type },
-                    { label: 'Mixed Percentage', value: selectedUser.mixed_percentage },
-                    { label: 'Farm Size', value: selectedUser.farm_size },
-                    { label: 'Tree Count', value: selectedUser.tree_count },
-                    { label: 'UPI Number', value: selectedUser.upi_number },
-                    { label: 'Assistance', value: selectedUser.assistance?.join(', ') }
-                  ].map((field, index) => (
-                    field.value && (
-                      <p key={index} className="modal-field">
-                        <span className="modal-field-label">{field.label}:</span> 
-                        <span className="modal-field-value">{field.value || 'N/A'}</span>
-                      </p>
-                    )
-                  ))}
-                </div>
-              )}
-            </div>
-            <div className="modal-footer">
-              <button
-                onClick={closeModal}
-                className="btn btn-view"
-              >
-                Close
-              </button>
-              {isEditMode && (
-                <button className="btn btn-primary modal-save">
-                  Save Changes
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+                   // Continuing the previous code...
+                   { label: 'Marital Status', value: selectedUser.marital_status },
+                   { label: 'Education Level', value: selectedUser.education_level },
+                   { label: 'Province', value: selectedUser.province },
+                   { label: 'District', value: selectedUser.district },
+                   { label: 'Sector', value: selectedUser.sector },
+                   { label: 'Cell', value: selectedUser.cell },
+                   { label: 'Village', value: selectedUser.village },
+                   { label: 'Farm Province', value: selectedUser.farm_province },
+                   { label: 'Farm District', value: selectedUser.farm_district },
+                   { label: 'Farm Sector', value: selectedUser.farm_sector },
+                   { label: 'Farm Cell', value: selectedUser.farm_cell },
+                   { label: 'Farm Village', value: selectedUser.farm_village },
+                   { label: 'Farm Age', value: selectedUser.farm_age ? `${selectedUser.farm_age} years` : null },
+                   { label: 'Planted', value: selectedUser.planted },
+                   { label: 'Avocado Type', value: selectedUser.avocado_type },
+                   { label: 'Mixed Percentage', value: selectedUser.mixed_percentage },
+                   { label: 'Farm Size', value: selectedUser.farm_size },
+                   { label: 'Tree Count', value: selectedUser.tree_count },
+                   { label: 'UPI Number', value: selectedUser.upi_number },
+                   { label: 'Assistance', value: selectedUser.assistance?.join(', ') }
+                 ].map((field, index) => (
+                   field.value && (
+                     <p key={index} className="modal-field">
+                       <span className="modal-field-label">{field.label}:</span> 
+                       <span className="modal-field-value">{field.value || 'N/A'}</span>
+                     </p>
+                   )
+                 ))}
+               </div>
+             )}
+           </div>
+           <div className="modal-footer">
+             <button
+               onClick={closeModal}
+               className="btn btn-view"
+             >
+               Close
+             </button>
+             {isEditMode && (
+               <button className="btn btn-primary modal-save">
+                 Save Changes
+               </button>
+             )}
+           </div>
+         </div>
+       </div>
+     )}
 
-      {/* Logout Button */}
-      <button
-        onClick={handleLogout}
-        className="logout-btn"
-      >
-        <CiLogout size={24} />
-    
-      </button>
-    </div>
-  );
+     {/* Add User Modal */}
+     {isAddModalOpen && (
+       <div className="modal-overlay">
+         <div className="modal-container">
+           <div className="modal-header1">
+             <h2 className="modal-title">+ Add New User</h2>
+             <button onClick={closeAddModal} className="modal-close">
+               &times;
+             </button>
+           </div>
+           <form onSubmit={handleSubmitNewUser} className="modal-content">
+             <div className="modal-grid">
+               {/* Personal Information */}
+               <div className="form-group">
+                 <label>Full Name *</label>
+                 <input 
+                   type="text" 
+                   name="full_name" 
+                   value={newUserForm.full_name}
+                   onChange={handleInputChange}
+                   required 
+                 />
+               </div>
+               <div className="form-group">
+                 <label>Age</label>
+                 <input 
+                   type="number" 
+                   name="age" 
+                   value={newUserForm.age}
+                   onChange={handleInputChange}
+                   min="18"
+                   max="120"
+                 />
+               </div>
+               <div className="form-group">
+                 <label>Phone Number</label>
+                 <input 
+                   type="tel" 
+                   name="telephone" 
+                   value={newUserForm.telephone}
+                   onChange={handleInputChange}
+                 />
+               </div>
+               <div className="form-group">
+                 <label>Email</label>
+                 <input 
+                   type="email" 
+                   name="email" 
+                   value={newUserForm.email}
+                   onChange={handleInputChange}
+                 />
+               </div>
+               <div className="form-group">
+                 <label>Gender *</label>
+                 <select 
+                   name="gender" 
+                   value={newUserForm.gender}
+                   onChange={handleInputChange}
+                   required
+                 >
+                   <option value="">Select Gender</option>
+                   <option value="Male">Male</option>
+                   <option value="Female">Female</option>
+                   <option value="Other">Other</option>
+                 </select>
+               </div>
+               <div className="form-group">
+                 <label>Marital Status</label>
+                 <select 
+                   name="marital_status" 
+                   value={newUserForm.marital_status}
+                   onChange={handleInputChange}
+                 >
+                   <option value="">Select Marital Status</option>
+                   <option value="Single">Single</option>
+                   <option value="Married">Married</option>
+                   <option value="Divorced">Divorced</option>
+                   <option value="Widowed">Widowed</option>
+                 </select>
+               </div>
+               <div className="form-group">
+                 <label>Education Level</label>
+                 <select 
+                   name="education_level" 
+                   value={newUserForm.education_level}
+                   onChange={handleInputChange}
+                 >
+                   <option value="">Select Education Level</option>
+                   <option value="Primary">Primary</option>
+                   <option value="Secondary">Secondary</option>
+                   <option value="Tertiary">University</option>
+                   <option value="None">None</option>
+                 </select>
+               </div>
+
+               {/* Personal Location */}
+               <div className="form-group">
+                 <label>Province</label>
+                 <input 
+                   type="text" 
+                   name="province" 
+                   value={newUserForm.province}
+                   onChange={handleInputChange}
+                 />
+               </div>
+               <div className="form-group">
+                 <label>District</label>
+                 <input 
+                   type="text" 
+                   name="district" 
+                   value={newUserForm.district}
+                   onChange={handleInputChange}
+                 />
+               </div>
+               <div className="form-group">
+                 <label>Sector</label>
+                 <input 
+                   type="text" 
+                   name="sector" 
+                   value={newUserForm.sector}
+                   onChange={handleInputChange}
+                 />
+               </div>
+               <div className="form-group">
+                 <label>Cell</label>
+                 <input 
+                   type="text" 
+                   name="cell" 
+                   value={newUserForm.cell}
+                   onChange={handleInputChange}
+                 />
+               </div>
+               <div className="form-group">
+                 <label>Village</label>
+                 <input 
+                   type="text" 
+                   name="village" 
+                   value={newUserForm.village}
+                   onChange={handleInputChange}
+                 />
+               </div>
+
+               {/* Farm Details */}
+               <div className="form-group">
+                 <label>Farm Province</label>
+                 <input 
+                   type="text" 
+                   name="farm_province" 
+                   value={newUserForm.farm_province}
+                   onChange={handleInputChange}
+                 />
+               </div>
+               <div className="form-group">
+                 <label>Farm District</label>
+                 <input 
+                   type="text" 
+                   name="farm_district" 
+                   value={newUserForm.farm_district}
+                   onChange={handleInputChange}
+                 />
+               </div>
+               <div className="form-group">
+                 <label>Farm Sector</label>
+                 <input 
+                   type="text" 
+                   name="farm_sector" 
+                   value={newUserForm.farm_sector}
+                   onChange={handleInputChange}
+                 />
+               </div>
+               <div className="form-group">
+                 <label>Farm Cell</label>
+                 <input 
+                   type="text" 
+                   name="farm_cell" 
+                   value={newUserForm.farm_cell}
+                   onChange={handleInputChange}
+                 />
+               </div>
+               <div className="form-group">
+                 <label>Farm Village</label>
+                 <input 
+                   type="text" 
+                   name="farm_village" 
+                   value={newUserForm.farm_village}
+                   onChange={handleInputChange}
+                 />
+               </div>
+
+               {/* Additional Farm Details */}
+               <div className="form-group">
+                 <label>Farm Age (Years)</label>
+                 <input 
+                   type="number" 
+                   name="farm_age" 
+                   value={newUserForm.farm_age}
+                   onChange={handleInputChange}
+                   min="0"
+                 />
+               </div>
+               <div className="form-group">
+                 <label>Planted</label>
+                 <input 
+                   type="text" 
+                   name="planted" 
+                   value={newUserForm.planted}
+                   onChange={handleInputChange}
+                 />
+               </div>
+               <div className="form-group">
+                 <label>Avocado Type</label>
+                 <input 
+                   type="text" 
+                   name="avocado_type" 
+                   value={newUserForm.avocado_type}
+                   onChange={handleInputChange}
+                 />
+               </div>
+               <div className="form-group">
+                 <label>Mixed Percentage</label>
+                 <input 
+                   type="number" 
+                   name="mixed_percentage" 
+                   value={newUserForm.mixed_percentage}
+                   onChange={handleInputChange}
+                   min="0"
+                   max="100"
+                 />
+               </div>
+               <div className="form-group">
+                 <label>Farm Size</label>
+                 <input 
+                   type="text" 
+                   name="farm_size" 
+                   value={newUserForm.farm_size}
+                   onChange={handleInputChange}
+                 />
+               </div>
+               <div className="form-group">
+                 <label>Tree Count</label>
+                 <input 
+                   type="number" 
+                   name="tree_count" 
+                   value={newUserForm.tree_count}
+                   onChange={handleInputChange}
+                   min="0"
+                 />
+               </div>
+               <div className="form-group">
+                 <label>UPI Number</label>
+                 <input 
+                   type="text" 
+                   name="upi_number" 
+                   value={newUserForm.upi_number}
+                   onChange={handleInputChange}
+                 />
+               </div>
+               <div className="form-group full-width">
+                 <label>Assistance</label>
+                 <Select
+                   isMulti
+                   name="assistance"
+                   options={assistanceOptions}
+                   value={newUserForm.assistance.map(item => ({ 
+                     value: item, 
+                     label: item 
+                   }))}
+                   onChange={(selectedOptions) => {
+                     setNewUserForm(prevState => ({
+                       ...prevState,
+                       assistance: selectedOptions 
+                         ? selectedOptions.map(option => option.value) 
+                         : []
+                     }));
+                   }}
+                   placeholder="Select Assistance Types"
+                 />
+               </div>
+
+               <div className="modal-footer full-width">
+                 <button 
+                   type="button" 
+                   onClick={closeAddModal} 
+                   className="btn btn-secondary"
+                 >
+                   Cancel
+                 </button>
+                 <button 
+                   type="submit" 
+                   className="btn btn-primary"
+                   disabled={loading}
+                 >
+                   {loading ? <ClipLoader color="#fff" size={20} /> : 'Add User'}
+                 </button>
+               </div>
+             </div>
+           </form>
+         </div>
+       </div>
+     )}
+
+     {/* Logout Button */}
+     <button
+       onClick={handleLogout}
+       className="logout-btn"
+     >
+       <CiLogout size={24} />
+     </button>
+   </div>
+ );
 };
 
 export default Users;

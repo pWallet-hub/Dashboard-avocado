@@ -145,7 +145,7 @@ export default function Agents() {
               ))}
               <div className="form-actions">
                 <button type="button" className="btn-secondary" onClick={closeModal}>Cancel</button>
-                <button type="submit" className="btn-primary">Create Agent</button>
+                <button type="submit" className="btn-primary1">Create Agent</button>
               </div>
             </form>
             {responseMessage && (

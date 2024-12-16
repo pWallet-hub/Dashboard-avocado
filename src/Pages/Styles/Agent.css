@@ -17,10 +17,24 @@ body {
 }
 
 .agents-header h1 {
-  font-size: 24px;
+  /* font-size: 24px; */
   font-weight: bold;
+  font-size: 2rem;
+    margin-right: 2rem;
+    font-weight: bold;
+    background: linear-gradient(to right, #2563eb, #4f46e5);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
 }
 
+.btn-primary1 {
+  background: linear-gradient(to right, #192D01, #1c3003c3);
+  color: white;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
 .btn-primary {
   background: linear-gradient(to right, #192D01, #1c3003c3);
   color: white;
@@ -158,6 +172,10 @@ body {
 .modal h2{
     text-align: center;
     padding: 1rem;
+    background: #192D01;
+    color: #dcfce7;
+    margin-right: 1rem;
+    border-radius: 5px;
 }
 
 .form-group label {
@@ -180,7 +198,10 @@ body {
 }
 
 .btn-secondary {
-  background: #f1f5f9;
+  background: #d83041;
+  color: #f1f5f9;
+  width: 5rem;
+  border-radius: 5px;
 }
 
 .response-message {

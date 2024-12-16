@@ -1,11 +1,25 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import '../Styles/Admin.css'
+import '../Styles/Admin.css';
 
 function Admin() {
   const [adminProfile, setAdminProfile] = useState({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  
+  // Password update modal state
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordUpdateError, setPasswordUpdateError] = useState('');
+  const [passwordUpdateSuccess, setPasswordUpdateSuccess] = useState(false);
+
+  // Email update modal state
+  const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
+  const [newEmail, setNewEmail] = useState('');
+  const [emailUpdateError, setEmailUpdateError] = useState('');
+  const [emailUpdateSuccess, setEmailUpdateSuccess] = useState(false);
 
   useEffect(() => {
     const fetchAdminProfile = async () => {
@@ -34,6 +48,134 @@ function Admin() {
   const handleLogout = () => {
     localStorage.removeItem('token');
     window.location.href = '/';
+  };
+
+  // Password Modal Methods
+  const openPasswordModal = () => {
+    setIsPasswordModalOpen(true);
+    // Reset modal state
+    setCurrentPassword('');
+    setNewPassword('');
+    setConfirmPassword('');
+    setPasswordUpdateError('');
+    setPasswordUpdateSuccess(false);
+  };
+
+  const closePasswordModal = () => {
+    setIsPasswordModalOpen(false);
+  };
+
+  const handlePasswordUpdate = async (e) => {
+    e.preventDefault();
+    
+    // Validate inputs
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      setPasswordUpdateError('All fields are required');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setPasswordUpdateError('New passwords do not match');
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      
+      await axios.put(
+        'https://pwallet-api.onrender.com/api/auth/update-password', 
+        {
+          currentPassword,
+          newPassword
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      );
+
+      // Success handling
+      setPasswordUpdateSuccess(true);
+      setPasswordUpdateError('');
+      
+      // Optional: Close modal after a short delay
+      setTimeout(() => {
+        closePasswordModal();
+      }, 2000);
+
+    } catch (error) {
+      console.error(error);
+      setPasswordUpdateError(
+        error.response?.data?.message || 
+        'Failed to update password. Please try again.'
+      );
+    }
+  };
+
+  // Email Modal Methods
+  const openEmailModal = () => {
+    setIsEmailModalOpen(true);
+    // Reset modal state
+    setNewEmail('');
+    setEmailUpdateError('');
+    setEmailUpdateSuccess(false);
+  };
+
+  const closeEmailModal = () => {
+    setIsEmailModalOpen(false);
+  };
+
+  const handleEmailUpdate = async (e) => {
+    e.preventDefault();
+    
+    // Validate email
+    if (!newEmail) {
+      setEmailUpdateError('Email is required');
+      return;
+    }
+
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(newEmail)) {
+      setEmailUpdateError('Please enter a valid email address');
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      
+      await axios.put(
+        'https://pwallet-api.onrender.com/api/auth/update-email', 
+        {
+          newEmail
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      );
+
+      // Success handling
+      setEmailUpdateSuccess(true);
+      setEmailUpdateError('');
+      
+      // Update local profile
+      setAdminProfile(prev => ({...prev, email: newEmail}));
+      
+      // Close modal after a short delay
+      setTimeout(() => {
+        closeEmailModal();
+      }, 2000);
+
+    } catch (error) {
+      console.error(error);
+      setEmailUpdateError(
+        error.response?.data?.message || 
+        'Failed to update email. Please try again.'
+      );
+    }
   };
 
   return (
@@ -79,8 +221,18 @@ function Admin() {
             <div className="settings-card">
               <h2 className="card-title">Account Settings</h2>
               <div className="settings-buttons">
-                <button className="settings-button blue">Update Password</button>
-                <button className="settings-button purple">Update Email</button>
+                <button 
+                  onClick={openPasswordModal} 
+                  className="settings-button blue"
+                >
+                  Update Password
+                </button>
+                <button 
+                  onClick={openEmailModal}
+                  className="settings-button purple"
+                >
+                  Update Email
+                </button>
               </div>
             </div>
 
@@ -93,6 +245,111 @@ function Admin() {
           </div>
         )}
       </div>
+
+      {/* Password Update Modal */}
+      {isPasswordModalOpen && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <h2>Update Password</h2>
+            <form onSubmit={handlePasswordUpdate}>
+              <div className="form-group">
+                <label>Current Password</label>
+                <input
+                  type="password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label>New Password</label>
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label>Confirm New Password</label>
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
+                />
+              </div>
+              {passwordUpdateError && (
+                <div className="error-message">{passwordUpdateError}</div>
+              )}
+              {passwordUpdateSuccess && (
+                <div className="success-message">
+                  Password updated successfully!
+                </div>
+              )}
+              <div className="modal-actions">
+                <button 
+                  type="button" 
+                  onClick={closePasswordModal} 
+                  className="modal-cancel"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit" 
+                  className="modal-confirm"
+                >
+                  Update Password
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Email Update Modal */}
+      {isEmailModalOpen && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <h2>Update Email</h2>
+            <form onSubmit={handleEmailUpdate}>
+              <div className="form-group">
+                <label>New Email</label>
+                <input
+                  type="email"
+                  value={newEmail}
+                  onChange={(e) => setNewEmail(e.target.value)}
+                  placeholder="Enter new email address"
+                  required
+                />
+              </div>
+              {emailUpdateError && (
+                <div className="error-message">{emailUpdateError}</div>
+              )}
+              {emailUpdateSuccess && (
+                <div className="success-message">
+                  Email updated successfully!
+                </div>
+              )}
+              <div className="modal-actions">
+                <button 
+                  type="button" 
+                  onClick={closeEmailModal} 
+                  className="modal-cancel"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit" 
+                  className="modal-confirm"
+                >
+                  Update Email
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
