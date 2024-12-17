@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
+import { ClipLoader } from 'react-spinners';
 import '../Styles/Agent.css';
 
 export default function Agents() {
   const [agents, setAgents] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState({
     fullname: '',
@@ -18,10 +21,15 @@ export default function Agents() {
   useEffect(() => {
     const fetchAgents = async () => {
       try {
+        setLoading(true);
         const response = await axios.get('https://pwallet-api.onrender.com/api/agents');
         setAgents(response.data);
+        setError(null);
       } catch (error) {
         console.error('Error fetching agents:', error);
+        setError('Failed to fetch agents');
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -99,30 +107,63 @@ export default function Agents() {
       </div>
 
       <div className="table-container">
-        <table className="agents-table">
-          <thead>
-            <tr>
-              <th>Agent Details</th>
-              <th>Contact</th>
-              <th>Location</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {agents.map(agent => (
-              <tr key={agent.id}>
-                <td>{agent.fullname}</td>
-                <td>{agent.email}</td>
-                <td>{agent.province}, {agent.district}, {agent.sector}</td>
-                <td>
-                  <button className="btn-view">View</button>
-                  <button className="btn-edit">Edit</button>
-                  <button className="btn-delete" onClick={() => handleDelete(agent.id)}>Delete</button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div className="table-wrapper">
+          {loading ? (
+            <div className="loading-container">
+              <ClipLoader color="#3498db" loading={loading} size={50} />
+            </div>
+          ) : error ? (
+            <div className="error-message">{error}</div>
+          ) : agents.length > 0 ? (
+            <table className="users-table">
+              <thead>
+                <tr>
+                  <th>Agent Details</th>
+                  <th className="contact-column">Contact</th>
+                  <th className="location-column">Location</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {agents.map(agent => (
+                  <tr key={agent.id}>
+                    <td>
+                      <div className="user-details">
+                        <div className="user-avatar">
+                          {agent.fullname ? agent.fullname.charAt(0) : 'A'}
+                        </div>
+                        <div className="user-info">
+                          <div className="user-name">{agent.fullname}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="contact-column">
+                      <div className="contact-primary">{agent.email}</div>
+                      <div className="contact-secondary">{agent.phonenumber}</div>
+                    </td>
+                    <td className="location-column">
+                      <div className="location-primary">{agent.province}</div>
+                      <div className="location-secondary">
+                        {agent.district}, {agent.sector}
+                      </div>
+                    </td>
+                    <td>
+                      <div className="action-buttons">
+                        <button className="btn btn-view">View</button>
+                        <button className="btn btn-edit">Edit</button>
+                        <button className="btn btn-delete" onClick={() => handleDelete(agent.id)}>
+                          Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <div className="loading-container">No agents found.</div>
+          )}
+        </div>
       </div>
 
       {isModalOpen && (
