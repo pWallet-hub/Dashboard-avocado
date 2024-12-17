@@ -9,9 +9,9 @@ function Admin() {
   
   // Password update modal state
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
-  const [currentPassword, setCurrentPassword] = useState('');
+  const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
   const [passwordUpdateError, setPasswordUpdateError] = useState('');
   const [passwordUpdateSuccess, setPasswordUpdateSuccess] = useState(false);
 
@@ -54,9 +54,9 @@ function Admin() {
   const openPasswordModal = () => {
     setIsPasswordModalOpen(true);
     // Reset modal state
-    setCurrentPassword('');
+    setOldPassword('');
     setNewPassword('');
-    setConfirmPassword('');
+    setConfirmNewPassword('');
     setPasswordUpdateError('');
     setPasswordUpdateSuccess(false);
   };
@@ -69,24 +69,38 @@ function Admin() {
     e.preventDefault();
     
     // Validate inputs
-    if (!currentPassword || !newPassword || !confirmPassword) {
+    if (!oldPassword || !newPassword || !confirmNewPassword) {
       setPasswordUpdateError('All fields are required');
       return;
     }
 
-    if (newPassword !== confirmPassword) {
+    if (newPassword !== confirmNewPassword) {
       setPasswordUpdateError('New passwords do not match');
       return;
     }
+    
+    if (newPassword.length < 8) {
+      setPasswordUpdateError('New password must be at least 8 characters long');
+      return;
+    }
+    
+    if (oldPassword === newPassword) {
+      setPasswordUpdateError('New password must be different from current password');
+      return;
+    }
+
+
 
     try {
       const token = localStorage.getItem('token');
+      const id = localStorage.getItem('id');
       
-      await axios.put(
-        'https://pwallet-api.onrender.com/api/auth/update-password', 
+      await axios.post(
+         `https://pwallet-api.onrender.com/api/auth/change-password/${id}`,  
         {
-          currentPassword,
-          newPassword
+          oldPassword,
+          newPassword,
+          confirmNewPassword
         },
         {
           headers: {
@@ -256,8 +270,8 @@ function Admin() {
                 <label>Current Password</label>
                 <input
                   type="password"
-                  value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  value={oldPassword}
+                  onChange={(e) => setOldPassword(e.target.value)}
                   required
                 />
               </div>
@@ -274,8 +288,8 @@ function Admin() {
                 <label>Confirm New Password</label>
                 <input
                   type="password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  value={confirmNewPassword}
+                  onChange={(e) => setConfirmNewPassword(e.target.value)}
                   required
                 />
               </div>
