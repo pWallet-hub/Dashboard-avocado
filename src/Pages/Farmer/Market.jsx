@@ -108,12 +108,21 @@ const images = [
       <div className="market-tabs">
         <button>All Categories</button>
         <div className="market-tabs-grid">
-          <button>Irrigation Kits</button>
-          <button>Harvesting Kits</button>
-          <button>Safety & Protection</button>
-          <button>Container</button>
-          <button>Pest Management</button>
-          <button>Bee Keeping</button>
+         <Link to="/dashboard/farmer/IrrigationKits">
+                <button>Irrigation Kits</button>
+              </Link>
+              <Link to="/dashboard/farmer/HarvestingKit">
+                <button>Harvesting Kits</button>
+              </Link>
+              <Link to="/dashboard/farmer/Protection">
+                <button>Safety & Protection</button>
+              </Link>
+              <Link to="/dashboard/farmer/Container">
+                <button>Container</button>
+              </Link>
+               <Link to="/dashboard/farmer/Pest">
+                <button>Pest Management</button>
+              </Link>
         </div>
       </div>
 

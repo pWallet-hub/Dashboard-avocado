@@ -8,6 +8,11 @@ import Users from './Pages/Admin/Users'
 import Home from './Pages/Home'
 import Layout from './components/Layout/Layout';
 import Market from './Pages/Farmer/Market'
+import IrrigationKits from './Pages/Farmer/Irrigationkits'
+import HarvestingKit from './Pages/Farmer/HarvestingKit'
+import Protection from './Pages/Farmer/Protection'
+import Container from './Pages/Farmer/Container'
+import Pest from './Pages/Farmer/Pest'
 import Profile from './Pages/Farmer/Profile'
 import Service from './Pages/Farmer/Service'
 import Product from './Pages/Farmer/Product'
@@ -41,6 +46,11 @@ function App() {
           <Route path='agent/Shop' element={<Shop/>}/>
           <Route path="farmer" element={<Farmer />} />
           <Route path='farmer/market' element={<Market />} />
+          <Route path="farmer/IrrigationKits" element={<IrrigationKits />} />
+          <Route path="farmer/HarvestingKit" element={<HarvestingKit />} />
+          <Route path='farmer/protection' element={<Protection/>}/>
+          <Route path='farmer/container' element={<Container/>}/>
+          <Route path='farmer/pest' element={<Pest/>}/>
           <Route path='farmer/service' element={<Service/>}/>
           <Route path='farmer/profile' element={<Profile/>}/>
           <Route path='farmer/product' element={<Product/>}/>

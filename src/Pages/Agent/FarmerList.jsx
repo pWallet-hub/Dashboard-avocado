@@ -1,29 +1,96 @@
 import { useEffect, useState } from 'react';
-import axios from 'axios';
-import { ClipLoader } from 'react-spinners';
+import { User, Phone, Mail, MapPin, TreePine, Calendar, Search, Filter, Download, Plus, Eye, X } from 'lucide-react';
 
 export default function FarmerList() {
   const [farmers, setFarmers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [selectedFarmer, setSelectedFarmer] = useState(null); // To handle modal selection
+  const [selectedFarmer, setSelectedFarmer] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterBy, setFilterBy] = useState('all');
+
+  // Mock data for demonstration
+  const mockFarmers = [
+    {
+      id: 1,
+      full_name: "Jean Baptiste Uwimana",
+      email: "jean.uwimana@email.com",
+      telephone: "+250788123456",
+      province: "Kigali",
+      district: "Gasabo",
+      sector: "Remera",
+      farm_province: "Kigali",
+      farm_district: "Gasabo",
+      farm_sector: "Remera",
+      farm_cell: "Rukiri",
+      farm_village: "Karama",
+      farm_age: 5,
+      planted: "2019-03-15",
+      avocado_type: "Hass",
+      mixed_percentage: "80%",
+      farm_size: "2.5 hectares",
+      tree_count: 150,
+      upi_number: "UPI001234567",
+      assistance: ["Training", "Equipment", "Fertilizer"]
+    },
+    {
+      id: 2,
+      full_name: "Marie Claire Mukamana",
+      email: "marie.mukamana@email.com",
+      telephone: "+250788765432",
+      province: "Northern",
+      district: "Musanze",
+      sector: "Cyuve",
+      farm_province: "Northern",
+      farm_district: "Musanze",
+      farm_sector: "Cyuve",
+      farm_cell: "Rugengabari",
+      farm_village: "Nyange",
+      farm_age: 3,
+      planted: "2021-06-20",
+      avocado_type: "Fuerte",
+      mixed_percentage: "60%",
+      farm_size: "1.8 hectares",
+      tree_count: 95,
+      upi_number: "UPI002345678",
+      assistance: ["Seeds", "Training"]
+    },
+    {
+      id: 3,
+      full_name: "Paul Nzeyimana",
+      email: "paul.nzeyimana@email.com",
+      telephone: "+250788654321",
+      province: "Eastern",
+      district: "Nyagatare",
+      sector: "Karangazi",
+      farm_province: "Eastern",
+      farm_district: "Nyagatare",
+      farm_sector: "Karangazi",
+      farm_cell: "Nyagihanga",
+      farm_village: "Rugarama",
+      farm_age: 7,
+      planted: "2017-01-10",
+      avocado_type: "Mixed",
+      mixed_percentage: "45%",
+      farm_size: "3.2 hectares",
+      tree_count: 200,
+      upi_number: "UPI003456789",
+      assistance: ["Equipment", "Fertilizer", "Pesticides"]
+    }
+  ];
 
   useEffect(() => {
     const fetchFarmers = async () => {
       setLoading(true);
       setError(null);
-      const token = localStorage.getItem('token');
-      const agentId = localStorage.getItem('id');
+      
+      // Simulate API call
       try {
-        const response = await axios.get(`https://pwallet-api.onrender.com/api/farmers/by-agent/${agentId}`, {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        });
-        setFarmers(response.data);
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        setFarmers(mockFarmers);
       } catch (error) {
-        setError(error.response?.data?.message || 'There was an error fetching the farmers!');
+        setError('There was an error fetching the farmers!');
       } finally {
         setLoading(false);
       }
@@ -42,153 +109,393 @@ export default function FarmerList() {
     setSelectedFarmer(null);
   };
 
+  const filteredFarmers = farmers.filter(farmer => {
+    const matchesSearch = farmer.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         farmer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         farmer.telephone.includes(searchTerm);
+    
+    if (filterBy === 'all') return matchesSearch;
+    return matchesSearch && farmer.province.toLowerCase() === filterBy.toLowerCase();
+  });
+
+  const provinces = [...new Set(farmers.map(f => f.province))];
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-green-50 to-emerald-50">
       <div className="px-4 py-8 mx-auto max-w-7xl sm:px-6 lg:px-8">
-        {/* Header Section */}
-        <div className="mb-8 space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-            <h1 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">
-              Farmer List
-            </h1>
-            <div className="flex flex-col gap-2 mt-4 sm:flex-row sm:mt-0">
+        {/* Modern Header */}
+        <div className="mb-8">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+            <div className="space-y-2">
+              <h1 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-green-800 via-green-700 to-green-600">
+                Farmer Management
+              </h1>
+              <p className="text-gray-600">Manage and track your registered farmers</p>
+            </div>
+            
+            <div className="flex flex-wrap gap-3">
               <button
                 onClick={() => alert('Add New Farmer')}
-                className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-medium rounded-lg shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200"
+                className="inline-flex items-center gap-2 px-6 py-3 text-white font-medium rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-300"
+                style={{ background: '#1F310A' }}
+                onMouseEnter={(e) => e.target.style.background = '#2A4A0D'}
+                onMouseLeave={(e) => e.target.style.background = '#1F310A'}
               >
-                + Add New Farmer
+                <Plus size={20} />
+                Add Farmer
               </button>
               <button 
                 onClick={() => alert('Export to Excel')}
-                className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-green-600 to-green-700 text-white font-medium rounded-lg shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white font-medium rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-300 hover:from-green-700 hover:to-emerald-700"
               >
-                Export to Excel
+                <Download size={20} />
+                Export
               </button>
             </div>
           </div>
+        </div>
 
-          {/* Stats Cards */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="p-6 transition-shadow bg-white rounded-lg shadow-md hover:shadow-lg">
-              <p className="text-sm text-gray-500">Total Farmers</p>
-              <p className="text-2xl font-bold text-gray-800">{farmers.length}</p>
+        {/* Enhanced Stats Cards */}
+        <div className="grid grid-cols-1 gap-6 mb-8 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="p-6 bg-white rounded-2xl shadow-lg border border-gray-100 hover:shadow-xl transition-shadow duration-300">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-500">Total Farmers</p>
+                <p className="text-3xl font-bold text-gray-800">{farmers.length}</p>
+              </div>
+              <div className="p-3 rounded-full" style={{ backgroundColor: '#1F310A20' }}>
+                <User className="w-8 h-8" style={{ color: '#1F310A' }} />
+              </div>
             </div>
-            {/* Add more stats as needed */}
+          </div>
+          
+          <div className="p-6 bg-white rounded-2xl shadow-lg border border-gray-100 hover:shadow-xl transition-shadow duration-300">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-500">Total Trees</p>
+                <p className="text-3xl font-bold text-gray-800">{farmers.reduce((sum, f) => sum + f.tree_count, 0)}</p>
+              </div>
+              <div className="p-3 bg-green-100 rounded-full">
+                <TreePine className="w-8 h-8 text-green-600" />
+              </div>
+            </div>
+          </div>
+          
+          <div className="p-6 bg-white rounded-2xl shadow-lg border border-gray-100 hover:shadow-xl transition-shadow duration-300">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-500">Provinces</p>
+                <p className="text-3xl font-bold text-gray-800">{provinces.length}</p>
+              </div>
+              <div className="p-3 bg-purple-100 rounded-full">
+                <MapPin className="w-8 h-8 text-purple-600" />
+              </div>
+            </div>
+          </div>
+          
+          <div className="p-6 bg-white rounded-2xl shadow-lg border border-gray-100 hover:shadow-xl transition-shadow duration-300">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-500">Farm Area</p>
+                <p className="text-3xl font-bold text-gray-800">{farmers.length > 0 ? (farmers.reduce((sum, f) => sum + parseFloat(f.farm_size.split(' ')[0]), 0)).toFixed(1) : '0'}ha</p>
+              </div>
+              <div className="p-3 bg-orange-100 rounded-full">
+                <Calendar className="w-8 h-8 text-orange-600" />
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Table Section */}
-        <div className="overflow-hidden bg-white shadow-lg rounded-xl">
+        {/* Search and Filter Bar */}
+        <div className="mb-6 bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+              <input
+                type="text"
+                placeholder="Search farmers..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:border-transparent transition-all duration-200"
+                style={{ '--tw-ring-color': '#1F310A' }}
+                onFocus={(e) => e.target.style.borderColor = '#1F310A'}
+              />
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <Filter className="text-gray-400" size={20} />
+              <select
+                value={filterBy}
+                onChange={(e) => setFilterBy(e.target.value)}
+                className="px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:border-transparent transition-all duration-200"
+                style={{ '--tw-ring-color': '#1F310A' }}
+                onFocus={(e) => e.target.style.borderColor = '#1F310A'}
+              >
+                <option value="all">All Provinces</option>
+                {provinces.map(province => (
+                  <option key={province} value={province}>{province}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* Modern Table */}
+        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
           <div className="overflow-x-auto">
-            <div className="inline-block min-w-full align-middle">
-              {loading ? (
-                <div className="p-6 text-center">
-                  <ClipLoader color="#3498db" loading={loading} size={50} />
+            {loading ? (
+              <div className="p-12 text-center">
+                <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2" style={{ borderColor: '#1F310A' }}></div>
+                <p className="mt-4 text-gray-600">Loading farmers...</p>
+              </div>
+            ) : error ? (
+              <div className="p-12 text-center">
+                <div className="w-16 h-16 mx-auto mb-4 bg-red-100 rounded-full flex items-center justify-center">
+                  <X className="w-8 h-8 text-red-600" />
                 </div>
-              ) : error ? (
-                <div className="p-6 text-center text-red-500">{error}</div>
-              ) : farmers.length > 0 ? (
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-xs font-semibold tracking-wider text-left text-gray-500 uppercase">Full Name</th>
-                      <th className="px-6 py-3 text-xs font-semibold tracking-wider text-left text-gray-500 uppercase">Email</th>
-                      <th className="px-6 py-3 text-xs font-semibold tracking-wider text-left text-gray-500 uppercase">Phone Number</th>
-                      <th className="px-6 py-3 text-xs font-semibold tracking-wider text-left text-gray-500 uppercase">Province</th>
-                      <th className="px-6 py-3 text-xs font-semibold tracking-wider text-left text-gray-500 uppercase">District</th>
-                      <th className="px-6 py-3 text-xs font-semibold tracking-wider text-left text-gray-500 uppercase">Sector</th>
-                      <th className="px-6 py-3 text-xs font-semibold tracking-wider text-left text-gray-500 uppercase">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {farmers.map(farmer => (
-                      <tr key={farmer.id} className="transition-colors hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center">
-                            <div className="flex-shrink-0 w-10 h-10">
-                              <div className="flex items-center justify-center w-10 h-10 font-bold text-white rounded-full bg-gradient-to-r from-blue-500 to-indigo-500">
-                                {farmer.full_name ? farmer.full_name.charAt(0) : 'U'}
-                              </div>
-                            </div>
-                            <div className="ml-4">
-                              <div className="text-sm font-medium text-gray-900">{farmer.full_name}</div>
+                <p className="text-red-600 font-medium">{error}</p>
+              </div>
+            ) : filteredFarmers.length > 0 ? (
+              <table className="min-w-full">
+                <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
+                  <tr>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Farmer</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Contact</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Location</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Farm Info</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {filteredFarmers.map((farmer, index) => (
+                    <tr key={farmer.id} className="hover:bg-gray-50 transition-colors duration-200">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center">
+                          <div className="flex-shrink-0 w-12 h-12">
+                            <div className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-lg" style={{ background: '#1F310A' }}>
+                              {farmer.full_name.charAt(0)}
                             </div>
                           </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">{farmer.email}</div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">{farmer.telephone}</div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">{farmer.province}</div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">{farmer.district}</div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">{farmer.sector}</div>
-                        </td>
-                        <td className="px-6 py-4 space-x-2 text-sm font-medium whitespace-nowrap">
-                          <button
-                            onClick={() => openModal(farmer)}
-                            className="inline-flex items-center px-3 py-1 text-blue-600 transition-colors bg-blue-100 rounded-md hover:bg-blue-200"
-                          >
-                            View
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              ) : (
-                <div className="p-6 text-center">No farmers available.</div>
-              )}
-            </div>
+                          <div className="ml-4">
+                            <div className="text-sm font-semibold text-gray-900">{farmer.full_name}</div>
+                            <div className="text-sm text-gray-500">ID: {farmer.upi_number}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="space-y-1">
+                          <div className="flex items-center text-sm text-gray-900">
+                            <Mail className="w-4 h-4 mr-2 text-gray-400" />
+                            {farmer.email}
+                          </div>
+                          <div className="flex items-center text-sm text-gray-900">
+                            <Phone className="w-4 h-4 mr-2 text-gray-400" />
+                            {farmer.telephone}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="space-y-1">
+                          <div className="text-sm font-medium text-gray-900">{farmer.province}</div>
+                          <div className="text-sm text-gray-500">{farmer.district}, {farmer.sector}</div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="space-y-1">
+                          <div className="text-sm font-medium text-gray-900">{farmer.farm_size}</div>
+                          <div className="text-sm text-gray-500">{farmer.tree_count} trees • {farmer.avocado_type}</div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <button
+                          onClick={() => openModal(farmer)}
+                          className="inline-flex items-center gap-2 px-4 py-2 text-white text-sm font-medium rounded-lg transition-all duration-200 shadow-md hover:shadow-lg"
+                          style={{ background: '#1F310A' }}
+                          onMouseEnter={(e) => e.target.style.background = '#2A4A0D'}
+                          onMouseLeave={(e) => e.target.style.background = '#1F310A'}
+                        >
+                          <Eye size={16} />
+                          View Details
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <div className="p-12 text-center">
+                <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
+                  <User className="w-8 h-8 text-gray-400" />
+                </div>
+                <p className="text-gray-600">No farmers found matching your criteria.</p>
+              </div>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Modal for viewing farmer details */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-800 bg-opacity-50">
-          <div className="relative w-full max-w-xl p-6 bg-white rounded-lg shadow-lg">
-            <div className="flex items-start justify-between">
-              <h2 className="text-lg font-semibold text-gray-700">Farmer Details</h2>
-              <button onClick={closeModal} className="text-gray-500 hover:text-gray-700">
-                &times;
-              </button>
+      {/* Enhanced Modal */}
+      {isModalOpen && selectedFarmer && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm">
+          <div className="relative w-full max-w-4xl max-h-[90vh] mx-4 bg-white rounded-2xl shadow-2xl overflow-hidden">
+            {/* Modal Header */}
+            <div className="px-6 py-4 text-white" style={{ background: '#1F310A' }}>
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-bold">Farmer Details</h2>
+                <button
+                  onClick={closeModal}
+                  className="p-2 hover:bg-white hover:bg-opacity-20 rounded-full transition-colors duration-200"
+                >
+                  <X size={24} />
+                </button>
+              </div>
             </div>
-            <div className="mt-4 overflow-y-auto max-h-96"> {/* Set fixed height and enable scrolling */}
-              {selectedFarmer && (
-                <div className="grid gap-4">
-                  <p className="text-sm text-gray-500"><strong>Full Name:</strong> {selectedFarmer.full_name}</p>
-                  <p className="text-sm text-gray-500"><strong>Email:</strong> {selectedFarmer.email}</p>
-                  <p className="text-sm text-gray-500"><strong>Phone Number:</strong> {selectedFarmer.telephone}</p>
-                  <p className="text-sm text-gray-500"><strong>Province:</strong> {selectedFarmer.province}</p>
-                  <p className="text-sm text-gray-500"><strong>District:</strong> {selectedFarmer.district}</p>
-                  <p className="text-sm text-gray-500"><strong>Sector:</strong> {selectedFarmer.sector}</p>
-                  <p className="text-sm text-gray-500"><strong>Farm Province:</strong> {selectedFarmer.farm_province}</p>
-                  <p className="text-sm text-gray-500"><strong>Farm District:</strong> {selectedFarmer.farm_district}</p>
-                  <p className="text-sm text-gray-500"><strong>Farm Sector:</strong> {selectedFarmer.farm_sector}</p>
-                  <p className="text-sm text-gray-500"><strong>Farm Cell:</strong> {selectedFarmer.farm_cell}</p>
-                  <p className="text-sm text-gray-500"><strong>Farm Village:</strong> {selectedFarmer.farm_village}</p>
-                  <p className="text-sm text-gray-500"><strong>Farm Age:</strong> {selectedFarmer.farm_age} years</p>
-                  <p className="text-sm text-gray-500"><strong>Planted:</strong> {selectedFarmer.planted}</p>
-                  <p className="text-sm text-gray-500"><strong>Avocado Type:</strong> {selectedFarmer.avocado_type}</p>
-                  <p className="text-sm text-gray-500"><strong>Mixed Percentage:</strong> {selectedFarmer.mixed_percentage}</p>
-                  <p className="text-sm text-gray-500"><strong>Farm Size:</strong> {selectedFarmer.farm_size}</p>
-                  <p className="text-sm text-gray-500"><strong>Tree Count:</strong> {selectedFarmer.tree_count}</p>
-                  <p className="text-sm text-gray-500"><strong>UPI Number:</strong> {selectedFarmer.upi_number}</p>
-                  <p className="text-sm text-gray-500"><strong>Assistance:</strong> {selectedFarmer.assistance.join(', ')}</p>
+
+            {/* Modal Content */}
+            <div className="p-6 overflow-y-auto max-h-[calc(90vh-80px)]">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* Personal Information */}
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                      <User className="w-5 h-5" style={{ color: '#1F310A' }} />
+                      Personal Information
+                    </h3>
+                    <div className="space-y-3 bg-gray-50 p-4 rounded-xl">
+                      <div className="flex justify-between">
+                        <span className="font-medium text-gray-600">Full Name:</span>
+                        <span className="text-gray-900">{selectedFarmer.full_name}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="font-medium text-gray-600">Email:</span>
+                        <span className="text-gray-900">{selectedFarmer.email}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="font-medium text-gray-600">Phone:</span>
+                        <span className="text-gray-900">{selectedFarmer.telephone}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="font-medium text-gray-600">UPI Number:</span>
+                        <span className="text-gray-900">{selectedFarmer.upi_number}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Location Information */}
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                      <MapPin className="w-5 h-5 text-purple-600" />
+                      Location
+                    </h3>
+                    <div className="space-y-3 bg-gray-50 p-4 rounded-xl">
+                      <div className="flex justify-between">
+                        <span className="font-medium text-gray-600">Province:</span>
+                        <span className="text-gray-900">{selectedFarmer.province}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="font-medium text-gray-600">District:</span>
+                        <span className="text-gray-900">{selectedFarmer.district}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="font-medium text-gray-600">Sector:</span>
+                        <span className="text-gray-900">{selectedFarmer.sector}</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              )}
+
+                {/* Farm Information */}
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                      <TreePine className="w-5 h-5" style={{ color: '#1F310A' }} />
+                      Farm Information
+                    </h3>
+                    <div className="space-y-3 bg-gray-50 p-4 rounded-xl">
+                      <div className="flex justify-between">
+                        <span className="font-medium text-gray-600">Farm Size:</span>
+                        <span className="text-gray-900">{selectedFarmer.farm_size}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="font-medium text-gray-600">Tree Count:</span>
+                        <span className="text-gray-900">{selectedFarmer.tree_count}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="font-medium text-gray-600">Avocado Type:</span>
+                        <span className="text-gray-900">{selectedFarmer.avocado_type}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="font-medium text-gray-600">Mixed %:</span>
+                        <span className="text-gray-900">{selectedFarmer.mixed_percentage}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="font-medium text-gray-600">Farm Age:</span>
+                        <span className="text-gray-900">{selectedFarmer.farm_age} years</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="font-medium text-gray-600">Planted:</span>
+                        <span className="text-gray-900">{selectedFarmer.planted}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Farm Location */}
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                      <MapPin className="w-5 h-5" style={{ color: '#1F310A' }} />
+                      Farm Location
+                    </h3>
+                    <div className="space-y-3 bg-gray-50 p-4 rounded-xl">
+                      <div className="flex justify-between">
+                        <span className="font-medium text-gray-600">Province:</span>
+                        <span className="text-gray-900">{selectedFarmer.farm_province}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="font-medium text-gray-600">District:</span>
+                        <span className="text-gray-900">{selectedFarmer.farm_district}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="font-medium text-gray-600">Sector:</span>
+                        <span className="text-gray-900">{selectedFarmer.farm_sector}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="font-medium text-gray-600">Cell:</span>
+                        <span className="text-gray-900">{selectedFarmer.farm_cell}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="font-medium text-gray-600">Village:</span>
+                        <span className="text-gray-900">{selectedFarmer.farm_village}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Assistance Section */}
+              <div className="mt-8">
+                <h3 className="text-lg font-semibold text-gray-800 mb-4">Assistance Provided</h3>
+                <div className="flex flex-wrap gap-2">
+                  {selectedFarmer.assistance.map((item, index) => (
+                    <span
+                      key={index}
+                      className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium text-white"
+                      style={{ background: '#1F310A' }}
+                    >
+                      {item}
+                    </span>
+                  ))}
+                </div>
+              </div>
             </div>
-            <div className="mt-6 text-right">
+
+            {/* Modal Footer */}
+            <div className="bg-gray-50 px-6 py-4 flex justify-end">
               <button
                 onClick={closeModal}
-                className="inline-flex items-center px-4 py-2 text-sm text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300"
+                className="px-6 py-2 text-white rounded-lg transition-colors duration-200"
+                style={{ background: '#1F310A' }}
+                onMouseEnter={(e) => e.target.style.background = '#2A4A0D'}
+                onMouseLeave={(e) => e.target.style.background = '#1F310A'}
               >
                 Close
               </button>
