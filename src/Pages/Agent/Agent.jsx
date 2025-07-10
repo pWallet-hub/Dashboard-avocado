@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
-import axios from 'axios';
-import { ClipLoader } from 'react-spinners';
+import { User, Mail, Phone, MapPin, Calendar, Settings, Activity, Award, BarChart3, Briefcase, Edit3, LogOut } from 'lucide-react';
 
-export default function Agent() {
+export default function AgentProfile() {
   const [agentProfile, setAgentProfile] = useState({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -11,115 +10,295 @@ export default function Agent() {
     const fetchAgentProfile = async () => {
       setLoading(true);
       setError(null);
-      const token = localStorage.getItem('token');
-      const agentId = localStorage.getItem('id');
-      try {
-        const response = await axios.get(`https://pwallet-api.onrender.com/api/agents/profile/${agentId}`, {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
+      
+      // Simulate API call - replace with actual API call
+      setTimeout(() => {
+        setAgentProfile({
+          fullname: "Jean Baptiste Uwimana",
+          email: "j.uwimana@agent.rw",
+          phonenumber: "+250 788 123 456",
+          province: "Kigali",
+          district: "Gasabo",
+          sector: "Kinyinya",
+          joinDate: "2023-01-15",
+          status: "Active",
+          agentId: "AGT001234",
+          specialization: "Crop Management",
+          experience: "5 years",
+          certification: "Certified Agricultural Extension Agent",
+          performance: "95%",
+          farmersAssisted: 127,
+          totalTransactions: 2847,
+          lastLogin: "2024-01-20 09:30"
         });
-        setAgentProfile(response.data);
-      } catch (error) {
-        console.log(error);
-        setError('There was an error fetching the profile data!');
-      } finally {
         setLoading(false);
-      }
+      }, 1000);
     };
 
     fetchAgentProfile();
   }, []);
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
+    // Remove localStorage usage as per instructions
     window.location.href = '/';
   };
 
+  const ProfileCard = ({ icon: Icon, title, value, subtitle }) => (
+    <div className="p-6 bg-white rounded-xl shadow-md hover:shadow-lg transition-all duration-300 border border-gray-100">
+      <div className="flex items-center justify-between mb-4">
+        <div className="p-3 rounded-lg" style={{ backgroundColor: '#1F310A0D' }}>
+          <Icon className="w-6 h-6" style={{ color: '#1F310A' }} />
+        </div>
+        <div className="text-right">
+          <p className="text-2xl font-bold text-gray-800">{value}</p>
+          {subtitle && <p className="text-sm text-gray-500">{subtitle}</p>}
+        </div>
+      </div>
+      <h3 className="text-sm font-medium text-gray-600">{title}</h3>
+    </div>
+  );
+
+  const InfoField = ({ label, value, icon: Icon }) => (
+    <div className="flex items-center p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors duration-200">
+      <div className="p-2 rounded-lg mr-4" style={{ backgroundColor: '#1F310A0D' }}>
+        <Icon className="w-5 h-5" style={{ color: '#1F310A' }} />
+      </div>
+      <div className="flex-1">
+        <p className="text-sm text-gray-500 mb-1">{label}</p>
+        <p className="font-semibold text-gray-800">{value || 'N/A'}</p>
+      </div>
+    </div>
+  );
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-4 border-gray-300 mb-4" style={{ borderTopColor: '#1F310A' }}></div>
+          <p className="text-gray-600">Loading profile...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-md">
+          <p className="text-red-700">{error}</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="container max-w-4xl px-4 py-8 mx-auto">
-        <div className="flex items-center justify-between mb-8">
-          <h1 className="text-3xl font-bold text-transparent text-gray-800 bg-gradient-to-r from-green-600 to-teal-600 bg-clip-text">
-            Agent Profile
-          </h1>
-          <button
-            onClick={handleLogout}
-            className="px-4 py-2 text-white transition-all duration-300 rounded-lg shadow-lg bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 hover:shadow-xl"
-          >
-            Logout
-          </button>
+      {/* Header */}
+      <div className="shadow-sm" style={{ backgroundColor: '#1F310A' }}>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center py-4">
+            <div className="flex items-center">
+              <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center mr-3">
+                <User className="w-6 h-6" style={{ color: '#1F310A' }} />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold text-white">Agent Profile</h1>
+                <p className="text-green-200 text-sm">Agricultural Extension Agent</p>
+              </div>
+            </div>
+            <button
+              onClick={handleLogout}
+              className="flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors duration-200"
+            >
+              <LogOut className="w-4 h-4 mr-2" />
+              Logout
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Profile Header */}
+        <div className="bg-white rounded-xl shadow-lg p-8 mb-8">
+          <div className="flex flex-col md:flex-row items-center md:items-start">
+            <div className="w-32 h-32 rounded-full flex items-center justify-center mb-6 md:mb-0 md:mr-8" style={{ backgroundColor: '#1F310A' }}>
+              <User className="w-16 h-16 text-white" />
+            </div>
+            <div className="flex-1 text-center md:text-left">
+              <h2 className="text-3xl font-bold text-gray-800 mb-2">{agentProfile.fullname}</h2>
+              <p className="text-lg text-gray-600 mb-3">{agentProfile.specialization}</p>
+              <div className="flex flex-wrap justify-center md:justify-start gap-3 mb-4">
+                <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
+                  {agentProfile.status}
+                </span>
+                <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
+                  ID: {agentProfile.agentId}
+                </span>
+                <span className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm font-medium">
+                  {agentProfile.experience} Experience
+                </span>
+              </div>
+              <div className="flex justify-center md:justify-start">
+                <button className="flex items-center px-6 py-2 text-white rounded-lg hover:opacity-90 transition-opacity duration-200 mr-3" style={{ backgroundColor: '#1F310A' }}>
+                  <Edit3 className="w-4 h-4 mr-2" />
+                  Edit Profile
+                </button>
+                <button className="flex items-center px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors duration-200">
+                  <Settings className="w-4 h-4 mr-2" />
+                  Settings
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
 
-        {loading ? (
-          <div className="flex items-center justify-center p-12">
-            <ClipLoader color="#3498db" loading={loading} size={50} />
+        {/* Statistics Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <ProfileCard
+            icon={User}
+            title="Farmers Assisted"
+            value={agentProfile.farmersAssisted}
+            subtitle="This month"
+          />
+          <ProfileCard
+            icon={BarChart3}
+            title="Total Transactions"
+            value={agentProfile.totalTransactions}
+            subtitle="All time"
+          />
+          <ProfileCard
+            icon={Award}
+            title="Performance Score"
+            value={agentProfile.performance}
+            subtitle="Current rating"
+          />
+          <ProfileCard
+            icon={Briefcase}
+            title="Years of Service"
+            value={agentProfile.experience?.split(' ')[0]}
+            subtitle="Agricultural extension"
+          />
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Personal Information */}
+          <div className="lg:col-span-2">
+            <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
+              <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center">
+                <User className="w-5 h-5 mr-2" style={{ color: '#1F310A' }} />
+                Personal Information
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <InfoField
+                  label="Full Name"
+                  value={agentProfile.fullname}
+                  icon={User}
+                />
+                <InfoField
+                  label="Email Address"
+                  value={agentProfile.email}
+                  icon={Mail}
+                />
+                <InfoField
+                  label="Phone Number"
+                  value={agentProfile.phonenumber}
+                  icon={Phone}
+                />
+                <InfoField
+                  label="Agent ID"
+                  value={agentProfile.agentId}
+                  icon={Briefcase}
+                />
+              </div>
+            </div>
+
+            {/* Location Information */}
+            <div className="bg-white rounded-xl shadow-lg p-6">
+              <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center">
+                <MapPin className="w-5 h-5 mr-2" style={{ color: '#1F310A' }} />
+                Location Information
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <InfoField
+                  label="Province"
+                  value={agentProfile.province}
+                  icon={MapPin}
+                />
+                <InfoField
+                  label="District"
+                  value={agentProfile.district}
+                  icon={MapPin}
+                />
+                <InfoField
+                  label="Sector"
+                  value={agentProfile.sector}
+                  icon={MapPin}
+                />
+              </div>
+            </div>
           </div>
-        ) : error ? (
-          <div className="p-4 bg-red-100 border-l-4 border-red-500 rounded-lg">
-            <p className="text-red-700">{error}</p>
-          </div>
-        ) : (
+
+          {/* Professional Information */}
           <div className="space-y-6">
-            {/* Profile Information Card */}
-            <div className="p-6 transition-shadow duration-300 bg-white shadow-lg rounded-xl hover:shadow-xl">
-              <h2 className="pb-2 mb-6 text-xl font-bold text-gray-800 border-b border-gray-200">
-                Profile Information
-              </h2>
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="p-4 rounded-lg bg-gray-50">
-                  <p className="mb-1 text-sm text-gray-500">Full Name</p>
-                  <p className="font-semibold text-gray-800">{agentProfile.fullname || 'N/A'}</p>
-                </div>
-                <div className="p-4 rounded-lg bg-gray-50">
-                  <p className="mb-1 text-sm text-gray-500">Email</p>
-                  <p className="font-semibold text-gray-800">{agentProfile.email || 'N/A'}</p>
-                </div>
-                <div className="p-4 rounded-lg bg-gray-50">
-                  <p className="mb-1 text-sm text-gray-500">Phone Number</p>
-                  <p className="font-semibold text-gray-800">{agentProfile.phonenumber || 'N/A'}</p>
-                </div>
-                <div className="p-4 rounded-lg bg-gray-50">
-                  <p className="mb-1 text-sm text-gray-500">Province</p>
-                  <p className="font-semibold text-gray-800">{agentProfile.province || 'N/A'}</p>
-                </div>
-                <div className="p-4 rounded-lg bg-gray-50">
-                  <p className="mb-1 text-sm text-gray-500">District</p>
-                  <p className="font-semibold text-gray-800">{agentProfile.district || 'N/A'}</p>
-                </div>
-                <div className="p-4 rounded-lg bg-gray-50">
-                  <p className="mb-1 text-sm text-gray-500">Sector</p>
-                  <p className="font-semibold text-gray-800">{agentProfile.sector || 'N/A'}</p>
-                </div>
+            <div className="bg-white rounded-xl shadow-lg p-6">
+              <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center">
+                <Award className="w-5 h-5 mr-2" style={{ color: '#1F310A' }} />
+                Professional Details
+              </h3>
+              <div className="space-y-4">
+                <InfoField
+                  label="Specialization"
+                  value={agentProfile.specialization}
+                  icon={Briefcase}
+                />
+                <InfoField
+                  label="Experience"
+                  value={agentProfile.experience}
+                  icon={Calendar}
+                />
+                <InfoField
+                  label="Certification"
+                  value={agentProfile.certification}
+                  icon={Award}
+                />
+                <InfoField
+                  label="Join Date"
+                  value={new Date(agentProfile.joinDate).toLocaleDateString()}
+                  icon={Calendar}
+                />
               </div>
             </div>
 
-            {/* Account Settings Card */}
-            <div className="p-6 transition-shadow duration-300 bg-white shadow-lg rounded-xl hover:shadow-xl">
-              <h2 className="pb-2 mb-6 text-xl font-bold text-gray-800 border-b border-gray-200">
-                Account Settings
-              </h2>
-              <div className="flex flex-col gap-4 sm:flex-row">
-                <button className="flex-1 px-6 py-3 text-white bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-300 shadow-md hover:shadow-lg transform hover:-translate-y-0.5">
-                  Update Password
-                </button>
-                <button className="flex-1 px-6 py-3 text-white bg-gradient-to-r from-purple-500 to-purple-600 rounded-lg hover:from-purple-600 hover:to-purple-700 transition-all duration-300 shadow-md hover:shadow-lg transform hover:-translate-y-0.5">
-                  Update Email
-                </button>
-              </div>
-            </div>
-
-            {/* Activity Log Card */}
-            <div className="p-6 transition-shadow duration-300 bg-white shadow-lg rounded-xl hover:shadow-xl">
-              <h2 className="pb-2 mb-6 text-xl font-bold text-gray-800 border-b border-gray-200">
-                Activity Log
-              </h2>
-              <div className="p-4 rounded-lg bg-gray-50">
-                <p className="text-gray-600">Placeholder for activity log...</p>
+            {/* Activity Summary */}
+            <div className="bg-white rounded-xl shadow-lg p-6">
+              <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center">
+                <Activity className="w-5 h-5 mr-2" style={{ color: '#1F310A' }} />
+                Recent Activity
+              </h3>
+              <div className="space-y-4">
+                <div className="p-4 bg-gray-50 rounded-lg">
+                  <p className="text-sm text-gray-600 mb-1">Last Login</p>
+                  <p className="font-semibold text-gray-800">{agentProfile.lastLogin}</p>
+                </div>
+                <div className="p-4 bg-gray-50 rounded-lg">
+                  <p className="text-sm text-gray-600 mb-1">Status</p>
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                    Active
+                  </span>
+                </div>
+                <div className="p-4 bg-gray-50 rounded-lg">
+                  <p className="text-sm text-gray-600 mb-1">Performance</p>
+                  <div className="flex items-center">
+                    <div className="flex-1 bg-gray-200 rounded-full h-2 mr-3">
+                      <div className="h-2 rounded-full" style={{ backgroundColor: '#1F310A', width: agentProfile.performance }}></div>
+                    </div>
+                    <span className="text-sm font-medium text-gray-800">{agentProfile.performance}</span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );
