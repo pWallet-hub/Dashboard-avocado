@@ -15,9 +15,13 @@ import Container from './Pages/Farmer/Container'
 import Pest from './Pages/Farmer/Pest'
 import Profile from './Pages/Farmer/Profile'
 import Service from './Pages/Farmer/Service'
+import PestManagement from './Pages/Farmer/PestManagement'
+import HarvestingDay from './Pages/Farmer/HarvestingDay'
+import PropertyEvaluation from './Pages/Farmer/PropertyEvaluation'
 import Product from './Pages/Farmer/Product'
 import FarmerList from './Pages/Agent/FarmerList'
 import PendingService from './Pages/Agent/PendingService'
+
 import Report from './Pages/Agent/Report'
 import Shop from './Pages/Agent/Shop'
 import Agents from './Pages/Admin/Agents'
@@ -52,6 +56,9 @@ function App() {
           <Route path='farmer/container' element={<Container/>}/>
           <Route path='farmer/pest' element={<Pest/>}/>
           <Route path='farmer/service' element={<Service/>}/>
+           <Route path='farmer/PestManagement' element={<PestManagement/>}/>
+          <Route path='farmer/HarvestingDay' element={<HarvestingDay/>}/>
+          <Route path='farmer/PropertyEvaluation' element={<PropertyEvaluation/>}/>
           <Route path='farmer/profile' element={<Profile/>}/>
           <Route path='farmer/product' element={<Product/>}/>
         </Route>
