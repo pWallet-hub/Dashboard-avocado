@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, Send, Calendar, Eye, Plus, CheckCircle, AlertCircle } from 'lucide-react';
+import { FileText, Send, Calendar, Eye, Plus, CheckCircle, AlertCircle, Edit, Trash2, X, Save } from 'lucide-react';
 
 export default function Report() {
   const [title, setTitle] = useState('');
@@ -10,6 +10,8 @@ export default function Report() {
   const [reports, setReports] = useState([]);
   const [fetchingReports, setFetchingReports] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [editingReport, setEditingReport] = useState(null);
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
 
   // Mock data for demonstration since we can't use localStorage
   const mockReports = [
@@ -74,6 +76,63 @@ export default function Report() {
     }, 1500);
   };
 
+  const handleEdit = (report) => {
+    setEditingReport({
+      ...report,
+      editTitle: report.title,
+      editDescription: report.description
+    });
+  };
+
+  const handleSaveEdit = async (reportId) => {
+    setLoading(true);
+    setError(null);
+    setSuccess(null);
+    
+    // Simulate API call
+    setTimeout(() => {
+      setReports(reports.map(report => 
+        report.id === reportId 
+          ? { 
+              ...report, 
+              title: editingReport.editTitle, 
+              description: editingReport.editDescription,
+              updatedAt: new Date().toISOString()
+            }
+          : report
+      ));
+      setSuccess('Report updated successfully!');
+      setEditingReport(null);
+      setLoading(false);
+    }, 1000);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingReport(null);
+  };
+
+  const handleDelete = (reportId) => {
+    setDeleteConfirm(reportId);
+  };
+
+  const confirmDelete = async () => {
+    setLoading(true);
+    setError(null);
+    setSuccess(null);
+    
+    // Simulate API call
+    setTimeout(() => {
+      setReports(reports.filter(report => report.id !== deleteConfirm));
+      setSuccess('Report deleted successfully!');
+      setDeleteConfirm(null);
+      setLoading(false);
+    }, 800);
+  };
+
+  const cancelDelete = () => {
+    setDeleteConfirm(null);
+  };
+
   const getStatusColor = (status) => {
     return status === 'completed' ? 'text-green-600 bg-green-50' : 'text-yellow-600 bg-yellow-50';
   };
@@ -83,7 +142,7 @@ export default function Report() {
   };
 
   return (
-            <div className="min-h-screen bg-gradient-to-br from-slate-50 via-green-50 to-emerald-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-green-50 to-emerald-50">
       <div className="px-4 py-8 mx-auto max-w-7xl sm:px-6 lg:px-8">
         {/* Header Section */}
         <div className="mb-8">
@@ -207,6 +266,46 @@ export default function Report() {
           </div>
         )}
 
+        {/* Delete Confirmation Modal */}
+        {deleteConfirm && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4 transform transition-all duration-300 scale-100">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="p-2 bg-red-100 rounded-lg">
+                  <Trash2 className="text-red-600" size={24} />
+                </div>
+                <h2 className="text-2xl font-bold text-gray-900">Delete Report</h2>
+              </div>
+              
+              <p className="text-gray-600 mb-6">
+                Are you sure you want to delete this report? This action cannot be undone.
+              </p>
+              
+              <div className="flex gap-4">
+                <button
+                  onClick={confirmDelete}
+                  disabled={loading}
+                  className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-red-600 text-white rounded-xl hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                >
+                  {loading ? (
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <Trash2 size={20} />
+                  )}
+                  {loading ? 'Deleting...' : 'Delete'}
+                </button>
+                
+                <button
+                  onClick={cancelDelete}
+                  className="flex-1 px-6 py-3 text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200 transition-all duration-200"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Reports Section */}
         <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 overflow-hidden">
           <div className="px-8 py-6 bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
@@ -233,57 +332,170 @@ export default function Report() {
               <div className="divide-y divide-gray-100">
                 {reports.map((report, index) => {
                   const StatusIcon = getStatusIcon(report.status);
+                  const isEditing = editingReport?.id === report.id;
+                  
                   return (
                     <div
                       key={report.id}
-                      className="p-6 hover:bg-gray-50/50 transition-all duration-200 transform hover:scale-[1.01] cursor-pointer"
+                      className="p-6 hover:bg-gray-50/50 transition-all duration-200"
                     >
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-2">
-                            <h3 className="text-lg font-semibold text-gray-900 transition-colors" style={{ ':hover': { color: '#1F310A' } }}
-                              onMouseEnter={(e) => e.target.style.color = '#1F310A'}
-                              onMouseLeave={(e) => e.target.style.color = '#111827'}>
-                              {report.title}
-                            </h3>
-                            <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(report.status)}`}>
-                              <StatusIcon size={12} />
-                              {report.status}
-                            </span>
+                      {isEditing ? (
+                        // Edit Form
+                        <div className="space-y-4">
+                          <div className="flex items-center gap-3 mb-4">
+                            <div className="p-2 rounded-lg" style={{ background: 'linear-gradient(to right, #1F310A, #2d4a0f)' }}>
+                              <Edit className="text-white" size={20} />
+                            </div>
+                            <h3 className="text-lg font-semibold text-gray-900">Edit Report</h3>
                           </div>
-                          <p className="text-gray-600 mb-3 line-clamp-2">
-                            {report.description}
-                          </p>
-                          <div className="flex items-center gap-4 text-sm text-gray-500">
-                            <div className="flex items-center gap-1">
-                              <Calendar size={14} />
-                              {new Date(report.createdAt).toLocaleDateString('en-US', {
-                                year: 'numeric',
-                                month: 'short',
-                                day: 'numeric'
-                              })}
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <Eye size={14} />
-                              View Details
-                            </div>
+                          
+                          <div>
+                            <label className="block text-sm font-semibold text-gray-700 mb-2">
+                              Report Title
+                            </label>
+                            <input
+                              type="text"
+                              value={editingReport.editTitle}
+                              onChange={(e) => setEditingReport({...editingReport, editTitle: e.target.value})}
+                              className="w-full px-4 py-3 text-gray-900 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 hover:border-gray-300"
+                              style={{ 
+                                '--tw-ring-color': '#1F310A',
+                                '--tw-ring-opacity': '0.5'
+                              }}
+                              onFocus={(e) => e.target.style.boxShadow = '0 0 0 2px rgba(31, 49, 10, 0.5)'}
+                              onBlur={(e) => e.target.style.boxShadow = 'none'}
+                            />
+                          </div>
+                          
+                          <div>
+                            <label className="block text-sm font-semibold text-gray-700 mb-2">
+                              Description
+                            </label>
+                            <textarea
+                              value={editingReport.editDescription}
+                              onChange={(e) => setEditingReport({...editingReport, editDescription: e.target.value})}
+                              rows={4}
+                              className="w-full px-4 py-3 text-gray-900 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 hover:border-gray-300 resize-none"
+                              style={{ 
+                                '--tw-ring-color': '#1F310A',
+                                '--tw-ring-opacity': '0.5'
+                              }}
+                              onFocus={(e) => e.target.style.boxShadow = '0 0 0 2px rgba(31, 49, 10, 0.5)'}
+                              onBlur={(e) => e.target.style.boxShadow = 'none'}
+                            />
+                          </div>
+                          
+                          <div className="flex gap-4">
+                            <button
+                              onClick={() => handleSaveEdit(report.id)}
+                              disabled={loading || !editingReport.editTitle || !editingReport.editDescription}
+                              className="flex items-center gap-2 px-6 py-3 text-white rounded-xl hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                              style={{ 
+                                background: 'linear-gradient(to right, #1F310A, #2d4a0f)',
+                                '--tw-ring-color': '#1F310A'
+                              }}
+                            >
+                              {loading ? (
+                                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                              ) : (
+                                <Save size={20} />
+                              )}
+                              {loading ? 'Saving...' : 'Save Changes'}
+                            </button>
+                            
+                            <button
+                              onClick={handleCancelEdit}
+                              className="flex items-center gap-2 px-6 py-3 text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200 transition-all duration-200"
+                            >
+                              <X size={20} />
+                              Cancel
+                            </button>
                           </div>
                         </div>
-                        <div className="ml-4 flex items-center gap-2">
-                          <button className="p-2 text-gray-400 rounded-lg transition-all duration-200"
-                            style={{ ':hover': { color: '#1F310A', backgroundColor: 'rgba(31, 49, 10, 0.1)' } }}
-                            onMouseEnter={(e) => {
-                              e.target.style.color = '#1F310A';
-                              e.target.style.backgroundColor = 'rgba(31, 49, 10, 0.1)';
-                            }}
-                            onMouseLeave={(e) => {
-                              e.target.style.color = '#9ca3af';
-                              e.target.style.backgroundColor = 'transparent';
-                            }}>
-                            <Eye size={18} />
-                          </button>
+                      ) : (
+                        // Display Mode
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-3 mb-2">
+                              <h3 className="text-lg font-semibold text-gray-900 transition-colors" style={{ ':hover': { color: '#1F310A' } }}
+                                onMouseEnter={(e) => e.target.style.color = '#1F310A'}
+                                onMouseLeave={(e) => e.target.style.color = '#111827'}>
+                                {report.title}
+                              </h3>
+                              <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(report.status)}`}>
+                                <StatusIcon size={12} />
+                                {report.status}
+                              </span>
+                            </div>
+                            <p className="text-gray-600 mb-3 line-clamp-2">
+                              {report.description}
+                            </p>
+                            <div className="flex items-center gap-4 text-sm text-gray-500">
+                              <div className="flex items-center gap-1">
+                                <Calendar size={14} />
+                                {new Date(report.createdAt).toLocaleDateString('en-US', {
+                                  year: 'numeric',
+                                  month: 'short',
+                                  day: 'numeric'
+                                })}
+                              </div>
+                              {report.updatedAt && (
+                                <div className="flex items-center gap-1">
+                                  <Edit size={14} />
+                                  Updated {new Date(report.updatedAt).toLocaleDateString('en-US', {
+                                    year: 'numeric',
+                                    month: 'short',
+                                    day: 'numeric'
+                                  })}
+                                </div>
+                              )}
+                              <div className="flex items-center gap-1">
+                                <Eye size={14} />
+                                View Details
+                              </div>
+                            </div>
+                          </div>
+                          <div className="ml-4 flex items-center gap-2">
+                            <button 
+                              onClick={() => handleEdit(report)}
+                              className="p-2 text-gray-400 rounded-lg transition-all duration-200"
+                              style={{ ':hover': { color: '#1F310A', backgroundColor: 'rgba(31, 49, 10, 0.1)' } }}
+                              onMouseEnter={(e) => {
+                                e.target.style.color = '#1F310A';
+                                e.target.style.backgroundColor = 'rgba(31, 49, 10, 0.1)';
+                              }}
+                              onMouseLeave={(e) => {
+                                e.target.style.color = '#9ca3af';
+                                e.target.style.backgroundColor = 'transparent';
+                              }}
+                              title="Edit report"
+                            >
+                              <Edit size={18} />
+                            </button>
+                            <button 
+                              onClick={() => handleDelete(report.id)}
+                              className="p-2 text-gray-400 rounded-lg transition-all duration-200 hover:text-red-600 hover:bg-red-50"
+                              title="Delete report"
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                            <button className="p-2 text-gray-400 rounded-lg transition-all duration-200"
+                              style={{ ':hover': { color: '#1F310A', backgroundColor: 'rgba(31, 49, 10, 0.1)' } }}
+                              onMouseEnter={(e) => {
+                                e.target.style.color = '#1F310A';
+                                e.target.style.backgroundColor = 'rgba(31, 49, 10, 0.1)';
+                              }}
+                              onMouseLeave={(e) => {
+                                e.target.style.color = '#9ca3af';
+                                e.target.style.backgroundColor = 'transparent';
+                              }}
+                              title="View report"
+                            >
+                              <Eye size={18} />
+                            </button>
+                          </div>
                         </div>
-                      </div>
+                      )}
                     </div>
                   );
                 })}

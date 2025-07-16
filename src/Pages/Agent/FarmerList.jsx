@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { User, Phone, Mail, MapPin, TreePine, Calendar, Search, Filter, Download, Plus, Eye, X } from 'lucide-react';
+import * as XLSX from 'xlsx';
 
 export default function FarmerList() {
   const [farmers, setFarmers] = useState([]);
@@ -7,8 +8,29 @@ export default function FarmerList() {
   const [error, setError] = useState(null);
   const [selectedFarmer, setSelectedFarmer] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterBy, setFilterBy] = useState('all');
+  const [newFarmer, setNewFarmer] = useState({
+    full_name: '',
+    email: '',
+    telephone: '',
+    province: '',
+    district: '',
+    sector: '',
+    farm_province: '',
+    farm_district: '',
+    farm_sector: '',
+    farm_cell: '',
+    farm_village: '',
+    farm_age: '',
+    planted: '',
+    avocado_type: '',
+    mixed_percentage: '',
+    farm_size: '',
+    tree_count: '',
+    assistance: []
+  });
 
   // Mock data for demonstration
   const mockFarmers = [
@@ -99,6 +121,73 @@ export default function FarmerList() {
     fetchFarmers();
   }, []);
 
+  const exportToExcel = () => {
+    // Prepare data for Excel export
+    const exportData = filteredFarmers.map(farmer => ({
+      'ID': farmer.id,
+      'Full Name': farmer.full_name,
+      'Email': farmer.email,
+      'Telephone': farmer.telephone,
+      'UPI Number': farmer.upi_number,
+      'Province': farmer.province,
+      'District': farmer.district,
+      'Sector': farmer.sector,
+      'Farm Province': farmer.farm_province,
+      'Farm District': farmer.farm_district,
+      'Farm Sector': farmer.farm_sector,
+      'Farm Cell': farmer.farm_cell,
+      'Farm Village': farmer.farm_village,
+      'Farm Size': farmer.farm_size,
+      'Tree Count': farmer.tree_count,
+      'Avocado Type': farmer.avocado_type,
+      'Mixed Percentage': farmer.mixed_percentage,
+      'Farm Age (Years)': farmer.farm_age,
+      'Date Planted': farmer.planted,
+      'Assistance Provided': farmer.assistance.join(', ')
+    }));
+
+    // Create workbook and worksheet
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(exportData);
+
+    // Auto-size columns
+    const colWidths = [];
+    const keys = Object.keys(exportData[0] || {});
+    keys.forEach((key, index) => {
+      const maxLength = Math.max(
+        key.length,
+        ...exportData.map(row => String(row[key] || '').length)
+      );
+      colWidths.push({ width: Math.min(maxLength + 2, 50) });
+    });
+    ws['!cols'] = colWidths;
+
+    // Add styling to header row
+    const headerStyle = {
+      font: { bold: true, color: { rgb: "FFFFFF" } },
+      fill: { fgColor: { rgb: "1F310A" } },
+      alignment: { horizontal: "center", vertical: "center" }
+    };
+
+    // Apply header styling
+    keys.forEach((key, index) => {
+      const cellAddress = XLSX.utils.encode_cell({ r: 0, c: index });
+      if (ws[cellAddress]) {
+        ws[cellAddress].s = headerStyle;
+      }
+    });
+
+    // Add worksheet to workbook
+    XLSX.utils.book_append_sheet(wb, ws, 'Farmers List');
+
+    // Generate filename with current date
+    const currentDate = new Date().toISOString().split('T')[0];
+    const filename = `farmers_list_${currentDate}.xlsx`;
+
+    // Save file
+    XLSX.writeFile(wb, filename);
+  };
+
   const openModal = (farmer) => {
     setSelectedFarmer(farmer);
     setIsModalOpen(true);
@@ -107,6 +196,75 @@ export default function FarmerList() {
   const closeModal = () => {
     setIsModalOpen(false);
     setSelectedFarmer(null);
+  };
+
+  const openAddModal = () => {
+    setIsAddModalOpen(true);
+  };
+
+  const closeAddModal = () => {
+    setIsAddModalOpen(false);
+    setNewFarmer({
+      full_name: '',
+      email: '',
+      telephone: '',
+      province: '',
+      district: '',
+      sector: '',
+      farm_province: '',
+      farm_district: '',
+      farm_sector: '',
+      farm_cell: '',
+      farm_village: '',
+      farm_age: '',
+      planted: '',
+      avocado_type: '',
+      mixed_percentage: '',
+      farm_size: '',
+      tree_count: '',
+      assistance: []
+    });
+  };
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setNewFarmer(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleAssistanceChange = (assistance) => {
+    setNewFarmer(prev => ({
+      ...prev,
+      assistance: prev.assistance.includes(assistance)
+        ? prev.assistance.filter(a => a !== assistance)
+        : [...prev.assistance, assistance]
+    }));
+  };
+
+  const generateUPI = () => {
+    const lastId = Math.max(...farmers.map(f => f.id), 0);
+    return `UPI${String(lastId + 1).padStart(6, '0')}`;
+  };
+
+  const addFarmer = () => {
+    if (!newFarmer.full_name || !newFarmer.email || !newFarmer.telephone) {
+      alert('Please fill in all required fields (Name, Email, Phone)');
+      return;
+    }
+
+    const farmer = {
+      id: farmers.length + 1,
+      ...newFarmer,
+      upi_number: generateUPI(),
+      farm_age: parseInt(newFarmer.farm_age) || 0,
+      tree_count: parseInt(newFarmer.tree_count) || 0
+    };
+
+    setFarmers(prev => [...prev, farmer]);
+    closeAddModal();
+    alert('Farmer added successfully!');
   };
 
   const filteredFarmers = farmers.filter(farmer => {
@@ -135,7 +293,7 @@ export default function FarmerList() {
             
             <div className="flex flex-wrap gap-3">
               <button
-                onClick={() => alert('Add New Farmer')}
+                onClick={openAddModal}
                 className="inline-flex items-center gap-2 px-6 py-3 text-white font-medium rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-300"
                 style={{ background: '#1F310A' }}
                 onMouseEnter={(e) => e.target.style.background = '#2A4A0D'}
@@ -145,11 +303,12 @@ export default function FarmerList() {
                 Add Farmer
               </button>
               <button 
-                onClick={() => alert('Export to Excel')}
+                onClick={exportToExcel}
                 className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white font-medium rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-300 hover:from-green-700 hover:to-emerald-700"
+                disabled={filteredFarmers.length === 0}
               >
                 <Download size={20} />
-                Export
+                Export to Excel
               </button>
             </div>
           </div>
@@ -239,6 +398,18 @@ export default function FarmerList() {
             </div>
           </div>
         </div>
+
+        {/* Export Info */}
+        {filteredFarmers.length > 0 && (
+          <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex items-center gap-2 text-blue-700">
+              <Download size={16} />
+              <span className="text-sm">
+                Ready to export {filteredFarmers.length} farmer{filteredFarmers.length !== 1 ? 's' : ''} to Excel
+              </span>
+            </div>
+          </div>
+        )}
 
         {/* Modern Table */}
         <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
@@ -498,6 +669,337 @@ export default function FarmerList() {
                 onMouseLeave={(e) => e.target.style.background = '#1F310A'}
               >
                 Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Farmer Modal */}
+      {isAddModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm">
+          <div className="relative w-full max-w-4xl max-h-[90vh] mx-4 bg-white rounded-2xl shadow-2xl overflow-hidden">
+            {/* Modal Header */}
+            <div className="px-6 py-4 text-white" style={{ background: '#1F310A' }}>
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-bold">Add New Farmer</h2>
+                <button
+                  onClick={closeAddModal}
+                  className="p-2 hover:bg-white hover:bg-opacity-20 rounded-full transition-colors duration-200"
+                >
+                  <X size={24} />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-6 overflow-y-auto max-h-[calc(90vh-160px)]">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* Personal Information */}
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                      <User className="w-5 h-5" style={{ color: '#1F310A' }} />
+                      Personal Information
+                    </h3>
+                    <div className="space-y-4 bg-gray-50 p-4 rounded-xl">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Full Name <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          name="full_name"
+                          value={newFarmer.full_name}
+                          onChange={handleInputChange}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200"
+                          style={{ '--tw-ring-color': '#1F310A' }}
+                          placeholder="Enter full name"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Email <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="email"
+                          name="email"
+                          value={newFarmer.email}
+                          onChange={handleInputChange}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200"
+                          style={{ '--tw-ring-color': '#1F310A' }}
+                          placeholder="Enter email address"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Phone <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="tel"
+                          name="telephone"
+                          value={newFarmer.telephone}
+                          onChange={handleInputChange}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200"
+                          style={{ '--tw-ring-color': '#1F310A' }}
+                          placeholder="+250788123456"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Location Information */}
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                      <MapPin className="w-5 h-5 text-purple-600" />
+                      Personal Location
+                    </h3>
+                    <div className="space-y-4 bg-gray-50 p-4 rounded-xl">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Province</label>
+                        <select
+                          name="province"
+                          value={newFarmer.province}
+                          onChange={handleInputChange}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200"
+                          style={{ '--tw-ring-color': '#1F310A' }}
+                        >
+                          <option value="">Select Province</option>
+                          <option value="Kigali">Kigali</option>
+                          <option value="Northern">Northern</option>
+                          <option value="Southern">Southern</option>
+                          <option value="Eastern">Eastern</option>
+                          <option value="Western">Western</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">District</label>
+                        <input
+                          type="text"
+                          name="district"
+                          value={newFarmer.district}
+                          onChange={handleInputChange}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200"
+                          style={{ '--tw-ring-color': '#1F310A' }}
+                          placeholder="Enter district"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Sector</label>
+                        <input
+                          type="text"
+                          name="sector"
+                          value={newFarmer.sector}
+                          onChange={handleInputChange}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200"
+                          style={{ '--tw-ring-color': '#1F310A' }}
+                          placeholder="Enter sector"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Farm Information */}
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                      <TreePine className="w-5 h-5" style={{ color: '#1F310A' }} />
+                      Farm Information
+                    </h3>
+                    <div className="space-y-4 bg-gray-50 p-4 rounded-xl">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Farm Size</label>
+                        <input
+                          type="text"
+                          name="farm_size"
+                          value={newFarmer.farm_size}
+                          onChange={handleInputChange}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200"
+                          style={{ '--tw-ring-color': '#1F310A' }}
+                          placeholder="2.5 hectares"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Tree Count</label>
+                        <input
+                          type="number"
+                          name="tree_count"
+                          value={newFarmer.tree_count}
+                          onChange={handleInputChange}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200"
+                          style={{ '--tw-ring-color': '#1F310A' }}
+                          placeholder="150"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Avocado Type</label>
+                        <select
+                          name="avocado_type"
+                          value={newFarmer.avocado_type}
+                          onChange={handleInputChange}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200"
+                          style={{ '--tw-ring-color': '#1F310A' }}
+                        >
+                          <option value="">Select Type</option>
+                          <option value="Hass">Hass</option>
+                          <option value="Fuerte">Fuerte</option>
+                          <option value="Mixed">Mixed</option>
+                          <option value="Other">Other</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Mixed Percentage</label>
+                        <input
+                          type="text"
+                          name="mixed_percentage"
+                          value={newFarmer.mixed_percentage}
+                          onChange={handleInputChange}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200"
+                          style={{ '--tw-ring-color': '#1F310A' }}
+                          placeholder="80%"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Farm Age (years)</label>
+                        <input
+                          type="number"
+                          name="farm_age"
+                          value={newFarmer.farm_age}
+                          onChange={handleInputChange}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200"
+                          style={{ '--tw-ring-color': '#1F310A' }}
+                          placeholder="5"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Date Planted</label>
+                        <input
+                          type="date"
+                          name="planted"
+                          value={newFarmer.planted}
+                          onChange={handleInputChange}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200"
+                          style={{ '--tw-ring-color': '#1F310A' }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Farm Location */}
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                      <MapPin className="w-5 h-5" style={{ color: '#1F310A' }} />
+                      Farm Location
+                    </h3>
+                    <div className="space-y-4 bg-gray-50 p-4 rounded-xl">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Farm Province</label>
+                        <select
+                          name="farm_province"
+                          value={newFarmer.farm_province}
+                          onChange={handleInputChange}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200"
+                          style={{ '--tw-ring-color': '#1F310A' }}
+                        >
+                          <option value="">Select Province</option>
+                          <option value="Kigali">Kigali</option>
+                          <option value="Northern">Northern</option>
+                          <option value="Southern">Southern</option>
+                          <option value="Eastern">Eastern</option>
+                          <option value="Western">Western</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Farm District</label>
+                        <input
+                          type="text"
+                          name="farm_district"
+                          value={newFarmer.farm_district}
+                          onChange={handleInputChange}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200"
+                          style={{ '--tw-ring-color': '#1F310A' }}
+                          placeholder="Enter district"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Farm Sector</label>
+                        <input
+                          type="text"
+                          name="farm_sector"
+                          value={newFarmer.farm_sector}
+                          onChange={handleInputChange}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200"
+                          style={{ '--tw-ring-color': '#1F310A' }}
+                          placeholder="Enter sector"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Farm Cell</label>
+                        <input
+                          type="text"
+                          name="farm_cell"
+                          value={newFarmer.farm_cell}
+                          onChange={handleInputChange}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200"
+                          style={{ '--tw-ring-color': '#1F310A' }}
+                          placeholder="Enter cell"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Farm Village</label>
+                        <input
+                          type="text"
+                          name="farm_village"
+                          value={newFarmer.farm_village}
+                          onChange={handleInputChange}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200"
+                          style={{ '--tw-ring-color': '#1F310A' }}
+                          placeholder="Enter village"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Assistance Section */}
+              <div className="mt-8">
+                <h3 className="text-lg font-semibold text-gray-800 mb-4">Assistance Needed</h3>
+                <div className="bg-gray-50 p-4 rounded-xl">
+                  <div className="flex flex-wrap gap-3">
+                    {['Training', 'Equipment', 'Fertilizer', 'Seeds', 'Pesticides', 'Financial Support'].map((assistance) => (
+                      <label key={assistance} className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={newFarmer.assistance.includes(assistance)}
+                          onChange={() => handleAssistanceChange(assistance)}
+                          className="rounded border-gray-300 text-green-600 focus:ring-green-500"
+                        />
+                        <span className="text-sm text-gray-700">{assistance}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="bg-gray-50 px-6 py-4 flex justify-end gap-3">
+              <button
+                onClick={closeAddModal}
+                className="px-6 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors duration-200"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={addFarmer}
+                className="px-6 py-2 text-white rounded-lg transition-colors duration-200"
+                style={{ background: '#1F310A' }}
+                onMouseEnter={(e) => e.target.style.background = '#2A4A0D'}
+                onMouseLeave={(e) => e.target.style.background = '#1F310A'}
+              >
+                Add Farmer
               </button>
             </div>
           </div>
