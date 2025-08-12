@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { ClipLoader } from 'react-spinners';
-import './market.css';
+import './Market.css';
 import Advertisement from '../../components/advertisement/advertisement';
 import SlideShow from "../../components/Slide/Slide";
 import image1 from '../../assets/image/slide1.jpg'
