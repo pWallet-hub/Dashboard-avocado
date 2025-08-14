@@ -1,55 +1,21 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Users, Wrench, Truck, Calendar, Camera, CheckCircle, ArrowLeft } from 'lucide-react';
+import React, { useState } from "react";
+import "../Styles/HarvestingDay.css";
+import DashboardHeader from "../../components/header/DashboardHeader";
 
 export default function HarvestingDay() {
-  const navigate = useNavigate();
   const [formData, setFormData] = useState({
-    workersNeeded: '',
-    workersDetails: '',
-    equipmentNeeded: 'no',
-    equipmentList: [],
-    customEquipment: '',
-    transportationNeeded: 'no',
-    transportationType: '',
-    transportationDetails: '',
-    harvestDate: '',
-    harvestTime: '',
+    workersNeeded: "",
+    equipmentNeeded: [], // Changed to array for checkbox selection
+    equipmentDropdown: "", // New field for dropdown selection
+    transportationNeeded: "",
+    harvestDateFrom: "",
+    harvestDateTo: "",
     harvestImages: []
   });
 
-  const [currentStep, setCurrentStep] = useState(1);
   const [submitted, setSubmitted] = useState(false);
   const [errors, setErrors] = useState({});
-
-  const equipmentOptions = [
-    'Harvesting Poles/Pickers',
-    'Ladders',
-    'Harvesting Bags/Baskets',
-    'Pruning Shears',
-    'Sorting Trays',
-    'Weighing Scales',
-    'Protective Gear (Gloves, Hats)',
-    'Storage Containers',
-    'Other (specify)'
-  ];
-
-  const transportationTypes = [
-    'Pickup Truck',
-    'Large Truck',
-    'Motorcycle/Boda Boda',
-    'Bicycle',
-    'Walking/Manual Carrying',
-    'Other (specify)'
-  ];
-
-  const stepTitles = [
-    'Workers Needed',
-    'Equipment Requirements',
-    'Transportation',
-    'Harvest Schedule',
-    'Photo Documentation'
-  ];
+  const [showEquipmentOptions, setShowEquipmentOptions] = useState(false);
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({
@@ -59,24 +25,44 @@ export default function HarvestingDay() {
     if (errors[field]) {
       setErrors(prev => ({
         ...prev,
-        [field]: ''
+        [field]: ""
       }));
     }
   };
 
-  const handleEquipmentChange = (equipment) => {
-    setFormData(prev => ({
-      ...prev,
-      equipmentList: prev.equipmentList.includes(equipment)
-        ? prev.equipmentList.filter(e => e !== equipment)
-        : [...prev.equipmentList, equipment]
-    }));
-    if (errors.equipmentList) {
-      setErrors(prev => ({
-        ...prev,
-        equipmentList: ''
-      }));
+  const handleDateChange = (field, value) => {
+    const newFormData = { ...formData, [field]: value };
+    
+    // Validate date range if both dates are set
+    if (newFormData.harvestDateFrom && newFormData.harvestDateTo) {
+      const fromDate = new Date(newFormData.harvestDateFrom);
+      const toDate = new Date(newFormData.harvestDateTo);
+      const diffTime = Math.abs(toDate - fromDate);
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      
+      if (diffDays > 5) {
+        setErrors(prev => ({
+          ...prev,
+          harvestDateRange: "Date range cannot exceed 5 days"
+        }));
+        return;
+      } else {
+        setErrors(prev => ({
+          ...prev,
+          harvestDateRange: ""
+        }));
+      }
+      
+      if (toDate < fromDate) {
+        setErrors(prev => ({
+          ...prev,
+          harvestDateRange: "End date must be after start date"
+        }));
+        return;
+      }
     }
+    
+    handleInputChange(field, value);
   };
 
   const handleFileUpload = (event) => {
@@ -87,568 +73,275 @@ export default function HarvestingDay() {
     }));
   };
 
-  const removeImage = (index) => {
-    setFormData(prev => ({
-      ...prev,
-      harvestImages: prev.harvestImages.filter((_, i) => i !== index)
-    }));
-  };
-
-  const validateCurrentStep = () => {
+  const validateForm = () => {
     const newErrors = {};
-    switch (currentStep) {
-      case 1:
-        if (!formData.workersNeeded) {
-          newErrors.workersNeeded = 'Please specify how many workers you need';
-        }
-        if (parseInt(formData.workersNeeded) < 1) {
-          newErrors.workersNeeded = 'Number of workers must be at least 1';
-        }
-        break;
-      case 2:
-        if (formData.equipmentNeeded === 'yes' && formData.equipmentList.length === 0) {
-          newErrors.equipmentList = 'Please select at least one equipment type';
-        }
-        if (formData.equipmentList.includes('Other (specify)') && !formData.customEquipment.trim()) {
-          newErrors.customEquipment = 'Please specify the equipment type';
-        }
-        break;
-      case 3:
-        if (formData.transportationNeeded === 'yes') {
-          if (!formData.transportationType) {
-            newErrors.transportationType = 'Please select a transportation type';
-          }
-          if (!formData.transportationDetails.trim()) {
-            newErrors.transportationDetails = 'Please provide transportation details';
-          }
-        }
-        break;
-      case 4:
-        if (!formData.harvestDate) {
-          newErrors.harvestDate = 'Please select a harvest date';
-        }
-        if (!formData.harvestTime) {
-          newErrors.harvestTime = 'Please select a harvest time';
-        }
-        break;
-      case 5:
-        // Images are optional, no validation required
-        break;
+    if (!formData.workersNeeded) newErrors.workersNeeded = "Please specify how many workers you need";
+    if (formData.equipmentDropdown === "Yes" && !formData.equipmentNeeded.length) newErrors.equipmentNeeded = "Please select equipment needed";
+    if (!formData.equipmentDropdown) newErrors.equipmentDropdown = "Please specify if you need equipment";
+    if (!formData.transportationNeeded.trim()) newErrors.transportationNeeded = "Please specify transportation needs";
+    if (!formData.harvestDateFrom) newErrors.harvestDateFrom = "Please select harvest start date";
+    if (!formData.harvestDateTo) newErrors.harvestDateTo = "Please select harvest end date";
+    
+    // Additional date validation
+    if (formData.harvestDateFrom && formData.harvestDateTo) {
+      const fromDate = new Date(formData.harvestDateFrom);
+      const toDate = new Date(formData.harvestDateTo);
+      const diffTime = Math.abs(toDate - fromDate);
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      
+      if (diffDays > 5) {
+        newErrors.harvestDateRange = "Date range cannot exceed 5 days";
+      }
+      
+      if (toDate < fromDate) {
+        newErrors.harvestDateRange = "End date must be after start date";
+      }
     }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const nextStep = () => {
-    if (validateCurrentStep() && currentStep < 5) setCurrentStep(currentStep + 1);
-  };
-
-  const prevStep = () => {
-    if (currentStep > 1) setCurrentStep(currentStep - 1);
-  };
-
   const handleSubmit = () => {
-    if (validateCurrentStep()) {
+    if (validateForm()) {
       setSubmitted(true);
-      console.log('Harvesting plan submitted:', formData);
+      console.log("Harvest plan submitted:", formData);
     }
   };
 
-  const progressPercentage = (currentStep / 5) * 100;
-
   if (submitted) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 flex items-center justify-center p-4 font-poppins">
-        <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full text-center animate-slide-up">
-          <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-6 animate-pulse">
-            <CheckCircle className="w-8 h-8 text-emerald-600" />
-          </div>
-          <h2 className="text-3xl font-bold text-gray-900 mb-4">Harvest Plan Submitted!</h2>
-          <p className="text-gray-600 mb-6 leading-relaxed">
-            Your harvest planning request has been received. Our team will coordinate the resources and contact you within 24 hours to confirm the arrangements.
-          </p>
-          <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 mb-6">
-            <p className="text-sm text-emerald-800">
-              <strong>Harvest Date:</strong> {formData.harvestDate}<br />
-              <strong>Workers Needed:</strong> {formData.workersNeeded}<br />
-              <strong>Equipment Required:</strong> {formData.equipmentNeeded === 'yes' ? 'Yes' : 'No'}
+      <div className="container-fullscreen">
+        <div className="container-centered">
+          <div className="card-submitted">
+            <div className="icon-success-container">
+              <svg className="icon-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <h2 className="title-submitted">Harvest Plan Submitted!</h2>
+            <p className="text-submitted">
+              Your harvest planning request has been received. Our team will coordinate the resources and contact you within 24 hours to confirm the arrangements.
             </p>
+            <div className="summary-container">
+              <p className="summary-text">
+                <strong>Harvest Period:</strong> {formData.harvestDateFrom} to {formData.harvestDateTo}<br />
+                <strong>Workers Needed:</strong> {formData.workersNeeded}<br />
+                <strong>Equipment Required:</strong> {formData.equipmentDropdown === "Yes" ? formData.equipmentNeeded.join(", ") : "No equipment needed"}<br />
+                <strong>Transportation Needed:</strong> {formData.transportationNeeded}<br />
+                <strong>Images Uploaded:</strong> {formData.harvestImages.length}
+              </p>
+            </div>
           </div>
-          <button
-            onClick={() => {
-              setSubmitted(false);
-              setCurrentStep(1);
-              setFormData({
-                workersNeeded: '',
-                workersDetails: '',
-                equipmentNeeded: 'no',
-                equipmentList: [],
-                customEquipment: '',
-                transportationNeeded: 'no',
-                transportationType: '',
-                transportationDetails: '',
-                harvestDate: '',
-                harvestTime: '',
-                harvestImages: []
-              });
-              setErrors({});
-            }}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-300 transform hover:scale-105"
-          >
-            Plan Another Harvest
-          </button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 font-poppins">
-      {/* Back Button */}
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
-        <button
-          onClick={() => navigate(-1)}
-          className="flex items-center text-emerald-600 hover:text-emerald-700 font-semibold transition-all duration-300 transform hover:scale-105"
-        >
-          <ArrowLeft className="w-5 h-5 mr-2" />
-          Back
-        </button>
-      </div>
+    <div className="container-fullscreen container-font">
+      <DashboardHeader />
+      <div className="container-centered">
+        <div className="card-form">
+          <h1 className="title-form">Harvesting Day</h1>
 
-      {/* Header */}
-      <div className="relative bg-white shadow-2xl overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-emerald-600/10 to-green-600/10" />
-        <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12 text-center animate-fade-in-down">
-          <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-6">
-            <Calendar className="w-8 h-8 text-emerald-600" />
-          </div>
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-emerald-600 to-green-600 bg-clip-text text-transparent mb-4">
-            Harvesting Day Planning
-          </h1>
-          <p className="text-lg text-gray-600 max-w-2xl mx-auto leading-relaxed">
-            Let us help you plan your avocado harvest by organizing workers, equipment, and transportation for a successful harvest day.
-          </p>
-        </div>
-      </div>
-
-      {/* Progress Bar */}
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-10">
-          <div className="flex items-center justify-between mb-4">
-            <span className="text-sm font-medium text-gray-700">
-              Step {currentStep} of 5: {stepTitles[currentStep - 1]}
-            </span>
-            <span className="text-sm font-medium text-gray-700">
-              {Math.round(progressPercentage)}% Complete
-            </span>
-          </div>
-          <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
-            <div 
-              className="bg-gradient-to-r from-emerald-500 to-green-600 h-3 rounded-full transition-all duration-700 ease-out"
-              style={{ width: `${progressPercentage}%` }}
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Form Content */}
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
-        <div className="bg-white rounded-2xl shadow-xl p-8 animate-slide-up">
-          {/* Step 1: Workers Needed */}
-          {currentStep === 1 && (
-            <div className="space-y-8">
-              <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
-                <Users className="w-6 h-6 mr-2 text-emerald-600" />
-                How many workers do you need?
-              </h2>
-              <div className="animate-slide-up" style={{ animationDelay: '100ms' }}>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Number of workers needed *
+          <div className="form-sections">
+            {/* First Row */}
+            <div className="grid-form">
+              <div>
+                <label className="label-input">
+                  • How Many VBAs Do Need 
                 </label>
-                <input
-                  type="number"
-                  min="1"
-                  placeholder="e.g., 5"
+                <select
                   value={formData.workersNeeded}
-                  onChange={(e) => handleInputChange('workersNeeded', e.target.value)}
-                  className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200 ${
-                    errors.workersNeeded ? 'border-red-500' : 'border-gray-300'
-                  }`}
-                />
+                  onChange={(e) => handleInputChange("workersNeeded", e.target.value)}
+                  className={`input-field ${errors.workersNeeded ? "input-error" : "input-normal"}`}
+                >
+                  <option value="" disabled>Select number of workers...</option>
+                  {Array.from({ length: 12 }, (_, i) => i + 1).map((num) => (
+                    <option key={num} value={num}>
+                      {num} {num === 1 ? 'Worker' : 'Workers'}
+                    </option>
+                  ))}
+                </select>
                 {errors.workersNeeded && (
-                  <p className="mt-2 text-sm text-red-600 animate-shake">{errors.workersNeeded}</p>
+                  <p className="error-text">{errors.workersNeeded}</p>
                 )}
               </div>
-              <div className="animate-slide-up" style={{ animationDelay: '200ms' }}>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Additional details about worker requirements
-                </label>
-                <textarea
-                  placeholder="e.g., Need experienced harvesters, specific skills required, working hours, etc."
-                  rows="4"
-                  value={formData.workersDetails}
-                  onChange={(e) => handleInputChange('workersDetails', e.target.value)}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent resize-none transition-all duration-200"
-                />
-              </div>
-            </div>
-          )}
 
-          {/* Step 2: Equipment Requirements */}
-          {currentStep === 2 && (
-            <div className="space-y-8">
-              <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
-                <Wrench className="w-6 h-6 mr-2 text-emerald-600" />
-                Do you need any specialized equipment?
-              </h2>
-              <div className="animate-slide-up" style={{ animationDelay: '100ms' }}>
-                <label className="block text-sm font-medium text-gray-700 mb-4">
-                  Equipment needed? *
+              <div>
+                <label className="label-input">
+                  • Do you need any specific equipment?
                 </label>
-                <div className="space-y-3">
-                  <label className="group flex items-center p-4 border border-gray-200 rounded-lg hover:bg-emerald-50 cursor-pointer transition-all duration-300 transform hover:scale-[1.02]">
-                    <input
-                      type="radio"
-                      name="equipmentNeeded"
-                      value="yes"
-                      checked={formData.equipmentNeeded === 'yes'}
-                      onChange={(e) => handleInputChange('equipmentNeeded', e.target.value)}
-                      className="mr-3 text-emerald-600 focus:ring-emerald-500"
-                    />
-                    <span className="text-gray-700 group-hover:text-emerald-700">Yes, I need equipment</span>
-                  </label>
-                  <label className="group flex items-center p-4 border border-gray-200 rounded-lg hover:bg-emerald-50 cursor-pointer transition-all duration-300 transform hover:scale-[1.02]">
-                    <input
-                      type="radio"
-                      name="equipmentNeeded"
-                      value="no"
-                      checked={formData.equipmentNeeded === 'no'}
-                      onChange={(e) => handleInputChange('equipmentNeeded', e.target.value)}
-                      className="mr-3 text-emerald-600 focus:ring-emerald-500"
-                    />
-                    <span className="text-gray-700 group-hover:text-emerald-700">No, I have all needed equipment</span>
-                  </label>
-                </div>
-              </div>
-              {formData.equipmentNeeded === 'yes' && (
-                <div className="animate-slide-up" style={{ animationDelay: '200ms' }}>
-                  <label className="block text-sm font-medium text-gray-700 mb-4">
-                    Select equipment types needed:
-                  </label>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {equipmentOptions.map((equipment, index) => (
-                      <label
-                        key={equipment}
-                        className="group flex items-center p-3 border border-gray-200 rounded-lg hover:bg-emerald-50 cursor-pointer transition-all duration-300 transform hover:scale-[1.02]"
-                        style={{ animationDelay: `${index * 50}ms` }}
-                      >
+                <select
+                  value={formData.equipmentDropdown}
+                  onChange={(e) => {
+                    handleInputChange("equipmentDropdown", e.target.value);
+                    setShowEquipmentOptions(e.target.value === "Yes");
+                    if (e.target.value === "No") {
+                      handleInputChange("equipmentNeeded", []);
+                    }
+                  }}
+                  className={`input-field ${errors.equipmentDropdown ? "input-error" : "input-normal"}`}
+                >
+                  <option value="" disabled>Select</option>
+                  <option value="Yes">Yes</option>
+                  <option value="No">No</option>
+                </select>
+                {errors.equipmentDropdown && (
+                  <p className="error-text">{errors.equipmentDropdown}</p>
+                )}
+                
+                {showEquipmentOptions && (
+                  <div className="grid grid-cols-2 gap-3 mt-4">
+                    {[
+                      "Tractors",
+                      "Harvesters", 
+                      "Plows",
+                      "Seeders",
+                      "Sprayers",
+                      "Irrigation Equipment",
+                      "Hand Tools",
+                      "Transport Vehicles",
+                      "Storage Containers",
+                      "Weighing Scales",
+                      "Processing Equipment",
+                      "Other"
+                    ].map((equipment) => (
+                      <label key={equipment} className="flex items-center space-x-2 cursor-pointer">
                         <input
                           type="checkbox"
-                          checked={formData.equipmentList.includes(equipment)}
-                          onChange={() => handleEquipmentChange(equipment)}
-                          className="mr-3 text-emerald-600 focus:ring-emerald-500"
+                          checked={formData.equipmentNeeded.includes(equipment)}
+                          onChange={(e) => {
+                            const currentEquipment = formData.equipmentNeeded;
+                            const updatedEquipment = e.target.checked
+                              ? [...currentEquipment, equipment]
+                              : currentEquipment.filter(item => item !== equipment);
+                            handleInputChange("equipmentNeeded", updatedEquipment);
+                          }}
+                          className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
                         />
-                        <span className="text-gray-700 text-sm group-hover:text-emerald-700">{equipment}</span>
+                        <span className="text-sm text-gray-700">{equipment}</span>
                       </label>
                     ))}
                   </div>
-                  {errors.equipmentList && (
-                    <p className="mt-3 text-sm text-red-600 animate-shake">{errors.equipmentList}</p>
-                  )}
-                  {formData.equipmentList.includes('Other (specify)') && (
-                    <div className="mt-6 animate-slide-up">
-                      <input
-                        type="text"
-                        placeholder="Please specify the equipment type"
-                        value={formData.customEquipment}
-                        onChange={(e) => handleInputChange('customEquipment', e.target.value)}
-                        className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200 ${
-                          errors.customEquipment ? 'border-red-500' : 'border-gray-300'
-                        }`}
-                      />
-                      {errors.customEquipment && (
-                        <p className="mt-2 text-sm text-red-600 animate-shake">{errors.customEquipment}</p>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Step 3: Transportation */}
-          {currentStep === 3 && (
-            <div className="space-y-8">
-              <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
-                <Truck className="w-6 h-6 mr-2 text-emerald-600" />
-                Do you need transportation for the harvest crops?
-              </h2>
-              <div className="animate-slide-up" style={{ animationDelay: '100ms' }}>
-                <label className="block text-sm font-medium text-gray-700 mb-4">
-                  Transportation needed? *
-                </label>
-                <div className="space-y-3">
-                  <label className="group flex items-center p-4 border border-gray-200 rounded-lg hover:bg-emerald-50 cursor-pointer transition-all duration-300 transform hover:scale-[1.02]">
-                    <input
-                      type="radio"
-                      name="transportationNeeded"
-                      value="yes"
-                      checked={formData.transportationNeeded === 'yes'}
-                      onChange={(e) => handleInputChange('transportationNeeded', e.target.value)}
-                      className="mr-3 text-emerald-600 focus:ring-emerald-500"
-                    />
-                    <span className="text-gray-700 group-hover:text-emerald-700">Yes, I need transportation</span>
-                  </label>
-                  <label className="group flex items-center p-4 border border-gray-200 rounded-lg hover:bg-emerald-50 cursor-pointer transition-all duration-300 transform hover:scale-[1.02]">
-                    <input
-                      type="radio"
-                      name="transportationNeeded"
-                      value="no"
-                      checked={formData.transportationNeeded === 'no'}
-                      onChange={(e) => handleInputChange('transportationNeeded', e.target.value)}
-                      className="mr-3 text-emerald-600 focus:ring-emerald-500"
-                    />
-                    <span className="text-gray-700 group-hover:text-emerald-700">No, I have transportation arranged</span>
-                  </label>
-                </div>
-              </div>
-              {formData.transportationNeeded === 'yes' && (
-                <div className="space-y-6">
-                  <div className="animate-slide-up" style={{ animationDelay: '200ms' }}>
-                    <label className="block text-sm font-medium text-gray-700 mb-3">
-                      Transportation type needed:
-                    </label>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {transportationTypes.map((type, index) => (
-                        <label
-                          key={type}
-                          className="group flex items-center p-3 border border-gray-200 rounded-lg hover:bg-emerald-50 cursor-pointer transition-all duration-300 transform hover:scale-[1.02]"
-                          style={{ animationDelay: `${index * 50}ms` }}
-                        >
-                          <input
-                            type="radio"
-                            name="transportationType"
-                            value={type}
-                            checked={formData.transportationType === type}
-                            onChange={(e) => handleInputChange('transportationType', e.target.value)}
-                            className="mr-3 text-emerald-600 focus:ring-emerald-500"
-                          />
-                          <span className="text-gray-700 text-sm group-hover:text-emerald-700">{type}</span>
-                        </label>
-                      ))}
-                    </div>
-                    {errors.transportationType && (
-                      <p className="mt-3 text-sm text-red-600 animate-shake">{errors.transportationType}</p>
-                    )}
-                  </div>
-                  <div className="animate-slide-up" style={{ animationDelay: '300ms' }}>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Transportation details *
-                    </label>
-                    <textarea
-                      placeholder="e.g., Estimated crop weight, destination, distance, special requirements, etc."
-                      rows="4"
-                      value={formData.transportationDetails}
-                      onChange={(e) => handleInputChange('transportationDetails', e.target.value)}
-                      className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent resize-none transition-all duration-200 ${
-                        errors.transportationDetails ? 'border-red-500' : 'border-gray-300'
-                      }`}
-                    />
-                    {errors.transportationDetails && (
-                      <p className="mt-2 text-sm text-red-600 animate-shake">{errors.transportationDetails}</p>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Step 4: Harvest Schedule */}
-          {currentStep === 4 && (
-            <div className="space-y-8">
-              <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
-                <Calendar className="w-6 h-6 mr-2 text-emerald-600" />
-                When do you want to harvest?
-              </h2>
-              <div className="animate-slide-up" style={{ animationDelay: '100ms' }}>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Harvest Date *
-                </label>
-                <input
-                  type="date"
-                  value={formData.harvestDate}
-                  onChange={(e) => handleInputChange('harvestDate', e.target.value)}
-                  className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200 ${
-                    errors.harvestDate ? 'border-red-500' : 'border-gray-300'
-                  }`}
-                />
-                {errors.harvestDate && (
-                  <p className="mt-2 text-sm text-red-600 animate-shake">{errors.harvestDate}</p>
                 )}
-              </div>
-              <div className="animate-slide-up" style={{ animationDelay: '200ms' }}>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Preferred Start Time *
-                </label>
-                <input
-                  type="time"
-                  value={formData.harvestTime}
-                  onChange={(e) => handleInputChange('harvestTime', e.target.value)}
-                  className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200 ${
-                    errors.harvestTime ? 'border-red-500' : 'border-gray-300'
-                  }`}
-                />
-                {errors.harvestTime && (
-                  <p className="mt-2 text-sm text-red-600 animate-shake">{errors.harvestTime}</p>
+                
+                {errors.equipmentNeeded && (
+                  <p className="error-text">{errors.equipmentNeeded}</p>
                 )}
               </div>
             </div>
-          )}
 
-          {/* Step 5: Photo Upload */}
-          {currentStep === 5 && (
-            <div className="space-y-8">
-              <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
-                <Camera className="w-6 h-6 mr-2 text-emerald-600" />
-                Upload pictures of avocados to be harvested
-              </h2>
-              <p className="text-gray-600 mb-6 animate-slide-up">
-                Upload photos of your avocado trees and fruit to help us assess readiness and plan the harvest accordingly.
-              </p>
-              <div className="animate-slide-up" style={{ animationDelay: '100ms' }}>
-                <div className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center group">
-                  <Camera className="w-12 h-12 text-gray-400 mx-auto mb-4 group-hover:scale-110 transition-transform duration-300" />
-                  <p className="text-gray-600 mb-4">
-                    Click to upload images or drag and drop
-                  </p>
-                  <p className="text-sm text-gray-500 mb-4">
-                    PNG, JPG, GIF up to 10MB each
-                  </p>
+            {/* Second Row */}
+            <div className="grid-form">
+              <div>
+                <label className="label-input">
+                  • Which week do you want to start harvesting?
+                </label>
+                <input
+                  type="text"
+                  value={formData.transportationNeeded}
+                  onChange={(e) => handleInputChange("transportationNeeded", e.target.value)}
+                  className={`input-field ${errors.transportationNeeded ? "input-error" : "input-normal"}`}
+                  placeholder="Describe transportation needs..."
+                />
+                {errors.transportationNeeded && (
+                  <p className="error-text">{errors.transportationNeeded}</p>
+                )}
+              </div>
+
+              <div>
+                <label className="label-input">
+                  Harvest Date Range (Max 5 days)
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-xs text-gray-600 mb-1 block">From</label>
+                    <input
+                      type="date"
+                      value={formData.harvestDateFrom}
+                      onChange={(e) => handleDateChange("harvestDateFrom", e.target.value)}
+                      className={`input-field ${errors.harvestDateFrom ? "input-error" : "input-normal"}`}
+                    />
+                    {errors.harvestDateFrom && (
+                      <p className="error-text text-xs">{errors.harvestDateFrom}</p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-600 mb-1 block">To</label>
+                    <input
+                      type="date"
+                      value={formData.harvestDateTo}
+                      onChange={(e) => handleDateChange("harvestDateTo", e.target.value)}
+                      className={`input-field ${errors.harvestDateTo ? "input-error" : "input-normal"}`}
+                    />
+                    {errors.harvestDateTo && (
+                      <p className="error-text text-xs">{errors.harvestDateTo}</p>
+                    )}
+                  </div>
+                </div>
+                {errors.harvestDateRange && (
+                  <p className="error-text">{errors.harvestDateRange}</p>
+                )}
+              </div>
+            </div>
+
+            {/* File Upload Section */}
+            <div>
+              <label className="label-input">
+                • Please upload pictures of the crops ready for harvest
+              </label>
+              <div className="file-upload-container">
+                <div className="file-input-wrapper">
                   <input
                     type="file"
                     multiple
-                    accept="image/*"
+                    accept="image"
                     onChange={handleFileUpload}
-                    className="hidden"
-                    id="harvest-file-upload"
+                    className="file-input"
+                    id="file-upload"
                   />
                   <label
-                    htmlFor="harvest-file-upload"
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2 px-4 rounded-lg cursor-pointer transition-all duration-300 transform hover:scale-105 inline-block"
+                    htmlFor="file-upload"
+                    className="file-upload-label"
                   >
-                    Choose Files
+                    <span className="file-upload-text">Choose a file</span>
                   </label>
                 </div>
-                {formData.harvestImages.length > 0 && (
-                  <div className="mt-6 animate-slide-up" style={{ animationDelay: '200ms' }}>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-3">
-                      Uploaded Images ({formData.harvestImages.length})
-                    </h3>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                      {formData.harvestImages.map((image, index) => (
-                        <div key={index} className="relative group">
-                          <div className="aspect-square bg-gray-100 rounded-lg flex items-center justify-center">
-                            <span className="text-gray-500 text-sm text-center px-2">{image.name}</span>
-                          </div>
-                          <button
-                            onClick={() => removeImage(index)}
-                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600 transition-all duration-200 transform hover:scale-110"
-                          >
-                            ×
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
+                <button
+                  onClick={() => document.getElementById("file-upload").click()}
+                  className="button-upload"
+                >
+                  Upload
+                </button>
               </div>
-            </div>
-          )}
-
-          {/* Navigation Buttons */}
-          <div className="flex justify-between mt-10">
-            {currentStep > 1 && (
-              <button
-                onClick={prevStep}
-                className="bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold py-3 px-6 rounded-lg transition-all duration-300 transform hover:scale-105"
-              >
-                Previous
-              </button>
-            )}
-            <div className="ml-auto">
-              {currentStep < 5 ? (
-                <button
-                  onClick={nextStep}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-300 transform hover:scale-105"
-                >
-                  Next
-                </button>
-              ) : (
-                <button
-                  onClick={handleSubmit}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-300 transform hover:scale-105"
-                >
-                  Submit Harvest Plan
-                </button>
+              {formData.harvestImages.length > 0 && (
+                <div className="uploaded-files-container">
+                  <p className="uploaded-files-title">Uploaded files:</p>
+                  <div className="uploaded-files-list">
+                    {formData.harvestImages.map((file, index) => (
+                      <div key={index} className="uploaded-file-item">
+                        {file.name}
+                      </div>
+                    ))}
+                  </div>
+                </div>
               )}
+            </div>
+
+            {/* Submit Button */}
+            <div className="submit-button-container">
+              <button
+                onClick={handleSubmit}
+                className="button-submit"
+              >
+                Save
+              </button>
             </div>
           </div>
         </div>
       </div>
-
-      <style jsx>{`
-        @keyframes fade-in-down {
-          from {
-            opacity: 0;
-            transform: translateY(-20px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        @keyframes slide-up {
-          from {
-            opacity: 0;
-            transform: translateY(20px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        @keyframes shake {
-          0%, 100% {
-            transform: translateX(0);
-          }
-          10%, 30%, 50%, 70%, 90% {
-            transform: translateX(-4px);
-          }
-          20%, 40%, 60%, 80% {
-            transform: translateX(4px);
-          }
-        }
-        @keyframes pulse {
-          0%, 100% {
-            transform: scale(1);
-          }
-          50% {
-            transform: scale(1.1);
-          }
-        }
-        .animate-fade-in-down {
-          animation: fade-in-down 0.8s ease-out;
-        }
-        .animate-slide-up {
-          animation: slide-up 0.6s ease-out;
-        }
-        .animate-shake {
-          animation: shake 0.5s ease-in-out;
-        }
-        .animate-pulse {
-          animation: pulse 2s ease-in-out infinite;
-        }
-      `}</style>
     </div>
   );
 }

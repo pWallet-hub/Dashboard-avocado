@@ -3,6 +3,7 @@ import axios from 'axios';
 import { ClipLoader } from 'react-spinners';
 import './market.css';
 import Advertisement from '../../components/advertisement/advertisement';
+import DashboardHeader from "../../components/header/DashboardHeader";
 import SlideShow from "../../components/Slide/Slide";
 import image1 from '../../assets/image/slide1.jpg'
 import image2 from '../../assets/image/slide2.jpg'
@@ -99,7 +100,9 @@ const images = [
 
   return (
     <>
+    <DashboardHeader />
     <div className="market-container">
+      
       <div className="market-wrapper">
         {/* Header Section */}
         <div className="market-header">
