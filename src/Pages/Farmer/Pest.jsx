@@ -1,10 +1,20 @@
 import { useState } from 'react';
-import { ArrowLeft, ShoppingCart, Star, CheckCircle, Shield, Bug, Zap, Eye, Heart, Filter, Package, Timer, AlertTriangle, Leaf, Droplets, Home } from 'lucide-react';
+import { ArrowLeft, ShoppingCart, Star, CheckCircle, Shield, Bug, Zap, Eye, Heart, Filter, Package, Timer, AlertTriangle, Leaf, Droplets, Home, User, Phone, Mail, MapPin } from 'lucide-react';
 
 export default function PestManagement() {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [likedProducts, setLikedProducts] = useState(new Set());
   const [filterType, setFilterType] = useState('all');
+  const [showRequestForm, setShowRequestForm] = useState(false);
+  const [requestFormData, setRequestFormData] = useState({
+    pestType: '',
+    infestationLevel: '',
+    cropType: '',
+    farmSize: '',
+    description: '',
+    images: []
+  });
+  const [requestSubmitted, setRequestSubmitted] = useState(false);
 
   // Mock product data for pest management
   const products = [
@@ -150,6 +160,56 @@ export default function PestManagement() {
       newLiked.add(productId);
     }
     setLikedProducts(newLiked);
+  };
+
+  const handleRequestFormChange = (field, value) => {
+    setRequestFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handleRequestFormSubmit = () => {
+    // Get farmer information from localStorage or use default values
+    const farmerName = localStorage.getItem('farmerName') || 'John Doe';
+    const farmerPhone = localStorage.getItem('farmerPhone') || '+250 123 456 789';
+    const farmerEmail = localStorage.getItem('farmerEmail') || 'farmer@example.com';
+    const farmerLocation = localStorage.getItem('farmerLocation') || 'Kigali, Rwanda';
+
+    const newRequest = {
+      id: Date.now().toString(),
+      type: 'Pest Management',
+      status: 'pending',
+      submittedAt: new Date().toISOString(),
+      farmerName,
+      farmerPhone,
+      farmerEmail,
+      farmerLocation,
+      pestType: requestFormData.pestType,
+      infestationLevel: requestFormData.infestationLevel,
+      cropType: requestFormData.cropType,
+      farmSize: requestFormData.farmSize,
+      description: requestFormData.description,
+      images: requestFormData.images
+    };
+
+    // Get existing requests from localStorage
+    const existingRequests = JSON.parse(localStorage.getItem('farmerServiceRequests') || '[]');
+    const updatedRequests = [...existingRequests, newRequest];
+    
+    // Save to localStorage
+    localStorage.setItem('farmerServiceRequests', JSON.stringify(updatedRequests));
+    
+    setRequestSubmitted(true);
+    setShowRequestForm(false);
+    setRequestFormData({
+      pestType: '',
+      infestationLevel: '',
+      cropType: '',
+      farmSize: '',
+      description: '',
+      images: []
+    });
   };
 
   const ProductModal = ({ product, onClose }) => (
@@ -305,6 +365,17 @@ export default function PestManagement() {
               Protect your crops and property with our comprehensive pest management solutions.
               From organic sprays to smart monitoring systems, we provide effective and eco-friendly pest control.
             </p>
+            
+            {/* Request Service Button */}
+            <div className="mt-6">
+              <button
+                onClick={() => setShowRequestForm(true)}
+                className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white font-semibold rounded-xl hover:from-green-700 hover:to-emerald-700 transition-all duration-300 transform hover:scale-105 shadow-lg"
+              >
+                <Bug className="w-5 h-5 mr-2" />
+                Request Pest Management Service
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -520,6 +591,130 @@ export default function PestManagement() {
           product={selectedProduct}
           onClose={() => setSelectedProduct(null)}
         />
+      )}
+
+      {/* Request Form Modal */}
+      {showRequestForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold text-gray-900">Request Pest Management Service</h2>
+              <button
+                onClick={() => setShowRequestForm(false)}
+                className="p-2 hover:bg-gray-100 rounded-full transition-all duration-200"
+              >
+                <XCircle className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Pest Type</label>
+                  <select
+                    value={requestFormData.pestType}
+                    onChange={(e) => handleRequestFormChange('pestType', e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  >
+                    <option value="">Select pest type</option>
+                    <option value="Aphids">Aphids</option>
+                    <option value="Spider Mites">Spider Mites</option>
+                    <option value="Whiteflies">Whiteflies</option>
+                    <option value="Thrips">Thrips</option>
+                    <option value="Mealybugs">Mealybugs</option>
+                    <option value="Scale Insects">Scale Insects</option>
+                    <option value="Fungus Gnats">Fungus Gnats</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Infestation Level</label>
+                  <select
+                    value={requestFormData.infestationLevel}
+                    onChange={(e) => handleRequestFormChange('infestationLevel', e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  >
+                    <option value="">Select level</option>
+                    <option value="Low">Low</option>
+                    <option value="Medium">Medium</option>
+                    <option value="High">High</option>
+                    <option value="Severe">Severe</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Crop Type</label>
+                  <input
+                    type="text"
+                    value={requestFormData.cropType}
+                    onChange={(e) => handleRequestFormChange('cropType', e.target.value)}
+                    placeholder="e.g., Tomatoes, Corn, Beans"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Farm Size (acres)</label>
+                  <input
+                    type="text"
+                    value={requestFormData.farmSize}
+                    onChange={(e) => handleRequestFormChange('farmSize', e.target.value)}
+                    placeholder="e.g., 5 acres"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                <textarea
+                  value={requestFormData.description}
+                  onChange={(e) => handleRequestFormChange('description', e.target.value)}
+                  placeholder="Describe the pest problem, symptoms, and any previous treatments..."
+                  rows={4}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                />
+              </div>
+
+              <div className="flex justify-end space-x-3">
+                <button
+                  onClick={() => setShowRequestForm(false)}
+                  className="px-4 py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleRequestFormSubmit}
+                  className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                >
+                  Submit Request
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Success Message */}
+      {requestSubmitted && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl p-8 max-w-md w-full text-center">
+            <div className="w-16 h-16 mx-auto mb-4 bg-green-100 rounded-full flex items-center justify-center">
+              <CheckCircle className="w-8 h-8 text-green-600" />
+            </div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">Request Submitted!</h3>
+            <p className="text-gray-600 mb-6">
+              Your pest management service request has been submitted successfully. Our team will review it and contact you within 24 hours.
+            </p>
+            <button
+              onClick={() => setRequestSubmitted(false)}
+              className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+            >
+              OK
+            </button>
+          </div>
+        </div>
       )}
 
       {/* Custom CSS for animations */}

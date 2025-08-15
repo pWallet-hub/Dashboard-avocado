@@ -24,6 +24,11 @@ export default function DashboardHeader() {
       label: "Book Your Farm Property Valuation", 
       route: "/dashboard/farmer/PropertyEvaluation" 
     },
+    { 
+      icon: "📋", 
+      label: "My Service Requests", 
+      route: "/dashboard/farmer/my-service-requests" 
+    },
   ];
 
   const isActive = (route) => {

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { CheckCircle } from 'lucide-react';
 import '../Styles/FarmerPropertyEvaluation.css';
-import DashboardHeader from "../../components/header/DashboardHeader";
+import DashboardHeader from "../../components/Header/DashboardHeader";
 
 const PropertyEvaluationForm = () => {
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
@@ -99,6 +99,37 @@ const PropertyEvaluationForm = () => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    
+    // Get farmer information from localStorage or use default values
+    const farmerName = localStorage.getItem('farmerName') || 'John Doe';
+    const farmerPhone = localStorage.getItem('farmerPhone') || '+250 123 456 789';
+    const farmerEmail = localStorage.getItem('farmerEmail') || 'farmer@example.com';
+    const farmerLocation = localStorage.getItem('farmerLocation') || 'Kigali, Rwanda';
+
+    const newRequest = {
+      id: Date.now().toString(),
+      type: 'Property Evaluation',
+      status: 'pending',
+      submittedAt: new Date().toISOString(),
+      farmerName,
+      farmerPhone,
+      farmerEmail,
+      farmerLocation,
+      irrigationSource: formData.irrigationSource,
+      irrigationTiming: formData.irrigationTiming,
+      soilTesting: formData.soilTesting,
+      visitStartDate: formData.visitStartDate,
+      visitEndDate: formData.visitEndDate,
+      evaluationPurpose: formData.evaluationPurpose
+    };
+
+    // Get existing requests from localStorage
+    const existingRequests = JSON.parse(localStorage.getItem('farmerServiceRequests') || '[]');
+    const updatedRequests = [...existingRequests, newRequest];
+    
+    // Save to localStorage
+    localStorage.setItem('farmerServiceRequests', JSON.stringify(updatedRequests));
+    
     console.log('Form submitted:', formData);
     setShowSuccessMessage(true);
   };

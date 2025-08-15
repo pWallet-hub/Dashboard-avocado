@@ -12,7 +12,8 @@ import {
   ShoppingBag,
   Menu,
   X,
-  ChevronRight
+  ChevronRight,
+  ClipboardList
 } from 'lucide-react';
 import asr from '../../assets/image/LOGO_-_Avocado_Society_of_Rwanda.png';
 import './Sidebar.css';
@@ -42,6 +43,7 @@ const Sidebar = ({ role }) => {
     { to: "/dashboard/admin/reports", icon: FileText, text: "Manage Account" },
     { to: "/dashboard/admin/shops", icon: ShoppingCart, text: "Manage Shops" }, 
     { to: "/dashboard/admin/statistics", icon: BarChart2, text: "System Usage" },
+    { to: "/dashboard/admin/service-requests", icon: ClipboardList, text: "Service Requests" },
   ];
 
   const agentLinks = [
@@ -55,6 +57,7 @@ const Sidebar = ({ role }) => {
   const farmerLinks = [
     { to: "/dashboard/farmer/market", icon: ShoppingCart, text: "Market" },
     { to: "/dashboard/farmer/service", icon: Settings, text: "Service" },
+    { to: "/dashboard/farmer/my-service-requests", icon: ClipboardList, text: "My Requests" },
     { to: "/dashboard/farmer/profile", icon: User, text: "Profile" },
   ];
 

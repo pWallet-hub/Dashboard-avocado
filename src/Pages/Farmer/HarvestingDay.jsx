@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import "../Styles/HarvestingDay.css";
-import DashboardHeader from "../../components/header/DashboardHeader";
+import DashboardHeader from "../../components/Header/DashboardHeader";
 
 export default function HarvestingDay() {
   const [formData, setFormData] = useState({
@@ -104,6 +104,36 @@ export default function HarvestingDay() {
 
   const handleSubmit = () => {
     if (validateForm()) {
+      // Get farmer information from localStorage or use default values
+      const farmerName = localStorage.getItem('farmerName') || 'John Doe';
+      const farmerPhone = localStorage.getItem('farmerPhone') || '+250 123 456 789';
+      const farmerEmail = localStorage.getItem('farmerEmail') || 'farmer@example.com';
+      const farmerLocation = localStorage.getItem('farmerLocation') || 'Kigali, Rwanda';
+
+      const newRequest = {
+        id: Date.now().toString(),
+        type: 'Harvesting Day',
+        status: 'pending',
+        submittedAt: new Date().toISOString(),
+        farmerName,
+        farmerPhone,
+        farmerEmail,
+        farmerLocation,
+        workersNeeded: formData.workersNeeded,
+        equipmentNeeded: formData.equipmentNeeded,
+        transportationNeeded: formData.transportationNeeded,
+        harvestDateFrom: formData.harvestDateFrom,
+        harvestDateTo: formData.harvestDateTo,
+        harvestImages: formData.harvestImages.map(file => file.name)
+      };
+
+      // Get existing requests from localStorage
+      const existingRequests = JSON.parse(localStorage.getItem('farmerServiceRequests') || '[]');
+      const updatedRequests = [...existingRequests, newRequest];
+      
+      // Save to localStorage
+      localStorage.setItem('farmerServiceRequests', JSON.stringify(updatedRequests));
+      
       setSubmitted(true);
       console.log("Harvest plan submitted:", formData);
     }
