@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import Advertisement from '../../components/advertisement/advertisement';
-import './Profile.css';
+import './profile.css';
 import image from '../../assets/image/nopic.jpg';
 
 export default function Profile() {

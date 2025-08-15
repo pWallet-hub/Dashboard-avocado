@@ -1,4 +1,4 @@
-import './advertisement.css'
+import './Advertisement.css'
 export default function Advertisement () {
     return(
         <>
