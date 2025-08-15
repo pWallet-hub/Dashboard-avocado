@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import Advertisement from "../../components/advertisement/advertisement";
-import DashboardHeader from "../../components/header/DashboardHeader";
+import DashboardHeader from "../../components/Header/DashboardHeader";
 
 export default function Service() {
   const services = [

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { CheckCircle } from 'lucide-react';
-import DashboardHeader from "../../components/header/DashboardHeader";
+import DashboardHeader from "../../components/Header/DashboardHeader";
 
 const PestManagement = () => {
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
