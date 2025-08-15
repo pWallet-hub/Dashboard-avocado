@@ -19,6 +19,7 @@ import PestManagement from './Pages/Farmer/PestManagement'
 import HarvestingDay from './Pages/Farmer/HarvestingDay'
 import PropertyEvaluation from './Pages/Farmer/PropertyEvaluation'
 import Product from './Pages/Farmer/Product'
+import MyServiceRequests from './Pages/Farmer/MyServiceRequests'
 import FarmerList from './Pages/Agent/FarmerList'
 import PendingService from './Pages/Agent/PendingService'
 
@@ -28,6 +29,7 @@ import Agents from './Pages/Admin/Agents'
 import Reports from './Pages/Admin/Reports'
 import ShopView from './Pages/Admin/ShopView'
 import Statistics from './Pages/Admin/Statistics'
+import ServiceRequests from './Pages/Admin/ServiceRequests'
 
 
 function App() {
@@ -43,6 +45,7 @@ function App() {
           <Route path="admin/reports" element={<Reports/>} />
           <Route path="admin/shops" element={<ShopView/>} />
           <Route path="admin/statistics" element={<Statistics/>} />
+          <Route path="admin/service-requests" element={<ServiceRequests/>} />
           <Route path="agent" element={<Agent />} />
           <Route path='agent/FarmerList' element={<FarmerList/>}/>
           <Route path='agent/PendingService' element={<PendingService/>}/>
@@ -59,6 +62,7 @@ function App() {
            <Route path='farmer/PestManagement' element={<PestManagement/>}/>
           <Route path='farmer/HarvestingDay' element={<HarvestingDay/>}/>
           <Route path='farmer/PropertyEvaluation' element={<PropertyEvaluation/>}/>
+          <Route path='farmer/my-service-requests' element={<MyServiceRequests/>}/>
           <Route path='farmer/profile' element={<Profile/>}/>
           <Route path='farmer/product' element={<Product/>}/>
         </Route>

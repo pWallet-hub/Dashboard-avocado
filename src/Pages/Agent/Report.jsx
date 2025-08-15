@@ -1,9 +1,44 @@
-import React, { useState, useEffect } from 'react';
-import { FileText, Send, Calendar, Eye, Plus, CheckCircle, AlertCircle, Edit, Trash2, X, Save } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from "react";
+import {
+  FileText,
+  Calendar,
+  Eye,
+  Plus,
+  CheckCircle,
+  AlertCircle,
+  Edit,
+  Trash2,
+  X,
+  Save,
+  Upload,
+  MapPin,
+  Image as ImageIcon,
+  File,
+  Clock,
+  Building,
+  BarChart3,
+  Award,
+  Folder,
+  ChevronDown,
+} from "lucide-react";
 
-export default function Report() {
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
+const ProfessionalReportSystem = () => {
+  const [formData, setFormData] = useState({
+    title: "",
+    description: "",
+    scheduledDate: "",
+    scheduledTime: "",
+    administrativeLocation: "",
+    volume: "",
+    qualityGrade: "",
+    reportType: "inspection",
+    priority: "medium",
+    notes: "",
+  });
+
+  const [files, setFiles] = useState([]);
+  const [location, setLocation] = useState(null);
+  const [gpsStatus, setGpsStatus] = useState("idle");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
@@ -12,505 +47,1039 @@ export default function Report() {
   const [showForm, setShowForm] = useState(false);
   const [editingReport, setEditingReport] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [currentStep, setCurrentStep] = useState(1);
+  const [formErrors, setFormErrors] = useState({});
+  const [showConfirmation, setShowConfirmation] = useState(false);
 
-  // Mock data for demonstration since we can't use localStorage
+  const qualityGrades = [
+    { value: "A+", label: "A+ (Excellent)", color: "bg-green-100 text-green-800" },
+    { value: "A", label: "A (Very Good)", color: "bg-green-100 text-green-700" },
+    { value: "B+", label: "B+ (Good)", color: "bg-blue-100 text-blue-800" },
+    { value: "B", label: "B (Satisfactory)", color: "bg-blue-100 text-blue-700" },
+    { value: "C+", label: "C+ (Fair)", color: "bg-yellow-100 text-yellow-800" },
+    { value: "C", label: "C (Poor)", color: "bg-orange-100 text-orange-800" },
+    { value: "D", label: "D (Unsatisfactory)", color: "bg-red-100 text-red-800" },
+  ];
+
+  const reportTypes = [
+    { value: "inspection", label: "Quality Inspection", icon: Award },
+    { value: "audit", label: "Compliance Audit", icon: CheckCircle },
+    { value: "assessment", label: "Performance Assessment", icon: BarChart3 },
+    { value: "survey", label: "Field Survey", icon: MapPin },
+  ];
+
   const mockReports = [
     {
       id: 1,
-      title: "Q4 Performance Analysis",
-      description: "Comprehensive analysis of quarterly performance metrics and key indicators",
+      title: "Monthly Quality Inspection - Factory A",
+      description: "Comprehensive quality assessment of production line efficiency and output standards",
+      scheduledDate: "2024-12-20",
+      scheduledTime: "09:00",
+      administrativeLocation: "Manufacturing District - Zone 3",
+      volume: "2,500 units",
+      qualityGrade: "A+",
+      reportType: "inspection",
+      priority: "high",
+      notes: "Initial assessment completed",
       createdAt: "2024-12-15T10:30:00Z",
-      status: "completed"
+      status: "completed",
+      location: {
+        lat: -1.9441,
+        lng: 30.0619,
+        address: "Kigali Industrial Park, Rwanda",
+        placeName: "Kigali Industrial Park, Rwanda",
+      },
+      files: [
+        { name: "quality_report.pdf", type: "application/pdf", size: "2.4 MB" },
+        { name: "inspection_photos.jpg", type: "image/jpeg", size: "1.8 MB" },
+      ],
     },
     {
       id: 2,
-      title: "User Experience Review",
-      description: "Detailed review of user interface improvements and user feedback integration",
+      title: "Compliance Audit - Warehouse B",
+      description: "Regulatory compliance verification and safety protocol assessment",
+      scheduledDate: "2024-12-18",
+      scheduledTime: "14:30",
+      administrativeLocation: "Logistics Hub - Sector 7",
+      volume: "15,000 sq ft",
+      qualityGrade: "B+",
+      reportType: "audit",
+      priority: "medium",
+      notes: "Pending final review",
       createdAt: "2024-12-10T14:20:00Z",
-      status: "pending"
+      status: "pending",
+      location: {
+        lat: -1.9706,
+        lng: 30.1044,
+        address: "Kigali Logistics Center, Rwanda",
+        placeName: "Kigali Logistics Center, Rwanda",
+      },
+      files: [
+        {
+          name: "compliance_checklist.xlsx",
+          type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          size: "892 KB",
+        },
+      ],
     },
-    {
-      id: 3,
-      title: "Security Assessment",
-      description: "Monthly security audit and vulnerability assessment report",
-      createdAt: "2024-12-05T09:15:00Z",
-      status: "completed"
-    }
   ];
 
   useEffect(() => {
     const fetchReports = async () => {
       setFetchingReports(true);
-      // Simulate API call
       setTimeout(() => {
         setReports(mockReports);
         setFetchingReports(false);
       }, 1000);
     };
-
     fetchReports();
   }, []);
 
-  const handleSubmit = async (e) => {
+  const reverseGeocode = async (latitude, longitude) => {
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 800));
+      const mockLocations = {
+        "-1.94": "Kigali City Center, Rwanda",
+        "-1.97": "Kigali Industrial Area, Rwanda",
+        "40.71": "New York City, USA",
+        "34.05": "Los Angeles, USA",
+        "41.87": "Chicago, USA",
+        "51.50": "London, United Kingdom",
+        "48.85": "Paris, France",
+        "52.52": "Berlin, Germany",
+        "35.68": "Tokyo, Japan",
+        "28.61": "New Delhi, India",
+        "39.90": "Beijing, China",
+      };
+
+      const latKey = Object.keys(mockLocations).find((key) =>
+        latitude.toFixed(2).startsWith(key.substring(0, key.length - 1))
+      );
+
+      if (latKey) {
+        return mockLocations[latKey];
+      }
+
+      return `Location near ${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+    } catch (error) {
+      console.error("Geocoding error:", error);
+      return `Location at ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
+    }
+  };
+
+  const validateCurrentStep = useCallback(() => {
+    const errors = {};
+    
+    if (currentStep === 1) {
+      if (!formData.title.trim()) errors.title = "Report title is required";
+      if (!formData.description.trim()) errors.description = "Description is required";
+      if (!formData.reportType) errors.reportType = "Report type is required";
+      if (!formData.priority) errors.priority = "Priority level is required";
+    }
+    
+    if (currentStep === 2) {
+      if (!formData.scheduledDate) errors.scheduledDate = "Scheduled date is required";
+      if (!formData.administrativeLocation.trim())
+        errors.administrativeLocation = "Administrative location is required";
+      if (formData.volume && isNaN(Number(formData.volume)))
+        errors.volume = "Volume must be a valid number";
+    }
+
+    if (JSON.stringify(errors) !== JSON.stringify(formErrors)) {
+      setFormErrors(errors);
+    }
+
+    return Object.keys(errors).length === 0;
+  }, [currentStep, formData, formErrors]);
+
+  const validateAllSteps = useCallback(() => {
+    let isValid = true;
+    const errors = {};
+    
+    // Validate step 1 fields
+    if (!formData.title.trim()) {
+      errors.title = "Report title is required";
+      isValid = false;
+    }
+    if (!formData.description.trim()) {
+      errors.description = "Description is required";
+      isValid = false;
+    }
+    if (!formData.reportType) {
+      errors.reportType = "Report type is required";
+      isValid = false;
+    }
+    if (!formData.priority) {
+      errors.priority = "Priority level is required";
+      isValid = false;
+    }
+    
+    // Validate step 2 fields
+    if (!formData.scheduledDate) {
+      errors.scheduledDate = "Scheduled date is required";
+      isValid = false;
+    }
+    if (!formData.administrativeLocation.trim()) {
+      errors.administrativeLocation = "Administrative location is required";
+      isValid = false;
+    }
+    
+    if (JSON.stringify(errors) !== JSON.stringify(formErrors)) {
+      setFormErrors(errors);
+    }
+    return isValid;
+  }, [formData, formErrors]);
+
+  const handleInputChange = useCallback((field, value) => {
+    setFormData((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+    setFormErrors((prev) => ({ ...prev, [field]: "" }));
+  }, []);
+
+  const handleFileUpload = useCallback((e) => {
+    const selectedFiles = Array.from(e.target.files || []);
+    const validFiles = selectedFiles.filter((file) => file.size <= 10 * 1024 * 1024);
+    if (validFiles.length < selectedFiles.length) {
+      setError("Some files were too large (max 10MB each)");
+    }
+    const newFiles = validFiles.map((file) => ({
+      file,
+      name: file.name,
+      type: file.type,
+      size: (file.size / 1024 / 1024).toFixed(2) + " MB",
+      preview: file.type.startsWith("image/") ? URL.createObjectURL(file) : null,
+    }));
+    setFiles((prev) => [...prev, ...newFiles]);
+  }, []);
+
+  const removeFile = useCallback((index) => {
+    setFiles((prev) => {
+      const newFiles = prev.filter((_, i) => i !== index);
+      prev[index]?.preview && URL.revokeObjectURL(prev[index].preview);
+      return newFiles;
+    });
+  }, []);
+
+  const getCurrentLocation = useCallback(async () => {
+    setGpsStatus("loading");
+    if (!navigator.geolocation) {
+      setError("Geolocation is not supported by this browser");
+      setGpsStatus("error");
+      return;
+    }
+    try {
+      const position = await new Promise((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0,
+        });
+      });
+
+      const { latitude, longitude } = position.coords;
+      const placeName = await reverseGeocode(latitude, longitude);
+
+      setLocation({
+        lat: latitude,
+        lng: longitude,
+        accuracy: position.coords.accuracy,
+        timestamp: new Date().toISOString(),
+        address: placeName,
+        placeName: placeName,
+      });
+
+      setGpsStatus("success");
+      setSuccess("Location captured successfully");
+    } catch (error) {
+      setError("Unable to retrieve location: " + error.message);
+      setGpsStatus("error");
+    }
+  }, []);
+
+  const handleSubmit = useCallback((e) => {
     e.preventDefault();
+    const isValid = validateAllSteps();
+    if (!isValid) {
+      setError("Please fill in all required fields");
+      // Find the first step with errors
+      if (!formData.title || !formData.description || !formData.reportType || !formData.priority) {
+        setCurrentStep(1);
+      } else {
+        setCurrentStep(2);
+      }
+      return;
+    }
+    setShowConfirmation(true);
+  }, [formData, validateAllSteps]);
+
+  const confirmSubmission = useCallback(() => {
+    setShowConfirmation(false);
     setLoading(true);
     setError(null);
     setSuccess(null);
-    
-    // Simulate API call
+
     setTimeout(() => {
       const newReport = {
-        id: reports.length + 1,
-        title,
-        description,
-        createdAt: new Date().toISOString(),
-        status: "pending"
+        id: editingReport ? editingReport.id : reports.length + 1,
+        ...formData,
+        createdAt: editingReport ? editingReport.createdAt : new Date().toISOString(),
+        status: editingReport ? editingReport.status : "pending",
+        location: location,
+        files: files.map((f) => ({
+          name: f.name,
+          type: f.type,
+          size: f.size,
+        })),
       };
-      
-      setReports([newReport, ...reports]);
-      setSuccess('Report created successfully!');
-      setTitle('');
-      setDescription('');
+
+      if (editingReport) {
+        setReports(reports.map((r) => (r.id === editingReport.id ? newReport : r)));
+        setSuccess("Report updated successfully!");
+        setEditingReport(null);
+      } else {
+        setReports([newReport, ...reports]);
+        setSuccess("Report created successfully!");
+      }
+
+      setFormData({
+        title: "",
+        description: "",
+        scheduledDate: "",
+        scheduledTime: "",
+        administrativeLocation: "",
+        volume: "",
+        qualityGrade: "",
+        reportType: "inspection",
+        priority: "medium",
+        notes: "",
+      });
+      setFiles((prev) => {
+        prev.forEach((f) => f.preview && URL.revokeObjectURL(f.preview));
+        return [];
+      });
+      setLocation(null);
+      setGpsStatus("idle");
       setShowForm(false);
+      setCurrentStep(1);
       setLoading(false);
     }, 1500);
-  };
+  }, [editingReport, formData, location, files, reports]);
 
-  const handleEdit = (report) => {
-    setEditingReport({
-      ...report,
-      editTitle: report.title,
-      editDescription: report.description
+  const handleEdit = useCallback((report) => {
+    setEditingReport(report);
+    setFormData({
+      title: report.title,
+      description: report.description,
+      scheduledDate: report.scheduledDate,
+      scheduledTime: report.scheduledTime,
+      administrativeLocation: report.administrativeLocation,
+      volume: report.volume,
+      qualityGrade: report.qualityGrade,
+      reportType: report.reportType,
+      priority: report.priority,
+      notes: report.notes || "",
     });
-  };
+    setFiles(
+      report.files?.map((f) => ({
+        ...f,
+        preview: f.type.startsWith("image/") ? `/placeholder.svg?height=100&width=100&text=${f.name}` : null,
+      })) || []
+    );
+    setLocation(report.location);
+    setShowForm(true);
+    setCurrentStep(1);
+  }, []);
 
-  const handleSaveEdit = async (reportId) => {
-    setLoading(true);
-    setError(null);
-    setSuccess(null);
-    
-    // Simulate API call
-    setTimeout(() => {
-      setReports(reports.map(report => 
-        report.id === reportId 
-          ? { 
-              ...report, 
-              title: editingReport.editTitle, 
-              description: editingReport.editDescription,
-              updatedAt: new Date().toISOString()
-            }
-          : report
-      ));
-      setSuccess('Report updated successfully!');
-      setEditingReport(null);
-      setLoading(false);
-    }, 1000);
-  };
-
-  const handleCancelEdit = () => {
-    setEditingReport(null);
-  };
-
-  const handleDelete = (reportId) => {
+  const handleDelete = useCallback((reportId) => {
     setDeleteConfirm(reportId);
-  };
+  }, []);
 
-  const confirmDelete = async () => {
-    setLoading(true);
-    setError(null);
-    setSuccess(null);
-    
-    // Simulate API call
-    setTimeout(() => {
-      setReports(reports.filter(report => report.id !== deleteConfirm));
-      setSuccess('Report deleted successfully!');
+  const confirmDelete = useCallback(() => {
+    if (deleteConfirm) {
+      setReports(reports.filter((r) => r.id !== deleteConfirm));
+      setSuccess("Report deleted successfully");
       setDeleteConfirm(null);
-      setLoading(false);
-    }, 800);
-  };
+    }
+  }, [deleteConfirm, reports]);
 
-  const cancelDelete = () => {
-    setDeleteConfirm(null);
-  };
+  const nextStep = useCallback(() => {
+    const isValid = validateCurrentStep();
+    if (currentStep < 3 && isValid) {
+      setCurrentStep(currentStep + 1);
+    }
+  }, [currentStep, validateCurrentStep]);
 
-  const getStatusColor = (status) => {
-    return status === 'completed' ? 'text-green-600 bg-green-50' : 'text-yellow-600 bg-yellow-50';
-  };
+  const prevStep = useCallback(() => {
+    if (currentStep > 1) {
+      setCurrentStep(currentStep - 1);
+    }
+  }, [currentStep]);
 
-  const getStatusIcon = (status) => {
-    return status === 'completed' ? CheckCircle : AlertCircle;
-  };
+  const getFileIcon = useCallback((type) => {
+    if (type.startsWith("image/")) return ImageIcon;
+    if (type === "application/pdf") return FileText;
+    return File;
+  }, []);
+
+  const getPriorityColor = useCallback((priority) => {
+    switch (priority) {
+      case "high":
+        return "bg-red-100 text-red-800";
+      case "medium":
+        return "bg-yellow-100 text-yellow-800";
+      case "low":
+        return "bg-green-100 text-green-800";
+      default:
+        return "bg-gray-100 text-gray-800";
+    }
+  }, []);
+
+  const getStatusColor = useCallback((status) => {
+    return status === "completed" ? "text-green-600 bg-green-50" : "text-yellow-600 bg-yellow-50";
+  }, []);
+
+  const getStatusIcon = useCallback((status) => {
+    return status === "completed" ? CheckCircle : AlertCircle;
+  }, []);
+
+  const renderStepContent = useCallback(() => {
+    switch (currentStep) {
+      case 1:
+        return (
+          <div className="space-y-6">
+            {Object.keys(formErrors).length > 0 && (
+              <div className="mb-4 p-4 bg-red-50 rounded-lg border border-red-200">
+                <h4 className="text-red-800 font-medium mb-2">
+                  Please fix the following errors:
+                </h4>
+                <ul className="list-disc list-inside text-red-700 text-sm">
+                  {Object.entries(formErrors).map(([field, error]) => (
+                    <li key={field}>{error}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            <div className="text-center mb-6">
+              <h3 className="text-2xl font-semibold text-gray-900 mb-2">Basic Information</h3>
+              <p className="text-gray-600">Enter the fundamental details of your report</p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="md:col-span-2">
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Report Title <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={formData.title}
+                  onChange={(e) => handleInputChange("title", e.target.value)}
+                  className={`w-full px-4 py-3 text-gray-900 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200 ${
+                    formErrors.title ? "border-red-500" : ""
+                  }`}
+                  placeholder="Enter report title..."
+                  required
+                />
+                {formErrors.title && <p className="mt-1 text-xs text-red-500">{formErrors.title}</p>}
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Report Type <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={formData.reportType}
+                  onChange={(e) => handleInputChange("reportType", e.target.value)}
+                  className={`w-full px-4 py-3 text-gray-900 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200 ${
+                    formErrors.reportType ? "border-red-500" : ""
+                  }`}
+                >
+                  {reportTypes.map((type) => (
+                    <option key={type.value} value={type.value}>
+                      {type.label}
+                    </option>
+                  ))}
+                </select>
+                {formErrors.reportType && <p className="mt-1 text-xs text-red-500">{formErrors.reportType}</p>}
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Priority Level <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={formData.priority}
+                  onChange={(e) => handleInputChange("priority", e.target.value)}
+                  className={`w-full px-4 py-3 text-gray-900 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200 ${
+                    formErrors.priority ? "border-red-500" : ""
+                  }`}
+                >
+                  <option value="low">Low Priority</option>
+                  <option value="medium">Medium Priority</option>
+                  <option value="high">High Priority</option>
+                </select>
+                {formErrors.priority && <p className="mt-1 text-xs text-red-500">{formErrors.priority}</p>}
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Description <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  value={formData.description}
+                  onChange={(e) => handleInputChange("description", e.target.value)}
+                  rows={4}
+                  className={`w-full px-4 py-3 text-gray-900 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200 resize-none ${
+                    formErrors.description ? "border-red-500" : ""
+                  }`}
+                  placeholder="Describe the purpose and scope of this report..."
+                  required
+                />
+                {formErrors.description && <p className="mt-1 text-xs text-red-500">{formErrors.description}</p>}
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Additional Notes</label>
+                <textarea
+                  value={formData.notes}
+                  onChange={(e) => handleInputChange("notes", e.target.value)}
+                  rows={3}
+                  className="w-full px-4 py-3 text-gray-900 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200 resize-none"
+                  placeholder="Add any additional notes or comments..."
+                />
+              </div>
+            </div>
+          </div>
+        );
+      case 2:
+        return (
+          <div className="space-y-6">
+            {Object.keys(formErrors).length > 0 && (
+              <div className="mb-4 p-4 bg-red-50 rounded-lg border border-red-200">
+                <h4 className="text-red-800 font-medium mb-2">
+                  Please fix the following errors:
+                </h4>
+                <ul className="list-disc list-inside text-red-700 text-sm">
+                  {Object.entries(formErrors).map(([field, error]) => (
+                    <li key={field}>{error}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            <div className="text-center mb-6">
+              <h3 className="text-2xl font-semibold text-gray-900 mb-2">Schedule & Location</h3>
+              <p className="text-gray-600">Set appointment details and data specifications</p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Scheduled Date <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                  <input
+                    type="date"
+                    value={formData.scheduledDate}
+                    onChange={(e) => handleInputChange("scheduledDate", e.target.value)}
+                    className={`w-full pl-10 pr-4 py-3 text-gray-900 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200 ${
+                      formErrors.scheduledDate ? "border-red-500" : ""
+                    }`}
+                    required
+                  />
+                </div>
+                {formErrors.scheduledDate && <p className="mt-1 text-xs text-red-500">{formErrors.scheduledDate}</p>}
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Scheduled Time</label>
+                <div className="relative">
+                  <Clock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                  <input
+                    type="time"
+                    value={formData.scheduledTime}
+                    onChange={(e) => handleInputChange("scheduledTime", e.target.value)}
+                    className="w-full pl-10 pr-4 py-3 text-gray-900 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200"
+                  />
+                </div>
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Administrative Location <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={formData.administrativeLocation}
+                  onChange={(e) => handleInputChange("administrativeLocation", e.target.value)}
+                  className={`w-full px-4 py-3 text-gray-900 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200 ${
+                    formErrors.administrativeLocation ? "border-red-500" : ""
+                  }`}
+                  placeholder="e.g., Manufacturing District - Zone 3, Building A"
+                  required
+                />
+                {formErrors.administrativeLocation && (
+                  <p className="mt-1 text-xs text-red-500">{formErrors.administrativeLocation}</p>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Volume/Quantity</label>
+                <input
+                  type="text"
+                  value={formData.volume}
+                  onChange={(e) => handleInputChange("volume", e.target.value)}
+                  className={`w-full px-4 py-3 text-gray-900 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200 ${
+                    formErrors.volume ? "border-red-500" : ""
+                  }`}
+                  placeholder="e.g., 2,500 units, 15,000 sq ft"
+                />
+                {formErrors.volume && <p className="mt-1 text-xs text-red-500">{formErrors.volume}</p>}
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Quality Grade</label>
+                <div className="relative">
+                  <select
+                    value={formData.qualityGrade}
+                    onChange={(e) => handleInputChange("qualityGrade", e.target.value)}
+                    className="w-full px-4 py-3 text-gray-900 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200 appearance-none"
+                  >
+                    <option value="">Select Quality Grade</option>
+                    {qualityGrades.map((grade) => (
+                      <option key={grade.value} value={grade.value}>
+                        {grade.label}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+                    size={20}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      case 3:
+        return (
+          <div className="space-y-6">
+            <div className="text-center mb-6">
+              <h3 className="text-2xl font-semibold text-gray-900 mb-2">Files & Location</h3>
+              <p className="text-gray-600">Upload supporting documents and capture GPS location</p>
+            </div>
+            <div className="bg-gray-50 rounded-xl p-6">
+              <label className="block text-sm font-semibold text-gray-700 mb-4">Upload Files & Images</label>
+              <div className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center hover:border-emerald-400 transition-colors">
+                <input
+                  type="file"
+                  multiple
+                  accept="image/*,.pdf,.doc,.docx,.xlsx,.xls"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                  id="file-upload"
+                />
+                <label htmlFor="file-upload" className="cursor-pointer flex flex-col items-center">
+                  <Upload className="w-12 h-12 text-gray-400 mb-4" />
+                  <p className="text-lg font-medium text-gray-900 mb-2">Drop files here or click to browse</p>
+                  <p className="text-sm text-gray-500">Supports: Images, PDF, Word, Excel (Max 10MB each)</p>
+                </label>
+              </div>
+              {files.length > 0 && (
+                <div className="mt-6 space-y-3">
+                  <h4 className="font-medium text-gray-900">Uploaded Files:</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {files.map((file, index) => {
+                      const IconComponent = getFileIcon(file.type);
+                      return (
+                        <div key={index} className="flex items-center justify-between p-3 bg-white rounded-lg border">
+                          <div className="flex items-center space-x-3">
+                            {file.preview ? (
+                              <img
+                                src={file.preview || "/placeholder.svg"}
+                                alt={file.name}
+                                className="w-12 h-12 object-cover rounded"
+                              />
+                            ) : (
+                              <IconComponent className="w-12 h-12 text-emerald-600" />
+                            )}
+                            <div>
+                              <p className="font-medium text-gray-900">{file.name}</p>
+                              <p className="text-sm text-gray-500">{file.size}</p>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => removeFile(index)}
+                            className="text-red-500 hover:text-red-700 transition-colors"
+                          >
+                            <X size={20} />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="bg-gray-50 rounded-xl p-6">
+              <div className="flex items-center justify-between mb-4">
+                <label className="block text-sm font-semibold text-gray-700">GPS Location</label>
+                <button
+                  type="button"
+                  onClick={getCurrentLocation}
+                  disabled={gpsStatus === "loading"}
+                  className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 disabled:opacity-50 transition-all duration-200"
+                >
+                  {gpsStatus === "loading" ? (
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <MapPin size={16} />
+                  )}
+                  {gpsStatus === "loading" ? "Getting Location..." : "Capture GPS Location"}
+                </button>
+              </div>
+              {location && (
+                <div className="bg-white rounded-lg p-4 border border-emerald-200">
+                  <div className="flex items-center gap-2 mb-3">
+                    <MapPin className="w-5 h-5 text-emerald-600" />
+                    <span className="font-medium text-gray-900">Location Details</span>
+                  </div>
+                  <div className="mb-2">
+                    <h4 className="text-base font-semibold text-emerald-700">{location.address}</h4>
+                  </div>
+                  <p className="text-xs text-gray-500 mb-1">
+                    Coordinates: {location.lat.toFixed(6)}, {location.lng.toFixed(6)}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    Captured at: {new Date(location.timestamp).toLocaleTimeString()}
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      default:
+        return null;
+    }
+  }, [currentStep, formData, formErrors, handleInputChange, handleFileUpload, getFileIcon, removeFile, getCurrentLocation, gpsStatus, location]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-green-50 to-emerald-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-emerald-50 to-green-50">
       <div className="px-4 py-8 mx-auto max-w-7xl sm:px-6 lg:px-8">
-        {/* Header Section */}
         <div className="mb-8">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-green-800 via-emerald-700 to-green-600">
-                Report Management
+              <h1 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-emerald-800 via-green-700 to-emerald-600">
+                Report Management System
               </h1>
               <p className="mt-3 text-lg text-gray-600 max-w-2xl">
-                Create, manage, and track your reports with our professional reporting system
+                Streamlined reporting with advanced scheduling, file management, and GPS integration
               </p>
             </div>
             <button
-              onClick={() => setShowForm(!showForm)}
-              className="flex items-center gap-2 px-6 py-3 text-white rounded-xl hover:from-green-800 hover:to-emerald-800 transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-xl"
-              style={{ 
-                background: 'linear-gradient(to right, #1F310A, #2d4a0f)' 
+              onClick={() => {
+                setShowForm(!showForm);
+                setEditingReport(null);
+                setFormData({
+                  title: "",
+                  description: "",
+                  scheduledDate: "",
+                  scheduledTime: "",
+                  administrativeLocation: "",
+                  volume: "",
+                  qualityGrade: "",
+                  reportType: "inspection",
+                  priority: "medium",
+                  notes: "",
+                });
+                setFiles([]);
+                setLocation(null);
+                setCurrentStep(1);
+                setFormErrors({});
               }}
+              className="flex items-center gap-2 px-6 py-3 text-white rounded-xl bg-gradient-to-r from-emerald-700 to-green-600 hover:from-emerald-800 hover:to-green-700 transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-xl"
             >
               <Plus size={20} />
-              New Report
+              {editingReport ? "Edit Report" : "New Report"}
             </button>
           </div>
         </div>
 
-        {/* Success/Error Messages */}
         {(success || error) && (
-          <div className={`mb-6 p-4 rounded-xl border-l-4 ${success ? 'bg-green-50 border-green-400' : 'bg-red-50 border-red-400'} transform transition-all duration-300`}>
+          <div
+            className={`mb-6 p-4 rounded-xl border-l-4 ${
+              success ? "bg-green-50 border-green-400" : "bg-red-50 border-red-400"
+            } transform transition-all duration-300 animate-in fade-in`}
+          >
             <div className="flex items-center">
-              <div className={`flex-shrink-0 ${success ? 'text-green-400' : 'text-red-400'}`}>
+              <div className={`flex-shrink-0 ${success ? "text-green-400" : "text-red-400"}`}>
                 {success ? <CheckCircle size={20} /> : <AlertCircle size={20} />}
               </div>
               <div className="ml-3">
-                <p className={`text-sm font-medium ${success ? 'text-green-800' : 'text-red-800'}`}>
+                <p className={`text-sm font-medium ${success ? "text-green-800" : "text-red-800"}`}>
                   {success || error}
                 </p>
               </div>
+              <button
+                onClick={() => {
+                  setSuccess(null);
+                  setError(null);
+                }}
+                className="ml-auto text-gray-500 hover:text-gray-700"
+              >
+                <X size={16} />
+              </button>
             </div>
           </div>
         )}
 
-        {/* Form Section */}
         {showForm && (
-          <div className="mb-8 p-8 bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 transform transition-all duration-300">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="p-2 rounded-lg" style={{ background: 'linear-gradient(to right, #1F310A, #2d4a0f)' }}>
-                <FileText className="text-white" size={24} />
-              </div>
-              <h2 className="text-2xl font-bold text-gray-900">Create New Report</h2>
-            </div>
-            
-            <div className="space-y-6">
-              <div>
-                <label htmlFor="title" className="block text-sm font-semibold text-gray-700 mb-2">
-                  Report Title
-                </label>
-                <input
-                  type="text"
-                  id="title"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  className="w-full px-4 py-3 text-gray-900 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 hover:border-gray-300"
-                  style={{ 
-                    '--tw-ring-color': '#1F310A',
-                    '--tw-ring-opacity': '0.5'
-                  }}
-                  onFocus={(e) => e.target.style.boxShadow = '0 0 0 2px rgba(31, 49, 10, 0.5)'}
-                  onBlur={(e) => e.target.style.boxShadow = 'none'}
-                  placeholder="Enter report title..."
-                />
-              </div>
-              
-              <div>
-                <label htmlFor="description" className="block text-sm font-semibold text-gray-700 mb-2">
-                  Description
-                </label>
-                <textarea
-                  id="description"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  rows={4}
-                  className="w-full px-4 py-3 text-gray-900 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 hover:border-gray-300 resize-none"
-                  style={{ 
-                    '--tw-ring-color': '#1F310A',
-                    '--tw-ring-opacity': '0.5'
-                  }}
-                  onFocus={(e) => e.target.style.boxShadow = '0 0 0 2px rgba(31, 49, 10, 0.5)'}
-                  onBlur={(e) => e.target.style.boxShadow = 'none'}
-                  placeholder="Describe your report..."
-                />
-              </div>
-              
-              <div className="flex gap-4">
-                <button
-                  onClick={handleSubmit}
-                  disabled={loading || !title || !description}
-                  className="flex-1 flex items-center justify-center gap-2 px-6 py-3 text-white rounded-xl hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-xl"
-                  style={{ 
-                    background: 'linear-gradient(to right, #1F310A, #2d4a0f)',
-                    '--tw-ring-color': '#1F310A'
-                  }}
-                  onFocus={(e) => e.target.style.boxShadow = '0 0 0 2px rgba(31, 49, 10, 0.5), 0 0 0 4px rgba(31, 49, 10, 0.1)'}
-                  onBlur={(e) => e.target.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)'}
-                >
-                  {loading ? (
-                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  ) : (
-                    <Send size={20} />
-                  )}
-                  {loading ? 'Creating...' : 'Create Report'}
-                </button>
-                
+          <div className="mb-8 bg-white/90 backdrop-blur-sm rounded-2xl shadow-2xl border border-white/20 overflow-hidden">
+            <div className="px-8 py-6 bg-gradient-to-r from-emerald-50 to-green-50 border-b border-emerald-100">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-gray-900">
+                  {editingReport ? "Edit Report" : "Create New Report"}
+                </h2>
                 <button
                   onClick={() => setShowForm(false)}
-                  className="px-6 py-3 text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200 transition-all duration-200"
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
                 >
-                  Cancel
+                  <X size={24} />
                 </button>
               </div>
+              <div className="flex items-center justify-center space-x-4">
+                {[1, 2, 3].map((step) => (
+                  <div key={step} className="flex items-center">
+                    <div
+                      className={`w-10 h-10 rounded-full flex items-center justify-center text-base font-semibold transition-all duration-200 ${
+                        step <= currentStep ? "bg-emerald-600 text-white" : "bg-gray-200 text-gray-500"
+                      }`}
+                    >
+                      {step}
+                    </div>
+                    <div className="ml-3">
+                      <p
+                        className={`text-sm font-medium ${
+                          step <= currentStep ? "text-emerald-600" : "text-gray-500"
+                        }`}
+                      >
+                        {step === 1 ? "Basic Info" : step === 2 ? "Schedule & Data" : "Files & Location"}
+                      </p>
+                    </div>
+                    {step < 3 && (
+                      <div className={`w-20 h-1 mx-4 ${step < currentStep ? "bg-emerald-600" : "bg-gray-200"}`} />
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
-        )}
-
-        {/* Delete Confirmation Modal */}
-        {deleteConfirm && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4 transform transition-all duration-300 scale-100">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="p-2 bg-red-100 rounded-lg">
-                  <Trash2 className="text-red-600" size={24} />
+            <form onSubmit={handleSubmit}>
+              <div className="px-8 py-8">{renderStepContent()}</div>
+              <div className="px-8 py-6 bg-gray-50 border-t border-gray-200">
+                <div className="flex justify-between">
+                  <button
+                    type="button"
+                    onClick={prevStep}
+                    disabled={currentStep === 1}
+                    className="px-6 py-3 text-gray-600 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                  >
+                    Previous
+                  </button>
+                  <div className="flex gap-4">
+                    {currentStep < 3 ? (
+                      <button
+                        type="button"
+                        onClick={nextStep}
+                        disabled={!validateCurrentStep()}
+                        className={`px-6 py-3 text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 transition-all duration-200 ${
+                          validateCurrentStep() ? "bg-emerald-600 hover:bg-emerald-700" : "bg-gray-400 cursor-not-allowed"
+                        }`}
+                      >
+                        Next Step
+                      </button>
+                    ) : (
+                      <button
+                        type="submit"
+                        disabled={loading}
+                        className={`flex items-center gap-2 px-6 py-3 text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 transition-all duration-200 ${
+                          loading ? "bg-emerald-400" : "bg-emerald-600 hover:bg-emerald-700"
+                        }`}
+                      >
+                        {loading ? (
+                          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <Save size={20} />
+                        )}
+                        {loading ? "Processing..." : editingReport ? "Update Report" : "Create Report"}
+                      </button>
+                    )}
+                  </div>
                 </div>
-                <h2 className="text-2xl font-bold text-gray-900">Delete Report</h2>
               </div>
-              
-              <p className="text-gray-600 mb-6">
-                Are you sure you want to delete this report? This action cannot be undone.
-              </p>
-              
-              <div className="flex gap-4">
-                <button
-                  onClick={confirmDelete}
-                  disabled={loading}
-                  className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-red-600 text-white rounded-xl hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
-                >
-                  {loading ? (
-                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  ) : (
-                    <Trash2 size={20} />
-                  )}
-                  {loading ? 'Deleting...' : 'Delete'}
-                </button>
-                
-                <button
-                  onClick={cancelDelete}
-                  className="flex-1 px-6 py-3 text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200 transition-all duration-200"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
+            </form>
           </div>
         )}
 
-        {/* Reports Section */}
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 overflow-hidden">
+        <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-2xl border border-white/20 overflow-hidden">
           <div className="px-8 py-6 bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-gradient-to-r from-gray-600 to-gray-700 rounded-lg">
-                <FileText className="text-white" size={20} />
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-gradient-to-r from-emerald-600 to-green-600 rounded-lg">
+                  <FileText className="text-white" size={24} />
+                </div>
+                <h2 className="text-2xl font-bold text-gray-900">Report Dashboard</h2>
               </div>
-              <h2 className="text-xl font-bold text-gray-900">Your Reports</h2>
-              <span className="ml-auto px-3 py-1 text-sm font-medium rounded-full" style={{ backgroundColor: 'rgba(31, 49, 10, 0.1)', color: '#1F310A' }}>
-                {reports.length} Reports
+              <span className="px-4 py-2 text-sm font-medium rounded-full bg-emerald-100 text-emerald-800">
+                {reports.length} {reports.length === 1 ? "Report" : "Reports"}
               </span>
             </div>
           </div>
-
-          <div className="overflow-hidden">
+          <div className="overflow-auto max-h-[600px]">
             {fetchingReports ? (
               <div className="p-12 text-center">
-                <div className="inline-flex items-center justify-center w-16 h-16 rounded-full mb-4" style={{ backgroundColor: 'rgba(31, 49, 10, 0.1)' }}>
-                  <div className="w-8 h-8 border-3 border-t-transparent rounded-full animate-spin" style={{ borderColor: '#1F310A' }}></div>
+                <div className="inline-flex items-center justify-center w-16 h-16 bg-emerald-100 rounded-full mb-4">
+                  <div className="w-8 h-8 border-3 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
                 </div>
                 <p className="text-gray-600">Loading reports...</p>
               </div>
             ) : reports.length > 0 ? (
               <div className="divide-y divide-gray-100">
-                {reports.map((report, index) => {
+                {reports.map((report) => {
                   const StatusIcon = getStatusIcon(report.status);
-                  const isEditing = editingReport?.id === report.id;
-                  
+                  const ReportTypeIcon = reportTypes.find((t) => t.value === report.reportType)?.icon || FileText;
+
                   return (
-                    <div
-                      key={report.id}
-                      className="p-6 hover:bg-gray-50/50 transition-all duration-200"
-                    >
-                      {isEditing ? (
-                        // Edit Form
-                        <div className="space-y-4">
-                          <div className="flex items-center gap-3 mb-4">
-                            <div className="p-2 rounded-lg" style={{ background: 'linear-gradient(to right, #1F310A, #2d4a0f)' }}>
-                              <Edit className="text-white" size={20} />
+                    <div key={report.id} className="p-6 hover:bg-gray-50 transition-all duration-200">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-3">
+                            <div className="p-2 bg-emerald-100 rounded-lg">
+                              <ReportTypeIcon className="text-emerald-600" size={24} />
                             </div>
-                            <h3 className="text-lg font-semibold text-gray-900">Edit Report</h3>
+                            <div>
+                              <h3 className="text-lg font-semibold text-gray-900 mb-1">{report.title}</h3>
+                              <div className="flex flex-wrap items-center gap-2 mb-2">
+                                <span
+                                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${getStatusColor(report.status)}`}
+                                >
+                                  <StatusIcon size={14} />
+                                  {report.status.charAt(0).toUpperCase() + report.status.slice(1)}
+                                </span>
+                                <span
+                                  className={`px-2.5 py-1 rounded-full text-xs font-medium ${getPriorityColor(report.priority)}`}
+                                >
+                                  {report.priority.charAt(0).toUpperCase() + report.priority.slice(1)} Priority
+                                </span>
+                                {report.qualityGrade && (
+                                  <span
+                                    className={`px-2.5 py-1 rounded-full text-xs font-medium ${
+                                      qualityGrades.find((g) => g.value === report.qualityGrade)?.color
+                                    }`}
+                                  >
+                                    Grade: {report.qualityGrade}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
                           </div>
-                          
-                          <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-2">
-                              Report Title
-                            </label>
-                            <input
-                              type="text"
-                              value={editingReport.editTitle}
-                              onChange={(e) => setEditingReport({...editingReport, editTitle: e.target.value})}
-                              className="w-full px-4 py-3 text-gray-900 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 hover:border-gray-300"
-                              style={{ 
-                                '--tw-ring-color': '#1F310A',
-                                '--tw-ring-opacity': '0.5'
-                              }}
-                              onFocus={(e) => e.target.style.boxShadow = '0 0 0 2px rgba(31, 49, 10, 0.5)'}
-                              onBlur={(e) => e.target.style.boxShadow = 'none'}
-                            />
-                          </div>
-                          
-                          <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-2">
-                              Description
-                            </label>
-                            <textarea
-                              value={editingReport.editDescription}
-                              onChange={(e) => setEditingReport({...editingReport, editDescription: e.target.value})}
-                              rows={4}
-                              className="w-full px-4 py-3 text-gray-900 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 hover:border-gray-300 resize-none"
-                              style={{ 
-                                '--tw-ring-color': '#1F310A',
-                                '--tw-ring-opacity': '0.5'
-                              }}
-                              onFocus={(e) => e.target.style.boxShadow = '0 0 0 2px rgba(31, 49, 10, 0.5)'}
-                              onBlur={(e) => e.target.style.boxShadow = 'none'}
-                            />
-                          </div>
-                          
-                          <div className="flex gap-4">
-                            <button
-                              onClick={() => handleSaveEdit(report.id)}
-                              disabled={loading || !editingReport.editTitle || !editingReport.editDescription}
-                              className="flex items-center gap-2 px-6 py-3 text-white rounded-xl hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
-                              style={{ 
-                                background: 'linear-gradient(to right, #1F310A, #2d4a0f)',
-                                '--tw-ring-color': '#1F310A'
-                              }}
-                            >
-                              {loading ? (
-                                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                              ) : (
-                                <Save size={20} />
-                              )}
-                              {loading ? 'Saving...' : 'Save Changes'}
-                            </button>
-                            
-                            <button
-                              onClick={handleCancelEdit}
-                              className="flex items-center gap-2 px-6 py-3 text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200 transition-all duration-200"
-                            >
-                              <X size={20} />
-                              Cancel
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        // Display Mode
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-3 mb-2">
-                              <h3 className="text-lg font-semibold text-gray-900 transition-colors" style={{ ':hover': { color: '#1F310A' } }}
-                                onMouseEnter={(e) => e.target.style.color = '#1F310A'}
-                                onMouseLeave={(e) => e.target.style.color = '#111827'}>
-                                {report.title}
-                              </h3>
-                              <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(report.status)}`}>
-                                <StatusIcon size={12} />
-                                {report.status}
+                          <p className="text-gray-600 mb-4 line-clamp-2">{report.description}</p>
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                            <div className="flex items-center gap-2 text-sm text-gray-600">
+                              <Calendar size={16} />
+                              <span>
+                                {new Date(report.scheduledDate).toLocaleDateString("en-US", {
+                                  year: "numeric",
+                                  month: "short",
+                                  day: "numeric",
+                                })}
+                                {report.scheduledTime && ` at ${report.scheduledTime}`}
                               </span>
                             </div>
-                            <p className="text-gray-600 mb-3 line-clamp-2">
-                              {report.description}
-                            </p>
-                            <div className="flex items-center gap-4 text-sm text-gray-500">
-                              <div className="flex items-center gap-1">
-                                <Calendar size={14} />
-                                {new Date(report.createdAt).toLocaleDateString('en-US', {
-                                  year: 'numeric',
-                                  month: 'short',
-                                  day: 'numeric'
+                            <div className="flex items-center gap-2 text-sm text-gray-600">
+                              <Building size={16} />
+                              <span>{report.administrativeLocation}</span>
+                            </div>
+                            {report.volume && (
+                              <div className="flex items-center gap-2 text-sm text-gray-600">
+                                <BarChart3 size={16} />
+                                <span>{report.volume}</span>
+                              </div>
+                            )}
+                            {report.location && (
+                              <div className="flex items-center gap-2 text-sm text-gray-600">
+                                <MapPin size={16} />
+                                <span className="font-medium">{report.location.address}</span>
+                              </div>
+                            )}
+                          </div>
+                          {report.notes && (
+                            <div className="mt-2">
+                              <p className="text-sm text-gray-600">
+                                <span className="font-medium">Notes:</span> {report.notes}
+                              </p>
+                            </div>
+                          )}
+                          {report.files && report.files.length > 0 && (
+                            <div className="mt-4">
+                              <div className="flex items-center gap-2 mb-2">
+                                <Folder size={16} className="text-gray-500" />
+                                <span className="text-sm font-medium text-gray-700">
+                                  {report.files.length} file(s) attached
+                                </span>
+                              </div>
+                              <div className="flex flex-wrap gap-2">
+                                {report.files.map((file, index) => {
+                                  const IconComponent = getFileIcon(file.type);
+                                  return (
+                                    <div
+                                      key={index}
+                                      className="flex items-center gap-1 px-2.5 py-1 bg-gray-100 rounded text-xs"
+                                    >
+                                      <IconComponent size={14} className="text-gray-500" />
+                                      <span className="text-gray-700">{file.name}</span>
+                                    </div>
+                                  );
                                 })}
                               </div>
-                              {report.updatedAt && (
-                                <div className="flex items-center gap-1">
-                                  <Edit size={14} />
-                                  Updated {new Date(report.updatedAt).toLocaleDateString('en-US', {
-                                    year: 'numeric',
-                                    month: 'short',
-                                    day: 'numeric'
-                                  })}
-                                </div>
-                              )}
-                              <div className="flex items-center gap-1">
-                                <Eye size={14} />
-                                View Details
-                              </div>
+                            </div>
+                          )}
+                          <div className="mt-4 flex items-center gap-4 text-sm text-gray-500">
+                            <div className="flex items-center gap-1">
+                              <Clock size={14} />
+                              Created{" "}
+                              {new Date(report.createdAt).toLocaleDateString("en-US", {
+                                year: "numeric",
+                                month: "short",
+                                day: "numeric",
+                              })}
                             </div>
                           </div>
-                          <div className="ml-4 flex items-center gap-2">
-                            <button 
-                              onClick={() => handleEdit(report)}
-                              className="p-2 text-gray-400 rounded-lg transition-all duration-200"
-                              style={{ ':hover': { color: '#1F310A', backgroundColor: 'rgba(31, 49, 10, 0.1)' } }}
-                              onMouseEnter={(e) => {
-                                e.target.style.color = '#1F310A';
-                                e.target.style.backgroundColor = 'rgba(31, 49, 10, 0.1)';
-                              }}
-                              onMouseLeave={(e) => {
-                                e.target.style.color = '#9ca3af';
-                                e.target.style.backgroundColor = 'transparent';
-                              }}
-                              title="Edit report"
-                            >
-                              <Edit size={18} />
-                            </button>
-                            <button 
-                              onClick={() => handleDelete(report.id)}
-                              className="p-2 text-gray-400 rounded-lg transition-all duration-200 hover:text-red-600 hover:bg-red-50"
-                              title="Delete report"
-                            >
-                              <Trash2 size={18} />
-                            </button>
-                            <button className="p-2 text-gray-400 rounded-lg transition-all duration-200"
-                              style={{ ':hover': { color: '#1F310A', backgroundColor: 'rgba(31, 49, 10, 0.1)' } }}
-                              onMouseEnter={(e) => {
-                                e.target.style.color = '#1F310A';
-                                e.target.style.backgroundColor = 'rgba(31, 49, 10, 0.1)';
-                              }}
-                              onMouseLeave={(e) => {
-                                e.target.style.color = '#9ca3af';
-                                e.target.style.backgroundColor = 'transparent';
-                              }}
-                              title="View report"
-                            >
-                              <Eye size={18} />
-                            </button>
-                          </div>
                         </div>
-                      )}
+                        <div className="ml-6 flex items-center gap-2">
+                          <button
+                            onClick={() => handleEdit(report)}
+                            className="p-2 text-gray-400 rounded-lg hover:text-emerald-600 hover:bg-emerald-50 transition-all duration-200"
+                          >
+                            <Edit size={20} />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(report.id)}
+                            className="p-2 text-gray-400 rounded-lg hover:text-red-600 hover:bg-red-50 transition-all duration-200"
+                          >
+                            <Trash2 size={20} />
+                          </button>
+                          <button
+                            className="p-2 text-gray-400 rounded-lg hover:text-emerald-600 hover:bg-emerald-50 transition-all duration-200"
+                          >
+                            <Eye size={20} />
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   );
                 })}
               </div>
             ) : (
               <div className="p-12 text-center">
-                <div className="inline-flex items-center justify-center w-16 h-16 bg-gray-100 rounded-full mb-4">
-                  <FileText className="text-gray-400" size={32} />
+                <div className="inline-flex items-center justify-center w-16 h-16 bg-emerald-100 rounded-full mb-4">
+                  <FileText className="text-emerald-600" size={32} />
                 </div>
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No reports yet</h3>
-                <p className="text-gray-500 mb-4">Create your first report to get started</p>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No reports available</h3>
+                <p className="text-gray-500 mb-4">Create your first professional report to get started</p>
                 <button
                   onClick={() => setShowForm(true)}
-                  className="inline-flex items-center gap-2 px-4 py-2 text-white rounded-lg hover:opacity-90 transition-colors"
-                  style={{ backgroundColor: '#1F310A' }}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
                 >
                   <Plus size={16} />
                   Create Report
@@ -519,7 +1088,65 @@ export default function Report() {
             )}
           </div>
         </div>
+
+        {deleteConfirm && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-2xl p-6 max-w-md w-full m-4">
+              <div className="flex items-center gap-2 mb-4">
+                <AlertCircle className="text-red-500" size={24} />
+                <h3 className="text-lg font-semibold text-gray-900">Confirm Deletion</h3>
+              </div>
+              <p className="text-gray-600 mb-6">
+                Are you sure you want to delete this report? This action cannot be undone.
+              </p>
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => setDeleteConfirm(null)}
+                  className="px-4 py-2 text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmDelete}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showConfirmation && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-2xl p-6 max-w-md w-full m-4">
+              <div className="flex items-center gap-2 mb-4">
+                <AlertCircle className="text-emerald-500" size={24} />
+                <h3 className="text-lg font-semibold text-gray-900">Confirm Submission</h3>
+              </div>
+              <p className="text-gray-600 mb-6">
+                Are you sure you want to submit this report? Please review all information before proceeding.
+              </p>
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => setShowConfirmation(false)}
+                  className="px-4 py-2 text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmSubmission}
+                  className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
+                >
+                  Confirm Submission
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
-}
+};
+
+export default ProfessionalReportSystem;

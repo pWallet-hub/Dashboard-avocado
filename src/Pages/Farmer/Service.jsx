@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import Advertisement from "../../components/advertisement/advertisement";
+import DashboardHeader from "../../components/Header/DashboardHeader";
 
 export default function Service() {
   const services = [
@@ -34,7 +35,10 @@ export default function Service() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 font-poppins">
-      {/* Header Section */}
+      {/* Dashboard Header */}
+      <DashboardHeader />
+
+      {/* Page Content */}
       <div className="relative bg-white shadow-2xl overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-r from-green-600/10 to-emerald-600/10" />
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 text-center animate-fade-in-down">

@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
+import { ClipboardList, Clock, CheckCircle, XCircle } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 export default function Farmer() {
   const [farmerProfile, setFarmerProfile] = useState({});
@@ -96,6 +98,88 @@ export default function Farmer() {
             <p><strong>Province:</strong> {farmerProfile.province || 'N/A'}</p>
             <p><strong>District:</strong> {farmerProfile.district || 'N/A'}</p>
             <p><strong>Sector:</strong> {farmerProfile.sector || 'N/A'}</p>
+          </div>
+
+          {/* Service Requests Overview */}
+          <div className="p-6 mb-6 bg-white rounded-lg shadow-md">
+            <h2 className="mb-4 text-xl font-bold">My Service Requests</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <div className="flex items-center">
+                  <Clock className="w-8 h-8 text-yellow-600 mr-3" />
+                  <div>
+                    <p className="text-sm text-yellow-600 font-medium">Pending</p>
+                    <p className="text-2xl font-bold text-yellow-800">
+                      {(() => {
+                        try {
+                          const savedRequests = localStorage.getItem('farmerServiceRequests');
+                          if (savedRequests) {
+                            const requests = JSON.parse(savedRequests);
+                            return requests.filter(req => req.status === 'pending').length;
+                          }
+                          return 0;
+                        } catch {
+                          return 0;
+                        }
+                      })()}
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-center">
+                  <CheckCircle className="w-8 h-8 text-blue-600 mr-3" />
+                  <div>
+                    <p className="text-sm text-blue-600 font-medium">Approved</p>
+                    <p className="text-2xl font-bold text-blue-800">
+                      {(() => {
+                        try {
+                          const savedRequests = localStorage.getItem('farmerServiceRequests');
+                          if (savedRequests) {
+                            const requests = JSON.parse(savedRequests);
+                            return requests.filter(req => req.status === 'approved').length;
+                          }
+                          return 0;
+                        } catch {
+                          return 0;
+                        }
+                      })()}
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                <div className="flex items-center">
+                  <ClipboardList className="w-8 h-8 text-green-600 mr-3" />
+                  <div>
+                    <p className="text-sm text-green-600 font-medium">Completed</p>
+                    <p className="text-2xl font-bold text-green-800">
+                      {(() => {
+                        try {
+                          const savedRequests = localStorage.getItem('farmerServiceRequests');
+                          if (savedRequests) {
+                            const requests = JSON.parse(savedRequests);
+                            return requests.filter(req => req.status === 'completed').length;
+                          }
+                          return 0;
+                        } catch {
+                          return 0;
+                        }
+                      })()}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="text-center">
+              <Link 
+                to="/dashboard/farmer/my-service-requests" 
+                className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+              >
+                <ClipboardList className="w-4 h-4 mr-2" />
+                View All My Requests
+              </Link>
+            </div>
           </div>
 
           <div className="p-6 mb-6 bg-white rounded-lg shadow-md">
