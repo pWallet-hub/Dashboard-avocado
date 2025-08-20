@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { ClipLoader } from 'react-spinners';
 import '../Styles/Agent.css';
+import { listAgentProfiles } from '../../services/agentProfilesService';
 
 export default function Agents() {
   const [agents, setAgents] = useState([]);
@@ -34,6 +35,18 @@ export default function Agents() {
     };
 
     fetchAgents();
+  }, []);
+
+  useEffect(() => {
+    const fetchAirtableAgents = async () => {
+      try {
+        const page = await listAgentProfiles({ pageSize: 5, returnFieldsByFieldId: true });
+        console.log('[Airtable] Agent Profiles fetched (preview):', page?.records?.length ?? 0, 'records');
+      } catch (e) {
+        console.debug('[Airtable] Agent Profiles fetch failed (non-blocking):', e?.message || e);
+      }
+    };
+    fetchAirtableAgents();
   }, []);
 
   const handleDelete = async (id) => {
