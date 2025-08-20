@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { LogIn } from "lucide-react";
 
 function Login() {
@@ -6,6 +7,7 @@ function Login() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
+  const navigate = useNavigate();
   
    const handleLogin = (e) => {
     e.preventDefault();
@@ -14,22 +16,49 @@ function Login() {
     
     // Simulate loading delay
     setTimeout(() => {
-      // Simple frontend validation (you can customize this logic)
-      if (username && password) {
-        // Store user data in memory (session-only)
-        const userData = {
-          username: username,
-          role: 'admin', // Default role
-          id: Date.now(), // Simple ID generation
-          isLoggedIn: true
-        };
-        
-        setMessage('Login successful! Redirecting...');
-        // You could store this in a global state management solution
-        // or call a parent component function to handle navigation
-      } else {
-        setMessage('Please fill in all fields');
+      // Local demo auth: map credentials to roles
+      const email = username.trim().toLowerCase();
+      const credentials = {
+        'admin@avocado.rw': { role: 'admin', requirePassword: 'password123' },
+        'agent@avocado.rw': { role: 'agent', requirePassword: null },
+        'peter@avocado.rw': { role: 'farmer', requirePassword: null }
+      };
+
+      if (!email) {
+        setMessage('Please enter your email');
+        setLoading(false);
+        return;
       }
+
+      const match = credentials[email];
+      if (!match) {
+        setMessage('Invalid credentials. Use admin@avocado.rw, agent@avocado.rw, or peter@avocado.rw');
+        setLoading(false);
+        return;
+      }
+
+      // Only enforce password if required for this account (admin)
+      if (match.requirePassword && !password) {
+        setMessage('Please enter your password');
+        setLoading(false);
+        return;
+      }
+
+      if (match.requirePassword && password !== match.requirePassword) {
+        setMessage('Incorrect password for admin');
+        setLoading(false);
+        return;
+      }
+
+      // Persist session in localStorage for layout/sidebar
+      localStorage.setItem('username', email);
+      localStorage.setItem('role', match.role);
+      localStorage.setItem('id', String(Date.now()));
+      localStorage.setItem('token', 'demo-token');
+
+      setMessage('Login successful! Redirecting...');
+      // Redirect to role dashboard
+      navigate(`/dashboard/${match.role}`);
       setLoading(false);
     }, 1000);
   };
@@ -45,7 +74,7 @@ function Login() {
           </p>
         </div>
         <div className="flex flex-col items-center justify-center w-full p-10 bg-white md:w-1/2">
-          <h2 className="mb-5 text-2xl font-bold md:text-3xl">Login Admin</h2>
+          <h2 className="mb-5 text-2xl font-bold md:text-3xl">Login</h2>
           <div className="w-full">
             <input
               type="text"
