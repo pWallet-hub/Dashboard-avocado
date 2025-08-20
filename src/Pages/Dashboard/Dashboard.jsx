@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react';
-import axios from 'axios';
+import base from '../../services/airtable';
 import logo from '../../assets/image/LOGO_-_Avocado_Society_of_Rwanda.png';
 import { MdOutlineDeleteOutline } from "react-icons/md";
 import { FiEdit } from "react-icons/fi";
 import * as XLSX from 'xlsx';
 import { CiLogout } from "react-icons/ci";
 import Select from 'react-select'; 
+import { listAgentProfiles } from '../../services/agentProfilesService';
+import { listCustomerProfiles } from '../../services/customerProfilesService';
+import { lsGet, lsSet, seedIfEmpty, DEMO_FARMERS } from '../../services/demoData';
 
 const Dashboard = () => {
   const [farmers, setFarmers] = useState([]);
@@ -17,25 +20,60 @@ const Dashboard = () => {
   const [isEditMode, setIsEditMode] = useState(false);
 
   useEffect(() => {
-    const fetchFarmers = async () => {
+    const fetchFarmers = () => {
       setLoading(true);
       setError(null);
-      const token = localStorage.getItem('token');
+      const records = [];
       try {
-        const response = await axios.get('https://applicanion-api.onrender.com/api/users', {
-          headers: {
-            Authorization: `Bearer ${token}`
+        base('Farmers').select({}).eachPage(
+          (pageRecords, fetchNextPage) => {
+            pageRecords.forEach(record => {
+              records.push({ id: record.id, ...record.fields });
+            });
+            fetchNextPage();
+          },
+          (err) => {
+            if (err || records.length === 0) {
+              // Fallback to localStorage demo data
+              const seeded = seedIfEmpty('demo:farmers', DEMO_FARMERS);
+              setFarmers(seeded);
+              if (err) {
+                console.debug('[Demo] Using local demo farmers due to Airtable error:', err?.message || err);
+              }
+            } else {
+              setFarmers(records);
+              // keep a cached copy for demo mode
+              lsSet('demo:farmers', records);
+            }
+            setLoading(false);
           }
-        });
-        setFarmers(response.data);
-      } catch (error) {
-        setError('There was an error fetching the data!');
-      } finally {
+        );
+      } catch (e) {
+        const seeded = seedIfEmpty('demo:farmers', DEMO_FARMERS);
+        setFarmers(seeded);
         setLoading(false);
+        console.debug('[Demo] Using local demo farmers due to exception:', e?.message || e);
       }
     };
 
     fetchFarmers();
+  }, []);
+
+  // Non-invasive integration with Airtable services (logs only)
+  useEffect(() => {
+    const previewAirtableData = async () => {
+      try {
+        const [agentsPage, customersPage] = await Promise.all([
+          listAgentProfiles({ pageSize: 5, returnFieldsByFieldId: true }),
+          listCustomerProfiles({ pageSize: 5, returnFieldsByFieldId: true })
+        ]);
+        console.log('[Airtable] Agent Profiles fetched (preview):', agentsPage?.records?.length ?? 0, 'records');
+        console.log('[Airtable] Customer Profiles fetched (preview):', customersPage?.records?.length ?? 0, 'records');
+      } catch (e) {
+        console.debug('[Airtable] Preview fetch failed (non-blocking):', e?.message || e);
+      }
+    };
+    previewAirtableData();
   }, []);
 
   const openModal = (farmer, editMode = false) => {
@@ -85,31 +123,25 @@ const Dashboard = () => {
   };
 
   const handleEdit = async (farmer) => {
-    const token = localStorage.getItem('token');
+    // Exclude the 'id' field from the data sent to Airtable
+    const { id, ...fields } = farmer;
     try {
-      const response = await axios.put(`https://applicanion-api.onrender.com/api/users/${farmer.id}`, farmer, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      });
-      setFarmers(farmers.map(f => (f.id === farmer.id ? response.data : f)));
+      const updatedRecord = await base('Farmers').update(id, fields);
+      setFarmers(farmers.map(f => (f.id === id ? { id: updatedRecord.id, ...updatedRecord.fields } : f)));
       closeModal();
     } catch (error) {
       setError('There was an error updating the farmer!');
+      console.error(error);
     }
   };
 
   const handleDelete = async (farmerId) => {
-    const token = localStorage.getItem('token');
     try {
-      await axios.delete(`https://applicanion-api.onrender.com/api/users/${farmerId}`, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      });
+      await base('Farmers').destroy(farmerId);
       setFarmers(farmers.filter(f => f.id !== farmerId));
     } catch (error) {
       setError('There was an error deleting the farmer!');
+      console.error(error);
     }
   };
 
