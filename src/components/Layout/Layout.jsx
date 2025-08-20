@@ -1,4 +1,4 @@
-import { Outlet } from 'react-router-dom';
+import { Outlet, Navigate } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import TopBar from './TopBar';
 
@@ -13,6 +13,11 @@ const Layout = () => {
     localStorage.removeItem('username');
     window.location.href = '/';
   };
+
+  // Guard: if no role (not logged in), redirect to login
+  if (!role) {
+    return <Navigate to="/" replace />;
+  }
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-100">
