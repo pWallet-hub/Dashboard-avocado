@@ -1,12 +1,9 @@
 import { useEffect, useState } from 'react';
+import { listProducts } from '../../services/productsService';
+import { lsSet, seedIfEmpty, DEMO_PRODUCTS } from '../../services/demoData';
 
 export default function Shop() {
-  const [products, setProducts] = useState([
-    { id: 1, name: 'Laptop', stock: 15 },
-    { id: 2, name: 'Mouse', stock: 5 },
-    { id: 3, name: 'Keyboard', stock: 0 },
-    { id: 4, name: 'Monitor', stock: 8 }
-  ]);
+  const [products, setProducts] = useState([]);
   const [newProduct, setNewProduct] = useState({ name: '', stock: 0 });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -23,16 +20,27 @@ export default function Shop() {
       return 0;
     });
 
-  // Simulate API calls with localStorage for demo
+  // Load products from localStorage (seed if empty) for demo/offline mode
   useEffect(() => {
-    const savedProducts = localStorage.getItem('shopProducts');
-    if (savedProducts) {
-      setProducts(JSON.parse(savedProducts));
-    }
+    const seeded = seedIfEmpty('demo:products', DEMO_PRODUCTS);
+    setProducts(Array.isArray(seeded) ? seeded : []);
+  }, []);
+
+  // Non-invasive integration with Airtable Products service (logs only)
+  useEffect(() => {
+    const fetchAirtableProducts = async () => {
+      try {
+        const page = await listProducts({ pageSize: 5, returnFieldsByFieldId: true });
+        console.log('[Airtable] Products fetched (preview):', page?.records?.length ?? 0, 'records');
+      } catch (e) {
+        console.debug('[Airtable] Products fetch failed (non-blocking):', e?.message || e);
+      }
+    };
+    fetchAirtableProducts();
   }, []);
 
   const saveProducts = (updatedProducts) => {
-    localStorage.setItem('shopProducts', JSON.stringify(updatedProducts));
+    lsSet('demo:products', updatedProducts);
   };
 
   const handleAddProduct = (e) => {
