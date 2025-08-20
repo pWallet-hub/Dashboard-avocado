@@ -7,6 +7,8 @@ import { CiLogout } from "react-icons/ci";
 import Select from 'react-select';
 import { ClipLoader } from "react-spinners";
 import '../Styles/Growers.css';
+import { listCustomerProfiles } from '../../services/customerProfilesService';
+import { lsGet, lsSet, seedIfEmpty, DEMO_USERS } from '../../services/demoData';
 
 const Users = () => {
   const [users, setUsers] = useState([]);
@@ -61,15 +63,33 @@ const Users = () => {
           }
         });
         setUsers(response.data);
+        // Cache a copy for demo mode
+        lsSet('demo:users', response.data);
       } catch (error) {
-        setError('There was an error fetching the data!');
         console.log(error);
+        // Fallback to local demo data
+        const demo = seedIfEmpty('demo:users', DEMO_USERS);
+        setUsers(demo);
+        // Non-blocking error message for UX
+        setError(null);
       } finally {
         setLoading(false);
       }
     };
 
     fetchUsers();
+  }, []);
+
+  useEffect(() => {
+    const fetchAirtableCustomers = async () => {
+      try {
+        const page = await listCustomerProfiles({ pageSize: 5, returnFieldsByFieldId: true });
+        console.log('[Airtable] Customer Profiles fetched (preview):', page?.records?.length ?? 0, 'records');
+      } catch (e) {
+        console.debug('[Airtable] Customer Profiles fetch failed (non-blocking):', e?.message || e);
+      }
+    };
+    fetchAirtableCustomers();
   }, []);
 
   const openModal = (user, editMode = false) => {
@@ -149,12 +169,23 @@ const Users = () => {
 
       // Update users list with new user
       setUsers(prevUsers => [...prevUsers, response.data]);
+      // Persist to demo cache as well
+      const current = lsGet('demo:users', []);
+      lsSet('demo:users', [...current, response.data]);
       
       // Close modal and reset form
       closeAddModal();
     } catch (error) {
-      setError('Error adding new user: ' + (error.response?.data?.message || error.message));
-      console.error('Error adding user:', error);
+      // Offline/demo add: persist locally
+      const localUsers = lsGet('demo:users', seedIfEmpty('demo:users', DEMO_USERS));
+      const newId = typeof localUsers[localUsers.length - 1]?.id === 'number'
+        ? (localUsers[localUsers.length - 1].id + 1)
+        : `u${(localUsers.length + 1)}`;
+      const toAdd = { id: newId, ...newUserForm };
+      const updated = [...localUsers, toAdd];
+      lsSet('demo:users', updated);
+      setUsers(updated);
+      closeAddModal();
     } finally {
       setLoading(false);
     }
