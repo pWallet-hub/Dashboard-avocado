@@ -3,6 +3,8 @@ import axios from 'axios';
 import { ClipLoader } from 'react-spinners';
 import Select from 'react-select';
 import '../Styles/Shop.css';
+import { listOrders } from '../../services/ordersService';
+import { lsGet, lsSet, seedIfEmpty, DEMO_SHOPS } from '../../services/demoData';
 
 export default function ShopView() {
   const [shops, setShops] = useState([]);
@@ -18,10 +20,16 @@ export default function ShopView() {
       setError(null);
       try {
         const response = await axios.get('https://api.example.com/shops');
-        setShops(response.data);
+        const data = Array.isArray(response.data) ? response.data : [];
+        setShops(data);
+        // Cache for demo fallback
+        lsSet('demo:shops', data);
       } catch (error) {
         console.error('Error fetching shops:', error);
-        setError('There was an error fetching the shops!');
+        // Fallback to demo/localStorage
+        const seeded = seedIfEmpty('demo:shops', DEMO_SHOPS);
+        setShops(seeded || []);
+        setError(null);
       } finally {
         setLoading(false);
       }
@@ -30,12 +38,32 @@ export default function ShopView() {
     fetchShops();
   }, []);
 
+  // Non-invasive integration with Airtable Orders service (logs only)
+  useEffect(() => {
+    const fetchAirtableOrders = async () => {
+      try {
+        const page = await listOrders({ pageSize: 5, returnFieldsByFieldId: true });
+        console.log('[Airtable] Orders fetched (preview):', page?.records?.length ?? 0, 'records');
+      } catch (e) {
+        console.debug('[Airtable] Orders fetch failed (non-blocking):', e?.message || e);
+      }
+    };
+    fetchAirtableOrders();
+  }, []);
+
   const toggleSellingPermission = async (shopId, canSell) => {
     try {
       await axios.put(`https://api.example.com/shops/${shopId}`, { canSell });
-      setShops(shops.map(shop => shop.id === shopId ? { ...shop, canSell } : shop));
+      const updated = shops.map(shop => shop.id === shopId ? { ...shop, canSell } : shop);
+      setShops(updated);
+      lsSet('demo:shops', updated);
     } catch (error) {
       console.error('Error updating selling permission:', error);
+      // Offline/demo: persist locally
+      const local = lsGet('demo:shops', shops);
+      const updated = (local || shops).map(shop => shop.id === shopId ? { ...shop, canSell } : shop);
+      setShops(updated);
+      lsSet('demo:shops', updated);
     }
   };
 
@@ -92,9 +120,9 @@ export default function ShopView() {
               <label className="filter-label">Filter by District:</label>
               <div className="filter-select">
                 <Select
-                  options={shops.map(shop => ({
-                    label: shop.district,
-                    value: shop.district
+                  options={[...new Set(shops.map(s => s.district).filter(Boolean))].map(d => ({
+                    label: d,
+                    value: d
                   }))}
                   isClearable
                   onChange={handleDistrictChange}
