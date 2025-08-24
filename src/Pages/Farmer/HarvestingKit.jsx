@@ -1,10 +1,271 @@
-import { useState } from 'react';
-import { ArrowLeft, ShoppingCart, Star, CheckCircle, Scissors, Settings, Zap, Shield, Eye, Heart, Filter, Package, Wrench, Timer } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { ArrowLeft, ShoppingCart, Star, CheckCircle, Scissors, Settings, Zap, Shield, Eye, Heart, Filter, Package, Wrench, Timer, X, Plus, Minus, Trash2, CreditCard, Smartphone, Banknote } from 'lucide-react';
+import CartService from '../../services/cartService';
+import MarketStorageService from '../../services/marketStorageService';
 
 export default function ModernHarvestingKits() {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [likedProducts, setLikedProducts] = useState(new Set());
   const [filterType, setFilterType] = useState('all');
+  const [isCartOpen, setIsCartOpen] = useState(false);
+  const [cartItems, setCartItems] = useState([]);
+  const [cartCount, setCartCount] = useState(0);
+  const [addingToCart, setAddingToCart] = useState(null);
+  const [justAdded, setJustAdded] = useState(null);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('Mobile Money');
+  const [paymentProcessing, setPaymentProcessing] = useState(false);
+  const [pendingOrder, setPendingOrder] = useState(null);
+  const [mobileProvider, setMobileProvider] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [paymentStep, setPaymentStep] = useState('provider'); // provider, phone, confirm
+
+  // Load cart data and set up listeners
+  useEffect(() => {
+    // Initialize cart service
+    CartService.init();
+    
+    // Set up cart update listener
+    const handleCartUpdate = (summary) => {
+      setCartItems(summary.items);
+      setCartCount(summary.totalItems);
+    };
+
+    CartService.addListener(handleCartUpdate);
+    
+    // Load initial cart data
+    const summary = CartService.getCartSummary();
+    setCartItems(summary.items);
+    setCartCount(summary.totalItems);
+
+    // Cleanup listener on unmount
+    return () => {
+      CartService.removeListener(handleCartUpdate);
+    };
+  }, []);
+
+  // Add to cart function with error handling and visual feedback
+  const addToCart = async (product, quantity = 1) => {
+    try {
+      setAddingToCart(product._id);
+      await CartService.addToCart(product, quantity);
+      
+      // Show success feedback
+      setJustAdded(product._id);
+      setAddingToCart(null);
+      
+      // Clear success feedback after 2 seconds
+      setTimeout(() => {
+        setJustAdded(null);
+      }, 2000);
+      
+    } catch (error) {
+      console.error('Failed to add to cart:', error);
+      setAddingToCart(null);
+      alert('Failed to add item to cart. Please try again.');
+    }
+  };
+
+  // Update cart quantity with error handling
+  const updateCartQuantity = async (productId, quantity) => {
+    try {
+      await CartService.updateQuantity(productId, quantity);
+      // State will be updated automatically via listener
+    } catch (error) {
+      console.error('Failed to update quantity:', error);
+      alert('Failed to update quantity. Please try again.');
+    }
+  };
+
+  // Remove from cart with error handling
+  const removeFromCart = async (productId) => {
+    try {
+      await CartService.removeFromCart(productId);
+      // State will be updated automatically via listener
+    } catch (error) {
+      console.error('Failed to remove from cart:', error);
+      alert('Failed to remove item from cart. Please try again.');
+    }
+  };
+
+  // Handle checkout process - now shows payment modal
+  const handleCheckout = async () => {
+    try {
+      const cartSummary = CartService.getCartSummary();
+      
+      if (cartSummary.isEmpty) {
+        alert('Your cart is empty!');
+        return;
+      }
+
+      // Initialize storage services
+      MarketStorageService.initializeStorage();
+
+      // Generate unique order ID
+      const orderId = `HK${Date.now()}`;
+      const currentDate = new Date().toISOString().split('T')[0];
+      
+      // Create order object but don't save yet - wait for payment
+      const order = {
+        id: orderId,
+        orderNumber: orderId,
+        customerId: 'harvesting_customer',
+        customerName: 'Harvesting Kit Customer',
+        customerEmail: 'customer@harvestingkits.com',
+        customerPhone: '+250788123456',
+        deliveryAddress: 'Kigali, Rwanda',
+        items: cartSummary.items.map(item => ({
+          productId: item.id,
+          productName: item.name,
+          price: item.price,
+          quantity: item.quantity,
+          total: item.price * item.quantity,
+          category: item.category || 'Equipment',
+          image: item.image
+        })),
+        subtotal: cartSummary.subtotal,
+        discount: cartSummary.totalDiscount,
+        totalAmount: cartSummary.total,
+        status: 'pending_payment',
+        paymentStatus: 'pending',
+        orderDate: currentDate,
+        deliveryDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        paymentMethod: '',
+        orderType: 'harvesting_kit',
+        sourceType: 'harvesting_kit',
+        source: 'Harvesting Kit Store',
+        notes: `Harvesting kit purchase - ${cartSummary.items.length} items`,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+
+      // Store pending order and show payment modal
+      setPendingOrder(order);
+      setIsCartOpen(false);
+      setShowPaymentModal(true);
+      setPaymentStep('provider');
+      setMobileProvider('');
+      setPhoneNumber('');
+      
+    } catch (error) {
+      console.error('Checkout failed:', error);
+      alert('Checkout failed. Please try again.');
+    }
+  };
+
+  // Handle mobile money provider selection
+  const handleProviderSelect = (provider) => {
+    setMobileProvider(provider);
+    setPaymentStep('phone');
+  };
+
+  // Handle phone number validation and proceed
+  const handlePhoneSubmit = () => {
+    if (!phoneNumber || phoneNumber.length < 10) {
+      alert('Please enter a valid phone number');
+      return;
+    }
+    setPaymentStep('confirm');
+  };
+
+  // Handle payment completion
+  const handlePaymentComplete = async () => {
+    if (!pendingOrder || !mobileProvider || !phoneNumber) {
+      alert('Please complete all payment details');
+      return;
+    }
+
+    try {
+      setPaymentProcessing(true);
+
+      // Simulate mobile money payment processing
+      await new Promise(resolve => setTimeout(resolve, 3000));
+
+      // Update order with payment information
+      const completedOrder = {
+        ...pendingOrder,
+        status: 'completed',
+        paymentStatus: 'paid',
+        paymentMethod: `${mobileProvider} Mobile Money`,
+        paymentPhone: phoneNumber,
+        paymentDate: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+
+      // Create customer record if it doesn't exist
+      const existingCustomers = MarketStorageService.getShopCustomers();
+      const customerExists = existingCustomers.find(c => c.id === 'harvesting_customer');
+      
+      if (!customerExists) {
+        const customer = {
+          id: 'harvesting_customer',
+          name: 'Harvesting Kit Customer',
+          email: 'customer@harvestingkits.com',
+          phone: '+250788123456',
+          address: 'Kigali, Rwanda',
+          totalOrders: 0,
+          totalSpent: 0,
+          joinDate: pendingOrder.orderDate,
+          status: 'active'
+        };
+        MarketStorageService.addShopCustomer(customer);
+      }
+
+      // Save completed order
+      MarketStorageService.addShopOrder(completedOrder);
+
+      // Create transaction record
+      const transaction = {
+        id: `txn_${Date.now()}`,
+        orderId: completedOrder.id,
+        amount: completedOrder.totalAmount,
+        type: 'sale',
+        category: 'harvesting_equipment',
+        date: completedOrder.orderDate,
+        description: 'Harvesting Kit Purchase',
+        items: completedOrder.items.length,
+        customer: 'Harvesting Kit Customer'
+      };
+
+      const existingTransactions = MarketStorageService.getMarketTransactions();
+      existingTransactions.push(transaction);
+      localStorage.setItem('market_transactions', JSON.stringify(existingTransactions));
+
+      // Update inventory
+      completedOrder.items.forEach(cartItem => {
+        const inventory = MarketStorageService.getShopInventory();
+        const inventoryItem = inventory.find(item => 
+          item.name.toLowerCase().includes(cartItem.productName.toLowerCase()) ||
+          item.id === cartItem.productId
+        );
+        
+        if (inventoryItem && inventoryItem.quantity >= cartItem.quantity) {
+          inventoryItem.quantity -= cartItem.quantity;
+          inventoryItem.lastSold = completedOrder.orderDate;
+          MarketStorageService.saveShopInventory(inventory);
+        }
+      });
+
+      // Clear cart after successful payment
+      CartService.clearCart();
+      
+      // Reset states
+      setPaymentProcessing(false);
+      setShowPaymentModal(false);
+      setPendingOrder(null);
+      setSelectedPaymentMethod('Mobile Money');
+      setMobileProvider('');
+      setPhoneNumber('');
+      setPaymentStep('provider');
+      
+      alert(`Payment successful!\n\nOrder ID: ${completedOrder.id}\nTotal: ${completedOrder.totalAmount.toLocaleString()} RWF\nPayment Method: ${completedOrder.paymentMethod}\nPhone: ${phoneNumber}\n\nYour order will appear in the Shop Manager system.`);
+      
+    } catch (error) {
+      console.error('Payment failed:', error);
+      setPaymentProcessing(false);
+      alert('Payment failed. Please try again.');
+    }
+  };
 
   // Mock product data for harvesting kits
   const products = [
@@ -114,6 +375,134 @@ export default function ModernHarvestingKits() {
     setLikedProducts(newLiked);
   };
 
+  // Cart Sidebar Component
+  const CartSidebar = () => {
+    const cartSummary = CartService.getCartSummary();
+    
+    return (
+      <div className={`fixed inset-0 z-50 overflow-hidden transition-all duration-300 ${isCartOpen ? 'visible' : 'invisible'}`}>
+        <div className={`absolute inset-0 bg-black transition-opacity duration-300 ${isCartOpen ? 'bg-opacity-50' : 'bg-opacity-0'}`} onClick={() => setIsCartOpen(false)}></div>
+        
+        <div className={`absolute right-0 top-0 h-full w-full max-w-md bg-white shadow-xl transform transition-transform duration-300 ${isCartOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+          <div className="flex h-full flex-col">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-gray-200 p-4">
+              <div className="flex items-center space-x-2">
+                <ShoppingCart className="h-6 w-6 text-green-600" />
+                <h2 className="text-lg font-semibold text-gray-900">Shopping Cart</h2>
+                <span className="rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-800">
+                  {cartCount}
+                </span>
+              </div>
+              <button
+                onClick={() => setIsCartOpen(false)}
+                className="rounded-full p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Cart Items */}
+            <div className="flex-1 overflow-y-auto p-4">
+              {cartSummary.isEmpty ? (
+                <div className="flex h-full flex-col items-center justify-center text-center">
+                  <ShoppingCart className="h-16 w-16 text-gray-300 mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">Your cart is empty</h3>
+                  <p className="text-gray-500">Add some harvesting kits to get started!</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {cartItems.map((item) => (
+                    <div key={item.id} className="flex items-center space-x-4 rounded-lg border border-gray-200 p-4">
+                      <img
+                        src={item.image}
+                        alt={item.name}
+                        className="h-16 w-16 rounded-lg object-cover"
+                      />
+                      
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-sm font-medium text-gray-900 truncate">{item.name}</h3>
+                        <div className="flex items-center space-x-2 mt-1">
+                          <span className="text-lg font-bold text-green-600">
+                            {item.price.toLocaleString()} RWF
+                          </span>
+                          {item.originalPrice && (
+                            <span className="text-sm text-gray-400 line-through">
+                              {item.originalPrice.toLocaleString()} RWF
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">{item.capacity}</p>
+                      </div>
+
+                      <div className="flex flex-col items-end space-y-2">
+                        <div className="flex items-center space-x-2">
+                          <button
+                            onClick={() => updateCartQuantity(item.id, item.quantity - 1)}
+                            className="rounded-full p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                          >
+                            <Minus className="h-4 w-4" />
+                          </button>
+                          <span className="w-8 text-center text-sm font-medium">{item.quantity}</span>
+                          <button
+                            onClick={() => updateCartQuantity(item.id, item.quantity + 1)}
+                            className="rounded-full p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                          >
+                            <Plus className="h-4 w-4" />
+                          </button>
+                        </div>
+                        
+                        <button
+                          onClick={() => removeFromCart(item.id)}
+                          className="rounded-full p-1 text-red-400 hover:bg-red-50 hover:text-red-600"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            {!cartSummary.isEmpty && (
+              <div className="border-t border-gray-200 p-4 space-y-4">
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Subtotal</span>
+                    <span className="font-medium">{cartSummary.subtotal.toLocaleString()} RWF</span>
+                  </div>
+                  {cartSummary.totalDiscount > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Discount</span>
+                      <span className="font-medium text-green-600">
+                        -{cartSummary.totalDiscount.toLocaleString()} RWF
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex justify-between text-lg font-bold border-t border-gray-200 pt-2">
+                    <span>Total</span>
+                    <span className="text-green-600">{cartSummary.total.toLocaleString()} RWF</span>
+                  </div>
+                </div>
+
+                <button
+                  onClick={handleCheckout}
+                  className="w-full flex items-center justify-center space-x-2 rounded-lg py-3 px-4 text-white font-semibold transition-all duration-300 hover:scale-105 shadow-lg hover:shadow-xl"
+                  style={{background: 'linear-gradient(to right, #ea580c, #1F310A)'}}
+                >
+                  <ShoppingCart className="w-5 h-5" />
+                  <span>Checkout</span>
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const ProductModal = ({ product, onClose }) => (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 animate-fadeIn">
       <div className="bg-white rounded-3xl p-6 max-w-4xl w-full max-h-[90vh] overflow-y-auto animate-slideUp">
@@ -198,6 +587,12 @@ export default function ModernHarvestingKits() {
             <div className="flex space-x-3">
               <button 
                 disabled={!product.inStock}
+                onClick={() => {
+                  if (product.inStock) {
+                    addToCart(product);
+                    onClose();
+                  }
+                }}
                 className={`flex-1 py-3 px-6 rounded-2xl font-semibold transition-all duration-300 ${
                   product.inStock 
                     ? 'text-white transform hover:scale-105 shadow-lg hover:shadow-xl' 
@@ -220,7 +615,7 @@ export default function ModernHarvestingKits() {
                 {product.inStock ? (
                   <>
                     <ShoppingCart className="w-5 h-5 inline mr-2" />
-                    Buy Now
+                    Add to Cart
                   </>
                 ) : (
                   'Out of Stock'
@@ -248,10 +643,26 @@ export default function ModernHarvestingKits() {
       {/* Header Section */}
       <div className="bg-white shadow-sm border-b border-gray-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <button className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-all duration-200 group mb-4">
-            <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
-            <span className="font-medium">Back to Market</span>
-          </button>
+          <div className="flex items-center justify-between mb-4">
+            <button className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-all duration-200 group">
+              <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+              <span className="font-medium">Back to Market</span>
+            </button>
+            
+            {/* Cart Icon */}
+            <button 
+              onClick={() => setIsCartOpen(true)}
+              className="relative flex items-center space-x-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-all duration-300 hover:scale-105 shadow-lg"
+            >
+              <ShoppingCart className="w-5 h-5" />
+              <span className="font-medium">Cart</span>
+              {cartCount > 0 && (
+                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-6 w-6 flex items-center justify-center font-bold animate-pulse">
+                  {cartCount}
+                </span>
+              )}
+            </button>
+          </div>
           
           <div className="text-center">
             <h1 className="text-4xl md:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-orange-600 via-green-800 to-yellow-600 mb-4 animate-fadeIn">
@@ -331,7 +742,7 @@ export default function ModernHarvestingKits() {
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden animate-fadeIn">
           <div className="p-8">
             {filteredProducts.length > 0 ? (
-              <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                 {filteredProducts.map((product, index) => (
                   <div
                     key={product._id}
@@ -344,7 +755,7 @@ export default function ModernHarvestingKits() {
                       <img
                         src={product.image}
                         alt={product.name}
-                        className="w-full h-64 object-cover group-hover:scale-110 transition-transform duration-500"
+                        className="w-full h-48 object-cover group-hover:scale-110 transition-transform duration-500"
                       />
                       
                       <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
@@ -395,12 +806,12 @@ export default function ModernHarvestingKits() {
                       </div>
                     </div>
                     
-                    <div className="p-6 bg-gradient-to-br from-gray-50 to-white">
+                    <div className="p-4 bg-gradient-to-br from-gray-50 to-white">
                       <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center space-x-2">
-                          <span className="text-2xl font-bold" style={{color: '#1F310A'}}>{product.price} RWF</span>
+                          <span className="text-xl font-bold" style={{color: '#1F310A'}}>{product.price} RWF</span>
                           {product.originalPrice && (
-                            <span className="text-lg text-gray-400 line-through">{product.originalPrice} RWF</span>
+                            <span className="text-sm text-gray-400 line-through">{product.originalPrice} RWF</span>
                           )}
                         </div>
                         <div className={`px-3 py-1 rounded-full text-sm font-medium transition-all duration-200 ${
@@ -422,30 +833,43 @@ export default function ModernHarvestingKits() {
                       </div>
                       
                       <button
-                        disabled={!product.inStock}
-                        className={`w-full py-3 px-4 rounded-xl font-semibold transition-all duration-300 ${
-                          product.inStock
-                            ? 'text-white hover:scale-105 shadow-lg hover:shadow-xl transform'
+                        onClick={() => toggleLike(product._id)}
+                        className={`p-2 rounded-full transition-all duration-300 transform hover:scale-110 ${
+                          likedProducts.has(product._id)
+                            ? 'bg-red-100 text-red-600 scale-110'
+                            : 'bg-white/80 text-gray-600 hover:bg-white'
+                        }`}
+                      >
+                        <Heart className="w-5 h-5" />
+                      </button>
+                      
+                      <button
+                        onClick={() => addToCart(product)}
+                        className={`w-full py-3 px-4 rounded-lg font-semibold transition-all duration-300 ${
+                          justAdded === product._id
+                            ? 'bg-green-600 text-white'
+                            : addingToCart === product._id
+                            ? 'bg-orange-400 text-white'
+                            : product.inStock
+                            ? 'bg-gradient-to-r from-orange-500 to-green-800 text-white hover:from-orange-600 hover:to-green-900 hover:scale-105 shadow-lg hover:shadow-xl'
                             : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                         }`}
-                        style={product.inStock ? {
-                          background: 'linear-gradient(to right, #ea580c, #1F310A)',
-                        } : {}}
-                        onMouseEnter={(e) => {
-                          if (product.inStock) {
-                            e.target.style.background = 'linear-gradient(to right, #dc2626, #1F310A)';
-                          }
-                        }}
-                        onMouseLeave={(e) => {
-                          if (product.inStock) {
-                            e.target.style.background = 'linear-gradient(to right, #ea580c, #1F310A)';
-                          }
-                        }}
+                        disabled={!product.inStock || addingToCart === product._id}
                       >
-                        {product.inStock ? (
+                        {addingToCart === product._id ? (
+                          <>
+                            <div className="w-5 h-5 inline mr-2 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                            Adding...
+                          </>
+                        ) : justAdded === product._id ? (
+                          <>
+                            <CheckCircle className="w-5 h-5 inline mr-2" />
+                            Added to Cart!
+                          </>
+                        ) : product.inStock ? (
                           <>
                             <ShoppingCart className="w-5 h-5 inline mr-2" />
-                            Buy Now
+                            Add to Cart
                           </>
                         ) : (
                           'Out of Stock'
@@ -476,8 +900,245 @@ export default function ModernHarvestingKits() {
         />
       )}
 
+      {/* Cart Sidebar */}
+      <CartSidebar />
+
+      {/* Payment Modal */}
+      {showPaymentModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div className="bg-gradient-to-r from-orange-500 to-green-800 text-white p-6 rounded-t-lg">
+              <div className="flex justify-between items-center">
+                <h2 className="text-xl font-bold">Complete Payment</h2>
+                <button
+                  onClick={() => {
+                    setShowPaymentModal(false);
+                    setPendingOrder(null);
+                    setSelectedPaymentMethod('Mobile Money');
+                    setMobileProvider('');
+                    setPhoneNumber('');
+                    setPaymentStep('provider');
+                  }}
+                  className="text-white hover:text-gray-200"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+            </div>
+            
+            <div className="p-6 space-y-6">
+              {/* Order Summary */}
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <h3 className="font-semibold text-gray-800 mb-3">Order Summary</h3>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Order ID:</span>
+                    <span className="font-medium">{pendingOrder?.id}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Items:</span>
+                    <span className="font-medium">{pendingOrder?.items?.length || 0}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Subtotal:</span>
+                    <span className="font-medium">{pendingOrder?.subtotal?.toLocaleString()} RWF</span>
+                  </div>
+                  {pendingOrder?.discount > 0 && (
+                    <div className="flex justify-between text-green-600">
+                      <span>Discount:</span>
+                      <span>-{pendingOrder.discount.toLocaleString()} RWF</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between border-t pt-2">
+                    <span className="font-semibold text-gray-800">Total:</span>
+                    <span className="font-bold text-lg text-green-600">{pendingOrder?.totalAmount?.toLocaleString()} RWF</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Mobile Money Payment Steps */}
+              {paymentStep === 'provider' && (
+                <div>
+                  <h3 className="font-semibold text-gray-800 mb-4">Select Mobile Money Provider</h3>
+                  <div className="space-y-3">
+                    {/* MTN Mobile Money */}
+                    <div
+                      onClick={() => handleProviderSelect('MTN')}
+                      className="p-4 border border-gray-200 rounded-lg cursor-pointer transition-all hover:border-yellow-400 hover:bg-yellow-50"
+                    >
+                      <div className="flex items-center space-x-3">
+                        <div className="w-12 h-12 bg-yellow-400 rounded-lg flex items-center justify-center">
+                          <Smartphone className="w-6 h-6 text-white" />
+                        </div>
+                        <div>
+                          <div className="font-medium">MTN Mobile Money</div>
+                          <div className="text-sm text-gray-500">Pay with MTN MoMo</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Airtel Money */}
+                    <div
+                      onClick={() => handleProviderSelect('Airtel')}
+                      className="p-4 border border-gray-200 rounded-lg cursor-pointer transition-all hover:border-red-400 hover:bg-red-50"
+                    >
+                      <div className="flex items-center space-x-3">
+                        <div className="w-12 h-12 bg-red-500 rounded-lg flex items-center justify-center">
+                          <Smartphone className="w-6 h-6 text-white" />
+                        </div>
+                        <div>
+                          <div className="font-medium">Airtel Money</div>
+                          <div className="text-sm text-gray-500">Pay with Airtel Money</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Tigo Cash */}
+                    <div
+                      onClick={() => handleProviderSelect('Tigo')}
+                      className="p-4 border border-gray-200 rounded-lg cursor-pointer transition-all hover:border-blue-400 hover:bg-blue-50"
+                    >
+                      <div className="flex items-center space-x-3">
+                        <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center">
+                          <Smartphone className="w-6 h-6 text-white" />
+                        </div>
+                        <div>
+                          <div className="font-medium">Tigo Cash</div>
+                          <div className="text-sm text-gray-500">Pay with Tigo Cash</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {paymentStep === 'phone' && (
+                <div>
+                  <h3 className="font-semibold text-gray-800 mb-4">Enter Phone Number</h3>
+                  <div className="space-y-4">
+                    <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
+                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                        mobileProvider === 'MTN' ? 'bg-yellow-400' :
+                        mobileProvider === 'Airtel' ? 'bg-red-500' : 'bg-blue-600'
+                      }`}>
+                        <Smartphone className="w-5 h-5 text-white" />
+                      </div>
+                      <div>
+                        <div className="font-medium">{mobileProvider} Mobile Money</div>
+                        <div className="text-sm text-gray-500">Selected provider</div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Phone Number
+                      </label>
+                      <input
+                        type="tel"
+                        value={phoneNumber}
+                        onChange={(e) => setPhoneNumber(e.target.value)}
+                        placeholder="07xxxxxxxx"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                        maxLength="10"
+                      />
+                      <div className="text-xs text-gray-500 mt-1">
+                        Enter your {mobileProvider} mobile money number
+                      </div>
+                    </div>
+
+                    <div className="flex space-x-3">
+                      <button
+                        onClick={() => setPaymentStep('provider')}
+                        className="flex-1 py-3 px-4 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                      >
+                        Back
+                      </button>
+                      <button
+                        onClick={handlePhoneSubmit}
+                        className="flex-1 py-3 px-4 bg-gradient-to-r from-orange-500 to-green-800 text-white rounded-lg hover:from-orange-600 hover:to-green-900"
+                      >
+                        Continue
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {paymentStep === 'confirm' && (
+                <div>
+                  <h3 className="font-semibold text-gray-800 mb-4">Confirm Payment</h3>
+                  <div className="space-y-4">
+                    {/* Payment Details */}
+                    <div className="bg-gray-50 p-4 rounded-lg space-y-3">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Provider:</span>
+                        <span className="font-medium">{mobileProvider} Mobile Money</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Phone Number:</span>
+                        <span className="font-medium">{phoneNumber}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Amount:</span>
+                        <span className="font-bold text-green-600">{pendingOrder?.totalAmount?.toLocaleString()} RWF</span>
+                      </div>
+                    </div>
+
+                    {/* Instructions */}
+                    <div className="bg-blue-50 p-4 rounded-lg">
+                      <div className="flex items-start space-x-3">
+                        <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <span className="text-white text-xs font-bold">i</span>
+                        </div>
+                        <div className="text-sm text-blue-800">
+                          <p className="font-medium mb-1">Payment Instructions:</p>
+                          <p>1. You will receive a payment prompt on {phoneNumber}</p>
+                          <p>2. Enter your {mobileProvider} PIN to confirm</p>
+                          <p>3. Wait for payment confirmation</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex space-x-3">
+                      <button
+                        onClick={() => setPaymentStep('phone')}
+                        className="flex-1 py-3 px-4 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                        disabled={paymentProcessing}
+                      >
+                        Back
+                      </button>
+                      <button
+                        onClick={handlePaymentComplete}
+                        disabled={paymentProcessing}
+                        className={`flex-1 py-3 px-4 rounded-lg font-semibold transition-all duration-300 ${
+                          paymentProcessing
+                            ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                            : 'bg-gradient-to-r from-orange-500 to-green-800 text-white hover:from-orange-600 hover:to-green-900'
+                        }`}
+                      >
+                        {paymentProcessing ? (
+                          <>
+                            <div className="w-5 h-5 inline mr-2 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                            Processing...
+                          </>
+                        ) : (
+                          <>
+                            <Smartphone className="w-5 h-5 inline mr-2" />
+                            Pay Now
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Custom CSS for animations */}
-      <style jsx>{`
+      <style>{`
         @keyframes fadeIn {
           from { opacity: 0; }
           to { opacity: 1; }

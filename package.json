@@ -21,6 +21,7 @@
     "react-select": "^5.8.0",
     "react-slideshow-image": "^4.3.2",
     "react-spinners": "^0.14.1",
+    "recharts": "^3.1.2",
     "update": "^0.7.4",
     "xlsx": "^0.18.5"
   },

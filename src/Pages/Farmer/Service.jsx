@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import Advertisement from "../../components/advertisement/advertisement";
+// import Advertisement from "../../components/advertisement/advertisement";
 import DashboardHeader from "../../components/Header/DashboardHeader";
 
 export default function Service() {
@@ -81,7 +81,7 @@ export default function Service() {
         </div>
       </div>
 
-      <Advertisement />
+      {/* <Advertisement /> */}
 
       <style jsx>{`
         @keyframes fade-in-down {

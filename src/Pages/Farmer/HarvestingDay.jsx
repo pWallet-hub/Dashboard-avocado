@@ -267,7 +267,7 @@ export default function HarvestingDay() {
             <div className="grid-form">
               <div>
                 <label className="label-input">
-                  • Which week do you want to start harvesting?
+                  • How many trees to be harvested?
                 </label>
                 <input
                   type="text"
