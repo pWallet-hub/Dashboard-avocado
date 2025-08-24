@@ -1,26 +1,47 @@
 import React, { useState, useEffect } from 'react';
-import { ClipboardList, Clock, CheckCircle, XCircle, Eye, Calendar, User, MapPin } from 'lucide-react';
+import { ClipboardList, Clock, CheckCircle, XCircle, Eye, Calendar, User, MapPin, Bell } from 'lucide-react';
 import DashboardHeader from '../../components/Header/DashboardHeader';
 
 export default function MyServiceRequests() {
   const [requests, setRequests] = useState([]);
+  const [notifications, setNotifications] = useState([]);
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterType, setFilterType] = useState('all');
+  const [showNotifications, setShowNotifications] = useState(false);
 
   useEffect(() => {
     loadRequests();
+    loadNotifications();
   }, []);
 
   const loadRequests = () => {
     const savedRequests = localStorage.getItem('farmerServiceRequests');
     if (savedRequests) {
       const allRequests = JSON.parse(savedRequests);
-      // Filter requests for the current farmer (you can implement user authentication later)
-      // For now, showing all requests as demo
-      setRequests(allRequests);
+      // Assuming farmerId for filtering, default to 'farmer1' for demo
+      const farmerRequests = allRequests.filter(request => request.farmerId === 'farmer1');
+      setRequests(farmerRequests);
     }
+  };
+
+  const loadNotifications = () => {
+    const savedNotifications = localStorage.getItem('farmerNotifications');
+    if (savedNotifications) {
+      const allNotifications = JSON.parse(savedNotifications);
+      // Filter notifications for the current farmer
+      const farmerNotifications = allNotifications.filter(n => n.farmerId === 'farmer1');
+      setNotifications(farmerNotifications);
+    }
+  };
+
+  const markNotificationAsRead = (notificationId) => {
+    const updatedNotifications = notifications.map(notification =>
+      notification.id === notificationId ? { ...notification, read: true } : notification
+    );
+    setNotifications(updatedNotifications);
+    localStorage.setItem('farmerNotifications', JSON.stringify(updatedNotifications));
   };
 
   const getStatusColor = (status) => {
@@ -69,14 +90,53 @@ export default function MyServiceRequests() {
     setSelectedRequest(null);
   };
 
+  const unreadNotificationsCount = notifications.filter(n => !n.read).length;
+
   return (
     <div className="min-h-screen bg-gray-50">
       <DashboardHeader />
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">My Service Requests</h1>
-          <p className="text-gray-600">Track the status of your submitted service requests</p>
+        <div className="mb-8 flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">My Service Requests</h1>
+            <p className="text-gray-600">Track the status of your submitted service requests</p>
+          </div>
+          <div className="relative">
+            <button
+              onClick={() => setShowNotifications(!showNotifications)}
+              className="flex items-center text-gray-600 hover:text-gray-900"
+            >
+              <Bell className="w-6 h-6 mr-2" />
+              <span>Notifications</span>
+              {unreadNotificationsCount > 0 && (
+                <span className="ml-2 bg-red-500 text-white text-xs rounded-full px-2 py-1">
+                  {unreadNotificationsCount}
+                </span>
+              )}
+            </button>
+            {showNotifications && (
+              <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
+                <div className="p-4">
+                  <h3 className="text-lg font-medium text-gray-900 mb-4">Notifications</h3>
+                  {notifications.length === 0 ? (
+                    <p className="text-sm text-gray-500">No notifications</p>
+                  ) : (
+                    notifications.map(notification => (
+                      <div
+                        key={notification.id}
+                        className={`p-3 mb-2 rounded-md ${notification.read ? 'bg-gray-50' : 'bg-blue-50'}`}
+                        onClick={() => markNotificationAsRead(notification.id)}
+                      >
+                        <p className="text-sm text-gray-900">{notification.message}</p>
+                        <p className="text-xs text-gray-500">{formatDate(notification.timestamp)}</p>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Filters */}

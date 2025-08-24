@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { CheckCircle, XCircle, Clock, Eye, Filter, Search, Calendar, User, MapPin, Phone, Mail, Database } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, Eye, Filter, Search, Calendar, User, MapPin, Phone, Mail, Database, CalendarClock } from 'lucide-react';
 import '../Styles/Admin.css';
 import { populateDemoData, hasDemoData } from '../../utils/demoData';
 
@@ -11,6 +11,8 @@ export default function ServiceRequests() {
   const [filterType, setFilterType] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [showModal, setShowModal] = useState(false);
+  const [showRescheduleModal, setShowRescheduleModal] = useState(false);
+  const [rescheduleDate, setRescheduleDate] = useState('');
 
   // Load requests from localStorage on component mount
   useEffect(() => {
@@ -49,15 +51,59 @@ export default function ServiceRequests() {
     setFilteredRequests(filtered);
   }, [requests, filterStatus, filterType, searchTerm]);
 
-  const updateRequestStatus = (requestId, newStatus) => {
+  // Calculate summary statistics
+  const summary = {
+    total: requests.length,
+    pending: requests.filter(r => r.status === 'pending').length,
+    approved: requests.filter(r => r.status === 'approved').length,
+    completed: requests.filter(r => r.status === 'completed').length,
+    rejected: requests.filter(r => r.status === 'rejected').length,
+    postponed: requests.filter(r => r.status === 'postponed').length,
+  };
+
+  const updateRequestStatus = (requestId, newStatus, rescheduleDate = null) => {
     const updatedRequests = requests.map(request => 
       request.id === requestId 
-        ? { ...request, status: newStatus, updatedAt: new Date().toISOString() }
+        ? { 
+            ...request, 
+            status: newStatus, 
+            updatedAt: new Date().toISOString(),
+            rescheduleDate: newStatus === 'postponed' ? rescheduleDate : request.rescheduleDate,
+            statusUpdates: [
+              ...(request.statusUpdates || []),
+              {
+                status: newStatus,
+                timestamp: new Date().toISOString(),
+                note: newStatus === 'postponed' 
+                  ? `Request postponed to ${rescheduleDate ? new Date(rescheduleDate).toLocaleDateString('en-US') : 'TBD'} by admin`
+                  : `Request ${newStatus} by admin`
+              }
+            ]
+          }
         : request
     );
     
     setRequests(updatedRequests);
     localStorage.setItem('farmerServiceRequests', JSON.stringify(updatedRequests));
+
+    // Create and store notification
+    const request = updatedRequests.find(r => r.id === requestId);
+    const notification = {
+      id: `${requestId}-${Date.now()}`, // Unique ID for notification
+      requestId,
+      farmerId: request.farmerId || 'farmer1', // Assuming farmerId exists or default to 'farmer1'
+      message: newStatus === 'postponed'
+        ? `Your ${request.type} request (ID: ${requestId}) has been postponed${rescheduleDate ? ` to ${new Date(rescheduleDate).toLocaleDateString('en-US')}` : ''}.`
+        : `Your ${request.type} request (ID: ${requestId}) has been ${newStatus}.`,
+      status: newStatus,
+      timestamp: new Date().toISOString(),
+      read: false
+    };
+
+    const savedNotifications = localStorage.getItem('farmerNotifications');
+    const notifications = savedNotifications ? JSON.parse(savedNotifications) : [];
+    notifications.push(notification);
+    localStorage.setItem('farmerNotifications', JSON.stringify(notifications));
   };
 
   const getStatusColor = (status) => {
@@ -66,6 +112,7 @@ export default function ServiceRequests() {
       case 'approved': return 'bg-green-100 text-green-800';
       case 'rejected': return 'bg-red-100 text-red-800';
       case 'completed': return 'bg-blue-100 text-blue-800';
+      case 'postponed': return 'bg-orange-100 text-orange-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -76,6 +123,7 @@ export default function ServiceRequests() {
       case 'approved': return <CheckCircle className="w-4 h-4" />;
       case 'rejected': return <XCircle className="w-4 h-4" />;
       case 'completed': return <CheckCircle className="w-4 h-4" />;
+      case 'postponed': return <CalendarClock className="w-4 h-4" />;
       default: return <Clock className="w-4 h-4" />;
     }
   };
@@ -88,6 +136,21 @@ export default function ServiceRequests() {
       hour: '2-digit',
       minute: '2-digit'
     });
+  };
+
+  const openRescheduleModal = (request) => {
+    setSelectedRequest(request);
+    setShowRescheduleModal(true);
+  };
+
+  const handleReschedule = () => {
+    if (rescheduleDate) {
+      updateRequestStatus(selectedRequest.id, 'postponed', rescheduleDate);
+      setShowRescheduleModal(false);
+      setShowModal(false);
+      setRescheduleDate('');
+      setSelectedRequest(null);
+    }
   };
 
   const RequestModal = ({ request, onClose }) => (
@@ -146,10 +209,10 @@ export default function ServiceRequests() {
               Request Information
             </h3>
             <div className="space-y-3">
-                             <div>
-                 <label className="text-sm font-medium text-gray-600">Service Type</label>
-                 <p className="text-gray-900 font-semibold">{request.type}</p>
-               </div>
+              <div>
+                <label className="text-sm font-medium text-gray-600">Service Type</label>
+                <p className="text-gray-900 font-semibold">{request.type}</p>
+              </div>
               <div>
                 <label className="text-sm font-medium text-gray-600">Status</label>
                 <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(request.status)}`}>
@@ -167,6 +230,12 @@ export default function ServiceRequests() {
                   <p className="text-gray-900">{formatDate(request.updatedAt)}</p>
                 </div>
               )}
+              {request.rescheduleDate && (
+                <div>
+                  <label className="text-sm font-medium text-gray-600">Rescheduled To</label>
+                  <p className="text-gray-900">{new Date(request.rescheduleDate).toLocaleDateString('en-US')}</p>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -175,116 +244,116 @@ export default function ServiceRequests() {
         <div className="mt-6 bg-white border border-gray-200 rounded-xl p-4">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Service Details</h3>
           
-                     {request.type === 'Pest Management' && (
-             <div className="space-y-4">
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                 <div>
-                   <label className="text-sm font-medium text-gray-600">Pest Type</label>
-                   <p className="text-gray-900">{request.pestType || 'N/A'}</p>
-                 </div>
-                 <div>
-                   <label className="text-sm font-medium text-gray-600">Infestation Level</label>
-                   <p className="text-gray-900">{request.infestationLevel || 'N/A'}</p>
-                 </div>
-                 <div>
-                   <label className="text-sm font-medium text-gray-600">Crop Type</label>
-                   <p className="text-gray-900">{request.cropType || 'N/A'}</p>
-                 </div>
-                 <div>
-                   <label className="text-sm font-medium text-gray-600">Farm Size</label>
-                   <p className="text-gray-900">{request.farmSize || 'N/A'}</p>
-                 </div>
-               </div>
-               <div>
-                 <label className="text-sm font-medium text-gray-600">Description</label>
-                 <p className="text-gray-900">{request.description || 'N/A'}</p>
-               </div>
-               {request.images && request.images.length > 0 && (
-                 <div>
-                   <label className="text-sm font-medium text-gray-600">Images</label>
-                   <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-2">
-                     {request.images.map((image, index) => (
-                       <div key={index} className="aspect-square bg-gray-100 rounded-lg flex items-center justify-center">
-                         <span className="text-xs text-gray-500">Image {index + 1}</span>
-                       </div>
-                     ))}
-                   </div>
-                 </div>
-               )}
-             </div>
-           )}
+          {request.type === 'Pest Management' && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium text-gray-600">Pest Type</label>
+                  <p className="text-gray-900">{request.pestType || 'N/A'}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-600">Infestation Level</label>
+                  <p className="text-gray-900">{request.infestationLevel || 'N/A'}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-600">Crop Type</label>
+                  <p className="text-gray-900">{request.cropType || 'N/A'}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-600">Farm Size</label>
+                  <p className="text-gray-900">{request.farmSize || 'N/A'}</p>
+                </div>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-600">Description</label>
+                <p className="text-gray-900">{request.description || 'N/A'}</p>
+              </div>
+              {request.images && request.images.length > 0 && (
+                <div>
+                  <label className="text-sm font-medium text-gray-600">Images</label>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-2">
+                    {request.images.map((image, index) => (
+                      <div key={index} className="aspect-square bg-gray-100 rounded-lg flex items-center justify-center">
+                        <span className="text-xs text-gray-500">Image {index + 1}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
-                                {request.type === 'Harvesting Day' && (
-             <div className="space-y-4">
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                 <div>
-                   <label className="text-sm font-medium text-gray-600">Workers Needed</label>
-                   <p className="text-gray-900">{request.workersNeeded || 'N/A'}</p>
-                 </div>
-                 <div>
-                   <label className="text-sm font-medium text-gray-600">Equipment Needed</label>
-                   <p className="text-gray-900">
-                     {(request.equipmentNeeded || []).length > 0 
-                       ? request.equipmentNeeded.join(', ') 
-                       : 'No equipment needed'}
-                   </p>
-                 </div>
-                 <div>
-                   <label className="text-sm font-medium text-gray-600">Transportation</label>
-                   <p className="text-gray-900">{request.transportationNeeded || 'N/A'}</p>
-                 </div>
-                 <div>
-                   <label className="text-sm font-medium text-gray-600">Harvest Period</label>
-                   <p className="text-gray-900">
-                     {request.harvestDateFrom || 'N/A'} to {request.harvestDateTo || 'N/A'}
-                   </p>
-                 </div>
-               </div>
-               {request.harvestImages && request.harvestImages.length > 0 && (
-                 <div>
-                   <label className="text-sm font-medium text-gray-600">Crop Images</label>
-                   <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-2">
-                     {request.harvestImages.map((image, index) => (
-                       <div key={index} className="aspect-square bg-gray-100 rounded-lg flex items-center justify-center">
-                         <span className="text-xs text-gray-500">Image {index + 1}</span>
-                       </div>
-                     ))}
-                   </div>
-                 </div>
-               )}
-             </div>
-           )}
+          {request.type === 'Harvesting Day' && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium text-gray-600">Workers Needed</label>
+                  <p className="text-gray-900">{request.workersNeeded || 'N/A'}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-600">Equipment Needed</label>
+                  <p className="text-gray-900">
+                    {(request.equipmentNeeded || []).length > 0 
+                      ? request.equipmentNeeded.join(', ') 
+                      : 'No equipment needed'}
+                  </p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-600">Transportation</label>
+                  <p className="text-gray-900">{request.transportationNeeded || 'N/A'}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-600">Harvest Period</label>
+                  <p className="text-gray-900">
+                    {request.harvestDateFrom || 'N/A'} to {request.harvestDateTo || 'N/A'}
+                  </p>
+                </div>
+              </div>
+              {request.harvestImages && request.harvestImages.length > 0 && (
+                <div>
+                  <label className="text-sm font-medium text-gray-600">Crop Images</label>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-2">
+                    {request.harvestImages.map((image, index) => (
+                      <div key={index} className="aspect-square bg-gray-100 rounded-lg flex items-center justify-center">
+                        <span className="text-xs text-gray-500">Image {index + 1}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
-                                {request.type === 'Property Evaluation' && (
-             <div className="space-y-4">
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                 <div>
-                   <label className="text-sm font-medium text-gray-600">Irrigation Upgrade</label>
-                   <p className="text-gray-900">{request.irrigationSource || 'N/A'}</p>
-                 </div>
-                 {request.irrigationTiming && (
-                   <div>
-                     <label className="text-sm font-medium text-gray-600">Upgrade Timing</label>
-                     <p className="text-gray-900">{request.irrigationTiming}</p>
-                   </div>
-                 )}
-                 <div>
-                   <label className="text-sm font-medium text-gray-600">Soil Testing</label>
-                   <p className="text-gray-900">{request.soilTesting || 'N/A'}</p>
-                 </div>
-                 <div>
-                   <label className="text-sm font-medium text-gray-600">Visit Period</label>
-                   <p className="text-gray-900">
-                     {request.visitStartDate || 'N/A'} to {request.visitEndDate || 'N/A'}
-                   </p>
-                 </div>
-               </div>
-               <div>
-                 <label className="text-sm font-medium text-gray-600">Evaluation Purpose</label>
-                 <p className="text-gray-900">{request.evaluationPurpose || 'N/A'}</p>
-               </div>
-             </div>
-           )}
+          {request.type === 'Property Evaluation' && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium text-gray-600">Irrigation Upgrade</label>
+                  <p className="text-gray-900">{request.irrigationSource || 'N/A'}</p>
+                </div>
+                {request.irrigationTiming && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-600">Upgrade Timing</label>
+                    <p className="text-gray-900">{request.irrigationTiming}</p>
+                  </div>
+                )}
+                <div>
+                  <label className="text-sm font-medium text-gray-600">Soil Testing</label>
+                  <p className="text-gray-900">{request.soilTesting || 'N/A'}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-600">Visit Period</label>
+                  <p className="text-gray-900">
+                    {request.visitStartDate || 'N/A'} to {request.visitEndDate || 'N/A'}
+                  </p>
+                </div>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-600">Evaluation Purpose</label>
+                <p className="text-gray-900">{request.evaluationPurpose || 'N/A'}</p>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Action Buttons */}
@@ -315,19 +384,93 @@ export default function ServiceRequests() {
               >
                 Reject
               </button>
+              <button
+                onClick={() => openRescheduleModal(request)}
+                className="px-4 py-2 text-white bg-orange-600 rounded-lg hover:bg-orange-700 transition-colors"
+              >
+                Postpone
+              </button>
             </>
           )}
           {request.status === 'approved' && (
+            <>
+              <button
+                onClick={() => {
+                  updateRequestStatus(request.id, 'completed');
+                  onClose();
+                }}
+                className="px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Mark as Completed
+              </button>
+              <button
+                onClick={() => openRescheduleModal(request)}
+                className="px-4 py-2 text-white bg-orange-600 rounded-lg hover:bg-orange-700 transition-colors"
+              >
+                Reschedule
+              </button>
+            </>
+          )}
+          {request.status === 'postponed' && (
             <button
               onClick={() => {
-                updateRequestStatus(request.id, 'completed');
+                updateRequestStatus(request.id, 'approved');
                 onClose();
               }}
-              className="px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+              className="px-4 py-2 text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors"
             >
-              Mark as Completed
+              Approve
             </button>
           )}
+        </div>
+      </div>
+    </div>
+  );
+
+  const RescheduleModal = () => (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-2xl p-6 max-w-md w-full">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-xl font-bold text-gray-900">Reschedule Request</h2>
+          <button
+            onClick={() => {
+              setShowRescheduleModal(false);
+              setRescheduleDate('');
+            }}
+            className="p-2 hover:bg-gray-100 rounded-full transition-all duration-200"
+          >
+            <XCircle className="w-6 h-6" />
+          </button>
+        </div>
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-700 mb-2">Select New Date</label>
+          <input
+            type="date"
+            value={rescheduleDate}
+            onChange={(e) => setRescheduleDate(e.target.value)}
+            min={new Date().toISOString().split('T')[0]} // Prevent past dates
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+          />
+        </div>
+        <div className="flex justify-end space-x-3">
+          <button
+            onClick={() => {
+              setShowRescheduleModal(false);
+              setRescheduleDate('');
+            }}
+            className="px-4 py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleReschedule}
+            disabled={!rescheduleDate}
+            className={`px-4 py-2 text-white rounded-lg transition-colors ${
+              rescheduleDate ? 'bg-orange-600 hover:bg-orange-700' : 'bg-gray-400 cursor-not-allowed'
+            }`}
+          >
+            Confirm Reschedule
+          </button>
         </div>
       </div>
     </div>
@@ -354,6 +497,37 @@ export default function ServiceRequests() {
                 Load Demo Data
               </button>
             )}
+          </div>
+        </div>
+
+        {/* Summary Section */}
+        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 mb-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Request Summary</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+            <div className="bg-gray-50 p-4 rounded-lg text-center">
+              <p className="text-sm font-medium text-gray-600">Total Requests</p>
+              <p className="text-2xl font-bold text-gray-900">{summary.total}</p>
+            </div>
+            <div className="bg-yellow-50 p-4 rounded-lg text-center">
+              <p className="text-sm font-medium text-yellow-800">Pending</p>
+              <p className="text-2xl font-bold text-yellow-900">{summary.pending}</p>
+            </div>
+            <div className="bg-green-50 p-4 rounded-lg text-center">
+              <p className="text-sm font-medium text-green-800">Approved</p>
+              <p className="text-2xl font-bold text-green-900">{summary.approved}</p>
+            </div>
+            <div className="bg-blue-50 p-4 rounded-lg text-center">
+              <p className="text-sm font-medium text-blue-800">Completed</p>
+              <p className="text-2xl font-bold text-blue-900">{summary.completed}</p>
+            </div>
+            <div className="bg-red-50 p-4 rounded-lg text-center">
+              <p className="text-sm font-medium text-red-800">Rejected</p>
+              <p className="text-2xl font-bold text-red-900">{summary.rejected}</p>
+            </div>
+            <div className="bg-orange-50 p-4 rounded-lg text-center">
+              <p className="text-sm font-medium text-orange-800">Postponed</p>
+              <p className="text-2xl font-bold text-orange-900">{summary.postponed}</p>
+            </div>
           </div>
         </div>
 
@@ -386,6 +560,7 @@ export default function ServiceRequests() {
                 <option value="approved">Approved</option>
                 <option value="rejected">Rejected</option>
                 <option value="completed">Completed</option>
+                <option value="postponed">Postponed</option>
               </select>
             </div>
             
@@ -451,9 +626,9 @@ export default function ServiceRequests() {
                           <div className="text-sm text-gray-500">{request.farmerPhone}</div>
                         </div>
                       </td>
-                                             <td className="px-6 py-4 whitespace-nowrap">
-                         <span className="text-sm text-gray-900">{request.type}</span>
-                       </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="text-sm text-gray-900">{request.type}</span>
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(request.status)}`}>
                           {getStatusIcon(request.status)}
@@ -501,6 +676,11 @@ export default function ServiceRequests() {
             setSelectedRequest(null);
           }}
         />
+      )}
+
+      {/* Reschedule Modal */}
+      {showRescheduleModal && selectedRequest && (
+        <RescheduleModal />
       )}
     </div>
   );

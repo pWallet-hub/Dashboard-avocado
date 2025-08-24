@@ -21,7 +21,9 @@ function Login() {
       const credentials = {
         'admin@avocado.rw': { role: 'admin', requirePassword: 'password123' },
         'agent@avocado.rw': { role: 'agent', requirePassword: null },
-        'peter@avocado.rw': { role: 'farmer', requirePassword: null }
+        'peter@avocado.rw': { role: 'farmer', requirePassword: null },
+        'shopmanager@avocado.rw': { role: 'shop-manager', requirePassword: 'shop123' },
+        'shop@avocado.rw': { role: 'shop-manager', requirePassword: null }
       };
 
       if (!email) {
@@ -32,12 +34,12 @@ function Login() {
 
       const match = credentials[email];
       if (!match) {
-        setMessage('Invalid credentials. Use admin@avocado.rw, agent@avocado.rw, or peter@avocado.rw');
+        setMessage('Invalid credentials. Use admin@avocado.rw, agent@avocado.rw, peter@avocado.rw, shopmanager@avocado.rw, or shop@avocado.rw');
         setLoading(false);
         return;
       }
 
-      // Only enforce password if required for this account (admin)
+      // Only enforce password if required for this account (admin and shopmanager@avocado.rw)
       if (match.requirePassword && !password) {
         setMessage('Please enter your password');
         setLoading(false);
@@ -45,7 +47,8 @@ function Login() {
       }
 
       if (match.requirePassword && password !== match.requirePassword) {
-        setMessage('Incorrect password for admin');
+        const accountType = match.role === 'admin' ? 'admin' : 'shop manager';
+        setMessage(`Incorrect password for ${accountType}`);
         setLoading(false);
         return;
       }
@@ -56,6 +59,16 @@ function Login() {
       localStorage.setItem('id', String(Date.now()));
       localStorage.setItem('token', 'demo-token');
 
+      // If it's a shop manager, also store shop information
+      if (match.role === 'shop-manager') {
+        // You can customize this based on which shop they manage
+        const shopInfo = {
+          shopId: email === 'shopmanager@avocado.rw' ? 'shop-001' : 'shop-002',
+          shopName: email === 'shopmanager@avocado.rw' ? 'Kigali Agricultural Shop' : 'Musanze Farm Supplies'
+        };
+        localStorage.setItem('shopInfo', JSON.stringify(shopInfo));
+      }
+
       setMessage('Login successful! Redirecting...');
       // Redirect to role dashboard
       navigate(`/dashboard/${match.role}`);
@@ -65,13 +78,25 @@ function Login() {
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gradient-to-r from-green-400 to-green-500">
-      <div className="flex flex-col w-11/12 h-auto max-w-4xl overflow-hidden rounded-lg shadow-lg md:flex-row md:w-4/5 md:h-96">
+      <div className="flex flex-col w-11/12 h-auto max-w-4xl overflow-hidden rounded-lg shadow-lg md:flex-row md:w-4/5 md:h-auto">
         <div className="flex flex-col items-center justify-center w-full p-10 text-center md:w-1/2 bg-gradient-to-r from-green-600 to-green-500">
           <h2 className="mb-5 text-2xl text-white md:text-4xl">Urakaza neza kuri</h2>
           <h4 className="mb-5 text-xl text-white md:text-2xl">Avocado Society of Rwanda</h4>
           <p className="mb-10 text-sm text-white md:text-lg">
             Ibarura ry'abahinzi bafite ubutaka bakaba bifuza gutera no gukora Ubuhinzi bw' avoka by' umwuga
           </p>
+          
+          {/* Demo Credentials Section */}
+          <div className="mt-6 p-4 bg-green-700 bg-opacity-50 rounded-lg text-left">
+            <h5 className="text-sm font-semibold text-white mb-2">Demo Credentials:</h5>
+            <div className="text-xs text-green-100 space-y-1">
+              <div>👤 <strong>Admin:</strong> admin@avocado.rw (password: password123)</div>
+              <div>🏢 <strong>Agent:</strong> agent@avocado.rw</div>
+              <div>🌾 <strong>Farmer:</strong> peter@avocado.rw</div>
+              <div>🏪 <strong>Shop Manager:</strong> shopmanager@avocado.rw (password: shop123)</div>
+              <div>🛒 <strong>Shop Manager:</strong> shop@avocado.rw</div>
+            </div>
+          </div>
         </div>
         <div className="flex flex-col items-center justify-center w-full p-10 bg-white md:w-1/2">
           <h2 className="mb-5 text-2xl font-bold md:text-3xl">Login</h2>
@@ -86,7 +111,7 @@ function Login() {
             />
             <input
               type="password"
-              placeholder="Password"
+              placeholder="Password (required for admin & shopmanager@avocado.rw)"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               disabled={loading}
