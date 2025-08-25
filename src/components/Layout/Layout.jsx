@@ -4,7 +4,7 @@ import TopBar from './TopBar';
 
 const Layout = () => {
   const role = localStorage.getItem('role'); 
-  const user = localStorage.getItem('username'); 
+  const username = localStorage.getItem('username'); 
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -18,6 +18,13 @@ const Layout = () => {
   if (!role) {
     return <Navigate to="/" replace />;
   }
+
+  // Create user object with name property
+  const user = {
+    name: username || 'Guest',
+    email: username,
+    role: role
+  };
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-100">

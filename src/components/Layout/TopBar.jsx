@@ -1,10 +1,35 @@
-import React, { useState } from 'react';
-import { Bell, User, Settings, LogOut, Search, ChevronDown } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { Bell, User, Settings, LogOut, Search, ChevronDown, Camera } from 'lucide-react';
 import asr from '../../assets/image/LOGO_-_Avocado_Society_of_Rwanda.png';
+import UserProfile from '../Profile/UserProfile';
+import SettingsModal from '../Settings/SettingsModal';
 import './TopBar.css';
 
 const TopBar = ({ onLogout, user }) => {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [showUserProfile, setShowUserProfile] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [profilePicture, setProfilePicture] = useState(() => {
+    return localStorage.getItem(`profilePic_${user?.email}`) || null;
+  });
+  const fileInputRef = useRef(null);
+
+  const handleProfilePictureUpload = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const imageDataUrl = e.target.result;
+        setProfilePicture(imageDataUrl);
+        localStorage.setItem(`profilePic_${user?.email}`, imageDataUrl);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const triggerFileUpload = () => {
+    fileInputRef.current?.click();
+  };
 
   return (
     <div className="topbar">
@@ -33,8 +58,16 @@ const TopBar = ({ onLogout, user }) => {
                 className="profile-button"
                 onClick={() => setShowProfileMenu(!showProfileMenu)}
               >
-                <div className="profile-avatar1">
-                  <User className="profile-avatar-icon" />
+                <div className="profile-avatar1 relative">
+                  {profilePicture ? (
+                    <img 
+                      src={profilePicture} 
+                      alt="Profile" 
+                      className="w-8 h-8 rounded-full object-cover"
+                    />
+                  ) : (
+                    <User className="profile-avatar-icon" />
+                  )}
                 </div>
                 <span className="profile-name1">{user?.name || 'N/A'}</span>
                 <ChevronDown className="profile-chevron hidden w-4 h-4" />
@@ -44,11 +77,37 @@ const TopBar = ({ onLogout, user }) => {
               {showProfileMenu && (
                 <div className="profile-dropdown">
                   <div className="py-2">
-                    <button className="profile-dropdown-item">
+                    <button 
+                      onClick={triggerFileUpload}
+                      className="profile-dropdown-item"
+                    >
+                      <Camera className="w-4 h-4" />
+                      <span>Upload Photo</span>
+                    </button>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleProfilePictureUpload}
+                      className="hidden"
+                    />
+                    <button 
+                      onClick={() => {
+                        setShowUserProfile(true);
+                        setShowProfileMenu(false);
+                      }}
+                      className="profile-dropdown-item"
+                    >
                       <User className="w-4 h-4" />
                       <span>Profile</span>
                     </button>
-                    <button className="profile-dropdown-item">
+                    <button 
+                      onClick={() => {
+                        setShowSettings(true);
+                        setShowProfileMenu(false);
+                      }}
+                      className="profile-dropdown-item"
+                    >
                       <Settings className="w-4 h-4" />
                       <span>Settings</span>
                     </button>
@@ -66,6 +125,20 @@ const TopBar = ({ onLogout, user }) => {
           </div>
         </div>
       </div>
+      
+      {/* User Profile Modal */}
+      <UserProfile 
+        user={user}
+        isOpen={showUserProfile}
+        onClose={() => setShowUserProfile(false)}
+      />
+      
+      {/* Settings Modal */}
+      <SettingsModal 
+        user={user}
+        isOpen={showSettings}
+        onClose={() => setShowSettings(false)}
+      />
     </div>
   );
 };
