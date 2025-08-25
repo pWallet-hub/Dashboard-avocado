@@ -20,8 +20,8 @@ function Login() {
       const email = username.trim().toLowerCase();
       const credentials = {
         'admin@avocado.rw': { role: 'admin', requirePassword: 'password123' },
-        'agent@avocado.rw': { role: 'agent', requirePassword: null },
-        'peter@avocado.rw': { role: 'farmer', requirePassword: null },
+        'agent@avocado.rw': { role: 'agent', requirePassword: 'password123rw' },
+        'peter@avocado.rw': { role: 'farmer', requirePassword: 'password123umurima' },
         'shopmanager@avocado.rw': { role: 'shop-manager', requirePassword: 'shop123' },
         'shop@avocado.rw': { role: 'shop-manager', requirePassword: null }
       };
@@ -39,16 +39,15 @@ function Login() {
         return;
       }
 
-      // Only enforce password if required for this account (admin and shopmanager@avocado.rw)
-      if (match.requirePassword && !password) {
+      // All accounts now require password
+      if (!password) {
         setMessage('Please enter your password');
         setLoading(false);
         return;
       }
 
-      if (match.requirePassword && password !== match.requirePassword) {
-        const accountType = match.role === 'admin' ? 'admin' : 'shop manager';
-        setMessage(`Incorrect password for ${accountType}`);
+      if (password !== match.requirePassword) {
+        setMessage(`Incorrect password for ${email}`);
         setLoading(false);
         return;
       }
@@ -91,10 +90,9 @@ function Login() {
             <h5 className="text-sm font-semibold text-white mb-2">Demo Credentials:</h5>
             <div className="text-xs text-green-100 space-y-1">
               <div>👤 <strong>Admin:</strong> admin@avocado.rw (password: password123)</div>
-              <div>🏢 <strong>Agent:</strong> agent@avocado.rw</div>
-              <div>🌾 <strong>Farmer:</strong> peter@avocado.rw</div>
+              <div>🏢 <strong>Agent:</strong> agent@avocado.rw (password: password123rw)</div>
+              <div>🌾 <strong>Farmer:</strong> peter@avocado.rw (password: password123umurima)</div>
               <div>🏪 <strong>Shop Manager:</strong> shopmanager@avocado.rw (password: shop123)</div>
-              <div>🛒 <strong>Shop Manager:</strong> shop@avocado.rw</div>
             </div>
           </div>
         </div>
@@ -111,7 +109,7 @@ function Login() {
             />
             <input
               type="password"
-              placeholder="Password (required for admin & shopmanager@avocado.rw)"
+              placeholder="Password (required for all accounts)"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               disabled={loading}
