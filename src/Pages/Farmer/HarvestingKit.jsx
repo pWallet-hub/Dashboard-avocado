@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, ShoppingCart, Star, CheckCircle, Scissors, Settings, Zap, Shield, Eye, Heart, Filter, Package, Wrench, Timer, X, Plus, Minus, Trash2, CreditCard, Smartphone, Banknote } from 'lucide-react';
+import { ArrowLeft, ShoppingCart, Star, CheckCircle, Scissors, Settings, Zap, Shield, Eye, Heart, Filter, Package, Timer, X, Plus, Minus, Trash2, Smartphone } from 'lucide-react';
 import CartService from '../../services/cartService';
 import MarketStorageService from '../../services/marketStorageService';
 
@@ -13,6 +13,7 @@ export default function ModernHarvestingKits() {
   const [addingToCart, setAddingToCart] = useState(null);
   const [justAdded, setJustAdded] = useState(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  // Only Mobile Money is allowed in Rwanda
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('Mobile Money');
   const [paymentProcessing, setPaymentProcessing] = useState(false);
   const [pendingOrder, setPendingOrder] = useState(null);
@@ -102,17 +103,16 @@ export default function ModernHarvestingKits() {
       MarketStorageService.initializeStorage();
 
       // Generate unique order ID
-      const orderId = `HK${Date.now()}`;
+      const orderId = `AK${Date.now()}`;
       const currentDate = new Date().toISOString().split('T')[0];
-      
-      // Create order object but don't save yet - wait for payment
+      // All order details are Rwandan
       const order = {
         id: orderId,
         orderNumber: orderId,
-        customerId: 'harvesting_customer',
-        customerName: 'Harvesting Kit Customer',
-        customerEmail: 'customer@harvestingkits.com',
-        customerPhone: '+250788123456',
+        customerId: 'avocado_customer',
+        customerName: 'Umuhinzi w’Avoka',
+        customerEmail: 'umuhinzi@avoka.rw',
+        customerPhone: '+2507xxxxxxx',
         deliveryAddress: 'Kigali, Rwanda',
         items: cartSummary.items.map(item => ({
           productId: item.id,
@@ -120,7 +120,7 @@ export default function ModernHarvestingKits() {
           price: item.price,
           quantity: item.quantity,
           total: item.price * item.quantity,
-          category: item.category || 'Equipment',
+          category: item.category || 'Ibikoresho by’Avoka',
           image: item.image
         })),
         subtotal: cartSummary.subtotal,
@@ -131,10 +131,10 @@ export default function ModernHarvestingKits() {
         orderDate: currentDate,
         deliveryDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         paymentMethod: '',
-        orderType: 'harvesting_kit',
-        sourceType: 'harvesting_kit',
-        source: 'Harvesting Kit Store',
-        notes: `Harvesting kit purchase - ${cartSummary.items.length} items`,
+        orderType: 'avocado_kit',
+        sourceType: 'avocado_kit',
+        source: 'Iduka ry’Ibikoresho by’Avoka',
+        notes: `Kugura ibikoresho byo gusarura avoka - ${cartSummary.items.length} ibikoresho`,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
@@ -194,13 +194,13 @@ export default function ModernHarvestingKits() {
 
       // Create customer record if it doesn't exist
       const existingCustomers = MarketStorageService.getShopCustomers();
-      const customerExists = existingCustomers.find(c => c.id === 'harvesting_customer');
+      const customerExists = existingCustomers.find(c => c.id === 'avocado_customer');
       
       if (!customerExists) {
         const customer = {
-          id: 'harvesting_customer',
-          name: 'Harvesting Kit Customer',
-          email: 'customer@harvestingkits.com',
+          id: 'avocado_customer',
+          name: 'Avocado Farmer',
+          email: 'farmer@avocadokits.rw',
           phone: '+250788123456',
           address: 'Kigali, Rwanda',
           totalOrders: 0,
@@ -220,11 +220,11 @@ export default function ModernHarvestingKits() {
         orderId: completedOrder.id,
         amount: completedOrder.totalAmount,
         type: 'sale',
-        category: 'harvesting_equipment',
+        category: 'avocado_equipment',
         date: completedOrder.orderDate,
-        description: 'Harvesting Kit Purchase',
+        description: 'Avocado Kit Purchase',
         items: completedOrder.items.length,
-        customer: 'Harvesting Kit Customer'
+        customer: 'Avocado Farmer'
       };
 
       const existingTransactions = MarketStorageService.getMarketTransactions();
@@ -258,7 +258,7 @@ export default function ModernHarvestingKits() {
       setPhoneNumber('');
       setPaymentStep('provider');
       
-      alert(`Payment successful!\n\nOrder ID: ${completedOrder.id}\nTotal: ${completedOrder.totalAmount.toLocaleString()} RWF\nPayment Method: ${completedOrder.paymentMethod}\nPhone: ${phoneNumber}\n\nYour order will appear in the Shop Manager system.`);
+  alert(`Kwishyura byagenze neza!\n\nNomero y’itegeko: ${completedOrder.id}\nIgiteranyo: ${completedOrder.totalAmount.toLocaleString()} RWF\nUburyo bwo kwishyura: ${completedOrder.paymentMethod}\nTelefoni: ${phoneNumber}\n\nItegeko ryawe rizagaragara muri sisitemu y’Iduka.`);
       
     } catch (error) {
       console.error('Payment failed:', error);
@@ -267,97 +267,167 @@ export default function ModernHarvestingKits() {
     }
   };
 
-  // Mock product data for harvesting kits
+  // Avocado tools for Rwanda - English, Rwandan context, new images
   const products = [
     {
       _id: '1',
-      name: 'Professional Fruit Harvester Pro',
-      price: '25,000',
-      originalPrice: '30,000',
-      image: 'https://images.unsplash.com/photo-1574323347407-f5e1ad6d020b?w=400&h=300&fit=crop',
+      name: 'Picking Pole',
+      price: '22,000',
+      originalPrice: '28,000',
+      image: '/src/assets/image/avoca.webp',
       rating: 4.9,
-      reviews: 187,
-      features: ['Extendable pole', 'Gentle fruit collection', 'Ergonomic design', 'Quick-release basket'],
-      description: 'Advanced fruit harvesting system with telescopic pole and precision collection basket for delicate fruits.',
-      category: 'fruit',
+      reviews: 210,
+      features: [
+        'Extendable aluminum or bamboo pole',
+        'Soft basket for gentle picking',
+        'Lightweight for hilly terrain',
+        'Non-slip handle for safety'
+      ],
+      description: 'Used by Rwandan farmers to pick avocados from tall trees, especially on hillsides. Prevents fruit bruising and increases harvest efficiency.',
+      category: 'picking',
       inStock: true,
-      discount: 17,
-      capacity: '50kg/hour'
+      discount: 21,
+      capacity: '100 avocados/hour'
     },
     {
       _id: '2',
-      name: 'Smart Grain Harvesting Kit',
-      price: '35,000',
-      originalPrice: '42,000',
-      image: 'https://images.unsplash.com/photo-1500937386664-56d1dfef3854?w=400&h=300&fit=crop',
+      name: 'Pruning Shears',
+      price: '15,000',
+      originalPrice: '18,000',
+      image: '/src/assets/image/product.jpg',
       rating: 4.8,
-      reviews: 203,
-      features: ['Precision cutting', 'Grain separation', 'Weather resistant', 'Modular design'],
-      description: 'Complete grain harvesting solution with cutting tools and separation system for optimal grain quality.',
-      category: 'grain',
+      reviews: 175,
+      features: [
+        'Stainless steel blades',
+        'Ergonomic, comfortable grip',
+        'Rust-resistant for Rwandan climate',
+        'Safety lock for transport'
+      ],
+      description: 'Essential for cutting branches and maintaining healthy avocado trees in Rwanda. Used before and after harvest to improve yield.',
+      category: 'pruning',
       inStock: true,
       discount: 17,
-      capacity: '200kg/hour'
+      capacity: '500 cuts/hour'
     },
     {
       _id: '3',
-      name: 'Vegetable Harvesting Toolkit',
-      price: '18,000',
-      originalPrice: '22,000',
-      image: 'https://images.unsplash.com/photo-1592417817098-8fd3d9eb14a5?w=400&h=300&fit=crop',
+      name: 'Collection Bag',
+      price: '10,000',
+      originalPrice: '13,000',
+      image: '/src/assets/image/nopic.jpg',
       rating: 4.7,
-      reviews: 156,
-      features: ['Multi-tool design', 'Sharp precision blades', 'Comfortable grip', 'Easy maintenance'],
-      description: 'Comprehensive vegetable harvesting kit with specialized tools for various crop types.',
-      category: 'vegetable',
+      reviews: 132,
+      features: [
+        'Breathable, strong fabric',
+        'Adjustable straps for comfort',
+        'Large capacity for many avocados',
+        'Durable for repeated use'
+      ],
+      description: 'Worn by Rwandan harvesters to collect avocados as they pick. Keeps fruit fresh and undamaged, even during long harvest days.',
+      category: 'collection',
       inStock: true,
-      discount: 18,
-      capacity: '75kg/hour'
+      discount: 23,
+      capacity: '20kg'
     },
     {
       _id: '4',
-      name: 'Premium Berry Picker Set',
-      price: '12,000',
-      originalPrice: '15,000',
-      image: 'https://images.unsplash.com/photo-1498429089284-41f8cf3ffd39?w=400&h=300&fit=crop',
+      name: 'Sorting Tray',
+      price: '8,000',
+      originalPrice: '10,000',
+      image: '/src/assets/image/slide1.jpg',
       rating: 4.6,
-      reviews: 94,
-      features: ['Gentle harvesting', 'Multiple basket sizes', 'Lightweight design', 'Quick collection'],
-      description: 'Specialized berry picking tools designed for efficient and gentle harvesting of small fruits.',
-      category: 'berry',
+      reviews: 98,
+      features: [
+        'Non-slip surface',
+        'Multiple compartments',
+        'Portable and easy to clean',
+        'Plastic or wood construction'
+      ],
+      description: 'Used after harvest in Rwanda to sort avocados by size and quality, especially for export or local markets.',
+      category: 'sorting',
       inStock: false,
       discount: 20,
-      capacity: '30kg/hour'
+      capacity: '50 avocados'
     },
     {
       _id: '5',
-      name: 'Electric Pruning Shears Kit',
-      price: '28,000',
-      originalPrice: '35,000',
-      image: 'https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=400&h=300&fit=crop',
-      rating: 4.8,
-      reviews: 142,
-      features: ['Rechargeable battery', 'Precision cutting', 'Safety lock', 'LED indicator'],
-      description: 'Professional electric pruning shears with long-lasting battery and precision cutting mechanism.',
-      category: 'tools',
+      name: 'Harvesting Gloves',
+      price: '5,000',
+      originalPrice: '7,000',
+      image: '/src/assets/image/muhinyuza.jpg',
+      rating: 4.7,
+      reviews: 80,
+      features: [
+        'Protects hands from scratches',
+        'Improves grip on tools and fruit',
+        'Durable and washable',
+        'Comfortable for long use'
+      ],
+      description: 'Commonly used by Rwandan farmers to protect hands and improve efficiency during avocado harvest.',
+      category: 'gloves',
       inStock: true,
-      discount: 20,
-      capacity: '8 hours runtime'
+      discount: 10,
+      capacity: 'One pair'
     },
     {
       _id: '6',
-      name: 'Automated Harvesting System',
-      price: '65,000',
-      originalPrice: '80,000',
-      image: 'https://images.unsplash.com/photo-1625246333195-78d9c38ad449?w=400&h=300&fit=crop',
-      rating: 4.9,
-      reviews: 89,
-      features: ['IoT enabled', 'GPS tracking', 'Autonomous operation', 'Data analytics'],
-      description: 'State-of-the-art automated harvesting system with AI-powered crop recognition and gentle handling.',
-      category: 'automated',
+      name: 'Ladder',
+      price: '25,000',
+      originalPrice: '30,000',
+      image: '/src/assets/image/slide2.jpg',
+      rating: 4.5,
+      reviews: 60,
+      features: [
+        'Wooden or aluminum',
+        'Stable for uneven ground',
+        'Lightweight for moving on hills',
+        'Essential for tall trees'
+      ],
+      description: 'Used by Rwandan farmers to reach higher branches, especially in hilly areas where trees grow tall.',
+      category: 'ladder',
       inStock: true,
-      discount: 19,
-      capacity: '500kg/hour'
+      discount: 17,
+      capacity: '1 ladder'
+    },
+    {
+      _id: '7',
+      name: 'Electric Pruner',
+      price: '30,000',
+      originalPrice: '36,000',
+      image: '/src/assets/image/slide3.jpg',
+      rating: 4.8,
+      reviews: 160,
+      features: [
+        'Rechargeable battery',
+        'Sharp cutting blades',
+        'Lightweight design',
+        'LED indicator'
+      ],
+      description: 'Used by larger Rwandan farms and cooperatives for fast, efficient pruning. Saves time and effort, especially for big orchards.',
+      category: 'pruning',
+      inStock: true,
+      discount: 17,
+      capacity: '6 hours runtime'
+    },
+    {
+      _id: '8',
+      name: 'Complete Harvesting Kit',
+      price: '60,000',
+      originalPrice: '75,000',
+      image: '/src/assets/image/pwallet-logo-new.png',
+      rating: 4.9,
+      reviews: 115,
+      features: [
+        'All essential tools included',
+        'Durable carry case',
+        'Perfect for Rwandan farmers',
+        'Saves money and time'
+      ],
+      description: 'A full set for Rwandan avocado farmers: picking pole, shears, gloves, bag, and more. Everything needed for a successful harvest.',
+      category: 'complete',
+      inStock: true,
+      discount: 20,
+      capacity: 'Full kit'
     }
   ];
 
@@ -408,7 +478,7 @@ export default function ModernHarvestingKits() {
                 <div className="flex h-full flex-col items-center justify-center text-center">
                   <ShoppingCart className="h-16 w-16 text-gray-300 mb-4" />
                   <h3 className="text-lg font-medium text-gray-900 mb-2">Your cart is empty</h3>
-                  <p className="text-gray-500">Add some harvesting kits to get started!</p>
+                  <p className="text-gray-500">Add some avocado harvesting tools to get started!</p>
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -639,38 +709,34 @@ export default function ModernHarvestingKits() {
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-green-50 to-yellow-50">
+  <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-green-100">
       {/* Header Section */}
-      <div className="bg-white shadow-sm border-b border-gray-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-center justify-between mb-4">
-            <button className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-all duration-200 group">
+      <div className="bg-white shadow-sm border-b border-green-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="flex items-center justify-between mb-6">
+            <button className="flex items-center space-x-2 text-green-900 hover:text-black transition-all duration-200 group">
               <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
-              <span className="font-medium">Back to Market</span>
+              <span className="font-semibold">Back to Market</span>
             </button>
-            
-            {/* Cart Icon */}
             <button 
               onClick={() => setIsCartOpen(true)}
-              className="relative flex items-center space-x-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-all duration-300 hover:scale-105 shadow-lg"
+              className="relative flex items-center space-x-2 bg-green-700 hover:bg-black text-white px-5 py-2 rounded-xl transition-all duration-300 hover:scale-105 shadow-xl font-semibold"
             >
               <ShoppingCart className="w-5 h-5" />
-              <span className="font-medium">Cart</span>
+              <span>Cart</span>
               {cartCount > 0 && (
-                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-6 w-6 flex items-center justify-center font-bold animate-pulse">
+                <span className="absolute -top-2 -right-2 bg-black text-white text-xs rounded-full h-6 w-6 flex items-center justify-center font-bold animate-pulse border-2 border-white">
                   {cartCount}
                 </span>
               )}
             </button>
           </div>
-          
           <div className="text-center">
-            <h1 className="text-4xl md:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-orange-600 via-green-800 to-yellow-600 mb-4 animate-fadeIn">
-              Harvesting Kits
+            <h1 className="text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-green-700 via-black to-green-400 mb-4 animate-fadeIn drop-shadow-lg">
+              Avocado Harvesting Kits
             </h1>
-            <p className="text-lg text-gray-600 max-w-3xl mx-auto leading-relaxed animate-slideUp">
-              Discover our premium collection of harvesting kits engineered for maximum efficiency and crop quality.
-              From precision fruit harvesters to automated systems, our tools ensure optimal harvest timing and minimal crop damage.
+            <p className="text-xl text-green-900 max-w-3xl mx-auto leading-relaxed animate-slideUp">
+              Discover the best avocado harvesting tools for Rwandan farmers. From picking poles to pruning shears, all designed for the needs of Rwanda’s growers.
             </p>
           </div>
         </div>
@@ -679,23 +745,23 @@ export default function ModernHarvestingKits() {
       {/* Stats Section */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-2xl p-6 text-center shadow-sm border border-gray-100 hover:shadow-lg transition-all duration-300 hover:-translate-y-1 animate-slideInLeft">
+    <div className="bg-white rounded-2xl p-6 text-center shadow-lg border border-green-200 hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 animate-slideInLeft">
             <div className="w-12 h-12 mx-auto mb-4 bg-orange-100 rounded-full flex items-center justify-center group-hover:animate-spin">
               <Scissors className="w-6 h-6 text-orange-600" />
             </div>
-            <h3 className="text-2xl font-bold text-gray-900">100+</h3>
-            <p className="text-gray-600">Precision Tools</p>
+            <h3 className="text-2xl font-bold text-gray-900">50+</h3>
+            <p className="text-gray-600">Avocado Tools</p>
           </div>
           
-          <div className="bg-white rounded-2xl p-6 text-center shadow-sm border border-gray-100 hover:shadow-lg transition-all duration-300 hover:-translate-y-1 animate-slideInLeft" style={{animationDelay: '0.1s'}}>
+    <div className="bg-white rounded-2xl p-6 text-center shadow-lg border border-green-200 hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 animate-slideInLeft" style={{animationDelay: '0.1s'}}>
             <div className="w-12 h-12 mx-auto mb-4 bg-green-100 rounded-full flex items-center justify-center">
               <Settings className="w-6 h-6" style={{color: '#1F310A'}} />
             </div>
             <h3 className="text-2xl font-bold text-gray-900">Easy</h3>
-            <p className="text-gray-600">Setup & Use</p>
+            <p className="text-gray-600">Setup for Farms</p>
           </div>
           
-          <div className="bg-white rounded-2xl p-6 text-center shadow-sm border border-gray-100 hover:shadow-lg transition-all duration-300 hover:-translate-y-1 animate-slideInLeft" style={{animationDelay: '0.2s'}}>
+    <div className="bg-white rounded-2xl p-6 text-center shadow-lg border border-green-200 hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 animate-slideInLeft" style={{animationDelay: '0.2s'}}>
             <div className="w-12 h-12 mx-auto mb-4 bg-yellow-100 rounded-full flex items-center justify-center">
               <Zap className="w-6 h-6 text-yellow-600" />
             </div>
@@ -703,21 +769,21 @@ export default function ModernHarvestingKits() {
             <p className="text-gray-600">Harvesting</p>
           </div>
           
-          <div className="bg-white rounded-2xl p-6 text-center shadow-sm border border-gray-100 hover:shadow-lg transition-all duration-300 hover:-translate-y-1 animate-slideInLeft" style={{animationDelay: '0.3s'}}>
+    <div className="bg-white rounded-2xl p-6 text-center shadow-lg border border-green-200 hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 animate-slideInLeft" style={{animationDelay: '0.3s'}}>
             <div className="w-12 h-12 mx-auto mb-4 bg-green-100 rounded-full flex items-center justify-center">
               <Shield className="w-6 h-6 text-green-600" />
             </div>
-            <h3 className="text-2xl font-bold text-gray-900">3 Year</h3>
+            <h3 className="text-2xl font-bold text-gray-900">2 Year</h3>
             <p className="text-gray-600">Warranty</p>
           </div>
         </div>
 
         {/* Filter Section */}
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 mb-8 animate-fadeIn">
+  <div className="bg-white rounded-2xl p-6 shadow-lg border border-green-200 mb-8 animate-fadeIn">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
             <div className="flex items-center space-x-2">
               <Filter className="w-5 h-5 text-gray-400" />
-              <h2 className="text-xl font-semibold text-gray-900">Available Harvesting Kits</h2>
+              <h2 className="text-xl font-semibold text-gray-900">Available Avocado Harvesting Kits</h2>
             </div>
             
             <div className="flex items-center space-x-4">
@@ -726,27 +792,26 @@ export default function ModernHarvestingKits() {
                 value={filterType}
                 onChange={(e) => setFilterType(e.target.value)}
               >
-                <option value="all">All Categories</option>
-                <option value="fruit">Fruit Harvesters</option>
-                <option value="grain">Grain Systems</option>
-                <option value="vegetable">Vegetable Tools</option>
-                <option value="berry">Berry Pickers</option>
-                <option value="tools">Power Tools</option>
-                <option value="automated">Automated Systems</option>
+                <option value="all">All Tools</option>
+                <option value="picking">Picking Poles</option>
+                <option value="pruning">Pruning Shears</option>
+                <option value="collection">Collection Bags</option>
+                <option value="sorting">Sorting Trays</option>
+                <option value="complete">Complete Kits</option>
               </select>
             </div>
           </div>
         </div>
 
         {/* Products Grid */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden animate-fadeIn">
+  <div className="bg-white rounded-2xl shadow-xl border border-green-200 overflow-hidden animate-fadeIn">
           <div className="p-8">
             {filteredProducts.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
                 {filteredProducts.map((product, index) => (
                   <div
                     key={product._id}
-                    className="group bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-2xl transition-all duration-500 border border-gray-100 hover:border-orange-200 transform hover:-translate-y-2 animate-slideInUp"
+                    className="group bg-gradient-to-br from-white via-green-50 to-green-100 rounded-3xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-500 border-2 border-green-200 hover:border-black transform hover:-translate-y-2 animate-slideInUp"
                     style={{
                       animationDelay: `${index * 0.1}s`
                     }}
@@ -755,13 +820,14 @@ export default function ModernHarvestingKits() {
                       <img
                         src={product.image}
                         alt={product.name}
-                        className="w-full h-48 object-cover group-hover:scale-110 transition-transform duration-500"
+                        className="w-full h-48 object-cover group-hover:scale-110 transition-transform duration-500 rounded-t-3xl border-b-4 border-green-200"
+                        style={{background: '#e5fbe5'}}
                       />
                       
                       <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                       
                       {product.discount && (
-                        <div className="absolute top-4 left-4 bg-gradient-to-r from-orange-500 to-yellow-500 text-white px-3 py-1 rounded-full text-sm font-semibold animate-pulse" style={{background: 'linear-gradient(to right, #ea580c, #1F310A)'}}>
+                        <div className="absolute top-4 left-4 bg-gradient-to-r from-green-700 to-black text-white px-3 py-1 rounded-full text-sm font-semibold animate-pulse shadow-lg">
                           {product.discount}% OFF
                         </div>
                       )}
@@ -806,75 +872,68 @@ export default function ModernHarvestingKits() {
                       </div>
                     </div>
                     
-                    <div className="p-4 bg-gradient-to-br from-gray-50 to-white">
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center space-x-2">
-                          <span className="text-xl font-bold" style={{color: '#1F310A'}}>{product.price} RWF</span>
+                    <div className="flex-1 flex flex-col justify-between p-3 bg-gradient-to-br from-white to-green-50 min-h-[120px]">
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-base font-bold text-green-800">{product.name}</span>
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${product.inStock ? 'bg-green-700 text-white' : 'bg-black text-white'}`}>{product.inStock ? 'In Stock' : 'Out of Stock'}</span>
+                        </div>
+                        <div className="flex items-center space-x-2 mb-1">
+                          <span className="text-base font-bold text-black">{product.price} RWF</span>
                           {product.originalPrice && (
-                            <span className="text-sm text-gray-400 line-through">{product.originalPrice} RWF</span>
+                            <span className="text-xs text-black/40 line-through">{product.originalPrice} RWF</span>
                           )}
                         </div>
-                        <div className={`px-3 py-1 rounded-full text-sm font-medium transition-all duration-200 ${
-                          product.inStock 
-                            ? 'bg-green-100 text-green-800 animate-pulse' 
-                            : 'bg-red-100 text-red-800'
-                        }`}>
-                          {product.inStock ? 'In Stock' : 'Out of Stock'}
+                        <div className="flex items-center space-x-2 mb-1">
+                          <CheckCircle className="w-4 h-4 text-green-700" />
+                          <span className="text-black text-xs">{product.features[0]}</span>
                         </div>
                       </div>
-                      
-                      <div className="space-y-2 mb-4">
-                        {product.features.slice(0, 3).map((feature, i) => (
-                          <div key={i} className="flex items-center space-x-2 opacity-0 animate-slideInLeft" style={{animationDelay: `${i * 0.1}s`, animationFillMode: 'forwards'}}>
-                            <CheckCircle className="w-4 h-4" style={{color: '#1F310A'}} />
-                            <span className="text-gray-700 text-sm">{feature}</span>
-                          </div>
-                        ))}
+                      <div className="flex items-center gap-2 mt-1">
+                        <button
+                          onClick={() => toggleLike(product._id)}
+                          className={`p-2 rounded-full border-2 transition-all duration-300 transform hover:scale-110 ${
+                            likedProducts.has(product._id)
+                              ? 'bg-green-700 text-white border-green-700 scale-110'
+                              : 'bg-white text-green-700 border-green-200 hover:bg-green-50'
+                          }`}
+                          title={likedProducts.has(product._id) ? 'Unlike' : 'Like'}
+                        >
+                          <Heart className="w-5 h-5" />
+                        </button>
+                        <button
+                          onClick={() => addToCart(product)}
+                          className={`flex-1 py-2 px-2 rounded-xl font-bold transition-all duration-300 shadow-lg hover:shadow-xl text-base ${
+                            justAdded === product._id
+                              ? 'bg-green-700 text-white'
+                              : addingToCart === product._id
+                              ? 'bg-black text-white'
+                              : product.inStock
+                              ? 'bg-gradient-to-r from-green-700 to-black text-white hover:from-black hover:to-green-700 hover:scale-105'
+                              : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                          }`}
+                          disabled={!product.inStock || addingToCart === product._id}
+                        >
+                          {addingToCart === product._id ? (
+                            <>
+                              <div className="w-4 h-4 inline mr-1 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                              Adding...
+                            </>
+                          ) : justAdded === product._id ? (
+                            <>
+                              <CheckCircle className="w-4 h-4 inline mr-1" />
+                              Added!
+                            </>
+                          ) : product.inStock ? (
+                            <>
+                              <ShoppingCart className="w-4 h-4 inline mr-1" />
+                              Add
+                            </>
+                          ) : (
+                            'Out of Stock'
+                          )}
+                        </button>
                       </div>
-                      
-                      <button
-                        onClick={() => toggleLike(product._id)}
-                        className={`p-2 rounded-full transition-all duration-300 transform hover:scale-110 ${
-                          likedProducts.has(product._id)
-                            ? 'bg-red-100 text-red-600 scale-110'
-                            : 'bg-white/80 text-gray-600 hover:bg-white'
-                        }`}
-                      >
-                        <Heart className="w-5 h-5" />
-                      </button>
-                      
-                      <button
-                        onClick={() => addToCart(product)}
-                        className={`w-full py-3 px-4 rounded-lg font-semibold transition-all duration-300 ${
-                          justAdded === product._id
-                            ? 'bg-green-600 text-white'
-                            : addingToCart === product._id
-                            ? 'bg-orange-400 text-white'
-                            : product.inStock
-                            ? 'bg-gradient-to-r from-orange-500 to-green-800 text-white hover:from-orange-600 hover:to-green-900 hover:scale-105 shadow-lg hover:shadow-xl'
-                            : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                        }`}
-                        disabled={!product.inStock || addingToCart === product._id}
-                      >
-                        {addingToCart === product._id ? (
-                          <>
-                            <div className="w-5 h-5 inline mr-2 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                            Adding...
-                          </>
-                        ) : justAdded === product._id ? (
-                          <>
-                            <CheckCircle className="w-5 h-5 inline mr-2" />
-                            Added to Cart!
-                          </>
-                        ) : product.inStock ? (
-                          <>
-                            <ShoppingCart className="w-5 h-5 inline mr-2" />
-                            Add to Cart
-                          </>
-                        ) : (
-                          'Out of Stock'
-                        )}
-                      </button>
                     </div>
                   </div>
                 ))}
@@ -884,7 +943,7 @@ export default function ModernHarvestingKits() {
                 <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
                   <Scissors className="w-8 h-8 text-gray-400" />
                 </div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">No harvesting kits found</h3>
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">No avocado harvesting kits found</h3>
                 <p className="text-gray-600">Try adjusting your filter criteria</p>
               </div>
             )}
@@ -989,22 +1048,6 @@ export default function ModernHarvestingKits() {
                         <div>
                           <div className="font-medium">Airtel Money</div>
                           <div className="text-sm text-gray-500">Pay with Airtel Money</div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Tigo Cash */}
-                    <div
-                      onClick={() => handleProviderSelect('Tigo')}
-                      className="p-4 border border-gray-200 rounded-lg cursor-pointer transition-all hover:border-blue-400 hover:bg-blue-50"
-                    >
-                      <div className="flex items-center space-x-3">
-                        <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center">
-                          <Smartphone className="w-6 h-6 text-white" />
-                        </div>
-                        <div>
-                          <div className="font-medium">Tigo Cash</div>
-                          <div className="text-sm text-gray-500">Pay with Tigo Cash</div>
                         </div>
                       </div>
                     </div>

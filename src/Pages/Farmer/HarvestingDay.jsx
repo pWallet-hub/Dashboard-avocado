@@ -78,7 +78,7 @@ export default function HarvestingDay() {
     if (!formData.workersNeeded) newErrors.workersNeeded = "Please specify how many workers you need";
     if (formData.equipmentDropdown === "Yes" && !formData.equipmentNeeded.length) newErrors.equipmentNeeded = "Please select equipment needed";
     if (!formData.equipmentDropdown) newErrors.equipmentDropdown = "Please specify if you need equipment";
-    if (!formData.transportationNeeded.trim()) newErrors.transportationNeeded = "Please specify transportation needs";
+    if (!formData.transportationNeeded.trim()) newErrors.transportationNeeded = "Please specify number of trees";
     if (!formData.harvestDateFrom) newErrors.harvestDateFrom = "Please select harvest start date";
     if (!formData.harvestDateTo) newErrors.harvestDateTo = "Please select harvest end date";
     
@@ -121,7 +121,7 @@ export default function HarvestingDay() {
         farmerLocation,
         workersNeeded: formData.workersNeeded,
         equipmentNeeded: formData.equipmentNeeded,
-        transportationNeeded: formData.transportationNeeded,
+        treesToHarvest: formData.transportationNeeded,
         harvestDateFrom: formData.harvestDateFrom,
         harvestDateTo: formData.harvestDateTo,
         harvestImages: formData.harvestImages.map(file => file.name)
@@ -158,7 +158,7 @@ export default function HarvestingDay() {
                 <strong>Harvest Period:</strong> {formData.harvestDateFrom} to {formData.harvestDateTo}<br />
                 <strong>Workers Needed:</strong> {formData.workersNeeded}<br />
                 <strong>Equipment Required:</strong> {formData.equipmentDropdown === "Yes" ? formData.equipmentNeeded.join(", ") : "No equipment needed"}<br />
-                <strong>Transportation Needed:</strong> {formData.transportationNeeded}<br />
+                <strong>Trees to Harvest:</strong> {formData.transportationNeeded}<br />
                 <strong>Images Uploaded:</strong> {formData.harvestImages.length}
               </p>
             </div>
@@ -270,11 +270,12 @@ export default function HarvestingDay() {
                   • How many trees to be harvested?
                 </label>
                 <input
-                  type="text"
+                  type="number"
                   value={formData.transportationNeeded}
                   onChange={(e) => handleInputChange("transportationNeeded", e.target.value)}
                   className={`input-field ${errors.transportationNeeded ? "input-error" : "input-normal"}`}
-                  placeholder="Describe transportation needs..."
+                  placeholder="Enter number of trees..."
+                  min="1"
                 />
                 {errors.transportationNeeded && (
                   <p className="error-text">{errors.transportationNeeded}</p>
@@ -327,7 +328,7 @@ export default function HarvestingDay() {
                   <input
                     type="file"
                     multiple
-                    accept="image"
+                    accept="image/*"
                     onChange={handleFileUpload}
                     className="file-input"
                     id="file-upload"

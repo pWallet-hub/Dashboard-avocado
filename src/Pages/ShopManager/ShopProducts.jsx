@@ -80,231 +80,231 @@ const ShopProducts = () => {
     }
   };
 
-  // Keep existing hardcoded products as fallback
+  // Updated hardcoded products for Rwanda avocado farming
   const [fallbackProducts] = useState([
     {
       id: 'PRD-001',
-      name: 'Organic Tomatoes',
-      category: 'Vegetables',
-      sku: 'ORG-TOM-001',
-      description: 'Premium grade vine-ripened organic tomatoes',
-      price: 15.00,
-      costPrice: 8.50,
-      stockQuantity: 125,
+      name: 'Hass Avocado (Large)',
+      category: 'Fruits',
+      sku: 'HASS-LRG-001',
+      description: 'Premium Hass avocados, ripe and ready for export, grown in Rwanda’s fertile highlands',
+      price: 2500,
+      costPrice: 1500,
+      stockQuantity: 120,
       minStockLevel: 20,
       maxStockLevel: 200,
       unit: 'kg',
       status: 'active',
       supplier: {
         id: 'SUP-001',
-        name: 'Green Valley Farm',
-        contact: 'John Smith',
-        phone: '+1-555-0101',
-        email: 'john@greenvalley.com'
+        name: 'Kigali Avocado Co-op',
+        contact: 'Jean-Pierre Nkurunziza',
+        phone: '+250788123456',
+        email: 'jp@kigaliavocado.rw'
       },
-      harvestSeason: 'Summer',
-      shelfLife: 7,
-      storageTemp: '10-15°C',
-      origin: 'California, USA',
+      harvestSeason: 'February-May',
+      shelfLife: 30,
+      storageTemp: '5-10°C',
+      origin: 'Northern Province, Rwanda',
       organic: true,
-      images: ['tomato1.jpg', 'tomato2.jpg'],
+      images: ['hass-avocado1.jpg', 'hass-avocado2.jpg'],
       nutritionFacts: {
-        calories: 18,
-        protein: 0.9,
-        carbs: 3.9,
-        fiber: 1.2,
-        vitamins: ['Vitamin C', 'Vitamin K', 'Folate']
+        calories: 160,
+        protein: 2.0,
+        carbs: 9.0,
+        fiber: 7.0,
+        vitamins: ['Vitamin K', 'Vitamin E', 'Folate']
       },
       sales: {
-        monthlyVolume: 450,
-        monthlyRevenue: 6750.00,
+        monthlyVolume: 400,
+        monthlyRevenue: 1000000,
         avgRating: 4.8,
-        totalReviews: 124
+        totalReviews: 150
       },
-      lastRestocked: '2024-08-20',
-      expiryDate: '2024-08-28',
-      createdDate: '2024-01-15',
-      updatedDate: '2024-08-20'
+      lastRestocked: '2025-08-20',
+      expiryDate: '2025-09-26',
+      createdDate: '2025-01-15',
+      updatedDate: '2025-08-20'
     },
     {
       id: 'PRD-002',
-      name: 'Free Range Eggs',
-      category: 'Dairy & Eggs',
-      sku: 'FR-EGG-001',
-      description: 'Large brown eggs from free-range hens',
-      price: 12.50,
-      costPrice: 7.00,
-      stockQuantity: 89,
+      name: 'Fuerte Avocado (Medium)',
+      category: 'Fruits',
+      sku: 'FUER-MED-001',
+      description: 'Fuerte avocados with smooth texture, ideal for local markets in Rwanda',
+      price: 2000,
+      costPrice: 1200,
+      stockQuantity: 85,
       minStockLevel: 30,
       maxStockLevel: 150,
-      unit: 'dozen',
+      unit: 'kg',
       status: 'active',
       supplier: {
         id: 'SUP-002',
-        name: 'Happy Hens Farm',
-        contact: 'Sarah Wilson',
-        phone: '+1-555-0202',
-        email: 'sarah@happyhens.com'
+        name: 'Musanze Farmers Union',
+        contact: 'Marie Mukamana',
+        phone: '+250788654321',
+        email: 'marie@musanze.rw'
       },
-      harvestSeason: 'Year-round',
-      shelfLife: 14,
-      storageTemp: '4-7°C',
-      origin: 'Oregon, USA',
+      harvestSeason: 'June-September',
+      shelfLife: 35,
+      storageTemp: '5-10°C',
+      origin: 'Musanze, Rwanda',
       organic: false,
-      images: ['eggs1.jpg'],
+      images: ['fuerte-avocado1.jpg'],
       nutritionFacts: {
-        calories: 155,
-        protein: 13,
-        carbs: 1.1,
-        fiber: 0,
-        vitamins: ['Vitamin D', 'Vitamin B12', 'Selenium']
+        calories: 160,
+        protein: 2.0,
+        carbs: 9.0,
+        fiber: 7.0,
+        vitamins: ['Vitamin K', 'Vitamin B5', 'Vitamin E']
       },
       sales: {
-        monthlyVolume: 280,
-        monthlyRevenue: 3500.00,
+        monthlyVolume: 300,
+        monthlyRevenue: 600000,
         avgRating: 4.6,
-        totalReviews: 89
+        totalReviews: 90
       },
-      lastRestocked: '2024-08-21',
-      expiryDate: '2024-09-03',
-      createdDate: '2024-02-01',
-      updatedDate: '2024-08-21'
+      lastRestocked: '2025-08-21',
+      expiryDate: '2025-09-25',
+      createdDate: '2025-02-01',
+      updatedDate: '2025-08-21'
     },
     {
       id: 'PRD-003',
-      name: 'Organic Spinach',
-      category: 'Vegetables',
-      sku: 'ORG-SPN-001',
-      description: 'Fresh baby spinach leaves, organically grown',
-      price: 6.50,
-      costPrice: 3.25,
-      stockQuantity: 15,
+      name: 'Organic Avocado Seedlings',
+      category: 'Planting Materials',
+      sku: 'ORG-AVO-SED-001',
+      description: 'Healthy Hass avocado seedlings for sustainable farming in Rwanda',
+      price: 1500,
+      costPrice: 800,
+      stockQuantity: 50,
       minStockLevel: 25,
       maxStockLevel: 100,
-      unit: 'bunches',
+      unit: 'pieces',
       status: 'low-stock',
       supplier: {
         id: 'SUP-003',
-        name: 'Green Leaf Organics',
-        contact: 'Mike Johnson',
-        phone: '+1-555-0303',
-        email: 'mike@greenleaf.com'
+        name: 'Rwanda Agro Nursery',
+        contact: 'Emmanuel Rwamucyo',
+        phone: '+250788987654',
+        email: 'emmanuel@rwandaagro.rw'
       },
-      harvestSeason: 'Spring/Fall',
-      shelfLife: 5,
-      storageTemp: '0-4°C',
-      origin: 'Washington, USA',
+      harvestSeason: 'N/A',
+      shelfLife: 90,
+      storageTemp: '15-20°C',
+      origin: 'Kigali, Rwanda',
       organic: true,
-      images: ['spinach1.jpg', 'spinach2.jpg'],
+      images: ['avocado-seedling1.jpg', 'avocado-seedling2.jpg'],
       nutritionFacts: {
-        calories: 23,
-        protein: 2.9,
-        carbs: 3.6,
-        fiber: 2.2,
-        vitamins: ['Vitamin K', 'Vitamin A', 'Iron']
+        calories: 0,
+        protein: 0,
+        carbs: 0,
+        fiber: 0,
+        vitamins: []
       },
       sales: {
-        monthlyVolume: 180,
-        monthlyRevenue: 1170.00,
+        monthlyVolume: 100,
+        monthlyRevenue: 150000,
         avgRating: 4.9,
-        totalReviews: 67
+        totalReviews: 70
       },
-      lastRestocked: '2024-08-19',
-      expiryDate: '2024-08-26',
-      createdDate: '2024-01-20',
-      updatedDate: '2024-08-19'
+      lastRestocked: '2025-08-19',
+      expiryDate: '2025-11-27',
+      createdDate: '2025-01-20',
+      updatedDate: '2025-08-19'
     },
     {
       id: 'PRD-004',
-      name: 'Mixed Herbs Pack',
-      category: 'Herbs',
-      sku: 'MIX-HRB-001',
-      description: 'Assorted fresh herbs: basil, oregano, thyme',
-      price: 8.50,
-      costPrice: 4.75,
+      name: 'Avocado Harvesting Nets',
+      category: 'Equipment',
+      sku: 'AVO-NET-001',
+      description: 'Durable nets for gentle avocado harvesting in Rwanda’s hilly regions',
+      price: 5000,
+      costPrice: 3000,
       stockQuantity: 0,
       minStockLevel: 15,
       maxStockLevel: 80,
-      unit: 'packages',
+      unit: 'units',
       status: 'out-of-stock',
       supplier: {
         id: 'SUP-004',
-        name: 'Herb Garden Specialists',
-        contact: 'Lisa Chen',
-        phone: '+1-555-0404',
-        email: 'lisa@herbgarden.com'
+        name: 'Huye Agro Supplies',
+        contact: 'Fatuma Uwimana',
+        phone: '+250788456789',
+        email: 'fatuma@huyeagro.rw'
       },
-      harvestSeason: 'Spring/Summer',
-      shelfLife: 4,
-      storageTemp: '2-6°C',
-      origin: 'California, USA',
-      organic: true,
-      images: ['herbs1.jpg'],
+      harvestSeason: 'N/A',
+      shelfLife: 365,
+      storageTemp: '10-25°C',
+      origin: 'Southern Province, Rwanda',
+      organic: false,
+      images: ['avocado-net1.jpg'],
       nutritionFacts: {
-        calories: 5,
-        protein: 0.3,
-        carbs: 1.1,
-        fiber: 0.4,
-        vitamins: ['Vitamin C', 'Vitamin A', 'Antioxidants']
+        calories: 0,
+        protein: 0,
+        carbs: 0,
+        fiber: 0,
+        vitamins: []
       },
       sales: {
-        monthlyVolume: 120,
-        monthlyRevenue: 1020.00,
+        monthlyVolume: 50,
+        monthlyRevenue: 250000,
         avgRating: 4.7,
         totalReviews: 45
       },
-      lastRestocked: '2024-08-15',
-      expiryDate: '2024-08-25',
-      createdDate: '2024-03-10',
-      updatedDate: '2024-08-15'
+      lastRestocked: '2025-08-15',
+      expiryDate: '2026-08-14',
+      createdDate: '2025-03-10',
+      updatedDate: '2025-08-15'
     },
     {
       id: 'PRD-005',
-      name: 'Cherry Tomatoes',
-      category: 'Vegetables',
-      sku: 'CHR-TOM-001',
-      description: 'Sweet cherry tomatoes, mixed variety pack',
-      price: 11.25,
-      costPrice: 6.50,
-      stockQuantity: 78,
+      name: 'Avocado Oil (Cold-Pressed)',
+      category: 'Processed Goods',
+      sku: 'AVO-OIL-001',
+      description: 'Pure cold-pressed avocado oil from Rwanda’s finest avocados',
+      price: 8000,
+      costPrice: 4500,
+      stockQuantity: 75,
       minStockLevel: 20,
       maxStockLevel: 120,
-      unit: 'pints',
+      unit: 'liters',
       status: 'active',
       supplier: {
         id: 'SUP-005',
-        name: 'Cherry Hill Farm',
-        contact: 'Tom Davis',
-        phone: '+1-555-0505',
-        email: 'tom@cherryhill.com'
+        name: 'Gisenyi Oil Processors',
+        contact: 'Joseph Niyonzima',
+        phone: '+250788321654',
+        email: 'joseph@gisenyioil.rw'
       },
-      harvestSeason: 'Summer',
-      shelfLife: 8,
-      storageTemp: '10-15°C',
-      origin: 'California, USA',
-      organic: false,
-      images: ['cherry-tomatoes1.jpg', 'cherry-tomatoes2.jpg'],
+      harvestSeason: 'N/A',
+      shelfLife: 180,
+      storageTemp: '10-20°C',
+      origin: 'Western Province, Rwanda',
+      organic: true,
+      images: ['avocado-oil1.jpg', 'avocado-oil2.jpg'],
       nutritionFacts: {
-        calories: 20,
-        protein: 1.0,
-        carbs: 4.3,
-        fiber: 1.3,
-        vitamins: ['Vitamin C', 'Vitamin K', 'Lycopene']
+        calories: 120,
+        protein: 0,
+        carbs: 0,
+        fiber: 0,
+        vitamins: ['Vitamin E', 'Omega-9']
       },
       sales: {
-        monthlyVolume: 200,
-        monthlyRevenue: 2250.00,
+        monthlyVolume: 60,
+        monthlyRevenue: 480000,
         avgRating: 4.5,
-        totalReviews: 72
+        totalReviews: 80
       },
-      lastRestocked: '2024-08-22',
-      expiryDate: '2024-08-26',
-      createdDate: '2024-01-25',
-      updatedDate: '2024-08-22'
+      lastRestocked: '2025-08-22',
+      expiryDate: '2026-02-18',
+      createdDate: '2025-01-25',
+      updatedDate: '2025-08-22'
     }
   ]);
 
-  const categories = ['Vegetables', 'Fruits', 'Herbs', 'Dairy & Eggs', 'Grains', 'Nuts & Seeds'];
+  const categories = ['Fruits', 'Planting Materials', 'Equipment', 'Processed Goods'];
 
   // Initialize form data for editing
   useEffect(() => {
@@ -386,8 +386,8 @@ const ShopProducts = () => {
       const newProduct = {
         ...formData,
         id: `PRD-${String(products.length + 1).padStart(3, '0')}`,
-        createdDate: new Date().toISOString().split('T')[0],
-        updatedDate: new Date().toISOString().split('T')[0],
+        createdDate: new Date('2025-08-27T13:29:00+02:00').toISOString().split('T')[0],
+        updatedDate: new Date('2025-08-27T13:29:00+02:00').toISOString().split('T')[0],
         sales: {
           monthlyVolume: 0,
           monthlyRevenue: 0,
@@ -406,7 +406,7 @@ const ShopProducts = () => {
     } else if (modalType === 'edit') {
       setProducts(products.map(p => 
         p.id === selectedProduct.id 
-          ? { ...formData, updatedDate: new Date().toISOString().split('T')[0] }
+          ? { ...formData, updatedDate: new Date('2025-08-27T13:29:00+02:00').toISOString().split('T')[0] }
           : p
       ));
       setSelectedProduct(formData);
@@ -501,6 +501,7 @@ const ShopProducts = () => {
                   value={formData.origin || ''}
                   onChange={(e) => setFormData({...formData, origin: e.target.value})}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500"
+                  placeholder="e.g., Northern Province, Rwanda"
                 />
               </div>
 
@@ -521,24 +522,24 @@ const ShopProducts = () => {
               
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Price *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Price (RWF) *</label>
                   <input
                     type="number"
-                    step="0.01"
+                    step="100"
                     required
                     value={formData.price || ''}
-                    onChange={(e) => setFormData({...formData, price: parseFloat(e.target.value)})}
+                    onChange={(e) => setFormData({...formData, price: parseInt(e.target.value)})}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Cost Price</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Cost Price (RWF)</label>
                   <input
                     type="number"
-                    step="0.01"
+                    step="100"
                     value={formData.costPrice || ''}
-                    onChange={(e) => setFormData({...formData, costPrice: parseFloat(e.target.value)})}
+                    onChange={(e) => setFormData({...formData, costPrice: parseInt(e.target.value)})}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500"
                   />
                 </div>
@@ -585,12 +586,9 @@ const ShopProducts = () => {
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500"
                   >
                     <option value="kg">kg</option>
-                    <option value="lbs">lbs</option>
-                    <option value="dozen">dozen</option>
-                    <option value="bunches">bunches</option>
-                    <option value="packages">packages</option>
-                    <option value="pints">pints</option>
                     <option value="pieces">pieces</option>
+                    <option value="units">units</option>
+                    <option value="liters">liters</option>
                   </select>
                 </div>
 
@@ -627,7 +625,7 @@ const ShopProducts = () => {
                     value={formData.storageTemp || ''}
                     onChange={(e) => setFormData({...formData, storageTemp: e.target.value})}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500"
-                    placeholder="e.g., 4-7°C"
+                    placeholder="e.g., 5-10°C"
                   />
                 </div>
               </div>
@@ -639,7 +637,7 @@ const ShopProducts = () => {
                   value={formData.harvestSeason || ''}
                   onChange={(e) => setFormData({...formData, harvestSeason: e.target.value})}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500"
-                  placeholder="e.g., Spring, Summer, Year-round"
+                  placeholder="e.g., February-May, Year-round"
                 />
               </div>
             </div>
@@ -732,7 +730,7 @@ const ShopProducts = () => {
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6">
           <h2 className="text-2xl font-bold text-gray-800 flex items-center mb-4 lg:mb-0">
             <Package2 className="h-7 w-7 mr-3 text-green-600" />
-            Product Management
+            Avocado Product Management
           </h2>
           <div className="flex flex-wrap gap-2">
             <button 
@@ -762,7 +760,7 @@ const ShopProducts = () => {
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
             <input
               type="text"
-              placeholder="Search products..."
+              placeholder="Search avocado products..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
@@ -832,7 +830,7 @@ const ShopProducts = () => {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Product</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Stock</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Price</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Price (RWF)</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Performance</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
@@ -896,8 +894,8 @@ const ShopProducts = () => {
                   </td>
                   <td className="px-6 py-4">
                     <div>
-                      <div className="text-sm font-medium text-gray-900">${(product.price || 0).toFixed(2)}</div>
-                      <div className="text-xs text-gray-500">Cost: ${(product.costPrice || 0).toFixed(2)}</div>
+                      <div className="text-sm font-medium text-gray-900">{product.price.toLocaleString()} RWF</div>
+                      <div className="text-xs text-gray-500">Cost: {product.costPrice.toLocaleString()} RWF</div>
                       <div className="text-xs text-green-600 font-medium">
                         Margin: {product.price && product.costPrice ? (((product.price - product.costPrice) / product.price) * 100).toFixed(1) : '0.0'}%
                       </div>
@@ -917,7 +915,7 @@ const ShopProducts = () => {
                   <td className="px-6 py-4">
                     <div className="space-y-1">
                       <div className="text-sm font-medium text-gray-900">
-                        ${(product.sales?.monthlyRevenue || 0).toFixed(0)}
+                        {product.sales?.monthlyRevenue.toLocaleString()} RWF
                       </div>
                       <div className="text-xs text-gray-500">
                         {product.sales?.monthlyVolume || 0} {product.unit}/month
@@ -974,12 +972,12 @@ const ShopProducts = () => {
           <div className="bg-green-50 p-4 rounded-lg">
             <div className="text-green-600 text-sm font-medium">Total Products</div>
             <div className="text-2xl font-bold text-green-900">{filteredProducts.length}</div>
-            <div className="text-xs text-gray-500 mt-1">Active inventory items</div>
+            <div className="text-xs text-gray-500 mt-1">Active avocado items</div>
           </div>
           <div className="bg-blue-50 p-4 rounded-lg">
             <div className="text-blue-600 text-sm font-medium">Total Value</div>
             <div className="text-2xl font-bold text-blue-900">
-              ${filteredProducts.reduce((sum, product) => sum + (product.price * product.stockQuantity), 0).toFixed(0)}
+              {filteredProducts.reduce((sum, product) => sum + (product.price * product.stockQuantity), 0).toLocaleString()} RWF
             </div>
             <div className="text-xs text-gray-500 mt-1">Current inventory value</div>
           </div>
@@ -993,7 +991,7 @@ const ShopProducts = () => {
           <div className="bg-purple-50 p-4 rounded-lg">
             <div className="text-purple-600 text-sm font-medium">Monthly Revenue</div>
             <div className="text-2xl font-bold text-purple-900">
-              ${filteredProducts.reduce((sum, product) => sum + (product.sales?.monthlyRevenue || 0), 0).toFixed(0)}
+              {filteredProducts.reduce((sum, product) => sum + (product.sales?.monthlyRevenue || 0), 0).toLocaleString()} RWF
             </div>
             <div className="text-xs text-gray-500 mt-1">From selected products</div>
           </div>
@@ -1107,79 +1105,84 @@ const ShopProducts = () => {
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="bg-green-50 p-4 rounded-lg">
-                  <label className="text-sm font-medium text-green-600">Selling Price</label>
-                  <p className="text-2xl font-bold text-green-900">${(selectedProduct.price || 0).toFixed(2)}</p>
-                  <p className="text-xs text-gray-500">per {selectedProduct.unit}</p>
+                                   <div className="text-green-600 text-sm font-medium">Selling Price</div>
+                  <div className="text-2xl font-bold text-green-900">{selectedProduct.price.toLocaleString()} RWF</div>
+                  <div className="text-xs text-gray-500 mt-1">Per {selectedProduct.unit}</div>
                 </div>
                 <div className="bg-blue-50 p-4 rounded-lg">
-                  <label className="text-sm font-medium text-blue-600">Cost Price</label>
-                  <p className="text-2xl font-bold text-blue-900">${(selectedProduct.costPrice || 0).toFixed(2)}</p>
-                  <p className="text-xs text-gray-500">per {selectedProduct.unit}</p>
+                  <div className="text-blue-600 text-sm font-medium">Cost Price</div>
+                  <div className="text-2xl font-bold text-blue-900">{selectedProduct.costPrice.toLocaleString()} RWF</div>
+                  <div className="text-xs text-gray-500 mt-1">Per {selectedProduct.unit}</div>
                 </div>
-                <div className="bg-purple-50 p-4 rounded-lg">
-                  <label className="text-sm font-medium text-purple-600">Profit Margin</label>
-                  <p className="text-2xl font-bold text-purple-900">
-                    {selectedProduct.price && selectedProduct.costPrice ? (((selectedProduct.price - selectedProduct.costPrice) / selectedProduct.price) * 100).toFixed(1) : '0.0'}%
-                  </p>
-                  <p className="text-xs text-gray-500">${selectedProduct.price && selectedProduct.costPrice ? (selectedProduct.price - selectedProduct.costPrice).toFixed(2) : '0.00'} profit</p>
+                <div className="bg-yellow-50 p-4 rounded-lg">
+                  <div className="text-yellow-600 text-sm font-medium">Margin</div>
+                  <div className="text-2xl font-bold text-yellow-900">
+                    {selectedProduct.price && selectedProduct.costPrice 
+                      ? ((selectedProduct.price - selectedProduct.costPrice) / selectedProduct.price * 100).toFixed(1) 
+                      : '0.0'}%
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">Profit Margin</div>
                 </div>
               </div>
-
-              <div className="mt-6">
-                <label className="text-sm font-medium text-gray-600 mb-2 block">Stock Levels</label>
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-sm text-gray-600">Current Stock</span>
-                    <span className="text-lg font-bold text-gray-900">{selectedProduct.stockQuantity} {selectedProduct.unit}</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-3">
-                    <div 
-                      className={`h-3 rounded-full ${
-                        selectedProduct.stockQuantity <= selectedProduct.minStockLevel 
-                          ? 'bg-red-500' 
-                          : selectedProduct.stockQuantity <= selectedProduct.minStockLevel * 1.5 
-                            ? 'bg-yellow-500' 
-                            : 'bg-green-500'
-                      }`}
-                      style={{ 
-                        width: `${Math.min((selectedProduct.stockQuantity / selectedProduct.maxStockLevel) * 100, 100)}%` 
-                      }}
-                    ></div>
-                  </div>
-                  <div className="flex justify-between text-xs text-gray-500 mt-2">
-                    <span>Min: {selectedProduct.minStockLevel}</span>
-                    <span>Max: {selectedProduct.maxStockLevel}</span>
-                  </div>
+              <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="text-sm font-medium text-gray-600">Stock Quantity</label>
+                  <p className="text-gray-900 font-medium">{selectedProduct.stockQuantity} {selectedProduct.unit}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-600">Status</label>
+                  <p className={`text-gray-900 font-medium ${getStatusColor(selectedProduct.status)} px-2 py-1 rounded-full inline-flex items-center`}>
+                    {getStatusIcon(selectedProduct.status)}
+                    <span className="ml-1 capitalize">{selectedProduct.status.replace('-', ' ')}</span>
+                  </p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-600">Min Stock Level</label>
+                  <p className="text-gray-900">{selectedProduct.minStockLevel} {selectedProduct.unit}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-600">Max Stock Level</label>
+                  <p className="text-gray-900">{selectedProduct.maxStockLevel} {selectedProduct.unit}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-600">Shelf Life</label>
+                  <p className="text-gray-900">{selectedProduct.shelfLife} days</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-600">Storage Temp</label>
+                  <p className="text-gray-900">{selectedProduct.storageTemp}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-600">Harvest Season</label>
+                  <p className="text-gray-900">{selectedProduct.harvestSeason || 'N/A'}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-600">Expiry Date</label>
+                  <p className="text-gray-900">{selectedProduct.expiryDate}</p>
                 </div>
               </div>
             </div>
 
-            {/* Storage & Handling */}
+            {/* Sales & Performance */}
             <div className="bg-white rounded-lg shadow-md p-6">
               <h3 className="text-lg font-semibold mb-4 flex items-center">
-                <Thermometer className="h-5 w-5 mr-2 text-green-600" />
-                Storage & Handling
+                <TrendingUp className="h-5 w-5 mr-2 text-green-600" />
+                Sales & Performance
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="text-sm font-medium text-gray-600">Storage Temperature</label>
-                  <p className="text-gray-900 flex items-center">
-                    <Thermometer className="h-4 w-4 mr-1 text-blue-500" />
-                    {selectedProduct.storageTemp}
-                  </p>
+                  <label className="text-sm font-medium text-gray-600">Monthly Volume</label>
+                  <p className="text-gray-900 font-medium">{selectedProduct.sales?.monthlyVolume || 0} {selectedProduct.unit}</p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-600">Shelf Life</label>
-                  <p className="text-gray-900 flex items-center">
-                    <Clock className="h-4 w-4 mr-1 text-orange-500" />
-                    {selectedProduct.shelfLife} days
-                  </p>
+                  <label className="text-sm font-medium text-gray-600">Monthly Revenue</label>
+                  <p className="text-gray-900 font-medium">{(selectedProduct.sales?.monthlyRevenue || 0).toLocaleString()} RWF</p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-600">Harvest Season</label>
-                  <p className="text-gray-900 flex items-center">
-                    <Calendar className="h-4 w-4 mr-1 text-green-500" />
-                    {selectedProduct.harvestSeason}
+                  <label className="text-sm font-medium text-gray-600">Average Rating</label>
+                  <p className="text-gray-900 font-medium flex items-center">
+                    <Star className="h-4 w-4 text-yellow-400 fill-current mr-1" />
+                    {selectedProduct.sales?.avgRating || 'N/A'} ({selectedProduct.sales?.totalReviews || 0} reviews)
                   </p>
                 </div>
                 <div>
@@ -1188,82 +1191,23 @@ const ShopProducts = () => {
                 </div>
               </div>
             </div>
-
-            {/* Nutrition Facts */}
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <h3 className="text-lg font-semibold mb-4 flex items-center">
-                <Activity className="h-5 w-5 mr-2 text-green-600" />
-                Nutrition Facts
-              </h3>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="text-center">
-                  <p className="text-2xl font-bold text-orange-600">{selectedProduct.nutritionFacts.calories}</p>
-                  <p className="text-xs text-gray-500">Calories</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-2xl font-bold text-blue-600">{selectedProduct.nutritionFacts.protein}g</p>
-                  <p className="text-xs text-gray-500">Protein</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-2xl font-bold text-green-600">{selectedProduct.nutritionFacts.carbs}g</p>
-                  <p className="text-xs text-gray-500">Carbs</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-2xl font-bold text-purple-600">{selectedProduct.nutritionFacts.fiber}g</p>
-                  <p className="text-xs text-gray-500">Fiber</p>
-                </div>
-              </div>
-              <div className="mt-4">
-                <label className="text-sm font-medium text-gray-600">Key Vitamins & Minerals</label>
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {selectedProduct.nutritionFacts.vitamins.map((vitamin, index) => (
-                    <span key={index} className="px-3 py-1 bg-green-100 text-green-800 text-sm rounded-full">
-                      {vitamin}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </div>
           </div>
 
-          {/* Sidebar */}
-          <div className="space-y-6">
-            {/* Quick Actions */}
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <h3 className="text-lg font-semibold mb-4">Quick Actions</h3>
-              <div className="space-y-3">
-                <button className="w-full bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center justify-center">
-                  <Truck className="h-4 w-4 mr-2" />
-                  Reorder Stock
-                </button>
-                <button className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center justify-center">
-                  <Edit className="h-4 w-4 mr-2" />
-                  Update Pricing
-                </button>
-                <button className="w-full bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg flex items-center justify-center">
-                  <BarChart3 className="h-4 w-4 mr-2" />
-                  View Analytics
-                </button>
-                <button className="w-full bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg flex items-center justify-center">
-                  <Calendar className="h-4 w-4 mr-2" />
-                  Schedule Delivery
-                </button>
-              </div>
-            </div>
-
-            {/* Supplier Information */}
+          {/* Sidebar - Supplier & Nutrition */}
+          <div className="lg:col-span-1 space-y-6">
+            {/* Supplier Info */}
             <div className="bg-white rounded-lg shadow-md p-6">
               <h3 className="text-lg font-semibold mb-4 flex items-center">
                 <Users className="h-5 w-5 mr-2 text-green-600" />
-                Supplier Details
+                Supplier Information
               </h3>
-              <div className="space-y-3">
+              <div className="space-y-2">
                 <div>
-                  <label className="text-sm font-medium text-gray-600">Supplier Name</label>
-                  <p className="text-gray-900 font-medium">{selectedProduct.supplier?.name || 'N/A'}</p>
+                  <label className="text-sm font-medium text-gray-600">Name</label>
+                  <p className="text-gray-900">{selectedProduct.supplier?.name || 'N/A'}</p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-600">Contact Person</label>
+                  <label className="text-sm font-medium text-gray-600">Contact</label>
                   <p className="text-gray-900">{selectedProduct.supplier?.contact || 'N/A'}</p>
                 </div>
                 <div>
@@ -1280,62 +1224,35 @@ const ShopProducts = () => {
                     {selectedProduct.supplier?.email || 'N/A'}
                   </p>
                 </div>
-                <div className="pt-2 border-t">
-                  <button className="w-full bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg text-sm">
-                    Contact Supplier
-                  </button>
-                </div>
               </div>
             </div>
 
-            {/* Sales Performance */}
+            {/* Nutrition Facts */}
             <div className="bg-white rounded-lg shadow-md p-6">
               <h3 className="text-lg font-semibold mb-4 flex items-center">
-                <TrendingUp className="h-5 w-5 mr-2 text-green-600" />
-                Sales Performance
+                <Activity className="h-5 w-5 mr-2 text-green-600" />
+                Nutrition Facts
               </h3>
-              <div className="space-y-4">
-                <div className="bg-green-50 p-3 rounded-lg">
-                  <label className="text-sm font-medium text-green-600">Monthly Revenue</label>
-                  <p className="text-xl font-bold text-green-900">${(selectedProduct.sales?.monthlyRevenue || 0).toFixed(0)}</p>
+              <div className="space-y-2">
+                <div>
+                  <label className="text-sm font-medium text-gray-600">Calories</label>
+                  <p className="text-gray-900">{selectedProduct.nutritionFacts?.calories || 0} kcal</p>
                 </div>
-                <div className="bg-blue-50 p-3 rounded-lg">
-                  <label className="text-sm font-medium text-blue-600">Monthly Volume</label>
-                  <p className="text-xl font-bold text-blue-900">{selectedProduct.sales?.monthlyVolume || 0} {selectedProduct.unit}</p>
+                <div>
+                  <label className="text-sm font-medium text-gray-600">Protein</label>
+                  <p className="text-gray-900">{selectedProduct.nutritionFacts?.protein || 0} g</p>
                 </div>
-                <div className="bg-yellow-50 p-3 rounded-lg">
-                  <label className="text-sm font-medium text-yellow-600">Customer Rating</label>
-                  <div className="flex items-center">
-                    <Star className="h-5 w-5 text-yellow-400 fill-current mr-1" />
-                    <p className="text-xl font-bold text-yellow-900">{selectedProduct.sales?.avgRating || 'N/A'}</p>
-                    <span className="text-sm text-gray-500 ml-2">({selectedProduct.sales?.totalReviews || 0})</span>
-                  </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-600">Carbs</label>
+                  <p className="text-gray-900">{selectedProduct.nutritionFacts?.carbs || 0} g</p>
                 </div>
-              </div>
-            </div>
-
-            {/* Important Dates */}
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <h3 className="text-lg font-semibold mb-4 flex items-center">
-                <Calendar className="h-5 w-5 mr-2 text-green-600" />
-                Important Dates
-              </h3>
-              <div className="space-y-3">
-                <div className="flex justify-between">
-                  <span className="text-sm text-gray-600">Created</span>
-                  <span className="text-sm font-medium">{selectedProduct.createdDate}</span>
+                <div>
+                  <label className="text-sm font-medium text-gray-600">Fiber</label>
+                  <p className="text-gray-900">{selectedProduct.nutritionFacts?.fiber || 0} g</p>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-gray-600">Last Updated</span>
-                  <span className="text-sm font-medium">{selectedProduct.updatedDate}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-gray-600">Last Restocked</span>
-                  <span className="text-sm font-medium">{selectedProduct.lastRestocked}</span>
-                </div>
-                <div className="flex justify-between border-t pt-2">
-                  <span className="text-sm text-red-600">Expires</span>
-                  <span className="text-sm font-medium text-red-600">{selectedProduct.expiryDate}</span>
+                <div>
+                  <label className="text-sm font-medium text-gray-600">Vitamins</label>
+                  <p className="text-gray-900">{(selectedProduct.nutritionFacts?.vitamins || []).join(', ') || 'N/A'}</p>
                 </div>
               </div>
             </div>
@@ -1346,10 +1263,15 @@ const ShopProducts = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      {activeView === 'list' && <ProductListView />}
-      {activeView === 'detail' && <ProductDetailView />}
-      {showModal && <ProductModal />}
+    <div className="p-6">
+      {loading ? (
+        <div className="text-center py-10">Loading...</div>
+      ) : (
+        <>
+          {activeView === 'list' ? <ProductListView /> : <ProductDetailView />}
+          {showModal && <ProductModal />}
+        </>
+      )}
     </div>
   );
 };

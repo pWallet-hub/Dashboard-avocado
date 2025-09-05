@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { Bell, User, Settings, LogOut, Search, ChevronDown, Camera } from 'lucide-react';
-import asr from '../../assets/image/LOGO_-_Avocado_Society_of_Rwanda.png';
+import asr from '../../assets/image/pwallet-logo-new.png';
 import UserProfile from '../Profile/UserProfile';
 import SettingsModal from '../Settings/SettingsModal';
 import './TopBar.css';
