@@ -19,7 +19,7 @@ import {
   Truck,
   Store
 } from 'lucide-react';
-import asr from '../../assets/image/LOGO_-_Avocado_Society_of_Rwanda.png';
+import asr from '../../assets/image/pwallet-logo-new.png';
 import './Sidebar.css';
 
 const Sidebar = ({ role }) => {
