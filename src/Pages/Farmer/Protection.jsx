@@ -92,7 +92,7 @@ function CartSidebar({ isCartOpen, setIsCartOpen, cartItems, cartCount, updateCa
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
                           </svg>
                         </button>
-                        <span className="w-8 text-center text-sm fontoraus-medium">{item.quantity}</span>
+                        <span className="w-8 text-center text-sm font-medium">{item.quantity}</span>
                         <button onClick={() => updateCartQuantity(item.id, item.quantity + 1)} className="rounded-full p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600">
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -161,7 +161,7 @@ function PaymentModal({ isOpen, onClose, pendingOrder, handlePaymentComplete, pa
         <div className="bg-white rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto shadow-2xl border-2 border-green-700">
           <div className="bg-gradient-to-r from-green-700 to-black text-white p-6 rounded-t-2xl flex justify-between items-center">
             <h2 className="text-2xl font-extrabold tracking-tight">Complete Payment</h2>
-            <button onClick={onClose} className="text-white hover:text-green-200">
+            <button onClose={onClose} className="text-white hover:text-green-200">
               <X className="w-6 h-6" />
             </button>
           </div>
@@ -332,127 +332,127 @@ export default function SafetyProtectionEquipment() {
   const [justAdded, setJustAdded] = useState(null);
   const [addingToCart, setAddingToCart] = useState(null);
 
-  // Updated product data for Rwandan avocado farming
+  // Updated products from Excel "Safety & Protection Kit" category with stock images
   const products = [
     {
       _id: '1',
-      name: 'Avocado Farmer Safety Helmet',
-      price: 15000,
-      originalPrice: 18000,
-      image: '/images/safety_helmet.jpg',
-      rating: 4.9,
-      reviews: 234,
-      features: ['Impact resistant for tree falls', 'UV protection for Rwanda’s sun', 'Adjustable fit', 'Ventilation for comfort'],
-      description: 'Durable helmet designed for avocado farmers, protecting against falling branches during pruning.',
-      category: 'head',
-      inStock: true,
-      discount: 17,
-      capacity: 'CE certified'
-    },
-    {
-      _id: '2',
-      name: 'Pesticide Handling Gloves',
-      price: 8500,
-      originalPrice: 10000,
-      image: '/images/work_gloves.jpg',
+      name: 'Boots',
+      price: 25000,
+      originalPrice: 30000,
+      image: 'https://www.workmasterboots.com/application/files/thumbnails/image_and_text3/8715/9612/1959/Farmlite_Agriculture_Boots_Lower.jpg',
       rating: 4.8,
-      reviews: 189,
-      features: ['Chemical resistant', 'Enhanced grip for tools', 'Breathable fabric', 'Durable for farm use'],
-      description: 'Gloves for safe pesticide application and handling tools during avocado farming tasks.',
-      category: 'hands',
-      inStock: true,
-      discount: 15,
-      capacity: 'Level 5 protection'
-    },
-    {
-      _id: '3',
-      name: 'Anti-Dust Safety Goggles',
-      price: 12000,
-      originalPrice: 15000,
-      image: '/images/safety_goggles.jpg',
-      rating: 4.7,
-      reviews: 156,
-      features: ['Anti-dust for harvesting', 'UV protection', 'Adjustable strap', 'Scratch resistant'],
-      description: 'Goggles to protect eyes from dust and debris during avocado harvesting in Rwanda.',
-      category: 'eyes',
-      inStock: true,
-      discount: 20,
-      capacity: 'UV400 protection'
-    },
-    {
-      _id: '4',
-      name: 'Pesticide Respiratory Mask',
-      price: 22000,
-      originalPrice: 26000,
-      image: '/images/respiratory_mask.jpg',
-      rating: 4.6,
-      reviews: 142,
-      features: ['N95 filtration for pesticides', 'Comfortable fit', 'Reusable filters', 'Lightweight'],
-      description: 'Respiratory mask for safe pesticide spraying in avocado orchards.',
-      category: 'respiratory',
-      inStock: false,
-      discount: 15,
-      capacity: 'N95 standard'
-    },
-    {
-      _id: '5',
-      name: 'High-Visibility Farming Vest',
-      price: 6500,
-      originalPrice: 8000,
-      image: '/images/safety_vest.jpg',
-      rating: 4.8,
-      reviews: 198,
-      features: ['Reflective strips for visibility', 'Breathable mesh', 'Pockets for tools', 'Adjustable size'],
-      description: 'Vest for safe movement in busy Rwandan markets or farms during avocado harvest.',
-      category: 'clothing',
-      inStock: true,
-      discount: 19,
-      capacity: 'Class 2 visibility'
-    },
-    {
-      _id: '6',
-      name: 'Steel Toe Farming Boots',
-      price: 35000,
-      originalPrice: 42000,
-      image: '/images/safety_boots.jpg',
-      rating: 4.9,
-      reviews: 167,
-      features: ['Steel toe for heavy tools', 'Slip resistant', 'Waterproof for wet fields', 'Puncture resistant'],
-      description: 'Boots designed for avocado farmers, protecting feet during pruning and harvesting.',
+      reviews: 150,
+      features: [
+        'Protection from mud and sharp objects',
+        'Chemical spill resistance',
+        'Durable for orchard work',
+        'Comfortable for long hours'
+      ],
+      description: 'Protect feet from mud, sharp objects, and chemical spills while working in the orchard.',
       category: 'feet',
       inStock: true,
       discount: 17,
-      capacity: 'ASTM certified'
+      capacity: 'Heavy-duty protection'
     },
     {
-      _id: '7',
-      name: 'Farm First Aid Kit',
-      price: 18000,
-      originalPrice: 22000,
-      image: '/images/first_aid_kit.jpg',
+      _id: '2',
+      name: 'Cape / Overalls',
+      price: 22000,
+      originalPrice: 26000,
+      image: 'https://tse2.mm.bing.net/th/id/OIP.WizHn3kiW7BjO0LS9JWyzQHaHa?pid=Api&P=0&h=220',
       rating: 4.7,
-      reviews: 203,
-      features: ['Supplies for cuts and bruises', 'Portable case', 'Emergency guide', 'Organized compartments'],
-      description: 'Essential first aid kit for avocado farm injuries, tailored for rural Rwanda.',
-      category: 'medical',
+      reviews: 120,
+      features: [
+        'Full-body protection from dirt',
+        'Scratch and chemical exposure resistance',
+        'Comfortable for farm activities',
+        'Durable material'
+      ],
+      description: 'Provides full-body protection from dirt, scratches, and chemical exposure. Keeps workers comfortable during farm activities.',
+      category: 'clothing',
       inStock: true,
-      discount: 18,
-      capacity: '50+ items'
+      discount: 15,
+      capacity: 'Full-body coverage'
     },
     {
-      _id: '8',
-      name: 'Farm Emergency Alert System',
-      price: 45000,
-      originalPrice: 55000,
-      image: '/images/emergency_system.jpg',
-      rating: 4.8,
-      reviews: 89,
-      features: ['LED warning lights', 'Loud siren for farms', 'Battery backup', 'Weather resistant'],
-      description: 'Emergency system for avocado farms, ensuring safety during cooperative work.',
-      category: 'emergency',
+      _id: '3',
+      name: 'Protective Hat',
+      price: 10000,
+      originalPrice: 12000,
+      image: 'https://tse1.mm.bing.net/th/id/OIP._ag1eDJVKljH8wwoIKxSAQHaHa?pid=Api&P=0&h=220',
+      rating: 4.6,
+      reviews: 100,
+      features: [
+        'Sun exposure shielding',
+        'Heat protection',
+        'Comfort for long working hours',
+        'Lightweight design'
+      ],
+      description: 'Shields workers from sun exposure and heat, ensuring comfort during long working hours.',
+      category: 'head',
       inStock: true,
-      discount: 18,
-      capacity: '120dB siren'
+      discount: 17,
+      capacity: 'UV protection'
+    },
+    {
+      _id: '4',
+      name: 'Protective Gloves',
+      price: 8500,
+      originalPrice: 10000,
+      image: 'https://tse3.mm.bing.net/th/id/OIP.c0nQsPidHUbAcBb5UK7FjAHaHa?pid=Api&P=0&h=220',
+      rating: 4.8,
+      reviews: 140,
+      features: [
+        'Hand safeguarding for tools and chemicals',
+        'Injury risk reduction',
+        'Flexible for fruit handling',
+        'Chemical resistant'
+      ],
+      description: 'Safeguards hands when handling pruning tools, chemicals, or fruits, reducing risk of injury.',
+      category: 'hands',
+      inStock: true,
+      discount: 15,
+      capacity: 'Chemical resistant'
+    },
+    {
+      _id: '5',
+      name: 'Protective Mask',
+      price: 12000,
+      originalPrice: 15000,
+      image: 'https://www.thisisitoriginal.com/cdn/shop/products/front_6_3f4ea60c-426e-4a40-bdec-9484cc4608cc_compact.jpg?v=1590276666',
+      rating: 4.7,
+      reviews: 130,
+      features: [
+        'Protection against chemical inhalation',
+        'Suitable for spraying activities',
+        'Comfortable fit',
+        'Reusable'
+      ],
+      description: 'Provides protection against chemical inhalation during spraying activities.',
+      category: 'respiratory',
+      inStock: true,
+      discount: 20,
+      capacity: 'Chemical inhalation protection'
+    },
+    {
+      _id: '6',
+      name: 'General Protective Clothing (for Certifications)',
+      price: 25000,
+      originalPrice: 30000,
+      image: 'https://tse4.mm.bing.net/th/id/OIP.AD_g0rD-5ntOwbrMkcV3UQHaHa?pid=Api&P=0&h=220',
+      rating: 4.9,
+      reviews: 160,
+      features: [
+        'Required for Global GAP and SMETA certification',
+        'Ensures safe and professional task performance',
+        'Full coverage',
+        'Durable for orchard work'
+      ],
+      description: 'Required for Global GAP and SMETA certification to ensure orchard workers perform tasks safely and professionally.',
+      category: 'clothing',
+      inStock: true,
+      discount: 17,
+      capacity: 'Certification compliant'
     }
   ];
 
@@ -657,8 +657,8 @@ export default function SafetyProtectionEquipment() {
       {/* Header Section */}
       <div className="bg-green-900 text-white py-4 px-6 flex items-center justify-between shadow-md">
         <div className="flex items-center space-x-3">
-          <img src="/images/avocado_society_logo.png" alt="Avocado Society of Rwanda" className="h-10 w-10 rounded-full bg-white p-1" />
-          <span className="text-2xl font-bold tracking-tight">Safety Equipment Shop</span>
+          <img src="https://i.ytimg.com/vi/WOUTalhYKvg/maxresdefault.jpg" alt="Avocado Society of Rwanda" className="h-10 w-10 rounded-full bg-white p-1" />
+          <span className="text-2xl font-bold tracking-tight">Safety & Protection Kit Shop</span>
         </div>
         <button onClick={() => setIsCartOpen(true)} className="relative flex items-center space-x-2 rounded-lg bg-green-700 px-4 py-2 text-white font-semibold shadow hover:bg-green-800 transition-all">
           <ShoppingCart className="w-5 h-5" />
@@ -707,7 +707,7 @@ export default function SafetyProtectionEquipment() {
           <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
             <div className="flex items-center space-x-2">
               <Filter className="w-5 h-5 text-gray-400" />
-              <h2 className="text-xl font-semibold text-gray-900">Safety Equipment Categories</h2>
+              <h2 className="text-xl font-semibold text-gray-900">Safety & Protection Kit Categories</h2>
             </div>
             <div className="flex items-center space-x-4">
               <select
@@ -716,14 +716,11 @@ export default function SafetyProtectionEquipment() {
                 onChange={(e) => setFilterType(e.target.value)}
               >
                 <option value="all">All Categories</option>
+                <option value="feet">Feet Protection</option>
+                <option value="clothing">Body Protection</option>
                 <option value="head">Head Protection</option>
                 <option value="hands">Hand Protection</option>
-                <option value="eyes">Eye Protection</option>
-                <option value="respiratory">Pesticide Masks</option>
-                <option value="clothing">Safety Vests</option>
-                <option value="feet">Foot Protection</option>
-                <option value="medical">First Aid Kits</option>
-                <option value="emergency">Emergency Systems</option>
+                <option value="respiratory">Respiratory Protection</option>
               </select>
             </div>
           </div>

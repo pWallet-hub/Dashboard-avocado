@@ -151,54 +151,27 @@ export default function IrrigationKits() {
   const [justAdded, setJustAdded] = useState(null);
   const [addingToCart, setAddingToCart] = useState(null);
 
+  // Updated products array with Irrigation Kit item from Excel
   const products = [
     {
       id: 1,
-      name: 'Drip Irrigation Kit (100m²)',
-      description: 'Complete drip irrigation kit for small avocado farms. Includes pipes, emitters, connectors, and filter.',
-      price: 95000,
-      originalPrice: 110000,
-      image: '/images/irrigationkit1.jpg',
-      capacity: 'Covers 100m²',
+      name: 'Powered Sprayers',
+      description: 'Necessary for avocado orchard spraying activities. Protects workers from chemicals while improving efficiency in tall trees.',
+      price: 150000,
+      originalPrice: 180000,
+      image: 'https://m.media-amazon.com/images/I/71aHYmq3UFL._AC_SL1500_.jpg',
+      capacity: 'Covers up to 500m²',
       inStock: true,
-      features: ['Water-efficient drip system'],
-    },
-    {
-      id: 2,
-      name: 'Sprinkler Irrigation Kit (200m²)',
-      description: 'Efficient sprinkler system for medium avocado plots. Includes sprinklers, pipes, and connectors.',
-      price: 180000,
-      originalPrice: 200000,
-      image: '/images/irrigationkit2.jpg',
-      capacity: 'Covers 200m²',
-      inStock: true,
-      features: ['Wide coverage for avocado plots'],
-    },
-    {
-      id: 3,
-      name: 'Manual Irrigation Set',
-      description: 'Affordable manual irrigation set with hose, watering can, and basic fittings.',
-      price: 25000,
-      originalPrice: 30000,
-      image: '/images/irrigationkit3.jpg',
-      capacity: 'For small gardens',
-      inStock: false,
-      features: ['Ideal for small-scale farmers'],
-    },
-    {
-      id: 4,
-      name: 'Solar-Powered Pump Kit',
-      description: 'Solar pump with panel and accessories for sustainable irrigation.',
-      price: 350000,
-      originalPrice: 400000,
-      image: '/images/irrigationkit4.jpg',
-      capacity: 'Up to 500m²',
-      inStock: true,
-      features: ['Solar-powered for sustainability'],
-    },
+      features: [
+        'High-pressure spray for tall trees',
+        'Chemical-resistant materials',
+        'Ergonomic design for safe use',
+        'Battery-powered for efficiency'
+      ],
+    }
   ];
 
-  const filteredProducts = filterType === 'all' ? products : products.filter((product) => product.name.toLowerCase().includes(filterType.toLowerCase()));
+  const filteredProducts = filterType === 'all' ? products : products.filter((product) => product.name.toLowerCase().includes('sprayer'));
 
   const addToCart = (product) => {
     setAddingToCart(product.id);
@@ -287,7 +260,7 @@ export default function IrrigationKits() {
       {/* Top Bar */}
       <div className="bg-green-900 text-white py-4 px-6 flex items-center justify-between shadow-md">
         <div className="flex items-center space-x-3">
-          <img src="/images/avocado_society_logo.png" alt="Avocado Society of Rwanda" className="h-10 w-10 rounded-full bg-white p-1" />
+          <img src="https://tse4.mm.bing.net/th/id/OIP.8vQaasiWymVqRsYoaQ25WwAAAA?pid=Api&P=0&h=220" alt="Avocado Society of Rwanda" className="h-10 w-10 rounded-full bg-white p-1" />
           <span className="text-2xl font-bold tracking-tight">Irrigation Kits Shop</span>
         </div>
         <button onClick={() => setIsCartOpen(true)} className="relative flex items-center space-x-2 rounded-lg bg-green-700 px-4 py-2 text-white font-semibold shadow hover:bg-green-800 transition-all">
@@ -320,8 +293,8 @@ export default function IrrigationKits() {
             <div className="w-12 h-12 mx-auto mb-4 bg-green-100 rounded-full flex items-center justify-center">
               <Zap className="w-6 h-6 text-green-600" />
             </div>
-            <h3 className="text-2xl font-bold text-gray-900">Solar</h3>
-            <p className="text-gray-600">Sustainable Irrigation</p>
+            <h3 className="text-2xl font-bold text-gray-900">Efficient</h3>
+            <p className="text-gray-600">Spraying for Avocados</p>
           </div>
           <div className="bg-white rounded-2xl p-6 text-center shadow-lg border border-green-200 hover:shadow-2xl transition-all duration-300 hover:-translate-y-1">
             <div className="w-12 h-12 mx-auto mb-4 bg-green-100 rounded-full flex items-center justify-center">
@@ -346,10 +319,7 @@ export default function IrrigationKits() {
                 onChange={(e) => setFilterType(e.target.value)}
               >
                 <option value="all">All Categories</option>
-                <option value="drip">Drip Irrigation</option>
-                <option value="sprinkler">Sprinkler Systems</option>
-                <option value="manual">Manual Irrigation</option>
-                <option value="solar">Solar-Powered Kits</option>
+                <option value="sprayer">Powered Sprayers</option>
               </select>
             </div>
           </div>
