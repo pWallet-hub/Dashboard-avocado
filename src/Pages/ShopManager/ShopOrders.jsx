@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { ShoppingCart, Search, Filter, Eye, Edit, CheckCircle, Leaf } from 'lucide-react';
-import MarketStorageService from '../../services/marketStorageService';
+import { initializeStorage, getOrders, updateOrder } from '../../services/marketStorageService';
 
 const ShopOrders = () => {
   const [orders, setOrders] = useState([]);
@@ -13,14 +13,14 @@ const ShopOrders = () => {
   const [editOrder, setEditOrder] = useState(null);
 
   useEffect(() => {
-    MarketStorageService.initializeStorage();
+    initializeStorage();
     loadOrders();
   }, []);
 
   const loadOrders = () => {
     setLoading(true);
     try {
-      const ordersData = MarketStorageService.getOrders();
+      const ordersData = getOrders();
       setOrders(ordersData);
     } catch (error) {
       console.error('Error loading orders:', error);
@@ -50,7 +50,7 @@ const ShopOrders = () => {
   const handleEditOrder = () => {
     if (!editOrder?.status) return;
     try {
-      MarketStorageService.updateOrder(editOrder.id, { ...editOrder });
+      updateOrder(editOrder.id, { ...editOrder });
       loadOrders();
       setShowEditModal(false);
       setEditOrder(null);

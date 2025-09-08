@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ClipboardList, Clock, CheckCircle, XCircle, Eye, Calendar, User, MapPin, Bell } from 'lucide-react';
 import DashboardHeader from '../../components/Header/DashboardHeader';
+import { getServiceRequestsForFarmer } from '../../services/serviceRequestsService';
 
 export default function MyServiceRequests() {
   const [requests, setRequests] = useState([]);
@@ -10,19 +11,34 @@ export default function MyServiceRequests() {
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterType, setFilterType] = useState('all');
   const [showNotifications, setShowNotifications] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     loadRequests();
     loadNotifications();
   }, []);
 
-  const loadRequests = () => {
-    const savedRequests = localStorage.getItem('farmerServiceRequests');
-    if (savedRequests) {
-      const allRequests = JSON.parse(savedRequests);
-      // Assuming farmerId for filtering, default to 'farmer1' for demo
-      const farmerRequests = allRequests.filter(request => request.farmerId === 'farmer1');
-      setRequests(farmerRequests);
+  const loadRequests = async () => {
+    setLoading(true);
+    try {
+      // Get farmer ID from localStorage (in a real app, this would come from auth context)
+      const user = JSON.parse(localStorage.getItem('user'));
+      const farmerId = user?.id || 'farmer1'; // Fallback to 'farmer1' for demo
+      
+      const response = await getServiceRequestsForFarmer(farmerId);
+      setRequests(response.data || []);
+    } catch (error) {
+      console.error('Error loading service requests:', error);
+      // Fallback to localStorage if API fails
+      const savedRequests = localStorage.getItem('farmerServiceRequests');
+      if (savedRequests) {
+        const allRequests = JSON.parse(savedRequests);
+        // Assuming farmerId for filtering, default to 'farmer1' for demo
+        const farmerRequests = allRequests.filter(request => request.farmerId === 'farmer1');
+        setRequests(farmerRequests);
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -170,6 +186,16 @@ export default function MyServiceRequests() {
                 <option value="Property Evaluation">Property Evaluation</option>
               </select>
             </div>
+            
+            <div className="flex items-end">
+              <button
+                onClick={loadRequests}
+                disabled={loading}
+                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-50"
+              >
+                {loading ? 'Loading...' : 'Refresh'}
+              </button>
+            </div>
           </div>
         </div>
 
@@ -181,7 +207,12 @@ export default function MyServiceRequests() {
             </h3>
           </div>
           
-          {filteredRequests.length === 0 ? (
+          {loading ? (
+            <div className="px-6 py-12 text-center">
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-green-500 mb-4"></div>
+              <p className="text-gray-600">Loading your service requests...</p>
+            </div>
+          ) : filteredRequests.length === 0 ? (
             <div className="px-6 py-12 text-center">
               <ClipboardList className="mx-auto h-12 w-12 text-gray-400" />
               <h3 className="mt-2 text-sm font-medium text-gray-900">No requests found</h3>

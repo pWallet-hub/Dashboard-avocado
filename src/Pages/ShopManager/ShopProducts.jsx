@@ -31,7 +31,7 @@ import {
   Phone,
   Mail
 } from 'lucide-react';
-import MarketStorageService from '../../services/marketStorageService';
+import { listProducts, createProduct, updateProduct, deleteProduct } from '../../services/productsService';
 
 const ShopProducts = () => {
   const [activeView, setActiveView] = useState('list');
@@ -47,32 +47,14 @@ const ShopProducts = () => {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    MarketStorageService.initializeStorage();
     loadProducts();
   }, []);
 
-  const loadProducts = () => {
+  const loadProducts = async () => {
     setLoading(true);
     try {
-      const farmerProducts = MarketStorageService.getFarmerProducts();
-      const inventoryData = MarketStorageService.getShopInventory();
-      
-      // Ensure unique IDs by prefixing with source type
-      const uniqueFarmerProducts = farmerProducts.map(product => ({
-        ...product,
-        id: `farmer-${product.id}`,
-        source: 'farmer'
-      }));
-      
-      const uniqueInventoryData = inventoryData.map(product => ({
-        ...product,
-        id: `inventory-${product.id}`,
-        source: 'inventory'
-      }));
-      
-      // Combine farmer products and inventory data with unique IDs
-      const allProducts = [...uniqueFarmerProducts, ...uniqueInventoryData];
-      setProducts(allProducts);
+      const response = await listProducts();
+      setProducts(response.data || []);
     } catch (error) {
       console.error('Error loading products:', error);
     } finally {
@@ -380,46 +362,73 @@ const ShopProducts = () => {
     }
   };
 
-  const handleFormSubmit = (e) => {
+  const handleFormSubmit = async (e) => {
     e.preventDefault();
-    if (modalType === 'add') {
-      const newProduct = {
-        ...formData,
-        id: `PRD-${String(products.length + 1).padStart(3, '0')}`,
-        createdDate: new Date('2025-08-27T13:29:00+02:00').toISOString().split('T')[0],
-        updatedDate: new Date('2025-08-27T13:29:00+02:00').toISOString().split('T')[0],
-        sales: {
-          monthlyVolume: 0,
-          monthlyRevenue: 0,
-          avgRating: 0,
-          totalReviews: 0
-        },
-        nutritionFacts: {
-          calories: 0,
-          protein: 0,
-          carbs: 0,
-          fiber: 0,
-          vitamins: []
-        }
-      };
-      setProducts([...products, newProduct]);
-    } else if (modalType === 'edit') {
-      setProducts(products.map(p => 
-        p.id === selectedProduct.id 
-          ? { ...formData, updatedDate: new Date('2025-08-27T13:29:00+02:00').toISOString().split('T')[0] }
-          : p
-      ));
-      setSelectedProduct(formData);
+    try {
+      if (modalType === 'add') {
+        const response = await createProduct(formData);
+        setProducts([...products, response.data]);
+      } else if (modalType === 'edit') {
+        const response = await updateProduct(selectedProduct.id, formData);
+        setProducts(products.map(p => 
+          p.id === selectedProduct.id ? response.data : p
+        ));
+        setSelectedProduct(response.data);
+      }
+      setShowModal(false);
+    } catch (error) {
+      console.error('Error saving product:', error);
+      // Fallback to local state if API fails
+      if (modalType === 'add') {
+        const newProduct = {
+          ...formData,
+          id: `PRD-${String(products.length + 1).padStart(3, '0')}`,
+          createdDate: new Date('2025-08-27T13:29:00+02:00').toISOString().split('T')[0],
+          updatedDate: new Date('2025-08-27T13:29:00+02:00').toISOString().split('T')[0],
+          sales: {
+            monthlyVolume: 0,
+            monthlyRevenue: 0,
+            avgRating: 0,
+            totalReviews: 0
+          },
+          nutritionFacts: {
+            calories: 0,
+            protein: 0,
+            carbs: 0,
+            fiber: 0,
+            vitamins: []
+          }
+        };
+        setProducts([...products, newProduct]);
+      } else if (modalType === 'edit') {
+        setProducts(products.map(p => 
+          p.id === selectedProduct.id 
+            ? { ...formData, updatedDate: new Date('2025-08-27T13:29:00+02:00').toISOString().split('T')[0] }
+            : p
+        ));
+        setSelectedProduct(formData);
+      }
+      setShowModal(false);
     }
-    setShowModal(false);
   };
 
-  const handleDelete = (productId) => {
+  const handleDelete = async (productId) => {
     if (window.confirm('Are you sure you want to delete this product?')) {
-      setProducts(products.filter(p => p.id !== productId));
-      if (selectedProduct && selectedProduct.id === productId) {
-        setActiveView('list');
-        setSelectedProduct(null);
+      try {
+        await deleteProduct(productId);
+        setProducts(products.filter(p => p.id !== productId));
+        if (selectedProduct && selectedProduct.id === productId) {
+          setActiveView('list');
+          setSelectedProduct(null);
+        }
+      } catch (error) {
+        console.error('Error deleting product:', error);
+        // Fallback to local state if API fails
+        setProducts(products.filter(p => p.id !== productId));
+        if (selectedProduct && selectedProduct.id === productId) {
+          setActiveView('list');
+          setSelectedProduct(null);
+        }
       }
     }
   };
@@ -1000,278 +1009,10 @@ const ShopProducts = () => {
     </div>
   );
 
-  const ProductDetailView = () => {
-    if (!selectedProduct) return null;
-
-    return (
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <div className="flex justify-between items-center mb-4">
-            <div className="flex items-center">
-              <button 
-                onClick={() => setActiveView('list')}
-                className="mr-4 text-gray-600 hover:text-gray-800"
-              >
-                ← Back to Products
-              </button>
-              <h2 className="text-2xl font-bold text-gray-800">{selectedProduct.name}</h2>
-            </div>
-            <div className="flex space-x-2">
-              <button 
-                onClick={() => {
-                  setModalType('edit');
-                  setShowModal(true);
-                }}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center"
-              >
-                <Edit className="h-4 w-4 mr-2" />
-                Edit Product
-              </button>
-              <button className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center">
-                <ShoppingCart className="h-4 w-4 mr-2" />
-                Add to Order
-              </button>
-              <button className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg flex items-center">
-                <Download className="h-4 w-4 mr-2" />
-                Export
-              </button>
-            </div>
-          </div>
-
-          {/* Status and Key Info */}
-          <div className="flex flex-wrap gap-4 mb-6">
-            <span className={`px-4 py-2 text-sm font-semibold rounded-full border ${getStatusColor(selectedProduct.status)}`}>
-              {getStatusIcon(selectedProduct.status)}
-              <span className="ml-2 capitalize">{selectedProduct.status.replace('-', ' ')}</span>
-            </span>
-            <span className="px-4 py-2 text-sm font-semibold rounded-full bg-blue-100 text-blue-800">
-              SKU: {selectedProduct.sku}
-            </span>
-            {selectedProduct.organic && (
-              <span className="px-4 py-2 text-sm font-semibold rounded-full bg-green-100 text-green-800 flex items-center">
-                <Leaf className="h-4 w-4 mr-1" />
-                Organic Certified
-              </span>
-            )}
-            <div className="flex items-center px-4 py-2 bg-yellow-50 rounded-full">
-              <Star className="h-4 w-4 text-yellow-400 fill-current mr-1" />
-              <span className="text-sm font-medium">{selectedProduct.sales?.avgRating || 'N/A'} ({selectedProduct.sales?.totalReviews || 0} reviews)</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Main Content */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Basic Information */}
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <h3 className="text-lg font-semibold mb-4 flex items-center">
-                <Package2 className="h-5 w-5 mr-2 text-green-600" />
-                Product Information
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium text-gray-600">Product Name</label>
-                  <p className="text-gray-900 font-medium">{selectedProduct.name}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-600">Category</label>
-                  <p className="text-gray-900">{selectedProduct.category}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-600">SKU</label>
-                  <p className="text-gray-900">{selectedProduct.sku}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-600">Origin</label>
-                  <p className="text-gray-900 flex items-center">
-                    <MapPin className="h-4 w-4 mr-1 text-gray-500" />
-                    {selectedProduct.origin}
-                  </p>
-                </div>
-                <div className="md:col-span-2">
-                  <label className="text-sm font-medium text-gray-600">Description</label>
-                  <p className="text-gray-900">{selectedProduct.description}</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Pricing & Stock */}
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <h3 className="text-lg font-semibold mb-4 flex items-center">
-                <DollarSign className="h-5 w-5 mr-2 text-green-600" />
-                Pricing & Inventory
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-green-50 p-4 rounded-lg">
-                                   <div className="text-green-600 text-sm font-medium">Selling Price</div>
-                  <div className="text-2xl font-bold text-green-900">{selectedProduct.price.toLocaleString()} RWF</div>
-                  <div className="text-xs text-gray-500 mt-1">Per {selectedProduct.unit}</div>
-                </div>
-                <div className="bg-blue-50 p-4 rounded-lg">
-                  <div className="text-blue-600 text-sm font-medium">Cost Price</div>
-                  <div className="text-2xl font-bold text-blue-900">{selectedProduct.costPrice.toLocaleString()} RWF</div>
-                  <div className="text-xs text-gray-500 mt-1">Per {selectedProduct.unit}</div>
-                </div>
-                <div className="bg-yellow-50 p-4 rounded-lg">
-                  <div className="text-yellow-600 text-sm font-medium">Margin</div>
-                  <div className="text-2xl font-bold text-yellow-900">
-                    {selectedProduct.price && selectedProduct.costPrice 
-                      ? ((selectedProduct.price - selectedProduct.costPrice) / selectedProduct.price * 100).toFixed(1) 
-                      : '0.0'}%
-                  </div>
-                  <div className="text-xs text-gray-500 mt-1">Profit Margin</div>
-                </div>
-              </div>
-              <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="text-sm font-medium text-gray-600">Stock Quantity</label>
-                  <p className="text-gray-900 font-medium">{selectedProduct.stockQuantity} {selectedProduct.unit}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-600">Status</label>
-                  <p className={`text-gray-900 font-medium ${getStatusColor(selectedProduct.status)} px-2 py-1 rounded-full inline-flex items-center`}>
-                    {getStatusIcon(selectedProduct.status)}
-                    <span className="ml-1 capitalize">{selectedProduct.status.replace('-', ' ')}</span>
-                  </p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-600">Min Stock Level</label>
-                  <p className="text-gray-900">{selectedProduct.minStockLevel} {selectedProduct.unit}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-600">Max Stock Level</label>
-                  <p className="text-gray-900">{selectedProduct.maxStockLevel} {selectedProduct.unit}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-600">Shelf Life</label>
-                  <p className="text-gray-900">{selectedProduct.shelfLife} days</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-600">Storage Temp</label>
-                  <p className="text-gray-900">{selectedProduct.storageTemp}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-600">Harvest Season</label>
-                  <p className="text-gray-900">{selectedProduct.harvestSeason || 'N/A'}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-600">Expiry Date</label>
-                  <p className="text-gray-900">{selectedProduct.expiryDate}</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Sales & Performance */}
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <h3 className="text-lg font-semibold mb-4 flex items-center">
-                <TrendingUp className="h-5 w-5 mr-2 text-green-600" />
-                Sales & Performance
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="text-sm font-medium text-gray-600">Monthly Volume</label>
-                  <p className="text-gray-900 font-medium">{selectedProduct.sales?.monthlyVolume || 0} {selectedProduct.unit}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-600">Monthly Revenue</label>
-                  <p className="text-gray-900 font-medium">{(selectedProduct.sales?.monthlyRevenue || 0).toLocaleString()} RWF</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-600">Average Rating</label>
-                  <p className="text-gray-900 font-medium flex items-center">
-                    <Star className="h-4 w-4 text-yellow-400 fill-current mr-1" />
-                    {selectedProduct.sales?.avgRating || 'N/A'} ({selectedProduct.sales?.totalReviews || 0} reviews)
-                  </p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-600">Last Restocked</label>
-                  <p className="text-gray-900">{selectedProduct.lastRestocked}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Sidebar - Supplier & Nutrition */}
-          <div className="lg:col-span-1 space-y-6">
-            {/* Supplier Info */}
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <h3 className="text-lg font-semibold mb-4 flex items-center">
-                <Users className="h-5 w-5 mr-2 text-green-600" />
-                Supplier Information
-              </h3>
-              <div className="space-y-2">
-                <div>
-                  <label className="text-sm font-medium text-gray-600">Name</label>
-                  <p className="text-gray-900">{selectedProduct.supplier?.name || 'N/A'}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-600">Contact</label>
-                  <p className="text-gray-900">{selectedProduct.supplier?.contact || 'N/A'}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-600">Phone</label>
-                  <p className="text-gray-900 flex items-center">
-                    <Phone className="h-4 w-4 mr-1 text-gray-500" />
-                    {selectedProduct.supplier?.phone || 'N/A'}
-                  </p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-600">Email</label>
-                  <p className="text-gray-900 flex items-center">
-                    <Mail className="h-4 w-4 mr-1 text-gray-500" />
-                    {selectedProduct.supplier?.email || 'N/A'}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Nutrition Facts */}
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <h3 className="text-lg font-semibold mb-4 flex items-center">
-                <Activity className="h-5 w-5 mr-2 text-green-600" />
-                Nutrition Facts
-              </h3>
-              <div className="space-y-2">
-                <div>
-                  <label className="text-sm font-medium text-gray-600">Calories</label>
-                  <p className="text-gray-900">{selectedProduct.nutritionFacts?.calories || 0} kcal</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-600">Protein</label>
-                  <p className="text-gray-900">{selectedProduct.nutritionFacts?.protein || 0} g</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-600">Carbs</label>
-                  <p className="text-gray-900">{selectedProduct.nutritionFacts?.carbs || 0} g</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-600">Fiber</label>
-                  <p className="text-gray-900">{selectedProduct.nutritionFacts?.fiber || 0} g</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-600">Vitamins</label>
-                  <p className="text-gray-900">{(selectedProduct.nutritionFacts?.vitamins || []).join(', ') || 'N/A'}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
   return (
-    <div className="p-6">
-      {loading ? (
-        <div className="text-center py-10">Loading...</div>
-      ) : (
-        <>
-          {activeView === 'list' ? <ProductListView /> : <ProductDetailView />}
-          {showModal && <ProductModal />}
-        </>
-      )}
+    <div className="min-h-screen bg-gray-50 p-6">
+      {showModal && <ProductModal />}
+      <ProductListView />
     </div>
   );
 };

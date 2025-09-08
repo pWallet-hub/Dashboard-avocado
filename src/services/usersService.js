@@ -1,106 +1,100 @@
-import client from './airtableApi';
+import apiClient from './apiClient';
 
-const TABLE = 'Users'; // or use table id: 'tblmK0icaHeN7BPeH'
-
-// Helper to map arrays/objects to Airtable-style query params
-function buildParams({
-  fields,
-  filterByFormula,
-  maxRecords,
-  pageSize,
-  sort,
-  view,
-  cellFormat,
-  timeZone,
-  userLocale,
-  returnFieldsByFieldId,
-  recordMetadata,
-  offset,
-} = {}) {
-  const params = {};
-  if (Array.isArray(fields) && fields.length) {
-    fields.forEach((f, i) => {
-      params[`fields[${i}]`] = f;
-    });
-  }
-  if (filterByFormula) params.filterByFormula = filterByFormula;
-  if (maxRecords) params.maxRecords = maxRecords;
-  if (pageSize) params.pageSize = pageSize;
-  if (Array.isArray(sort) && sort.length) {
-    sort.forEach((s, i) => {
-      if (s?.field) params[`sort[${i}][field]`] = s.field;
-      if (s?.direction) params[`sort[${i}][direction]`] = s.direction;
-    });
-  }
-  if (view) params.view = view;
-  if (cellFormat) params.cellFormat = cellFormat;
-  if (timeZone) params.timeZone = timeZone;
-  if (userLocale) params.userLocale = userLocale;
-  if (returnFieldsByFieldId !== undefined) params.returnFieldsByFieldId = returnFieldsByFieldId;
-  if (Array.isArray(recordMetadata) && recordMetadata.length) {
-    recordMetadata.forEach((m, i) => {
-      params[`recordMetadata[${i}]`] = m;
-    });
-  }
-  if (offset) params.offset = offset;
-  return params;
-}
-
+// Get all users (Admin only)
 export async function listUsers(options = {}) {
-  const params = buildParams(options);
-  const res = await client.get(TABLE, { params });
-  return res.data; // { records: [...], offset? }
+  try {
+    const params = {};
+    if (options.page) params.page = options.page;
+    if (options.limit) params.limit = options.limit;
+    if (options.role) params.role = options.role;
+    if (options.status) params.status = options.status;
+    if (options.search) params.search = options.search;
+    
+    const response = await apiClient.get('/users', { params });
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.message || 'Failed to fetch users');
+  }
 }
 
-export async function getUser(recordId) {
-  const res = await client.get(`${TABLE}/${recordId}`);
-  return res.data; // { id, fields, createdTime }
+// Get user by ID
+export async function getUser(userId) {
+  try {
+    const response = await apiClient.get(`/users/${userId}`);
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.message || 'Failed to fetch user');
+  }
 }
 
-export async function createUsers(records, { typecast } = {}) {
-  // records: [{ fields: { ... } }, ...]
-  const res = await client.post(TABLE, { records, typecast });
-  return res.data; // { records: [...] }
+// Update user
+export async function updateUser(userId, userData) {
+  try {
+    const response = await apiClient.put(`/users/${userId}`, userData);
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.message || 'Failed to update user');
+  }
 }
 
-export async function createUser(fields, { typecast } = {}) {
-  // Single-record convenience using array form
-  return createUsers([{ fields }], { typecast });
+// Delete user
+export async function deleteUser(userId) {
+  try {
+    const response = await apiClient.delete(`/users/${userId}`);
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.message || 'Failed to delete user');
+  }
 }
 
-export async function updateUsers(records, { typecast } = {}) {
-  // PATCH for partial updates. records: [{ id, fields }]
-  const res = await client.patch(TABLE, { records, typecast });
-  return res.data;
+// Get all farmers
+export async function listFarmers(options = {}) {
+  try {
+    const params = {};
+    if (options.page) params.page = options.page;
+    if (options.limit) params.limit = options.limit;
+    if (options.status) params.status = options.status;
+    if (options.search) params.search = options.search;
+    
+    const response = await apiClient.get('/users/farmers', { params });
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.message || 'Failed to fetch farmers');
+  }
 }
 
-export async function updateUser(recordId, fields, { typecast } = {}) {
-  return updateUsers([{ id: recordId, fields }], { typecast });
+// Get all agents
+export async function listAgents(options = {}) {
+  try {
+    const params = {};
+    if (options.page) params.page = options.page;
+    if (options.limit) params.limit = options.limit;
+    if (options.status) params.status = options.status;
+    if (options.search) params.search = options.search;
+    
+    const response = await apiClient.get('/users/agents', { params });
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.message || 'Failed to fetch agents');
+  }
 }
 
-export async function upsertUsers(records, fieldsToMergeOn, { typecast } = {}) {
-  // Upsert: include performUpsert
-  const res = await client.patch(TABLE, {
-    records,
-    typecast,
-    performUpsert: {
-      fieldsToMergeOn,
-    },
-  });
-  return res.data;
+// Update user status
+export async function updateUserStatus(userId, status) {
+  try {
+    const response = await apiClient.put(`/users/${userId}/status`, { status });
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.message || 'Failed to update user status');
+  }
 }
 
-export async function deleteUsers(recordIds) {
-  // recordIds: [id1, id2]
-  const params = {};
-  recordIds.forEach((id, i) => {
-    params[`records[${i}]`] = id;
-  });
-  const res = await client.delete(TABLE, { params });
-  return res.data; // { records: [{ id, deleted: true } ...] }
-}
-
-export async function deleteUser(recordId) {
-  const res = await client.delete(`${TABLE}/${recordId}`);
-  return res.data; // { id, deleted }
+// Update user role
+export async function updateUserRole(userId, role) {
+  try {
+    const response = await apiClient.put(`/users/${userId}/role`, { role });
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.message || 'Failed to update user role');
+  }
 }

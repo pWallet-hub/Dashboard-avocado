@@ -1,103 +1,88 @@
-import client from './airtableApi';
+import apiClient from './apiClient';
 
-// Prefer stable table id to avoid breakage on name changes
-const TABLE = 'tblJTbpjFpkQEpIw5'; // Orders
-
-function buildParams({
-  fields,
-  filterByFormula,
-  maxRecords,
-  pageSize,
-  sort,
-  view,
-  cellFormat,
-  timeZone,
-  userLocale,
-  returnFieldsByFieldId,
-  recordMetadata,
-  offset,
-} = {}) {
-  const params = {};
-  if (Array.isArray(fields) && fields.length) {
-    fields.forEach((f, i) => {
-      params[`fields[${i}]`] = f;
-    });
-  }
-  if (filterByFormula) params.filterByFormula = filterByFormula;
-  if (maxRecords) params.maxRecords = maxRecords;
-  if (pageSize) params.pageSize = pageSize;
-  if (Array.isArray(sort) && sort.length) {
-    sort.forEach((s, i) => {
-      if (s?.field) params[`sort[${i}][field]`] = s.field;
-      if (s?.direction) params[`sort[${i}][direction]`] = s.direction;
-    });
-  }
-  if (view) params.view = view;
-  if (cellFormat) params.cellFormat = cellFormat;
-  if (timeZone) params.timeZone = timeZone;
-  if (userLocale) params.userLocale = userLocale;
-  if (returnFieldsByFieldId !== undefined) params.returnFieldsByFieldId = returnFieldsByFieldId;
-  if (Array.isArray(recordMetadata) && recordMetadata.length) {
-    recordMetadata.forEach((m, i) => {
-      params[`recordMetadata[${i}]`] = m;
-    });
-  }
-  if (offset) params.offset = offset;
-  return params;
-}
-
+// Get all orders
 export async function listOrders(options = {}) {
-  const params = buildParams(options);
-  const res = await client.get(TABLE, { params });
-  return res.data; // { records: [...], offset? }
+  try {
+    const params = {};
+    if (options.page) params.page = options.page;
+    if (options.limit) params.limit = options.limit;
+    if (options.customer_id) params.customer_id = options.customer_id;
+    if (options.status) params.status = options.status;
+    if (options.payment_status) params.payment_status = options.payment_status;
+    if (options.date_from) params.date_from = options.date_from;
+    if (options.date_to) params.date_to = options.date_to;
+    if (options.amount_min) params.amount_min = options.amount_min;
+    if (options.amount_max) params.amount_max = options.amount_max;
+    if (options.search) params.search = options.search;
+    
+    const response = await apiClient.get('/orders', { params });
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.message || 'Failed to fetch orders');
+  }
 }
 
-export async function getOrder(recordId) {
-  const res = await client.get(`${TABLE}/${recordId}`);
-  return res.data; // { id, fields, createdTime }
+// Get order by ID
+export async function getOrder(orderId) {
+  try {
+    const response = await apiClient.get(`/orders/${orderId}`);
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.message || 'Failed to fetch order');
+  }
 }
 
-export async function createOrders(records, { typecast } = {}) {
-  // records: [{ fields: { ... } }, ...]
-  const res = await client.post(TABLE, { records, typecast });
-  return res.data; // { records: [...] }
+// Create new order
+export async function createOrder(orderData) {
+  try {
+    const response = await apiClient.post('/orders', orderData);
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.message || 'Failed to create order');
+  }
 }
 
-export async function createOrder(fields, { typecast } = {}) {
-  return createOrders([{ fields }], { typecast });
+// Update order
+export async function updateOrder(orderId, orderData) {
+  try {
+    const response = await apiClient.put(`/orders/${orderId}`, orderData);
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.message || 'Failed to update order');
+  }
 }
 
-export async function updateOrders(records, { typecast } = {}) {
-  // PATCH for partial updates. records: [{ id, fields }]
-  const res = await client.patch(TABLE, { records, typecast });
-  return res.data;
+// Delete order
+export async function deleteOrder(orderId) {
+  try {
+    const response = await apiClient.delete(`/orders/${orderId}`);
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.message || 'Failed to delete order');
+  }
 }
 
-export async function updateOrder(recordId, fields, { typecast } = {}) {
-  return updateOrders([{ id: recordId, fields }], { typecast });
+// Update order status
+export async function updateOrderStatus(orderId, status) {
+  try {
+    const response = await apiClient.put(`/orders/${orderId}/status`, { status });
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.message || 'Failed to update order status');
+  }
 }
 
-export async function upsertOrders(records, fieldsToMergeOn, { typecast } = {}) {
-  const res = await client.patch(TABLE, {
-    records,
-    typecast,
-    performUpsert: {
-      fieldsToMergeOn,
-    },
-  });
-  return res.data;
-}
-
-export async function deleteOrders(recordIds) {
-  const params = {};
-  recordIds.forEach((id, i) => {
-    params[`records[${i}]`] = id;
-  });
-  const res = await client.delete(TABLE, { params });
-  return res.data; // { records: [{ id, deleted: true } ...] }
-}
-
-export async function deleteOrder(recordId) {
-  const res = await client.delete(`${TABLE}/${recordId}`);
-  return res.data; // { id, deleted }
+// Get orders for a specific user
+export async function getOrdersForUser(userId, options = {}) {
+  try {
+    const params = {};
+    if (options.page) params.page = options.page;
+    if (options.limit) params.limit = options.limit;
+    if (options.status) params.status = options.status;
+    
+    const response = await apiClient.get(`/orders/user/${userId}`, { params });
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.message || 'Failed to fetch orders for user');
+  }
 }

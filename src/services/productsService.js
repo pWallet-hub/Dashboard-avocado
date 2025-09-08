@@ -1,111 +1,86 @@
-import client from './airtableApi';
+import apiClient from './apiClient';
 
-// Stable table ID for Products table
-const TABLE = 'tblhFrENfLsrg7TCi';
-
-// Helper to build list query params consistently
-function buildParams({
-  fields,
-  filterByFormula,
-  maxRecords,
-  pageSize,
-  sort,
-  view,
-  cellFormat,
-  timeZone,
-  userLocale,
-  returnFieldsByFieldId,
-  recordMetadata,
-  offset,
-} = {}) {
-  const params = {};
-  if (Array.isArray(fields) && fields.length) params.fields = fields;
-  if (typeof filterByFormula === 'string') params.filterByFormula = filterByFormula;
-  if (typeof maxRecords === 'number') params.maxRecords = maxRecords;
-  if (typeof pageSize === 'number') params.pageSize = pageSize;
-  if (Array.isArray(sort) && sort.length) params.sort = sort;
-  if (view) params.view = view;
-  if (cellFormat) params.cellFormat = cellFormat;
-  if (timeZone) params.timeZone = timeZone;
-  if (userLocale) params.userLocale = userLocale;
-  if (typeof returnFieldsByFieldId === 'boolean') params.returnFieldsByFieldId = returnFieldsByFieldId;
-  if (Array.isArray(recordMetadata) && recordMetadata.length) params.recordMetadata = recordMetadata;
-  if (offset) params.offset = offset;
-  return params;
-}
-
-// List Products records
+// Get all products
 export async function listProducts(options = {}) {
-  const params = buildParams(options);
-  const res = await client.get(TABLE, { params });
-  return res.data;
+  try {
+    const params = {};
+    if (options.page) params.page = options.page;
+    if (options.limit) params.limit = options.limit;
+    if (options.category) params.category = options.category;
+    if (options.supplier_id) params.supplier_id = options.supplier_id;
+    if (options.status) params.status = options.status;
+    if (options.price_min) params.price_min = options.price_min;
+    if (options.price_max) params.price_max = options.price_max;
+    if (options.in_stock !== undefined) params.in_stock = options.in_stock;
+    if (options.search) params.search = options.search;
+    
+    const response = await apiClient.get('/products', { params });
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.message || 'Failed to fetch products');
+  }
 }
 
-// Retrieve a single Product record by record ID
-export async function getProduct(recordId, { returnFieldsByFieldId } = {}) {
-  const params = {};
-  if (typeof returnFieldsByFieldId === 'boolean') params.returnFieldsByFieldId = returnFieldsByFieldId;
-  const res = await client.get(`${TABLE}/${recordId}`, { params });
-  return res.data;
+// Get product by ID
+export async function getProduct(productId) {
+  try {
+    const response = await apiClient.get(`/products/${productId}`);
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.message || 'Failed to fetch product');
+  }
 }
 
-// Create Products (batch)
-export async function createProducts(records, { typecast } = {}) {
-  const payload = { records };
-  if (typeof typecast === 'boolean') payload.typecast = typecast;
-  const res = await client.post(TABLE, payload);
-  return res.data;
+// Create new product
+export async function createProduct(productData) {
+  try {
+    const response = await apiClient.post('/products', productData);
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.message || 'Failed to create product');
+  }
 }
 
-// Create single Product
-export async function createProduct(fields, { typecast } = {}) {
-  return createProducts([{ fields }], { typecast });
+// Update product
+export async function updateProduct(productId, productData) {
+  try {
+    const response = await apiClient.put(`/products/${productId}`, productData);
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.message || 'Failed to update product');
+  }
 }
 
-// Update Products (PATCH batch, partial)
-export async function updateProducts(records, { typecast } = {}) {
-  const payload = { records };
-  if (typeof typecast === 'boolean') payload.typecast = typecast;
-  const res = await client.patch(TABLE, payload);
-  return res.data;
+// Delete product (mark as discontinued)
+export async function deleteProduct(productId) {
+  try {
+    const response = await apiClient.delete(`/products/${productId}`);
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.message || 'Failed to delete product');
+  }
 }
 
-// Update single Product (PATCH partial)
-export async function updateProduct(recordId, fields, { typecast } = {}) {
-  return updateProducts([{ id: recordId, fields }], { typecast });
+// Get products by category
+export async function getProductsByCategory(category, options = {}) {
+  try {
+    const params = {};
+    if (options.page) params.page = options.page;
+    if (options.limit) params.limit = options.limit;
+    
+    const response = await apiClient.get(`/products/category/${category}`, { params });
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.message || 'Failed to fetch products by category');
+  }
 }
 
-// Upsert Products (PATCH with performUpsert)
-export async function upsertProducts(records, fieldsToMergeOn, { typecast } = {}) {
-  const payload = { records, performUpsert: { fieldsToMergeOn } };
-  if (typeof typecast === 'boolean') payload.typecast = typecast;
-  const res = await client.patch(TABLE, payload);
-  return res.data;
-}
-
-// Replace Products (PUT destructive)
-export async function replaceProducts(records, { typecast } = {}) {
-  const payload = { records };
-  if (typeof typecast === 'boolean') payload.typecast = typecast;
-  const res = await client.put(TABLE, payload);
-  return res.data;
-}
-
-// Replace single Product (PUT destructive)
-export async function replaceProduct(recordId, fields, { typecast } = {}) {
-  return replaceProducts([{ id: recordId, fields }], { typecast });
-}
-
-// Delete Products (batch)
-export async function deleteProducts(recordIds) {
-  const params = new URLSearchParams();
-  recordIds.forEach((id) => params.append('records[]', id));
-  const res = await client.delete(TABLE, { params });
-  return res.data;
-}
-
-// Delete single Product
-export async function deleteProduct(recordId) {
-  const res = await client.delete(`${TABLE}/${recordId}`);
-  return res.data;
+// Update product stock
+export async function updateProductStock(productId, quantity) {
+  try {
+    const response = await apiClient.put(`/products/${productId}/stock`, { quantity });
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.message || 'Failed to update product stock');
+  }
 }

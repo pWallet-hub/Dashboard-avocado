@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
 import { User, Phone, Mail, MapPin, TreePine, Calendar, Search, Filter, Download, Plus, Eye, X } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import { listCustomerProfiles } from '../../services/customerProfilesService';
-import { lsGet, lsSet, seedIfEmpty } from '../../services/demoData';
+
 
 export default function FarmerList() {
   const [farmers, setFarmers] = useState([]);
@@ -109,8 +108,7 @@ export default function FarmerList() {
       setLoading(true);
       setError(null);
       try {
-        const seeded = seedIfEmpty('demo:farmers_detailed', mockFarmers);
-        setFarmers(Array.isArray(seeded) ? seeded : []);
+        setFarmers(mockFarmers);
       } catch (e) {
         console.debug('Local demo farmers load failed:', e);
         setFarmers([]);
@@ -122,18 +120,7 @@ export default function FarmerList() {
     fetchFarmers();
   }, []);
 
-  // Non-invasive integration with Airtable Customer Profiles service (logs only)
-  useEffect(() => {
-    const fetchAirtableCustomers = async () => {
-      try {
-        const page = await listCustomerProfiles({ pageSize: 5, returnFieldsByFieldId: true });
-        console.log('[Airtable] Customer Profiles fetched (preview):', page?.records?.length ?? 0, 'records');
-      } catch (e) {
-        console.debug('[Airtable] Customer Profiles fetch failed (non-blocking):', e?.message || e);
-      }
-    };
-    fetchAirtableCustomers();
-  }, []);
+  // Remove Airtable preview effect as services are no longer available
 
   const exportToExcel = () => {
     // Prepare data for Excel export

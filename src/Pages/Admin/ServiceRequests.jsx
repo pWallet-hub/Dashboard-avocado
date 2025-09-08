@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { CheckCircle, XCircle, Clock, Eye, Filter, Search, Calendar, User, MapPin, Phone, Mail, Database, CalendarClock } from 'lucide-react';
 import '../Styles/Admin.css';
-import { populateDemoData, hasDemoData } from '../../utils/demoData';
+import { listServiceRequests, updateServiceRequestStatus as updateServiceRequestStatusAPI } from '../../services/serviceRequestsService';
 
 export default function ServiceRequests() {
   const [requests, setRequests] = useState([]);
@@ -13,16 +13,32 @@ export default function ServiceRequests() {
   const [showModal, setShowModal] = useState(false);
   const [showRescheduleModal, setShowRescheduleModal] = useState(false);
   const [rescheduleDate, setRescheduleDate] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  // Load requests from localStorage on component mount
+  // Load requests from API on component mount
   useEffect(() => {
-    const savedRequests = localStorage.getItem('farmerServiceRequests');
-    if (savedRequests) {
-      const parsedRequests = JSON.parse(savedRequests);
-      setRequests(parsedRequests);
-      setFilteredRequests(parsedRequests);
-    }
+    loadServiceRequests();
   }, []);
+
+  const loadServiceRequests = async () => {
+    setLoading(true);
+    try {
+      const response = await listServiceRequests();
+      setRequests(response.data || []);
+      setFilteredRequests(response.data || []);
+    } catch (error) {
+      console.error('Error loading service requests:', error);
+      // Fallback to localStorage if API fails
+      const savedRequests = localStorage.getItem('farmerServiceRequests');
+      if (savedRequests) {
+        const parsedRequests = JSON.parse(savedRequests);
+        setRequests(parsedRequests);
+        setFilteredRequests(parsedRequests);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Filter and search requests
   useEffect(() => {
@@ -61,49 +77,104 @@ export default function ServiceRequests() {
     postponed: requests.filter(r => r.status === 'postponed').length,
   };
 
-  const updateRequestStatus = (requestId, newStatus, rescheduleDate = null) => {
-    const updatedRequests = requests.map(request => 
-      request.id === requestId 
-        ? { 
-            ...request, 
-            status: newStatus, 
-            updatedAt: new Date().toISOString(),
-            rescheduleDate: newStatus === 'postponed' ? rescheduleDate : request.rescheduleDate,
-            statusUpdates: [
-              ...(request.statusUpdates || []),
-              {
-                status: newStatus,
-                timestamp: new Date().toISOString(),
-                note: newStatus === 'postponed' 
-                  ? `Request postponed to ${rescheduleDate ? new Date(rescheduleDate).toLocaleDateString('en-US') : 'TBD'} by admin`
-                  : `Request ${newStatus} by admin`
-              }
-            ]
-          }
-        : request
-    );
-    
-    setRequests(updatedRequests);
-    localStorage.setItem('farmerServiceRequests', JSON.stringify(updatedRequests));
+  const updateRequestStatus = async (requestId, newStatus, rescheduleDate = null) => {
+    try {
+      // API call to update service request status
+      const statusData = {
+        status: newStatus,
+        ...(newStatus === 'postponed' && rescheduleDate && { rescheduleDate })
+      };
+      
+      const response = await updateServiceRequestStatusAPI(requestId, statusData);
+      
+      // Update local state with the response
+      const updatedRequests = requests.map(request => 
+        request.id === requestId 
+          ? { 
+              ...request, 
+              status: newStatus,
+              ...(newStatus === 'postponed' && rescheduleDate && { rescheduleDate }),
+              updatedAt: new Date().toISOString(),
+              statusUpdates: [
+                ...(request.statusUpdates || []),
+                {
+                  status: newStatus,
+                  timestamp: new Date().toISOString(),
+                  note: newStatus === 'postponed' 
+                    ? `Request postponed to ${rescheduleDate ? new Date(rescheduleDate).toLocaleDateString('en-US') : 'TBD'} by admin`
+                    : `Request ${newStatus} by admin`
+                }
+              ]
+            }
+          : request
+      );
+      
+      setRequests(updatedRequests);
+      
+      // Create and store notification
+      const request = updatedRequests.find(r => r.id === requestId);
+      const notification = {
+        id: `${requestId}-${Date.now()}`, // Unique ID for notification
+        requestId,
+        farmerId: request.farmerId || 'farmer1', // Assuming farmerId exists or default to 'farmer1'
+        message: newStatus === 'postponed'
+          ? `Your ${request.type} request (ID: ${requestId}) has been postponed${rescheduleDate ? ` to ${new Date(rescheduleDate).toLocaleDateString('en-US')}` : ''}.`
+          : `Your ${request.type} request (ID: ${requestId}) has been ${newStatus}.`,
+        status: newStatus,
+        timestamp: new Date().toISOString(),
+        read: false
+      };
 
-    // Create and store notification
-    const request = updatedRequests.find(r => r.id === requestId);
-    const notification = {
-      id: `${requestId}-${Date.now()}`, // Unique ID for notification
-      requestId,
-      farmerId: request.farmerId || 'farmer1', // Assuming farmerId exists or default to 'farmer1'
-      message: newStatus === 'postponed'
-        ? `Your ${request.type} request (ID: ${requestId}) has been postponed${rescheduleDate ? ` to ${new Date(rescheduleDate).toLocaleDateString('en-US')}` : ''}.`
-        : `Your ${request.type} request (ID: ${requestId}) has been ${newStatus}.`,
-      status: newStatus,
-      timestamp: new Date().toISOString(),
-      read: false
-    };
+      const savedNotifications = localStorage.getItem('farmerNotifications');
+      const notifications = savedNotifications ? JSON.parse(savedNotifications) : [];
+      notifications.push(notification);
+      localStorage.setItem('farmerNotifications', JSON.stringify(notifications));
+    } catch (error) {
+      console.error('Error updating request status:', error);
+      // Fallback to localStorage if API fails
+      const updatedRequests = requests.map(request => 
+        request.id === requestId 
+          ? { 
+              ...request, 
+              status: newStatus, 
+              updatedAt: new Date().toISOString(),
+              rescheduleDate: newStatus === 'postponed' ? rescheduleDate : request.rescheduleDate,
+              statusUpdates: [
+                ...(request.statusUpdates || []),
+                {
+                  status: newStatus,
+                  timestamp: new Date().toISOString(),
+                  note: newStatus === 'postponed' 
+                    ? `Request postponed to ${rescheduleDate ? new Date(rescheduleDate).toLocaleDateString('en-US') : 'TBD'} by admin`
+                    : `Request ${newStatus} by admin`
+                }
+              ]
+            }
+          : request
+      );
+      
+      setRequests(updatedRequests);
+      localStorage.setItem('farmerServiceRequests', JSON.stringify(updatedRequests));
 
-    const savedNotifications = localStorage.getItem('farmerNotifications');
-    const notifications = savedNotifications ? JSON.parse(savedNotifications) : [];
-    notifications.push(notification);
-    localStorage.setItem('farmerNotifications', JSON.stringify(notifications));
+      // Create and store notification
+      const request = updatedRequests.find(r => r.id === requestId);
+      const notification = {
+        id: `${requestId}-${Date.now()}`, // Unique ID for notification
+        requestId,
+        farmerId: request.farmerId || 'farmer1', // Assuming farmerId exists or default to 'farmer1'
+        message: newStatus === 'postponed'
+          ? `Your ${request.type} request (ID: ${requestId}) has been postponed${rescheduleDate ? ` to ${new Date(rescheduleDate).toLocaleDateString('en-US')}` : ''}.`
+          : `Your ${request.type} request (ID: ${requestId}) has been ${newStatus}.`,
+        status: newStatus,
+        timestamp: new Date().toISOString(),
+        read: false
+      };
+
+      const savedNotifications = localStorage.getItem('farmerNotifications');
+      const notifications = savedNotifications ? JSON.parse(savedNotifications) : [];
+      notifications.push(notification);
+      localStorage.setItem('farmerNotifications', JSON.stringify(notifications));
+    }
   };
 
   const getStatusColor = (status) => {
@@ -157,7 +228,7 @@ export default function ServiceRequests() {
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-2xl p-6 max-w-4xl w-full max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold text-gray-900">Service Request Details</h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Service Request Details</h2>
           <button
             onClick={onClose}
             className="p-2 hover:bg-gray-100 rounded-full transition-all duration-200"
@@ -485,18 +556,14 @@ export default function ServiceRequests() {
             <div className="text-sm text-gray-600">
               Total Requests: {requests.length}
             </div>
-            {!hasDemoData() && (
-              <button
-                onClick={() => {
-                  populateDemoData();
-                  window.location.reload();
-                }}
-                className="inline-flex items-center px-3 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                <Database className="w-4 h-4 mr-2" />
-                Load Demo Data
-              </button>
-            )}
+            <button
+              onClick={loadServiceRequests}
+              disabled={loading}
+              className="inline-flex items-center px-3 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+            >
+              <Database className="w-4 h-4 mr-2" />
+              {loading ? 'Loading...' : 'Refresh Data'}
+            </button>
           </div>
         </div>
 
@@ -595,7 +662,12 @@ export default function ServiceRequests() {
 
         {/* Requests List */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-          {filteredRequests.length > 0 ? (
+          {loading ? (
+            <div className="text-center py-16">
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-green-500 mb-4"></div>
+              <p className="text-gray-600">Loading service requests...</p>
+            </div>
+          ) : filteredRequests.length > 0 ? (
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-gray-50">

@@ -4,7 +4,7 @@ import {
   Search, Eye, Edit2, Plus, BarChart3, Download,
   ArrowUpRight, ArrowDownRight, Package, Clock, Star, Filter
 } from 'lucide-react';
-import MarketStorageService from '../../services/marketStorageService';
+import { syncAllFarmerData, getShopOrders, getShopCustomers, getShopInventory, getMarketTransactions } from '../../services/marketStorageService';
 
 const ShopSales = () => {
   const [salesData, setSalesData] = useState([]);
@@ -24,11 +24,11 @@ const ShopSales = () => {
     setLoading(true);
     setError(null);
     try {
-      MarketStorageService.syncAllFarmerData();
-      const orders = MarketStorageService.getShopOrders() || [];
-      const customers = MarketStorageService.getShopCustomers() || [];
-      const inventory = MarketStorageService.getShopInventory() || [];
-      const transactions = MarketStorageService.getMarketTransactions() || [];
+      syncAllFarmerData();
+      const orders = getShopOrders() || [];
+      const customers = getShopCustomers() || [];
+      const inventory = getShopInventory() || [];
+      const transactions = getMarketTransactions() || [];
       
       const sales = orders.map(order => {
         const customer = customers.find(c => c.id === order.customerId);

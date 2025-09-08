@@ -7,8 +7,7 @@ import { CiLogout } from "react-icons/ci";
 import Select from 'react-select';
 import { ClipLoader } from "react-spinners";
 import '../Styles/Growers.css';
-import { listCustomerProfiles } from '../../services/customerProfilesService';
-import { lsGet, lsSet, seedIfEmpty, DEMO_USERS } from '../../services/demoData';
+
 
 const Users = () => {
   const [users, setUsers] = useState([]);
@@ -64,12 +63,11 @@ const Users = () => {
         });
         setUsers(response.data);
         // Cache a copy for demo mode
-        lsSet('demo:users', response.data);
+        // lsSet('demo:users', response.data); // Removed demoData functionality
       } catch (error) {
         console.log(error);
-        // Fallback to local demo data
-        const demo = seedIfEmpty('demo:users', DEMO_USERS);
-        setUsers(demo);
+        // Fallback to empty array
+        setUsers([]);
         // Non-blocking error message for UX
         setError(null);
       } finally {
@@ -80,17 +78,7 @@ const Users = () => {
     fetchUsers();
   }, []);
 
-  useEffect(() => {
-    const fetchAirtableCustomers = async () => {
-      try {
-        const page = await listCustomerProfiles({ pageSize: 5, returnFieldsByFieldId: true });
-        console.log('[Airtable] Customer Profiles fetched (preview):', page?.records?.length ?? 0, 'records');
-      } catch (e) {
-        console.debug('[Airtable] Customer Profiles fetch failed (non-blocking):', e?.message || e);
-      }
-    };
-    fetchAirtableCustomers();
-  }, []);
+  // Remove Airtable preview effect as services are no longer available
 
   const openModal = (user, editMode = false) => {
     setSelectedUser(user);
@@ -176,15 +164,8 @@ const Users = () => {
       // Close modal and reset form
       closeAddModal();
     } catch (error) {
-      // Offline/demo add: persist locally
-      const localUsers = lsGet('demo:users', seedIfEmpty('demo:users', DEMO_USERS));
-      const newId = typeof localUsers[localUsers.length - 1]?.id === 'number'
-        ? (localUsers[localUsers.length - 1].id + 1)
-        : `u${(localUsers.length + 1)}`;
-      const toAdd = { id: newId, ...newUserForm };
-      const updated = [...localUsers, toAdd];
-      lsSet('demo:users', updated);
-      setUsers(updated);
+      // Handle error case without demoData
+      console.error('Error creating user:', error);
       closeAddModal();
     } finally {
       setLoading(false);

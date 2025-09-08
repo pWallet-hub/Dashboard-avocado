@@ -1,15 +1,12 @@
 import { useEffect, useState } from 'react';
-import base from '../../services/airtable';
 import logo from '../../assets/image/LOGO_-_Avocado_Society_of_Rwanda.png';
 import { MdOutlineDeleteOutline } from "react-icons/md";
 import { FiEdit } from "react-icons/fi";
 import * as XLSX from 'xlsx';
 import { CiLogout } from "react-icons/ci";
 import Select from 'react-select'; 
-import { listAgentProfiles } from '../../services/agentProfilesService';
-import { listCustomerProfiles } from '../../services/customerProfilesService';
-import { lsGet, lsSet, seedIfEmpty, DEMO_FARMERS } from '../../services/demoData';
-import MarketStorageService from '../../services/marketStorageService';
+import { listFarmers as apiListFarmers, updateUser as apiUpdateUser, deleteUser as apiDeleteUser } from '../../services/usersService';
+import { initializeStorage, getFarmerProducts, getFarmerToShopTransactions, getShopInventory } from '../../services/marketStorageService';
 import { 
   BarChart3, TrendingUp, Package, DollarSign, ShoppingCart, 
   Users, Calendar, Eye, Plus, Truck, Store, Activity
@@ -29,39 +26,21 @@ const Dashboard = () => {
   const [shopIntegration, setShopIntegration] = useState({});
 
   useEffect(() => {
-    const fetchFarmers = () => {
+    const fetchFarmers = async () => {
       setLoading(true);
       setError(null);
-      const records = [];
       try {
-        base('Farmers').select({}).eachPage(
-          (pageRecords, fetchNextPage) => {
-            pageRecords.forEach(record => {
-              records.push({ id: record.id, ...record.fields });
-            });
-            fetchNextPage();
-          },
-          (err) => {
-            if (err || records.length === 0) {
-              // Fallback to localStorage demo data
-              const seeded = seedIfEmpty('demo:farmers', DEMO_FARMERS);
-              setFarmers(seeded);
-              if (err) {
-                console.debug('[Demo] Using local demo farmers due to Airtable error:', err?.message || err);
-              }
-            } else {
-              setFarmers(records);
-              // keep a cached copy for demo mode
-              lsSet('demo:farmers', records);
-            }
-            setLoading(false);
-          }
-        );
-      } catch (e) {
-        const seeded = seedIfEmpty('demo:farmers', DEMO_FARMERS);
-        setFarmers(seeded);
+        const response = await apiListFarmers();
+        // Assuming the response structure contains a 'data' array
+        const farmersData = response.data || response;
+        setFarmers(farmersData);
+      } catch (error) {
+        setError('Failed to fetch farmers data');
+        console.error('Error fetching farmers:', error);
+        // Fallback to empty array instead of demo data
+        setFarmers([]);
+      } finally {
         setLoading(false);
-        console.debug('[Demo] Using local demo farmers due to exception:', e?.message || e);
       }
     };
 
@@ -76,20 +55,20 @@ const Dashboard = () => {
 
   const loadFarmerDashboardData = () => {
     try {
-      MarketStorageService.initializeStorage();
+      initializeStorage();
       
       // Get current farmer (in real app, this would come from auth)
       const currentFarmer = getCurrentFarmer();
       
       // Load farmer's products
-      const products = MarketStorageService.getFarmerProducts(currentFarmer.id);
+      const products = getFarmerProducts(currentFarmer.id);
       setFarmerProducts(products);
       
       // Load shop integration data
-      const transactions = MarketStorageService.getFarmerToShopTransactions();
+      const transactions = getFarmerToShopTransactions();
       const farmerTransactions = transactions.filter(t => t.farmerId === currentFarmer.id);
       
-      const inventory = MarketStorageService.getShopInventory();
+      const inventory = getShopInventory();
       const farmerInventoryItems = inventory.filter(item => 
         item.sourceType === 'farmer' && item.supplierId === currentFarmer.id
       );
@@ -129,22 +108,7 @@ const Dashboard = () => {
     };
   };
 
-  // Non-invasive integration with Airtable services (logs only)
-  useEffect(() => {
-    const previewAirtableData = async () => {
-      try {
-        const [agentsPage, customersPage] = await Promise.all([
-          listAgentProfiles({ pageSize: 5, returnFieldsByFieldId: true }),
-          listCustomerProfiles({ pageSize: 5, returnFieldsByFieldId: true })
-        ]);
-        console.log('[Airtable] Agent Profiles fetched (preview):', agentsPage?.records?.length ?? 0, 'records');
-        console.log('[Airtable] Customer Profiles fetched (preview):', customersPage?.records?.length ?? 0, 'records');
-      } catch (e) {
-        console.debug('[Airtable] Preview fetch failed (non-blocking):', e?.message || e);
-      }
-    };
-    previewAirtableData();
-  }, []);
+  // Remove Airtable preview effect as services are no longer available
 
   const openModal = (farmer, editMode = false) => {
     setSelectedFarmer(farmer);
@@ -193,11 +157,10 @@ const Dashboard = () => {
   };
 
   const handleEdit = async (farmer) => {
-    // Exclude the 'id' field from the data sent to Airtable
     const { id, ...fields } = farmer;
     try {
-      const updatedRecord = await base('Farmers').update(id, fields);
-      setFarmers(farmers.map(f => (f.id === id ? { id: updatedRecord.id, ...updatedRecord.fields } : f)));
+      const updatedRecord = await apiUpdateUser(id, fields);
+      setFarmers(farmers.map(f => (f.id === id ? updatedRecord : f)));
       closeModal();
     } catch (error) {
       setError('There was an error updating the farmer!');
@@ -207,7 +170,7 @@ const Dashboard = () => {
 
   const handleDelete = async (farmerId) => {
     try {
-      await base('Farmers').destroy(farmerId);
+      await apiDeleteUser(farmerId);
       setFarmers(farmers.filter(f => f.id !== farmerId));
     } catch (error) {
       setError('There was an error deleting the farmer!');
