@@ -5,12 +5,16 @@ import DashboardHeader from "../../components/Header/DashboardHeader";
 export default function HarvestingDay() {
   const [formData, setFormData] = useState({
     workersNeeded: "",
-    equipmentNeeded: [], // Changed to array for checkbox selection
-    equipmentDropdown: "", // New field for dropdown selection
+    equipmentNeeded: [],
+    equipmentDropdown: "",
     transportationNeeded: "",
     harvestDateFrom: "",
     harvestDateTo: "",
-    harvestImages: []
+    harvestImages: [],
+    selectedSizes: [],
+    c12c14: "",
+    c16c18: "",
+    c20c24: ""
   });
 
   const [submitted, setSubmitted] = useState(false);
@@ -30,10 +34,24 @@ export default function HarvestingDay() {
     }
   };
 
+  const handleSizeSelection = (sizeKey, checked) => {
+    setFormData(prev => {
+      const currentSizes = prev.selectedSizes || [];
+      const updatedSizes = checked
+        ? [...currentSizes, sizeKey]
+        : currentSizes.filter(item => item !== sizeKey);
+      
+      return {
+        ...prev,
+        selectedSizes: updatedSizes,
+        [sizeKey]: checked ? prev[sizeKey] : ""
+      };
+    });
+  };
+
   const handleDateChange = (field, value) => {
     const newFormData = { ...formData, [field]: value };
     
-    // Validate date range if both dates are set
     if (newFormData.harvestDateFrom && newFormData.harvestDateTo) {
       const fromDate = new Date(newFormData.harvestDateFrom);
       const toDate = new Date(newFormData.harvestDateTo);
@@ -82,6 +100,18 @@ export default function HarvestingDay() {
     if (!formData.harvestDateFrom) newErrors.harvestDateFrom = "Please select harvest start date";
     if (!formData.harvestDateTo) newErrors.harvestDateTo = "Please select harvest end date";
     
+    // Validate HASS size breakdown percentages
+    const selectedSizes = formData.selectedSizes || [];
+    if (selectedSizes.length > 0) {
+      const totalPercentage = selectedSizes.reduce((total, size) => {
+        return total + parseInt(formData[size] || 0);
+      }, 0);
+      
+      if (totalPercentage > 100) {
+        newErrors.hassPercentage = "Total percentage cannot exceed 100%";
+      }
+    }
+    
     // Additional date validation
     if (formData.harvestDateFrom && formData.harvestDateTo) {
       const fromDate = new Date(formData.harvestDateFrom);
@@ -104,12 +134,12 @@ export default function HarvestingDay() {
 
   const handleSubmit = () => {
     if (validateForm()) {
-      // Get farmer information from localStorage or use default values
       const farmerName = localStorage.getItem('farmerName') || 'John Doe';
       const farmerPhone = localStorage.getItem('farmerPhone') || '+250 123 456 789';
       const farmerEmail = localStorage.getItem('farmerEmail') || 'farmer@example.com';
       const farmerLocation = localStorage.getItem('farmerLocation') || 'Kigali, Rwanda';
 
+      const selectedSizes = formData.selectedSizes || [];
       const newRequest = {
         id: Date.now().toString(),
         type: 'Harvesting Day',
@@ -124,20 +154,39 @@ export default function HarvestingDay() {
         treesToHarvest: formData.transportationNeeded,
         harvestDateFrom: formData.harvestDateFrom,
         harvestDateTo: formData.harvestDateTo,
-        harvestImages: formData.harvestImages.map(file => file.name)
+        harvestImages: formData.harvestImages.map(file => file.name),
+        hassBreakdown: {
+          selectedSizes: selectedSizes,
+          c12c14: selectedSizes.includes('c12c14') ? formData.c12c14 : '',
+          c16c18: selectedSizes.includes('c16c18') ? formData.c16c18 : '',
+          c20c24: selectedSizes.includes('c20c24') ? formData.c20c24 : ''
+        }
       };
 
-      // Get existing requests from localStorage
       const existingRequests = JSON.parse(localStorage.getItem('farmerServiceRequests') || '[]');
       const updatedRequests = [...existingRequests, newRequest];
       
-      // Save to localStorage
       localStorage.setItem('farmerServiceRequests', JSON.stringify(updatedRequests));
       
       setSubmitted(true);
       console.log("Harvest plan submitted:", formData);
     }
   };
+
+  const sizeCategories = [
+    { key: 'c12c14', label: 'C12 & C14' },
+    { key: 'c16c18', label: 'C16 & C18' },
+    { key: 'c20c24', label: 'C20 & C24' }
+  ];
+
+  const sizeLabels = {
+    'c12c14': 'C12&C14',
+    'c16c18': 'C16&C18', 
+    'c20c24': 'C20&C24'
+  };
+
+  const selectedSizes = formData.selectedSizes || [];
+  const totalPercentage = selectedSizes.reduce((total, size) => total + parseInt(formData[size] || 0), 0);
 
   if (submitted) {
     return (
@@ -159,7 +208,12 @@ export default function HarvestingDay() {
                 <strong>Workers Needed:</strong> {formData.workersNeeded}<br />
                 <strong>Equipment Required:</strong> {formData.equipmentDropdown === "Yes" ? formData.equipmentNeeded.join(", ") : "No equipment needed"}<br />
                 <strong>Trees to Harvest:</strong> {formData.transportationNeeded}<br />
-                <strong>Images Uploaded:</strong> {formData.harvestImages.length}
+                <strong>Images Uploaded:</strong> {formData.harvestImages.length}<br />
+                <strong>HASS Size Breakdown:</strong> {
+                  selectedSizes.length > 0
+                    ? selectedSizes.map(size => `${sizeLabels[size]}: ${formData[size] || 0}%`).join(', ')
+                    : 'Not specified'
+                }
               </p>
             </div>
           </div>
@@ -316,6 +370,114 @@ export default function HarvestingDay() {
                   <p className="error-text">{errors.harvestDateRange}</p>
                 )}
               </div>
+            </div>
+
+            {/* HASS Size Breakdown Section */}
+            <div>
+              <label className="label-input">
+                • HASS Size Breakdown Percentage
+              </label>
+              
+              {/* Size Category Selection */}
+              <div style={{ marginTop: '10px', marginBottom: '15px' }}>
+                <p style={{ fontSize: '14px', fontWeight: '600', marginBottom: '8px', color: '#333' }}>
+                  Select size categories to include:
+                </p>
+                <div className="grid grid-cols-3 gap-3">
+                  {sizeCategories.map((size) => (
+                    <label key={size.key} className="flex items-center space-x-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={selectedSizes.includes(size.key)}
+                        onChange={(e) => handleSizeSelection(size.key, e.target.checked)}
+                        className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+                      />
+                      <span className="text-sm text-gray-700 font-medium">{size.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Percentage Selection Table - Only show if sizes are selected */}
+              {selectedSizes.length > 0 && (
+                <div style={{
+                  border: '2px solid #000',
+                  borderCollapse: 'collapse',
+                  width: '100%',
+                  marginTop: '10px',
+                  backgroundColor: '#f9f9f9'
+                }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr style={{ backgroundColor: '#e0e0e0' }}>
+                        <th style={{ 
+                          border: '1px solid #000', 
+                          padding: '10px', 
+                          textAlign: 'center',
+                          fontWeight: 'bold',
+                          fontSize: '16px'
+                        }} colSpan={selectedSizes.length}>
+                          HASS- SIZE BREAKDOWN PERCENTAGE
+                        </th>
+                      </tr>
+                      <tr>
+                        {selectedSizes.map((sizeKey) => (
+                          <th key={sizeKey} style={{ 
+                            border: '1px solid #000', 
+                            padding: '8px', 
+                            textAlign: 'center',
+                            fontWeight: 'bold',
+                            backgroundColor: '#f0f0f0'
+                          }}>
+                            {sizeLabels[sizeKey]}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        {selectedSizes.map((sizeKey) => (
+                          <td key={sizeKey} style={{ 
+                            border: '1px solid #000', 
+                            padding: '0',
+                            textAlign: 'center'
+                          }}>
+                            <select
+                              value={formData[sizeKey]}
+                              onChange={(e) => handleInputChange(sizeKey, e.target.value)}
+                              style={{
+                                width: '100%',
+                                border: 'none',
+                                padding: '8px',
+                                textAlign: 'center',
+                                fontSize: '14px',
+                                backgroundColor: 'transparent'
+                              }}
+                            >
+                              <option value="">Select %</option>
+                              {Array.from({ length: 21 }, (_, i) => i * 5).map((num) => (
+                                <option key={num} value={num}>
+                                  {num}%
+                                </option>
+                              ))}
+                            </select>
+                          </td>
+                        ))}
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              
+              {errors.hassPercentage && (
+                <p className="error-text">{errors.hassPercentage}</p>
+              )}
+              
+              {selectedSizes.length > 0 && (
+                <p style={{ fontSize: '12px', color: '#666', marginTop: '5px' }}>
+                  Total: {totalPercentage}%
+                </p>
+              )}
             </div>
 
             {/* File Upload Section */}
