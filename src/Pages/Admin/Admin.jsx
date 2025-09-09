@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ClipboardList, Clock, CheckCircle, XCircle } from 'lucide-react';
+import { ClipboardList, Clock, CheckCircle, XCircle, User, Mail, Phone, Shield, Edit3, Save, X } from 'lucide-react';
 import '../Styles/Admin.css';
 import { getProfile, updateProfile, changePassword } from '../../services/authService';
 import { listServiceRequests } from '../../services/serviceRequestsService';
@@ -8,6 +8,8 @@ function Admin() {
   const [adminProfile, setAdminProfile] = useState({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedProfile, setEditedProfile] = useState({});
   
   // Password update modal state
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
@@ -31,6 +33,7 @@ function Admin() {
       try {
         const profile = await getProfile();
         setAdminProfile(profile);
+        setEditedProfile(profile);
       } catch (error) {
         console.error(error);
         setError('There was an error fetching the profile data!');
@@ -66,6 +69,43 @@ function Admin() {
   const handleLogout = () => {
     localStorage.removeItem('token');
     window.location.href = '/';
+  };
+
+  const handleEditProfile = () => {
+    setEditedProfile({ ...adminProfile });
+    setIsEditing(true);
+  };
+
+  const handleSaveProfile = async () => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const updatedProfile = await updateProfile({
+        full_name: editedProfile.full_name,
+        phone: editedProfile.phone
+      });
+      
+      setAdminProfile(updatedProfile);
+      setIsEditing(false);
+    } catch (error) {
+      console.error(error);
+      setError('Failed to update profile. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditedProfile({ ...adminProfile });
+    setIsEditing(false);
+  };
+
+  const handleProfileChange = (field, value) => {
+    setEditedProfile(prev => ({
+      ...prev,
+      [field]: value
+    }));
   };
 
   // Password Modal Methods
@@ -106,8 +146,6 @@ function Admin() {
       setPasswordUpdateError('New password must be different from current password');
       return;
     }
-
-
 
     try {
       await changePassword({
@@ -207,11 +245,56 @@ function Admin() {
         ) : (
           <div className="admin-content">
             <div className="profile-card">
-              <h2 className="card-title">Profile Information</h2>
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="card-title">Profile Information</h2>
+                {!isEditing ? (
+                  <button 
+                    onClick={handleEditProfile}
+                    className="flex items-center px-3 py-1 text-sm bg-green-500 hover:bg-green-600 text-white rounded-md transition-colors"
+                  >
+                    <Edit3 className="w-4 h-4 mr-1" />
+                    Edit
+                  </button>
+                ) : (
+                  <div className="flex space-x-2">
+                    <button 
+                      onClick={handleSaveProfile}
+                      disabled={loading}
+                      className="flex items-center px-3 py-1 text-sm bg-green-500 hover:bg-green-600 text-white rounded-md transition-colors disabled:opacity-50"
+                    >
+                      {loading ? (
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-1"></div>
+                      ) : (
+                        <>
+                          <Save className="w-4 h-4 mr-1" />
+                          Save
+                        </>
+                      )}
+                    </button>
+                    <button 
+                      onClick={handleCancelEdit}
+                      className="flex items-center px-3 py-1 text-sm bg-gray-500 hover:bg-gray-600 text-white rounded-md transition-colors"
+                    >
+                      <X className="w-4 h-4 mr-1" />
+                      Cancel
+                    </button>
+                  </div>
+                )}
+              </div>
+              
               <div className="profile-grid">
                 <div className="profile-item">
                   <p className="profile-label">Name</p>
-                  <p className="profile-value">{adminProfile.full_name || 'N/A'}</p>
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      value={editedProfile.full_name || ''}
+                      onChange={(e) => handleProfileChange('full_name', e.target.value)}
+                      className="profile-input"
+                    />
+                  ) : (
+                    <p className="profile-value">{adminProfile.full_name || 'N/A'}</p>
+                  )}
                 </div>
                 <div className="profile-item">
                   <p className="profile-label">Email</p>
@@ -219,7 +302,16 @@ function Admin() {
                 </div>
                 <div className="profile-item">
                   <p className="profile-label">Phone Number</p>
-                  <p className="profile-value">{adminProfile.phone || 'N/A'}</p>
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      value={editedProfile.phone || ''}
+                      onChange={(e) => handleProfileChange('phone', e.target.value)}
+                      className="profile-input"
+                    />
+                  ) : (
+                    <p className="profile-value">{adminProfile.phone || 'N/A'}</p>
+                  )}
                 </div>
                 <div className="profile-item">
                   <p className="profile-label">Role</p>
@@ -295,7 +387,12 @@ function Admin() {
       {isPasswordModalOpen && (
         <div className="modal-overlay">
           <div className="modal-content">
-            <h2>Update Password</h2>
+            <div className="flex justify-between items-center mb-4">
+              <h2>Update Password</h2>
+              <button onClick={closePasswordModal} className="text-gray-500 hover:text-gray-700">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
             <form onSubmit={handlePasswordUpdate}>
               <div className="form-group">
                 <label>Current Password</label>
@@ -343,8 +440,9 @@ function Admin() {
                 <button 
                   type="submit" 
                   className="modal-confirm"
+                  disabled={loading}
                 >
-                  Update Password
+                  {loading ? 'Updating...' : 'Update Password'}
                 </button>
               </div>
             </form>
@@ -356,7 +454,12 @@ function Admin() {
       {isEmailModalOpen && (
         <div className="modal-overlay">
           <div className="modal-content">
-            <h2>Update Email</h2>
+            <div className="flex justify-between items-center mb-4">
+              <h2>Update Email</h2>
+              <button onClick={closeEmailModal} className="text-gray-500 hover:text-gray-700">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
             <form onSubmit={handleEmailUpdate}>
               <div className="form-group">
                 <label>New Email</label>
@@ -387,8 +490,9 @@ function Admin() {
                 <button 
                   type="submit" 
                   className="modal-confirm"
+                  disabled={loading}
                 >
-                  Update Email
+                  {loading ? 'Updating...' : 'Update Email'}
                 </button>
               </div>
             </form>

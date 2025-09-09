@@ -21,43 +21,29 @@ export default function MyServiceRequests() {
   const loadRequests = async () => {
     setLoading(true);
     try {
-      // Get farmer ID from localStorage (in a real app, this would come from auth context)
+      // Get farmer ID from auth context or localStorage
       const user = JSON.parse(localStorage.getItem('user'));
-      const farmerId = user?.id || 'farmer1'; // Fallback to 'farmer1' for demo
+      const farmerId = user?.id;
       
-      const response = await getServiceRequestsForFarmer(farmerId);
-      setRequests(response.data || []);
+      if (farmerId) {
+        const response = await getServiceRequestsForFarmer(farmerId);
+        setRequests(response || []);
+      } else {
+        console.error('Farmer ID not found');
+        setRequests([]);
+      }
     } catch (error) {
       console.error('Error loading service requests:', error);
-      // Fallback to localStorage if API fails
-      const savedRequests = localStorage.getItem('farmerServiceRequests');
-      if (savedRequests) {
-        const allRequests = JSON.parse(savedRequests);
-        // Assuming farmerId for filtering, default to 'farmer1' for demo
-        const farmerRequests = allRequests.filter(request => request.farmerId === 'farmer1');
-        setRequests(farmerRequests);
-      }
+      setRequests([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const loadNotifications = () => {
-    const savedNotifications = localStorage.getItem('farmerNotifications');
-    if (savedNotifications) {
-      const allNotifications = JSON.parse(savedNotifications);
-      // Filter notifications for the current farmer
-      const farmerNotifications = allNotifications.filter(n => n.farmerId === 'farmer1');
-      setNotifications(farmerNotifications);
-    }
-  };
-
-  const markNotificationAsRead = (notificationId) => {
-    const updatedNotifications = notifications.map(notification =>
-      notification.id === notificationId ? { ...notification, read: true } : notification
-    );
-    setNotifications(updatedNotifications);
-    localStorage.setItem('farmerNotifications', JSON.stringify(updatedNotifications));
+  const loadNotifications = async () => {
+    // In a real implementation, this would fetch notifications from the API
+    // For now, we'll initialize with an empty array
+    setNotifications([]);
   };
 
   const getStatusColor = (status) => {
@@ -142,7 +128,6 @@ export default function MyServiceRequests() {
                       <div
                         key={notification.id}
                         className={`p-3 mb-2 rounded-md ${notification.read ? 'bg-gray-50' : 'bg-blue-50'}`}
-                        onClick={() => markNotificationAsRead(notification.id)}
                       >
                         <p className="text-sm text-gray-900">{notification.message}</p>
                         <p className="text-xs text-gray-500">{formatDate(notification.timestamp)}</p>

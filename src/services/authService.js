@@ -82,8 +82,28 @@ export async function getProfile() {
 
 // Update current user profile
 export async function updateProfile(profileData) {
+  // Validate input data
+  if (!profileData || typeof profileData !== 'object') {
+    throw new Error("Valid profile data is required");
+  }
+  
   const response = await apiClient.put('/auth/profile', profileData);
-  return extractData(response);
+  const updatedUser = extractData(response);
+  
+  // Update user data in localStorage
+  if (updatedUser) {
+    localStorage.setItem('user', JSON.stringify(updatedUser));
+    // Update role if it changed
+    if (updatedUser.role) {
+      localStorage.setItem('role', updatedUser.role);
+    }
+    // Update id if it changed
+    if (updatedUser.id) {
+      localStorage.setItem('id', updatedUser.id);
+    }
+  }
+  
+  return updatedUser;
 }
 
 // Change user password
@@ -113,6 +133,12 @@ export async function refreshToken() {
   
   if (data && data.token) {
     localStorage.setItem('token', data.token);
+    // Update user data if provided
+    if (data.user) {
+      localStorage.setItem('user', JSON.stringify(data.user));
+      localStorage.setItem('role', data.user.role);
+      localStorage.setItem('id', data.user.id);
+    }
     return data;
   } else {
     throw new Error("Failed to refresh token");

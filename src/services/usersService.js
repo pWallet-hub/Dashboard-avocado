@@ -23,6 +23,21 @@ export async function getUser(userId) {
   return extractData(response);
 }
 
+// Create user
+export async function createUser(userData) {
+  if (!userData || typeof userData !== 'object') {
+    throw new Error("Valid user data is required");
+  }
+  
+  // Validate required fields
+  if (!userData.email || !userData.full_name) {
+    throw new Error("Email and full name are required");
+  }
+  
+  const response = await apiClient.post('/users', userData);
+  return extractData(response);
+}
+
 // Update user
 export async function updateUser(userId, userData) {
   if (!userId) {
@@ -34,7 +49,19 @@ export async function updateUser(userId, userData) {
   }
   
   const response = await apiClient.put(`/users/${userId}`, userData);
-  return extractData(response);
+  const updatedUser = extractData(response);
+  
+  // If this is the current user, update localStorage
+  const currentUserId = localStorage.getItem('id');
+  if (currentUserId === userId && updatedUser) {
+    localStorage.setItem('user', JSON.stringify(updatedUser));
+    // Update role if it changed
+    if (updatedUser.role) {
+      localStorage.setItem('role', updatedUser.role);
+    }
+  }
+  
+  return updatedUser;
 }
 
 // Delete user
@@ -82,7 +109,17 @@ export async function updateUserStatus(userId, status) {
   }
   
   const response = await apiClient.put(`/users/${userId}/status`, { status });
-  return extractData(response);
+  const updatedUser = extractData(response);
+  
+  // If this is the current user, update localStorage
+  const currentUserId = localStorage.getItem('id');
+  if (currentUserId === userId && updatedUser) {
+    const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+    currentUser.status = status;
+    localStorage.setItem('user', JSON.stringify(currentUser));
+  }
+  
+  return updatedUser;
 }
 
 // Update user role
@@ -96,5 +133,16 @@ export async function updateUserRole(userId, role) {
   }
   
   const response = await apiClient.put(`/users/${userId}/role`, { role });
-  return extractData(response);
+  const updatedUser = extractData(response);
+  
+  // If this is the current user, update localStorage
+  const currentUserId = localStorage.getItem('id');
+  if (currentUserId === userId && updatedUser) {
+    const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+    currentUser.role = role;
+    localStorage.setItem('user', JSON.stringify(currentUser));
+    localStorage.setItem('role', role);
+  }
+  
+  return updatedUser;
 }

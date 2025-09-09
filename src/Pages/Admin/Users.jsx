@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
 import { MdOutlineDeleteOutline } from "react-icons/md";
 import { FiEdit } from "react-icons/fi";
 import * as XLSX from 'xlsx';
@@ -7,6 +6,7 @@ import { CiLogout } from "react-icons/ci";
 import Select from 'react-select';
 import { ClipLoader } from "react-spinners";
 import '../Styles/Growers.css';
+import { listUsers, createUser, updateUser, deleteUser } from '../../services/usersService';
 
 
 const Users = () => {
@@ -54,16 +54,9 @@ const Users = () => {
     const fetchUsers = async () => {
       setLoading(true);
       setError(null);
-      const token = localStorage.getItem('token');
       try {
-        const response = await axios.get('https://pwallet-api.onrender.com/api/farmers/', {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        });
-        setUsers(response.data);
-        // Cache a copy for demo mode
-        // lsSet('demo:users', response.data); // Removed demoData functionality
+        const response = await listUsers();
+        setUsers(response);
       } catch (error) {
         console.log(error);
         // Fallback to empty array
@@ -141,34 +134,53 @@ const Users = () => {
     setLoading(true);
     setError(null);
 
-    const token = localStorage.getItem('token');
-
     try {
-      const response = await axios.post(
-        'https://pwallet-api.onrender.com/api/farmers/', 
-        newUserForm, 
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
+      // Prepare user data for API submission
+      const userData = {
+        ...newUserForm,
+        role: 'farmer', // Default role for new users
+        status: 'active' // Default status
+      };
 
+      // Create user via API
+      const response = await createUser(userData);
+      
       // Update users list with new user
-      setUsers(prevUsers => [...prevUsers, response.data]);
-      // Persist to demo cache as well
-      const current = lsGet('demo:users', []);
-      lsSet('demo:users', [...current, response.data]);
+      setUsers(prevUsers => [...prevUsers, response]);
       
       // Close modal and reset form
       closeAddModal();
     } catch (error) {
-      // Handle error case without demoData
+      // Handle error case
       console.error('Error creating user:', error);
-      closeAddModal();
+      setError('Failed to create user. Please try again.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleUpdateUser = async (userId, userData) => {
+    try {
+      const response = await updateUser(userId, userData);
+      // Update user in the local state
+      setUsers(prevUsers => 
+        prevUsers.map(user => user.id === userId ? response : user)
+      );
+      closeModal();
+    } catch (error) {
+      console.error('Error updating user:', error);
+      setError('Failed to update user. Please try again.');
+    }
+  };
+
+  const handleDeleteUser = async (userId) => {
+    try {
+      await deleteUser(userId);
+      // Remove user from the local state
+      setUsers(prevUsers => prevUsers.filter(user => user.id !== userId));
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      setError('Failed to delete user. Please try again.');
     }
   };
 
@@ -395,7 +407,10 @@ const Users = () => {
                           >
                             <FiEdit className="btn-icon" /> Edit
                           </button>
-                          <button className="btn btn-delete">
+                          <button 
+                            onClick={() => handleDeleteUser(user.id)}
+                            className="btn btn-delete"
+                          >
                             <MdOutlineDeleteOutline className="btn-icon" /> Delete
                           </button>
                         </div>
@@ -470,7 +485,10 @@ const Users = () => {
                Close
              </button>
              {isEditMode && (
-               <button className="btn btn-primary modal-save">
+               <button 
+                 onClick={() => handleUpdateUser(selectedUser.id, selectedUser)}
+                 className="btn btn-primary modal-save"
+               >
                  Save Changes
                </button>
              )}

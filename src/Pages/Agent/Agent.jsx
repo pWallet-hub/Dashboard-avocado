@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { User, Mail, Phone, MapPin, Calendar, Activity, Award, BarChart3, Briefcase, LogOut } from 'lucide-react';
+import { User, Mail, Phone, MapPin, Calendar, Activity, Award, BarChart3, Briefcase, LogOut, Edit3, Save, X } from 'lucide-react';
+import { getProfile, updateProfile } from '../../services/authService';
 
 // Sub-component for Profile Section in AgentMembershipCard
 const ProfileSection = ({ name, specialization, profileImage, status, agentId }) => (
@@ -162,6 +163,8 @@ export default function AgentProfile() {
   const [agentProfile, setAgentProfile] = useState({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedProfile, setEditedProfile] = useState({});
 
   useEffect(() => {
     const fetchAgentProfile = async () => {
@@ -169,32 +172,9 @@ export default function AgentProfile() {
       setError(null);
 
       try {
-        // Replace with actual API call
-        // const response = await fetch('/api/agent-profile');
-        // if (!response.ok) throw new Error('Failed to fetch profile');
-        // const data = await response.json();
-        // setAgentProfile(data);
-
-        // Simulated API call for demonstration
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-        setAgentProfile({
-          fullname: "Jean Baptiste Uwimana",
-          email: "j.uwimana@agent.rw",
-          phonenumber: "+250 788 123 456",
-          province: "Kigali",
-          district: "Gasabo",
-          sector: "Kinyinya",
-          joinDate: "2023-01-15",
-          status: "Active",
-          agentId: "AGT001234",
-          specialization: "Crop Management",
-          experience: "5 years",
-          certification: "Certified Agricultural Extension Agent",
-          performance: "95%",
-          farmersAssisted: 127,
-          totalTransactions: 2847,
-          lastLogin: "2024-01-20 09:30",
-        });
+        const profileData = await getProfile();
+        setAgentProfile(profileData);
+        setEditedProfile(profileData);
       } catch (err) {
         setError(err.message || 'An error occurred while fetching the profile');
       } finally {
@@ -204,6 +184,59 @@ export default function AgentProfile() {
 
     fetchAgentProfile();
   }, []);
+
+  const handleEditProfile = () => {
+    setEditedProfile({ ...agentProfile });
+    setIsEditing(true);
+  };
+
+  const handleSaveProfile = async () => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      // Prepare update data
+      const updateData = {
+        full_name: editedProfile.full_name,
+        phone: editedProfile.phone
+      };
+      
+      // Add profile data if it exists
+      if (editedProfile.profile) {
+        updateData.profile = editedProfile.profile;
+      }
+      
+      const updatedProfile = await updateProfile(updateData);
+      setAgentProfile(updatedProfile);
+      setIsEditing(false);
+    } catch (err) {
+      setError(err.message || 'Failed to update profile');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditedProfile({ ...agentProfile });
+    setIsEditing(false);
+  };
+
+  const handleProfileChange = (field, value) => {
+    setEditedProfile(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handleProfileNestedChange = (parent, field, value) => {
+    setEditedProfile(prev => ({
+      ...prev,
+      [parent]: {
+        ...prev[parent],
+        [field]: value
+      }
+    }));
+  };
 
   const handleLogout = () => {
     window.location.href = '/';
@@ -224,14 +257,23 @@ export default function AgentProfile() {
     </div>
   );
 
-  const InfoField = ({ label, value, icon: Icon }) => (
+  const InfoField = ({ label, value, icon: Icon, isEditing, onChange, type = "text" }) => (
     <div className="flex items-center p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors duration-200">
       <div className="p-2 rounded-lg mr-4 bg-[#1F310A0D]">
         <Icon className="w-5 h-5 text-[#1F310A]" aria-hidden="true" />
       </div>
       <div className="flex-1">
         <p className="text-sm text-gray-500 mb-1">{label}</p>
-        <p className="font-semibold text-gray-800">{value || 'N/A'}</p>
+        {isEditing ? (
+          <input
+            type={type}
+            value={value || ''}
+            onChange={(e) => onChange(e.target.value)}
+            className="w-full px-3 py-1 border border-gray-300 rounded-md"
+          />
+        ) : (
+          <p className="font-semibold text-gray-800">{value || 'N/A'}</p>
+        )}
       </div>
     </div>
   );
@@ -260,6 +302,9 @@ export default function AgentProfile() {
       </div>
     );
   }
+
+  // Extract agent-specific profile data
+  const agentProfileData = agentProfile.profile || {};
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -292,17 +337,52 @@ export default function AgentProfile() {
         {/* Membership Card Section */}
         <div className="mb-8">
           <AgentMembershipCard
-            name={agentProfile.fullname}
-            agentId={agentProfile.agentId}
-            location={`${agentProfile.district}, ${agentProfile.province}`}
-            specialization={agentProfile.specialization}
-            experience={agentProfile.experience}
-            profileImage={agentProfile.profileImage}
-            status={agentProfile.status}
-            certification={agentProfile.certification}
+            name={agentProfile.full_name}
+            agentId={agentProfileData.agentId || agentProfile.id}
+            location={`${agentProfileData.district || ''}${agentProfileData.province ? `, ${agentProfileData.province}` : ''}`.trim() || 'N/A'}
+            specialization={agentProfileData.specialization || 'Agricultural Specialist'}
+            experience={agentProfileData.experience || 'N/A'}
+            profileImage={agentProfileData.profileImage}
+            status={agentProfile.status || 'Active'}
+            certification={agentProfileData.certification}
             email={agentProfile.email}
-            phone={agentProfile.phonenumber}
+            phone={agentProfile.phone}
           />
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex justify-end mb-6">
+          {!isEditing ? (
+            <button
+              onClick={handleEditProfile}
+              className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200"
+            >
+              <Edit3 className="w-4 h-4 mr-2" />
+              Edit Profile
+            </button>
+          ) : (
+            <div className="flex space-x-2">
+              <button
+                onClick={handleSaveProfile}
+                disabled={loading}
+                className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200 disabled:opacity-50"
+              >
+                {loading ? (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                ) : (
+                  <Save className="w-4 h-4 mr-2" />
+                )}
+                Save
+              </button>
+              <button
+                onClick={handleCancelEdit}
+                className="flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors duration-200"
+              >
+                <X className="w-4 h-4 mr-2" />
+                Cancel
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Statistics Cards */}
@@ -310,25 +390,25 @@ export default function AgentProfile() {
           <ProfileCard
             icon={User}
             title="Farmers Assisted"
-            value={agentProfile.farmersAssisted}
+            value={agentProfileData.farmersAssisted}
             subtitle="This month"
           />
           <ProfileCard
             icon={BarChart3}
             title="Total Transactions"
-            value={agentProfile.totalTransactions}
+            value={agentProfileData.totalTransactions}
             subtitle="All time"
           />
           <ProfileCard
             icon={Award}
             title="Performance Score"
-            value={agentProfile.performance}
+            value={agentProfileData.performance}
             subtitle="Current rating"
           />
           <ProfileCard
             icon={Briefcase}
             title="Years of Service"
-            value={agentProfile.experience?.split(' ')[0]}
+            value={agentProfileData.experience?.split(' ')[0]}
             subtitle="Agricultural extension"
           />
         </div>
@@ -342,10 +422,33 @@ export default function AgentProfile() {
                 Personal Information
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <InfoField label="Full Name" value={agentProfile.fullname} icon={User} />
-                <InfoField label="Email Address" value={agentProfile.email} icon={Mail} />
-                <InfoField label="Phone Number" value={agentProfile.phonenumber} icon={Phone} />
-                <InfoField label="Agent ID" value={agentProfile.agentId} icon={Briefcase} />
+                <InfoField 
+                  label="Full Name" 
+                  value={isEditing ? editedProfile.full_name : agentProfile.full_name} 
+                  icon={User} 
+                  isEditing={isEditing}
+                  onChange={(value) => handleProfileChange('full_name', value)}
+                />
+                <InfoField 
+                  label="Email Address" 
+                  value={agentProfile.email} 
+                  icon={Mail} 
+                  isEditing={false}
+                />
+                <InfoField 
+                  label="Phone Number" 
+                  value={isEditing ? editedProfile.phone : agentProfile.phone} 
+                  icon={Phone} 
+                  isEditing={isEditing}
+                  onChange={(value) => handleProfileChange('phone', value)}
+                  type="tel"
+                />
+                <InfoField 
+                  label="Agent ID" 
+                  value={agentProfileData.agentId || agentProfile.id} 
+                  icon={Briefcase} 
+                  isEditing={false}
+                />
               </div>
             </div>
 
@@ -356,9 +459,27 @@ export default function AgentProfile() {
                 Location Information
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <InfoField label="Province" value={agentProfile.province} icon={MapPin} />
-                <InfoField label="District" value={agentProfile.district} icon={MapPin} />
-                <InfoField label="Sector" value={agentProfile.sector} icon={MapPin} />
+                <InfoField 
+                  label="Province" 
+                  value={agentProfileData.province} 
+                  icon={MapPin} 
+                  isEditing={isEditing}
+                  onChange={(value) => handleProfileNestedChange('profile', 'province', value)}
+                />
+                <InfoField 
+                  label="District" 
+                  value={agentProfileData.district} 
+                  icon={MapPin} 
+                  isEditing={isEditing}
+                  onChange={(value) => handleProfileNestedChange('profile', 'district', value)}
+                />
+                <InfoField 
+                  label="Sector" 
+                  value={agentProfileData.sector} 
+                  icon={MapPin} 
+                  isEditing={isEditing}
+                  onChange={(value) => handleProfileNestedChange('profile', 'sector', value)}
+                />
               </div>
             </div>
           </div>
@@ -373,15 +494,30 @@ export default function AgentProfile() {
               <div className="space-y-4">
                 <InfoField
                   label="Specialization"
-                  value={agentProfile.specialization}
+                  value={agentProfileData.specialization}
                   icon={Briefcase}
+                  isEditing={isEditing}
+                  onChange={(value) => handleProfileNestedChange('profile', 'specialization', value)}
                 />
-                <InfoField label="Experience" value={agentProfile.experience} icon={Calendar} />
-                <InfoField label="Certification" value={agentProfile.certification} icon={Award} />
+                <InfoField 
+                  label="Experience" 
+                  value={agentProfileData.experience} 
+                  icon={Calendar} 
+                  isEditing={isEditing}
+                  onChange={(value) => handleProfileNestedChange('profile', 'experience', value)}
+                />
+                <InfoField 
+                  label="Certification" 
+                  value={agentProfileData.certification} 
+                  icon={Award} 
+                  isEditing={isEditing}
+                  onChange={(value) => handleProfileNestedChange('profile', 'certification', value)}
+                />
                 <InfoField
                   label="Join Date"
-                  value={agentProfile.joinDate ? new Date(agentProfile.joinDate).toLocaleDateString() : 'N/A'}
+                  value={agentProfile.created_at ? new Date(agentProfile.created_at).toLocaleDateString() : 'N/A'}
                   icon={Calendar}
+                  isEditing={false}
                 />
               </div>
             </div>
@@ -394,10 +530,6 @@ export default function AgentProfile() {
               </h3>
               <div className="space-y-4">
                 <div className="p-4 bg-gray-50 rounded-lg">
-                  <p className="text-sm text-gray-600 mb-1">Last Login</p>
-                  <p className="font-semibold text-gray-800">{agentProfile.lastLogin || 'N/A'}</p>
-                </div>
-                <div className="p-4 bg-gray-50 rounded-lg">
                   <p className="text-sm text-gray-600 mb-1">Status</p>
                   <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                     {agentProfile.status || 'Active'}
@@ -409,11 +541,11 @@ export default function AgentProfile() {
                     <div className="flex-1 bg-gray-200 rounded-full h-2 mr-3">
                       <div
                         className="h-2 rounded-full bg-[#1F310A]"
-                        style={{ width: agentProfile.performance || '0%' }}
+                        style={{ width: agentProfileData.performance || '0%' }}
                       ></div>
                     </div>
                     <span className="text-sm font-medium text-gray-800">
-                      {agentProfile.performance || 'N/A'}
+                      {agentProfileData.performance || 'N/A'}
                     </span>
                   </div>
                 </div>
