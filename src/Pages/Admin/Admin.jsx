@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
 import { ClipboardList, Clock, CheckCircle, XCircle } from 'lucide-react';
 import '../Styles/Admin.css';
+import { getProfile, updateProfile, changePassword } from '../../services/authService';
+import { listServiceRequests } from '../../services/serviceRequestsService';
 
 function Admin() {
   const [adminProfile, setAdminProfile] = useState({});
@@ -27,15 +28,9 @@ function Admin() {
     const fetchAdminProfile = async () => {
       setLoading(true);
       setError(null);
-      const token = localStorage.getItem('token');
-      const id = localStorage.getItem('id');
       try {
-        const response = await axios.get(`https://pwallet-api.onrender.com/api/auth/admin-profile/${id}`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        setAdminProfile(response.data);
+        const profile = await getProfile();
+        setAdminProfile(profile);
       } catch (error) {
         console.error(error);
         setError('There was an error fetching the profile data!');
@@ -115,22 +110,10 @@ function Admin() {
 
 
     try {
-      const token = localStorage.getItem('token');
-      const id = localStorage.getItem('id');
-      
-      await axios.post(
-         `https://pwallet-api.onrender.com/api/auth/change-password/${id}`,  
-        {
-          oldPassword,
-          newPassword,
-          confirmNewPassword
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        }
-      );
+      await changePassword({
+        currentPassword: oldPassword,
+        newPassword: newPassword
+      });
 
       // Success handling
       setPasswordUpdateSuccess(true);
@@ -180,19 +163,9 @@ function Admin() {
     }
 
     try {
-      const token = localStorage.getItem('token');
-      
-      await axios.put(
-        'https://pwallet-api.onrender.com/api/auth/update-email', 
-        {
-          newEmail
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        }
-      );
+      await updateProfile({
+        email: newEmail
+      });
 
       // Success handling
       setEmailUpdateSuccess(true);
@@ -238,7 +211,7 @@ function Admin() {
               <div className="profile-grid">
                 <div className="profile-item">
                   <p className="profile-label">Name</p>
-                  <p className="profile-value">{adminProfile.username || 'N/A'}</p>
+                  <p className="profile-value">{adminProfile.full_name || 'N/A'}</p>
                 </div>
                 <div className="profile-item">
                   <p className="profile-label">Email</p>
@@ -246,7 +219,7 @@ function Admin() {
                 </div>
                 <div className="profile-item">
                   <p className="profile-label">Phone Number</p>
-                  <p className="profile-value">{adminProfile.phoneNumber || 'N/A'}</p>
+                  <p className="profile-value">{adminProfile.phone || 'N/A'}</p>
                 </div>
                 <div className="profile-item">
                   <p className="profile-label">Role</p>

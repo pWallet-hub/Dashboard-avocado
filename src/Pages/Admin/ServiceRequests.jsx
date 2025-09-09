@@ -24,17 +24,12 @@ export default function ServiceRequests() {
     setLoading(true);
     try {
       const response = await listServiceRequests();
-      setRequests(response.data || []);
-      setFilteredRequests(response.data || []);
+      setRequests(response || []);
+      setFilteredRequests(response || []);
     } catch (error) {
       console.error('Error loading service requests:', error);
-      // Fallback to localStorage if API fails
-      const savedRequests = localStorage.getItem('farmerServiceRequests');
-      if (savedRequests) {
-        const parsedRequests = JSON.parse(savedRequests);
-        setRequests(parsedRequests);
-        setFilteredRequests(parsedRequests);
-      }
+      setRequests([]);
+      setFilteredRequests([]);
     } finally {
       setLoading(false);
     }
@@ -57,10 +52,11 @@ export default function ServiceRequests() {
     // Filter by search term
     if (searchTerm) {
       filtered = filtered.filter(request => 
-        request.farmerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        request.farmerPhone.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        request.farmerEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (request.type && request.type.toLowerCase().includes(searchTerm.toLowerCase()))
+        (request.farmer_id?.full_name && request.farmer_id.full_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (request.farmer_id?.phone && request.farmer_id.phone.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (request.farmer_id?.email && request.farmer_id.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (request.service_type && request.service_type.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (request.title && request.title.toLowerCase().includes(searchTerm.toLowerCase()))
       );
     }
 
@@ -282,7 +278,7 @@ export default function ServiceRequests() {
             <div className="space-y-3">
               <div>
                 <label className="text-sm font-medium text-gray-600">Service Type</label>
-                <p className="text-gray-900 font-semibold">{request.type}</p>
+                <p className="text-gray-900 font-semibold">{request.service_type}</p>
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-600">Status</label>
@@ -694,12 +690,12 @@ export default function ServiceRequests() {
                     <tr key={request.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div>
-                          <div className="text-sm font-medium text-gray-900">{request.farmerName}</div>
-                          <div className="text-sm text-gray-500">{request.farmerPhone}</div>
+                          <div className="text-sm font-medium text-gray-900">{request.farmer_id?.full_name || 'N/A'}</div>
+                          <div className="text-sm text-gray-500">{request.farmer_id?.phone || 'N/A'}</div>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="text-sm text-gray-900">{request.type}</span>
+                        <span className="text-sm text-gray-900">{request.service_type}</span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(request.status)}`}>
