@@ -111,6 +111,42 @@ Authorization: Bearer <token>
 }
 ```
 
+#### Refresh Authentication Token
+- **URL**: `/auth/refresh`
+- **Method**: `POST`
+- **Access**: Private
+- **Description**: Refresh an expired JWT token using a refresh token
+
+##### Request Body
+```json
+{
+  "refreshToken": "string (required)"
+}
+```
+
+##### Success Response
+```json
+{
+  "success": true,
+  "data": {
+    "token": "string",
+    "user": {
+      "id": "string",
+      "email": "string",
+      "full_name": "string",
+      "role": "string",
+      "status": "string"
+    }
+  },
+  "message": "Token refreshed successfully"
+}
+```
+
+##### Error Responses
+- `400`: Invalid refresh token
+- `401`: Refresh token expired
+- `500`: Token refresh failed
+
 #### Get Current User Profile
 - **URL**: `/auth/profile`
 - **Method**: `GET`

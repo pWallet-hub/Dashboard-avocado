@@ -1,100 +1,100 @@
-import apiClient from './apiClient';
+import apiClient, { extractData } from './apiClient';
 
 // Get all users (Admin only)
 export async function listUsers(options = {}) {
-  try {
-    const params = {};
-    if (options.page) params.page = options.page;
-    if (options.limit) params.limit = options.limit;
-    if (options.role) params.role = options.role;
-    if (options.status) params.status = options.status;
-    if (options.search) params.search = options.search;
-    
-    const response = await apiClient.get('/users', { params });
-    return response.data;
-  } catch (error) {
-    throw new Error(error.response?.data?.message || 'Failed to fetch users');
-  }
+  const params = {};
+  if (options.page) params.page = options.page;
+  if (options.limit) params.limit = options.limit;
+  if (options.role) params.role = options.role;
+  if (options.status) params.status = options.status;
+  if (options.search) params.search = options.search;
+  
+  const response = await apiClient.get('/users', { params });
+  return extractData(response);
 }
 
 // Get user by ID
 export async function getUser(userId) {
-  try {
-    const response = await apiClient.get(`/users/${userId}`);
-    return response.data;
-  } catch (error) {
-    throw new Error(error.response?.data?.message || 'Failed to fetch user');
+  if (!userId) {
+    throw new Error("User ID is required");
   }
+  
+  const response = await apiClient.get(`/users/${userId}`);
+  return extractData(response);
 }
 
 // Update user
 export async function updateUser(userId, userData) {
-  try {
-    const response = await apiClient.put(`/users/${userId}`, userData);
-    return response.data;
-  } catch (error) {
-    throw new Error(error.response?.data?.message || 'Failed to update user');
+  if (!userId) {
+    throw new Error("User ID is required");
   }
+  
+  if (!userData || typeof userData !== 'object') {
+    throw new Error("Valid user data is required");
+  }
+  
+  const response = await apiClient.put(`/users/${userId}`, userData);
+  return extractData(response);
 }
 
 // Delete user
 export async function deleteUser(userId) {
-  try {
-    const response = await apiClient.delete(`/users/${userId}`);
-    return response.data;
-  } catch (error) {
-    throw new Error(error.response?.data?.message || 'Failed to delete user');
+  if (!userId) {
+    throw new Error("User ID is required");
   }
+  
+  const response = await apiClient.delete(`/users/${userId}`);
+  return extractData(response);
 }
 
 // Get all farmers
 export async function listFarmers(options = {}) {
-  try {
-    const params = {};
-    if (options.page) params.page = options.page;
-    if (options.limit) params.limit = options.limit;
-    if (options.status) params.status = options.status;
-    if (options.search) params.search = options.search;
-    
-    const response = await apiClient.get('/users/farmers', { params });
-    return response.data;
-  } catch (error) {
-    throw new Error(error.response?.data?.message || 'Failed to fetch farmers');
-  }
+  const params = {};
+  if (options.page) params.page = options.page;
+  if (options.limit) params.limit = options.limit;
+  if (options.status) params.status = options.status;
+  if (options.search) params.search = options.search;
+  
+  const response = await apiClient.get('/users/farmers', { params });
+  return extractData(response);
 }
 
 // Get all agents
 export async function listAgents(options = {}) {
-  try {
-    const params = {};
-    if (options.page) params.page = options.page;
-    if (options.limit) params.limit = options.limit;
-    if (options.status) params.status = options.status;
-    if (options.search) params.search = options.search;
-    
-    const response = await apiClient.get('/users/agents', { params });
-    return response.data;
-  } catch (error) {
-    throw new Error(error.response?.data?.message || 'Failed to fetch agents');
-  }
+  const params = {};
+  if (options.page) params.page = options.page;
+  if (options.limit) params.limit = options.limit;
+  if (options.status) params.status = options.status;
+  if (options.search) params.search = options.search;
+  
+  const response = await apiClient.get('/users/agents', { params });
+  return extractData(response);
 }
 
 // Update user status
 export async function updateUserStatus(userId, status) {
-  try {
-    const response = await apiClient.put(`/users/${userId}/status`, { status });
-    return response.data;
-  } catch (error) {
-    throw new Error(error.response?.data?.message || 'Failed to update user status');
+  if (!userId) {
+    throw new Error("User ID is required");
   }
+  
+  if (!status || typeof status !== 'string') {
+    throw new Error("Valid status is required");
+  }
+  
+  const response = await apiClient.put(`/users/${userId}/status`, { status });
+  return extractData(response);
 }
 
 // Update user role
 export async function updateUserRole(userId, role) {
-  try {
-    const response = await apiClient.put(`/users/${userId}/role`, { role });
-    return response.data;
-  } catch (error) {
-    throw new Error(error.response?.data?.message || 'Failed to update user role');
+  if (!userId) {
+    throw new Error("User ID is required");
   }
+  
+  if (!role || typeof role !== 'string') {
+    throw new Error("Valid role is required");
+  }
+  
+  const response = await apiClient.put(`/users/${userId}/role`, { role });
+  return extractData(response);
 }
