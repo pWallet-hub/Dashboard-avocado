@@ -6,7 +6,7 @@ import * as XLSX from 'xlsx';
 import { CiLogout } from "react-icons/ci";
 import Select from 'react-select'; 
 import { listFarmers as apiListFarmers, updateUser as apiUpdateUser, deleteUser as apiDeleteUser } from '../../services/usersService';
-import { initializeStorage, getFarmerProducts, getFarmerToShopTransactions, getShopInventory } from '../../services/marketStorageService';
+import { getFarmerProducts, getFarmerToShopTransactions, getShopInventory } from '../../services/marketStorageService';
 import { 
   BarChart3, TrendingUp, Package, DollarSign, ShoppingCart, 
   Users, Calendar, Eye, Plus, Truck, Store, Activity
@@ -53,32 +53,30 @@ const Dashboard = () => {
     loadFarmerDashboardData();
   }, [activeView]);
 
-  const loadFarmerDashboardData = () => {
+  const loadFarmerDashboardData = async () => {
     try {
-      initializeStorage();
-      
       // Get current farmer (in real app, this would come from auth)
       const currentFarmer = getCurrentFarmer();
-      
-      // Load farmer's products
-      const products = getFarmerProducts(currentFarmer.id);
-      setFarmerProducts(products);
-      
-      // Load shop integration data
-      const transactions = getFarmerToShopTransactions();
+
+      // Load farmer's products using the API
+      const products = await getFarmerProducts(currentFarmer.id);
+      setFarmerProducts(products || []);
+
+      // Load shop integration data using the API
+      const transactions = await getFarmerToShopTransactions();
       const farmerTransactions = transactions.filter(t => t.farmerId === currentFarmer.id);
-      
-      const inventory = getShopInventory();
+
+      const inventory = await getShopInventory();
       const farmerInventoryItems = inventory.filter(item => 
         item.sourceType === 'farmer' && item.supplierId === currentFarmer.id
       );
-      
+
       // Calculate metrics
       const totalRevenue = farmerTransactions.reduce((sum, t) => sum + t.totalAmount, 0);
       const totalProducts = products.length;
       const syncedProducts = farmerInventoryItems.length;
       const availableProducts = products.filter(p => p.status === 'available').length;
-      
+
       setFarmerMetrics({
         totalProducts,
         syncedProducts,
@@ -87,15 +85,30 @@ const Dashboard = () => {
         totalTransactions: farmerTransactions.length,
         avgPrice: totalProducts > 0 ? products.reduce((sum, p) => sum + p.pricePerUnit, 0) / totalProducts : 0
       });
-      
+
       setShopIntegration({
         transactions: farmerTransactions,
         inventoryItems: farmerInventoryItems,
         syncRate: totalProducts > 0 ? (syncedProducts / totalProducts) * 100 : 0
       });
-      
+
     } catch (error) {
       console.error('Error loading farmer dashboard data:', error);
+      // Set fallback empty data
+      setFarmerProducts([]);
+      setFarmerMetrics({
+        totalProducts: 0,
+        syncedProducts: 0,
+        availableProducts: 0,
+        totalRevenue: 0,
+        totalTransactions: 0,
+        avgPrice: 0
+      });
+      setShopIntegration({
+        transactions: [],
+        inventoryItems: [],
+        syncRate: 0
+      });
     }
   };
 

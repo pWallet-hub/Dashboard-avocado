@@ -10,9 +10,62 @@ import image2 from '../../assets/image/slide2.jpg'
 import image3 from '../../assets/image/slide3.jpg'
 import { Link } from 'react-router-dom';
 import product from '../../assets/image/product.jpg';
-import { initializeStorage, getFarmerProducts, addFarmerProduct } from '../../services/marketStorageService';
 import { Plus, Edit, Eye, ShoppingCart } from 'lucide-react';
 
+// Local storage helper functions
+const initializeStorage = () => {
+  if (typeof window === 'undefined') return;
+  
+  if (!localStorage.getItem('farmerProducts')) {
+    const demoProducts = [
+      {
+        id: 'p1',
+        farmerId: 'f1',
+        name: 'Hass Avocados',
+        category: 'Fruits',
+        quantity: 50,
+        unit: 'kg',
+        pricePerUnit: 2.5,
+        quality: 'Premium',
+        harvestDate: '2024-09-01',
+        status: 'available',
+        description: 'Fresh organic Hass avocados'
+      },
+      {
+        id: 'p2',
+        farmerId: 'f1',
+        name: 'Organic Tomatoes',
+        category: 'Vegetables',
+        quantity: 30,
+        unit: 'kg',
+        pricePerUnit: 1.8,
+        quality: 'Good',
+        harvestDate: '2024-08-28',
+        status: 'available',
+        description: 'Fresh organic tomatoes'
+      }
+    ];
+    localStorage.setItem('farmerProducts', JSON.stringify(demoProducts));
+  }
+};
+
+const getFarmerProducts = (farmerId) => {
+  const products = JSON.parse(localStorage.getItem('farmerProducts') || '[]');
+  return farmerId ? products.filter(p => p.farmerId === farmerId) : products;
+};
+
+const addFarmerProduct = (productData) => {
+  const products = JSON.parse(localStorage.getItem('farmerProducts') || '[]');
+  const newProduct = {
+    ...productData,
+    id: 'p' + Date.now(),
+    status: 'available',
+    harvestDate: new Date().toISOString().split('T')[0]
+  };
+  products.push(newProduct);
+  localStorage.setItem('farmerProducts', JSON.stringify(products));
+  return newProduct;
+};
 
 export default function Market() {
   const [products, setProducts] = useState([]);
@@ -119,8 +172,6 @@ export default function Market() {
       setLoading(false);
     }
   };
-
-
 
   const text1 = (
     <div className='market-slide' >

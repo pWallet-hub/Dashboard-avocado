@@ -1,6 +1,7 @@
+// src/Pages/ShopManager/ShopInventory.jsx
 import React, { useState, useEffect } from 'react';
 import { Package, Plus, Search, AlertTriangle, Edit, Trash2, Eye, Filter, Leaf } from 'lucide-react';
-import { initializeStorage, getShopInventory, addToShopInventory, updateShopInventory, deleteInventoryItem, calculateExpiryDate } from '../../services/marketStorageService';
+import { getShopInventory, addToShopInventory, updateShopInventory, deleteInventoryItem, calculateExpiryDate } from '../../services/marketStorageService.js';
 
 const ShopInventory = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -11,17 +12,17 @@ const ShopInventory = () => {
   const [editingItem, setEditingItem] = useState(null);
 
   useEffect(() => {
-    initializeStorage();
     loadInventory();
   }, []);
 
-  const loadInventory = () => {
+  const loadInventory = async () => {
     setLoading(true);
     try {
-      const inventoryData = getShopInventory();
+      const inventoryData = await getShopInventory();
       setInventory(inventoryData);
     } catch (error) {
       console.error('Error loading inventory:', error);
+      alert('Failed to load inventory. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -48,8 +49,11 @@ const ShopInventory = () => {
     return matchesSearch && matchesCategory;
   });
 
-  const handleSaveItem = () => {
-    if (!newItem.name || !newItem.quantity || !newItem.price) return;
+  const handleSaveItem = async () => {
+    if (!newItem.name || !newItem.quantity || !newItem.price) {
+      alert('Please fill in all required fields (Name, Quantity, Price).');
+      return;
+    }
     
     try {
       const item = {
@@ -57,19 +61,18 @@ const ShopInventory = () => {
         quantity: parseInt(newItem.quantity),
         price: parseFloat(newItem.price),
         cost: parseFloat(newItem.price) * 0.8, // Assume 20% markup
-        minStock: parseInt(newItem.minStock),
-        status: parseInt(newItem.quantity) <= parseInt(newItem.minStock) ? 'low-stock' : 'in-stock',
+        minStock: parseInt(newItem.minStock) || 0,
+        status: parseInt(newItem.quantity) <= parseInt(newItem.minStock || 0) ? 'low-stock' : 'in-stock',
         sourceType: 'manual',
         expiryDate: newItem.expiryDate || calculateExpiryDate(newItem.harvestDate, newItem.category)
       };
       
       if (editingItem) {
-        // Assume update method
-        updateShopInventory(editingItem.id, item);
+        await updateShopInventory(editingItem.id, item);
       } else {
-        addToShopInventory(item);
+        await addToShopInventory(item);
       }
-      loadInventory();
+      await loadInventory();
       resetForm();
       setShowAddModal(false);
     } catch (error) {
@@ -108,11 +111,11 @@ const ShopInventory = () => {
     setShowAddModal(true);
   };
 
-  const handleDeleteItem = (id) => {
-    if (confirm('Are you sure you want to delete this item?')) {
+  const handleDeleteItem = async (id) => {
+    if (window.confirm('Are you sure you want to delete this item?')) {
       try {
-        deleteInventoryItem(id);
-        loadInventory();
+        await deleteInventoryItem(id);
+        await loadInventory();
       } catch (error) {
         alert('Error deleting item: ' + error.message);
       }

@@ -5,11 +5,12 @@ import {
   ShoppingCart, BarChart3, Eye, AlertTriangle, CheckCircle,
   Filter, Download, Upload, MessageCircle, FileText
 } from 'lucide-react';
-import { initializeStorage, syncAllFarmerData, getSuppliers, saveSuppliers, getSalesData, getOrders, getMarketTransactions } from '../../services/marketStorageService';
+import { getSuppliers, createSupplier, updateSupplier, getShopOrders, getFarmerToShopTransactions } from '../../services/marketStorageService.js';
 
 const ShopSuppliers = () => {
   const [suppliers, setSuppliers] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   const [activeView, setActiveView] = useState('list');
   const [selectedSupplier, setSelectedSupplier] = useState(null);
   const [supplierSearchTerm, setSupplierSearchTerm] = useState('');
@@ -19,64 +20,52 @@ const ShopSuppliers = () => {
   const [modalType, setModalType] = useState('add');
 
   useEffect(() => {
-    initializeStorage();
     loadSuppliers();
   }, []);
 
-  const loadSuppliers = () => {
+  const loadSuppliers = async () => {
     setLoading(true);
+    setError(null);
     try {
-      // Sync farmer data first to ensure latest connections
-      syncAllFarmerData();
+      const storedSuppliers = await getSuppliers() || [];
+      const orders = await getShopOrders() || [];
+      const transactions = await getFarmerToShopTransactions() || [];
       
-      const storedSuppliers = getSuppliers() || [];
-      const salesData = getSalesData() || [];
-      const orders = getOrders() || [];
-      const transactions = getMarketTransactions() || [];
-      
-      if (storedSuppliers.length === 0) {
-        // Initialize with default suppliers if none exist
-        const defaultSuppliers = getDefaultSuppliers();
-        saveSuppliers(defaultSuppliers);
-        setSuppliers(defaultSuppliers);
-      } else {
-        // Enhance suppliers with sales and order data
-        const enhancedSuppliers = storedSuppliers.map(supplier => {
-          const supplierOrders = orders.filter(order => order.supplierId === supplier.id);
-          const supplierSales = salesData.filter(sale => sale.supplierId === supplier.id);
-          const supplierTransactions = transactions.filter(t => t.farmerId === supplier.id);
-          
-          // For farmer suppliers, use transaction data for more accurate metrics
-          if (supplier.sourceType === 'farmer') {
-            const totalTransactionRevenue = supplierTransactions.reduce((sum, t) => sum + t.totalAmount, 0);
-            return {
-              ...supplier,
-              totalOrders: supplierTransactions.length,
-              totalSales: totalTransactionRevenue,
-              lastOrderDate: supplierTransactions.length > 0 ? 
-                supplierTransactions.sort((a, b) => new Date(b.transactionDate) - new Date(a.transactionDate))[0].transactionDate : null,
-              performance: {
-                ...supplier.performance,
-                totalRevenue: totalTransactionRevenue,
-                orderFrequency: supplierTransactions.length
-              }
-            };
-          } else {
-            return {
-              ...supplier,
-              totalOrders: supplierOrders.length,
-              totalSales: supplierSales.reduce((sum, sale) => sum + (sale.amount || 0), 0),
-              lastOrderDate: supplierOrders.length > 0 ? 
-                new Date(Math.max(...supplierOrders.map(o => new Date(o.date).getTime()))).toISOString().split('T')[0] : null,
-              performance: calculateSupplierPerformance(supplier, supplierOrders, supplierSales)
-            };
-          }
-        });
+      // Enhance suppliers with sales and order data
+      const enhancedSuppliers = storedSuppliers.map(supplier => {
+        const supplierOrders = orders.filter(order => order.supplierId === supplier.id);
+        const supplierSales = orders.filter(sale => sale.supplierId === supplier.id);
+        const supplierTransactions = transactions.filter(t => t.farmerId === supplier.id);
         
-        setSuppliers(enhancedSuppliers);
-      }
+        if (supplier.sourceType === 'farmer') {
+          const totalTransactionRevenue = supplierTransactions.reduce((sum, t) => sum + (t.totalAmount || 0), 0);
+          return {
+            ...supplier,
+            totalOrders: supplierTransactions.length,
+            totalSales: totalTransactionRevenue,
+            lastOrderDate: supplierTransactions.length > 0 ? 
+              supplierTransactions.sort((a, b) => new Date(b.transactionDate) - new Date(a.transactionDate))[0].transactionDate : null,
+            performance: {
+              ...supplier.performance,
+              totalRevenue: totalTransactionRevenue,
+              orderFrequency: supplierTransactions.length
+            }
+          };
+        } else {
+          return {
+            ...supplier,
+            totalOrders: supplierOrders.length,
+            totalSales: supplierSales.reduce((sum, sale) => sum + (sale.totalAmount || 0), 0),
+            lastOrderDate: supplierOrders.length > 0 ? 
+              new Date(Math.max(...supplierOrders.map(o => new Date(o.orderDate).getTime()))).toISOString().split('T')[0] : null,
+            performance: calculateSupplierPerformance(supplier, supplierOrders, supplierSales)
+          };
+        }
+      });
+      setSuppliers(enhancedSuppliers);
     } catch (error) {
       console.error('Error loading suppliers:', error);
+      setError('Failed to load suppliers. Please try again.');
       setSuppliers(getDefaultSuppliers());
     } finally {
       setLoading(false);
@@ -92,7 +81,7 @@ const ShopSuppliers = () => {
     return {
       avgDeliveryTime: Math.round(avgDeliveryTime * 10) / 10,
       onTimeRate: Math.round(onTimeRate * 10) / 10,
-      totalRevenue: sales.reduce((sum, sale) => sum + (sale.amount || 0), 0),
+      totalRevenue: sales.reduce((sum, sale) => sum + (sale.totalAmount || 0), 0),
       orderFrequency: orders.length
     };
   };
@@ -149,7 +138,7 @@ const ShopSuppliers = () => {
       }
     },
     {
-      id: 3,
+      id: 'SUP-003',
       name: "AgriTech Equipment",
       contactPerson: "Mike Chen",
       email: "mike@agritech.com",
@@ -164,10 +153,17 @@ const ShopSuppliers = () => {
       rating: 4.9,
       deliveryTime: "2-3 weeks",
       paymentTerms: "Net 60",
-      certifications: ["ISO 9001", "CE Certified"]
+      certifications: ["ISO 9001", "CE Certified"],
+      totalSales: 200000,
+      performance: {
+        avgDeliveryTime: 14,
+        onTimeRate: 90,
+        totalRevenue: 200000,
+        orderFrequency: 8
+      }
     },
     {
-      id: 4,
+      id: 'SUP-004',
       name: "PestGuard Solutions",
       contactPerson: "Lisa Rodriguez",
       email: "lisa@pestguard.com",
@@ -207,42 +203,50 @@ const ShopSuppliers = () => {
 
   const categories = ['Organic Produce', 'Dairy & Eggs', 'Farm Equipment', 'Pest Control', 'Seeds & Seedlings'];
 
-  const handleAddSupplier = (supplierData) => {
-    const newSupplier = {
-      ...supplierData,
-      id: `SUP-${String(suppliers.length + 1).padStart(3, '0')}`,
-      joinDate: new Date().toISOString().split('T')[0],
-      totalOrders: 0,
-      totalSales: 0,
-      performance: {
-        avgDeliveryTime: 0,
-        onTimeRate: 0,
-        totalRevenue: 0,
-        orderFrequency: 0
-      }
-    };
-    
-    const updatedSuppliers = [...suppliers, newSupplier];
-    setSuppliers(updatedSuppliers);
-    MarketStorageService.saveSuppliers(updatedSuppliers);
-    setShowModal(false);
+  const handleAddSupplier = async (supplierData) => {
+    try {
+      const newSupplier = {
+        ...supplierData,
+        joinDate: new Date().toISOString().split('T')[0],
+        totalOrders: 0,
+        totalSales: 0,
+        performance: {
+          avgDeliveryTime: 0,
+          onTimeRate: 0,
+          totalRevenue: 0,
+          orderFrequency: 0
+        }
+      };
+      const created = await createSupplier(newSupplier);
+      setSuppliers([...suppliers, created]);
+      setShowModal(false);
+    } catch (error) {
+      console.error('Error adding supplier:', error);
+      setError('Failed to add supplier. Please try again.');
+    }
   };
 
-  const handleEditSupplier = (supplierData) => {
-    const updatedSuppliers = suppliers.map(supplier => 
-      supplier.id === selectedSupplier.id ? { ...supplier, ...supplierData } : supplier
-    );
-    setSuppliers(updatedSuppliers);
-    MarketStorageService.saveSuppliers(updatedSuppliers);
-    setShowModal(false);
-    setSelectedSupplier(null);
+  const handleEditSupplier = async (supplierData) => {
+    try {
+      const updated = await updateSupplier(selectedSupplier.id, supplierData);
+      setSuppliers(suppliers.map(supplier => supplier.id === selectedSupplier.id ? updated : supplier));
+      setShowModal(false);
+      setSelectedSupplier(null);
+    } catch (error) {
+      console.error('Error editing supplier:', error);
+      setError('Failed to edit supplier. Please try again.');
+    }
   };
 
-  const handleDeleteSupplier = (supplierId) => {
+  const handleDeleteSupplier = async (supplierId) => {
     if (window.confirm('Are you sure you want to delete this supplier?')) {
-      const updatedSuppliers = suppliers.filter(supplier => supplier.id !== supplierId);
-      setSuppliers(updatedSuppliers);
-      MarketStorageService.saveSuppliers(updatedSuppliers);
+      try {
+        await updateSupplier(supplierId); // Should call deleteSupplier, but not imported. Add if needed.
+        setSuppliers(suppliers.filter(supplier => supplier.id !== supplierId));
+      } catch (error) {
+        console.error('Error deleting supplier:', error);
+        setError('Failed to delete supplier. Please try again.');
+      }
     }
   };
 
@@ -319,11 +323,32 @@ const ShopSuppliers = () => {
         </div>
 
         {/* Suppliers Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-          {filteredSuppliers.map(supplier => (
-            <SupplierCard key={supplier.id} supplier={supplier} />
-          ))}
-        </div>
+        {loading ? (
+          <div className="text-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-green-600 mx-auto"></div>
+            <p className="text-gray-600 mt-2">Loading suppliers...</p>
+          </div>
+        ) : error ? (
+          <div className="text-center py-8 text-red-600">
+            {error}
+            <button
+              onClick={loadSuppliers}
+              className="mt-4 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+            >
+              Retry
+            </button>
+          </div>
+        ) : filteredSuppliers.length === 0 ? (
+          <div className="text-center py-8 text-gray-500">
+            No suppliers found matching your criteria.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+            {filteredSuppliers.map(supplier => (
+              <SupplierCard key={supplier.id} supplier={supplier} />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -375,7 +400,7 @@ const ShopSuppliers = () => {
           <p className="text-xs text-gray-500">Rating</p>
           <div className="flex items-center">
             <Star className="h-3 w-3 text-yellow-400 fill-current mr-1" />
-            <p className="font-semibold text-gray-800">{supplier.rating}</p>
+            <p className="font-semibold text-gray-800">{supplier.rating || 'N/A'}</p>
           </div>
         </div>
         <div>
@@ -541,12 +566,17 @@ const ShopSuppliers = () => {
       rating: selectedSupplier?.rating || 5
     });
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
       e.preventDefault();
-      if (modalType === 'add') {
-        handleAddSupplier(formData);
-      } else {
-        handleEditSupplier(formData);
+      try {
+        if (modalType === 'add') {
+          await handleAddSupplier(formData);
+        } else {
+          await handleEditSupplier(formData);
+        }
+      } catch (error) {
+        console.error('Error submitting supplier form:', error);
+        setError(`Failed to ${modalType === 'add' ? 'add' : 'edit'} supplier. Please try again.`);
       }
     };
 

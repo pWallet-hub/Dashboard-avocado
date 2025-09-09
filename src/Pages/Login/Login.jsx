@@ -95,7 +95,7 @@ function Login() {
           </p>
           
           {/* Demo Credentials Section */}
-          <div className="mt-6 p-4 bg-green-700 bg-opacity-50 rounded-lg text-left">
+          {/* <div className="mt-6 p-4 bg-green-700 bg-opacity-50 rounded-lg text-left">
             <h5 className="text-sm font-semibold text-white mb-2">Demo Credentials:</h5>
             <div className="text-xs text-green-100 space-y-1">
               <div>👤 <strong>Admin:</strong> admin@avocado.rw (password: password123)</div>
@@ -103,7 +103,7 @@ function Login() {
               <div>🌾 <strong>Farmer:</strong> peter@avocado.rw (password: password123umurima)</div>
               <div>🏪 <strong>Shop Manager:</strong> shopmanager@avocado.rw (password: shop123)</div>
             </div>
-          </div>
+          </div> */}
         </div>
         <div className="flex flex-col items-center justify-center w-full p-10 bg-white md:w-1/2">
           <h2 className="mb-5 text-2xl font-bold md:text-3xl">Login</h2>
