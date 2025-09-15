@@ -5,7 +5,7 @@ import {
   ShoppingCart, BarChart3, Eye, AlertTriangle, CheckCircle,
   Filter, Download, Upload, MessageCircle, FileText
 } from 'lucide-react';
-import MarketStorageService from '../../services/marketStorageService';
+import { initializeStorage, syncAllFarmerData, getSuppliers, saveSuppliers, getSalesData, getOrders, getMarketTransactions } from '../../services/marketStorageService';
 
 const ShopSuppliers = () => {
   const [suppliers, setSuppliers] = useState([]);
@@ -19,7 +19,7 @@ const ShopSuppliers = () => {
   const [modalType, setModalType] = useState('add');
 
   useEffect(() => {
-    MarketStorageService.initializeStorage();
+    initializeStorage();
     loadSuppliers();
   }, []);
 
@@ -27,17 +27,17 @@ const ShopSuppliers = () => {
     setLoading(true);
     try {
       // Sync farmer data first to ensure latest connections
-      MarketStorageService.syncAllFarmerData();
+      syncAllFarmerData();
       
-      const storedSuppliers = MarketStorageService.getSuppliers() || [];
-      const salesData = MarketStorageService.getSalesData() || [];
-      const orders = MarketStorageService.getOrders() || [];
-      const transactions = MarketStorageService.getMarketTransactions() || [];
+      const storedSuppliers = getSuppliers() || [];
+      const salesData = getSalesData() || [];
+      const orders = getOrders() || [];
+      const transactions = getMarketTransactions() || [];
       
       if (storedSuppliers.length === 0) {
         // Initialize with default suppliers if none exist
         const defaultSuppliers = getDefaultSuppliers();
-        MarketStorageService.saveSuppliers(defaultSuppliers);
+        saveSuppliers(defaultSuppliers);
         setSuppliers(defaultSuppliers);
       } else {
         // Enhance suppliers with sales and order data

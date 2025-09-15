@@ -5,13 +5,14 @@
   display: flex;
   gap: 6rem;
   font-family: poppins;
+  flex-direction: column;
 }
 
 .profile-wrapper {
   max-width: 1200px;
   /* margin: 0 auto; */
   padding: 1rem 1rem;
-  width: 75%;
+  width: 100%;
 }
 
 /* Loading Styles */

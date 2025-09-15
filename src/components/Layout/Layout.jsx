@@ -1,17 +1,27 @@
 import { Outlet, Navigate } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import TopBar from './TopBar';
+import { logout } from '../../services/authService'; // Import the logout function
 
 const Layout = () => {
   const role = localStorage.getItem('role'); 
   const username = localStorage.getItem('username'); 
 
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('role');
-    localStorage.removeItem('id');
-    localStorage.removeItem('username');
-    window.location.href = '/';
+  const handleLogout = async () => {
+    try {
+      // Use authService.logout() instead of manual token removal
+      await logout();
+    } catch (error) {
+      // Even if logout fails on the server, we should clear local data
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      localStorage.removeItem('role');
+      localStorage.removeItem('id');
+      localStorage.removeItem('username');
+    } finally {
+      // Redirect to login page
+      window.location.href = '/';
+    }
   };
 
   // Guard: if no role (not logged in), redirect to login

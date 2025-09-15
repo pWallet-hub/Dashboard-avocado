@@ -1,106 +1,150 @@
-import client from './airtableApi';
+import apiClient, { extractData } from './apiClient';
 
-const TABLE = 'Users'; // or use table id: 'tblmK0icaHeN7BPeH'
-
-// Helper to map arrays/objects to Airtable-style query params
-function buildParams({
-  fields,
-  filterByFormula,
-  maxRecords,
-  pageSize,
-  sort,
-  view,
-  cellFormat,
-  timeZone,
-  userLocale,
-  returnFieldsByFieldId,
-  recordMetadata,
-  offset,
-} = {}) {
-  const params = {};
-  if (Array.isArray(fields) && fields.length) {
-    fields.forEach((f, i) => {
-      params[`fields[${i}]`] = f;
-    });
-  }
-  if (filterByFormula) params.filterByFormula = filterByFormula;
-  if (maxRecords) params.maxRecords = maxRecords;
-  if (pageSize) params.pageSize = pageSize;
-  if (Array.isArray(sort) && sort.length) {
-    sort.forEach((s, i) => {
-      if (s?.field) params[`sort[${i}][field]`] = s.field;
-      if (s?.direction) params[`sort[${i}][direction]`] = s.direction;
-    });
-  }
-  if (view) params.view = view;
-  if (cellFormat) params.cellFormat = cellFormat;
-  if (timeZone) params.timeZone = timeZone;
-  if (userLocale) params.userLocale = userLocale;
-  if (returnFieldsByFieldId !== undefined) params.returnFieldsByFieldId = returnFieldsByFieldId;
-  if (Array.isArray(recordMetadata) && recordMetadata.length) {
-    recordMetadata.forEach((m, i) => {
-      params[`recordMetadata[${i}]`] = m;
-    });
-  }
-  if (offset) params.offset = offset;
-  return params;
-}
-
+// Get all users (Admin only)
 export async function listUsers(options = {}) {
-  const params = buildParams(options);
-  const res = await client.get(TABLE, { params });
-  return res.data; // { records: [...], offset? }
-}
-
-export async function getUser(recordId) {
-  const res = await client.get(`${TABLE}/${recordId}`);
-  return res.data; // { id, fields, createdTime }
-}
-
-export async function createUsers(records, { typecast } = {}) {
-  // records: [{ fields: { ... } }, ...]
-  const res = await client.post(TABLE, { records, typecast });
-  return res.data; // { records: [...] }
-}
-
-export async function createUser(fields, { typecast } = {}) {
-  // Single-record convenience using array form
-  return createUsers([{ fields }], { typecast });
-}
-
-export async function updateUsers(records, { typecast } = {}) {
-  // PATCH for partial updates. records: [{ id, fields }]
-  const res = await client.patch(TABLE, { records, typecast });
-  return res.data;
-}
-
-export async function updateUser(recordId, fields, { typecast } = {}) {
-  return updateUsers([{ id: recordId, fields }], { typecast });
-}
-
-export async function upsertUsers(records, fieldsToMergeOn, { typecast } = {}) {
-  // Upsert: include performUpsert
-  const res = await client.patch(TABLE, {
-    records,
-    typecast,
-    performUpsert: {
-      fieldsToMergeOn,
-    },
-  });
-  return res.data;
-}
-
-export async function deleteUsers(recordIds) {
-  // recordIds: [id1, id2]
   const params = {};
-  recordIds.forEach((id, i) => {
-    params[`records[${i}]`] = id;
-  });
-  const res = await client.delete(TABLE, { params });
-  return res.data; // { records: [{ id, deleted: true } ...] }
+  if (options.page) params.page = options.page;
+  if (options.limit) params.limit = options.limit;
+  if (options.role) params.role = options.role;
+  if (options.status) params.status = options.status;
+  if (options.search) params.search = options.search;
+  
+  const response = await apiClient.get('/users', { params });
+  return extractData(response);
 }
 
-export async function deleteUser(recordId) {
-  const res = await client.delete(`${TABLE}/${recordId}`);
-  return res.data; // { id, deleted }
+// Get user by ID
+export async function getUser(userId) {
+  if (!userId) {
+    throw new Error("User ID is required");
+  }
+  
+  const response = await apiClient.get(`/users/${userId}`);
+  return extractData(response);
+}
+
+// Create user
+export async function createUser(userData) {
+  if (!userData || typeof userData !== 'object') {
+    throw new Error("Valid user data is required");
+  }
+  
+  // Validate required fields
+  if (!userData.email || !userData.full_name) {
+    throw new Error("Email and full name are required");
+  }
+  
+  const response = await apiClient.post('/users', userData);
+  return extractData(response);
+}
+
+// Update user
+export async function updateUser(userId, userData) {
+  if (!userId) {
+    throw new Error("User ID is required");
+  }
+  
+  if (!userData || typeof userData !== 'object') {
+    throw new Error("Valid user data is required");
+  }
+  
+  const response = await apiClient.put(`/users/${userId}`, userData);
+  const updatedUser = extractData(response);
+  
+  // If this is the current user, update localStorage
+  const currentUserId = localStorage.getItem('id');
+  if (currentUserId === userId && updatedUser) {
+    localStorage.setItem('user', JSON.stringify(updatedUser));
+    // Update role if it changed
+    if (updatedUser.role) {
+      localStorage.setItem('role', updatedUser.role);
+    }
+  }
+  
+  return updatedUser;
+}
+
+// Delete user
+export async function deleteUser(userId) {
+  if (!userId) {
+    throw new Error("User ID is required");
+  }
+  
+  const response = await apiClient.delete(`/users/${userId}`);
+  return extractData(response);
+}
+
+// Get all farmers
+export async function listFarmers(options = {}) {
+  const params = {};
+  if (options.page) params.page = options.page;
+  if (options.limit) params.limit = options.limit;
+  if (options.status) params.status = options.status;
+  if (options.search) params.search = options.search;
+  
+  const response = await apiClient.get('/users/farmers', { params });
+  return extractData(response);
+}
+
+// Get all agents
+export async function listAgents(options = {}) {
+  // Only send parameters if they are required by the backend
+  // If you know which params are valid, add them below. Otherwise, send no params.
+  const validParams = {};
+  // Example: if backend supports 'status' and 'search', uncomment below
+  // if (options.status) validParams.status = options.status;
+  // if (options.search) validParams.search = options.search;
+  const response = Object.keys(validParams).length > 0
+    ? await apiClient.get('/users/agents', { params: validParams })
+    : await apiClient.get('/users/agents');
+  return extractData(response);
+}
+
+// Update user status
+export async function updateUserStatus(userId, status) {
+  if (!userId) {
+    throw new Error("User ID is required");
+  }
+  
+  if (!status || typeof status !== 'string') {
+    throw new Error("Valid status is required");
+  }
+  
+  const response = await apiClient.put(`/users/${userId}/status`, { status });
+  const updatedUser = extractData(response);
+  
+  // If this is the current user, update localStorage
+  const currentUserId = localStorage.getItem('id');
+  if (currentUserId === userId && updatedUser) {
+    const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+    currentUser.status = status;
+    localStorage.setItem('user', JSON.stringify(currentUser));
+  }
+  
+  return updatedUser;
+}
+
+// Update user role
+export async function updateUserRole(userId, role) {
+  if (!userId) {
+    throw new Error("User ID is required");
+  }
+  
+  if (!role || typeof role !== 'string') {
+    throw new Error("Valid role is required");
+  }
+  
+  const response = await apiClient.put(`/users/${userId}/role`, { role });
+  const updatedUser = extractData(response);
+  
+  // If this is the current user, update localStorage
+  const currentUserId = localStorage.getItem('id');
+  if (currentUserId === userId && updatedUser) {
+    const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+    currentUser.role = role;
+    localStorage.setItem('user', JSON.stringify(currentUser));
+    localStorage.setItem('role', role);
+  }
+  
+  return updatedUser;
 }

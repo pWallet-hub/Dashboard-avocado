@@ -1,111 +1,119 @@
-import client from './airtableApi';
+import apiClient, { extractData } from './apiClient';
 
-// Stable table ID for Products table
-const TABLE = 'tblhFrENfLsrg7TCi';
-
-// Helper to build list query params consistently
-function buildParams({
-  fields,
-  filterByFormula,
-  maxRecords,
-  pageSize,
-  sort,
-  view,
-  cellFormat,
-  timeZone,
-  userLocale,
-  returnFieldsByFieldId,
-  recordMetadata,
-  offset,
-} = {}) {
-  const params = {};
-  if (Array.isArray(fields) && fields.length) params.fields = fields;
-  if (typeof filterByFormula === 'string') params.filterByFormula = filterByFormula;
-  if (typeof maxRecords === 'number') params.maxRecords = maxRecords;
-  if (typeof pageSize === 'number') params.pageSize = pageSize;
-  if (Array.isArray(sort) && sort.length) params.sort = sort;
-  if (view) params.view = view;
-  if (cellFormat) params.cellFormat = cellFormat;
-  if (timeZone) params.timeZone = timeZone;
-  if (userLocale) params.userLocale = userLocale;
-  if (typeof returnFieldsByFieldId === 'boolean') params.returnFieldsByFieldId = returnFieldsByFieldId;
-  if (Array.isArray(recordMetadata) && recordMetadata.length) params.recordMetadata = recordMetadata;
-  if (offset) params.offset = offset;
-  return params;
-}
-
-// List Products records
+// Get all products
 export async function listProducts(options = {}) {
-  const params = buildParams(options);
-  const res = await client.get(TABLE, { params });
-  return res.data;
-}
-
-// Retrieve a single Product record by record ID
-export async function getProduct(recordId, { returnFieldsByFieldId } = {}) {
   const params = {};
-  if (typeof returnFieldsByFieldId === 'boolean') params.returnFieldsByFieldId = returnFieldsByFieldId;
-  const res = await client.get(`${TABLE}/${recordId}`, { params });
-  return res.data;
+  if (options.page) params.page = options.page;
+  if (options.limit) params.limit = options.limit;
+  if (options.category) params.category = options.category;
+  if (options.supplier_id) params.supplier_id = options.supplier_id;
+  if (options.status) params.status = options.status;
+  if (options.price_min) params.price_min = options.price_min;
+  if (options.price_max) params.price_max = options.price_max;
+  if (options.in_stock !== undefined) params.in_stock = options.in_stock;
+  if (options.search) params.search = options.search;
+  
+  const response = await apiClient.get('/products', { params });
+  return extractData(response);
 }
 
-// Create Products (batch)
-export async function createProducts(records, { typecast } = {}) {
-  const payload = { records };
-  if (typeof typecast === 'boolean') payload.typecast = typecast;
-  const res = await client.post(TABLE, payload);
-  return res.data;
+// Get product by ID
+export async function getProduct(productId) {
+  if (!productId) {
+    throw new Error("Product ID is required");
+  }
+  
+  const response = await apiClient.get(`/products/${productId}`);
+  return extractData(response);
 }
 
-// Create single Product
-export async function createProduct(fields, { typecast } = {}) {
-  return createProducts([{ fields }], { typecast });
+// Create new product
+export async function createProduct(productData) {
+  // Validate required fields
+  if (!productData || typeof productData !== 'object') {
+    throw new Error("Product data is required");
+  }
+  
+  if (!productData.name) {
+    throw new Error("Product name is required");
+  }
+  
+  if (!productData.category) {
+    throw new Error("Product category is required");
+  }
+  
+  if (productData.price === undefined || productData.price === null) {
+    throw new Error("Product price is required");
+  }
+  
+  if (productData.quantity === undefined || productData.quantity === null) {
+    throw new Error("Product quantity is required");
+  }
+  
+  if (!productData.unit) {
+    throw new Error("Product unit is required");
+  }
+  
+  if (!productData.supplier_id) {
+    throw new Error("Product supplier ID is required");
+  }
+  
+  const response = await apiClient.post('/products', productData);
+  return extractData(response);
 }
 
-// Update Products (PATCH batch, partial)
-export async function updateProducts(records, { typecast } = {}) {
-  const payload = { records };
-  if (typeof typecast === 'boolean') payload.typecast = typecast;
-  const res = await client.patch(TABLE, payload);
-  return res.data;
+// Update product
+export async function updateProduct(productId, productData) {
+  if (!productId) {
+    throw new Error("Product ID is required");
+  }
+  
+  if (!productData || typeof productData !== 'object') {
+    throw new Error("Valid product data is required");
+  }
+  
+  const response = await apiClient.put(`/products/${productId}`, productData);
+  return extractData(response);
 }
 
-// Update single Product (PATCH partial)
-export async function updateProduct(recordId, fields, { typecast } = {}) {
-  return updateProducts([{ id: recordId, fields }], { typecast });
+// Delete product (mark as discontinued)
+export async function deleteProduct(productId) {
+  if (!productId) {
+    throw new Error("Product ID is required");
+  }
+  
+  const response = await apiClient.delete(`/products/${productId}`);
+  return extractData(response);
 }
 
-// Upsert Products (PATCH with performUpsert)
-export async function upsertProducts(records, fieldsToMergeOn, { typecast } = {}) {
-  const payload = { records, performUpsert: { fieldsToMergeOn } };
-  if (typeof typecast === 'boolean') payload.typecast = typecast;
-  const res = await client.patch(TABLE, payload);
-  return res.data;
+// Get products by category
+export async function getProductsByCategory(category, options = {}) {
+  if (!category) {
+    throw new Error("Category is required");
+  }
+  
+  const params = {};
+  if (options.page) params.page = options.page;
+  if (options.limit) params.limit = options.limit;
+  
+  const response = await apiClient.get(`/products/category/${category}`, { params });
+  return extractData(response);
 }
 
-// Replace Products (PUT destructive)
-export async function replaceProducts(records, { typecast } = {}) {
-  const payload = { records };
-  if (typeof typecast === 'boolean') payload.typecast = typecast;
-  const res = await client.put(TABLE, payload);
-  return res.data;
-}
-
-// Replace single Product (PUT destructive)
-export async function replaceProduct(recordId, fields, { typecast } = {}) {
-  return replaceProducts([{ id: recordId, fields }], { typecast });
-}
-
-// Delete Products (batch)
-export async function deleteProducts(recordIds) {
-  const params = new URLSearchParams();
-  recordIds.forEach((id) => params.append('records[]', id));
-  const res = await client.delete(TABLE, { params });
-  return res.data;
-}
-
-// Delete single Product
-export async function deleteProduct(recordId) {
-  const res = await client.delete(`${TABLE}/${recordId}`);
-  return res.data;
+// Update product stock
+export async function updateProductStock(productId, quantity) {
+  if (!productId) {
+    throw new Error("Product ID is required");
+  }
+  
+  if (quantity === undefined || quantity === null) {
+    throw new Error("Quantity is required");
+  }
+  
+  if (typeof quantity !== 'number' || quantity < 0) {
+    throw new Error("Quantity must be a non-negative number");
+  }
+  
+  const response = await apiClient.put(`/products/${productId}/stock`, { quantity });
+  return extractData(response);
 }

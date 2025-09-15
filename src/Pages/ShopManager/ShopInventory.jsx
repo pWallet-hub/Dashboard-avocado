@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Package, Plus, Search, AlertTriangle, Edit, Trash2, Eye, Filter, Leaf } from 'lucide-react';
-import MarketStorageService from '../../services/marketStorageService';
+import { initializeStorage, getShopInventory, addToShopInventory, updateShopInventory, deleteInventoryItem, calculateExpiryDate } from '../../services/marketStorageService';
 
 const ShopInventory = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -11,14 +11,14 @@ const ShopInventory = () => {
   const [editingItem, setEditingItem] = useState(null);
 
   useEffect(() => {
-    MarketStorageService.initializeStorage();
+    initializeStorage();
     loadInventory();
   }, []);
 
   const loadInventory = () => {
     setLoading(true);
     try {
-      const inventoryData = MarketStorageService.getShopInventory();
+      const inventoryData = getShopInventory();
       setInventory(inventoryData);
     } catch (error) {
       console.error('Error loading inventory:', error);
@@ -60,14 +60,14 @@ const ShopInventory = () => {
         minStock: parseInt(newItem.minStock),
         status: parseInt(newItem.quantity) <= parseInt(newItem.minStock) ? 'low-stock' : 'in-stock',
         sourceType: 'manual',
-        expiryDate: newItem.expiryDate || MarketStorageService.calculateExpiryDate(newItem.harvestDate, newItem.category)
+        expiryDate: newItem.expiryDate || calculateExpiryDate(newItem.harvestDate, newItem.category)
       };
       
       if (editingItem) {
         // Assume update method
-        MarketStorageService.updateShopInventory(editingItem.id, item);
+        updateShopInventory(editingItem.id, item);
       } else {
-        MarketStorageService.addToShopInventory(item);
+        addToShopInventory(item);
       }
       loadInventory();
       resetForm();
@@ -111,7 +111,7 @@ const ShopInventory = () => {
   const handleDeleteItem = (id) => {
     if (confirm('Are you sure you want to delete this item?')) {
       try {
-        MarketStorageService.deleteInventoryItem(id); // Assume this method exists
+        deleteInventoryItem(id);
         loadInventory();
       } catch (error) {
         alert('Error deleting item: ' + error.message);

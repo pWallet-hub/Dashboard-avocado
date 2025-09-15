@@ -3,8 +3,7 @@ import axios from 'axios';
 import { ClipLoader } from 'react-spinners';
 import Select from 'react-select';
 import '../Styles/Shop.css';
-import { listOrders } from '../../services/ordersService';
-import { lsGet, lsSet, seedIfEmpty, DEMO_SHOPS } from '../../services/demoData';
+
 
 export default function ShopView() {
   const [shops, setShops] = useState([]);
@@ -23,12 +22,11 @@ export default function ShopView() {
         const data = Array.isArray(response.data) ? response.data : [];
         setShops(data);
         // Cache for demo fallback
-        lsSet('demo:shops', data);
+        // lsSet('demo:shops', data); // Removed demoData functionality
       } catch (error) {
         console.error('Error fetching shops:', error);
-        // Fallback to demo/localStorage
-        const seeded = seedIfEmpty('demo:shops', DEMO_SHOPS);
-        setShops(seeded || []);
+        // Fallback to empty array
+        setShops([]);
         setError(null);
       } finally {
         setLoading(false);
@@ -38,32 +36,18 @@ export default function ShopView() {
     fetchShops();
   }, []);
 
-  // Non-invasive integration with Airtable Orders service (logs only)
-  useEffect(() => {
-    const fetchAirtableOrders = async () => {
-      try {
-        const page = await listOrders({ pageSize: 5, returnFieldsByFieldId: true });
-        console.log('[Airtable] Orders fetched (preview):', page?.records?.length ?? 0, 'records');
-      } catch (e) {
-        console.debug('[Airtable] Orders fetch failed (non-blocking):', e?.message || e);
-      }
-    };
-    fetchAirtableOrders();
-  }, []);
+  // Remove Airtable preview effect as services are no longer available
 
   const toggleSellingPermission = async (shopId, canSell) => {
     try {
       await axios.put(`https://api.example.com/shops/${shopId}`, { canSell });
       const updated = shops.map(shop => shop.id === shopId ? { ...shop, canSell } : shop);
       setShops(updated);
-      lsSet('demo:shops', updated);
+      // lsSet('demo:shops', updated); // Removed demoData functionality
     } catch (error) {
       console.error('Error updating selling permission:', error);
-      // Offline/demo: persist locally
-      const local = lsGet('demo:shops', shops);
-      const updated = (local || shops).map(shop => shop.id === shopId ? { ...shop, canSell } : shop);
-      setShops(updated);
-      lsSet('demo:shops', updated);
+      // Handle error case without demoData
+      console.error('Error updating selling permission:', error);
     }
   };
 

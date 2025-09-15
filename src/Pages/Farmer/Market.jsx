@@ -10,7 +10,7 @@ import image2 from '../../assets/image/slide2.jpg'
 import image3 from '../../assets/image/slide3.jpg'
 import { Link } from 'react-router-dom';
 import product from '../../assets/image/product.jpg';
-import MarketStorageService from '../../services/marketStorageService';
+import { initializeStorage, getFarmerProducts, addFarmerProduct } from '../../services/marketStorageService';
 import { Plus, Edit, Eye, ShoppingCart } from 'lucide-react';
 
 
@@ -43,14 +43,14 @@ export default function Market() {
   };
 
   useEffect(() => {
-    MarketStorageService.initializeStorage();
+    initializeStorage();
     loadFarmerProducts();
     fetchExternalProducts();
   }, []);
 
   const loadFarmerProducts = () => {
     const farmer = getCurrentFarmer();
-    const products = MarketStorageService.getFarmerProducts(farmer.id);
+    const products = getFarmerProducts(farmer.id);
     setFarmerProducts(products);
   };
 
@@ -84,7 +84,7 @@ export default function Market() {
         harvestDate: new Date().toISOString().split('T')[0]
       };
 
-      MarketStorageService.addFarmerProduct(productData);
+      addFarmerProduct(productData);
       loadFarmerProducts();
       setShowAddProduct(false);
       setNewProduct({

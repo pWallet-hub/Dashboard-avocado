@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
-import axios from 'axios';
 import { ClipLoader } from 'react-spinners';
 import '../Styles/Agent.css';
-import { listAgentProfiles } from '../../services/agentProfilesService';
+import { listAgents, deleteUser, createUser } from '../../services/usersService';
 
 export default function Agents() {
   const [agents, setAgents] = useState([]);
@@ -10,51 +9,52 @@ export default function Agents() {
   const [error, setError] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState({
-    fullname: '',
+    full_name: '',
     email: '',
-    phonenumber: '',
+    phone: '',
     province: '',
     district: '',
     sector: ''
   });
   const [responseMessage, setResponseMessage] = useState('');
+  const [submitLoading, setSubmitLoading] = useState(false);
+  const [filters, setFilters] = useState({
+    page: 1,
+    limit: 10,
+    status: '',
+    search: ''
+  });
 
   useEffect(() => {
     const fetchAgents = async () => {
       try {
         setLoading(true);
-        const response = await axios.get('https://pwallet-api.onrender.com/api/agents');
-        setAgents(response.data);
         setError(null);
+  const response = await listAgents();
+  setAgents(response || []);
       } catch (error) {
         console.error('Error fetching agents:', error);
-        setError('Failed to fetch agents');
+        setError(error.message || 'Failed to fetch agents. Check token or parameters.');
+        // Log full error for debugging
+        if (error.response) console.log('Response:', error.response.data);
       } finally {
         setLoading(false);
       }
     };
 
     fetchAgents();
-  }, []);
-
-  useEffect(() => {
-    const fetchAirtableAgents = async () => {
-      try {
-        const page = await listAgentProfiles({ pageSize: 5, returnFieldsByFieldId: true });
-        console.log('[Airtable] Agent Profiles fetched (preview):', page?.records?.length ?? 0, 'records');
-      } catch (e) {
-        console.debug('[Airtable] Agent Profiles fetch failed (non-blocking):', e?.message || e);
-      }
-    };
-    fetchAirtableAgents();
-  }, []);
+  }, [filters]);
 
   const handleDelete = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this agent?')) return;
+
     try {
-      await axios.delete(`https://pwallet-api.onrender.com/api/agents/${id}`);
+      await deleteUser(id);
       setAgents(agents.filter(agent => agent.id !== id));
+      setResponseMessage('Agent deleted successfully');
     } catch (error) {
       console.error('Error deleting agent:', error);
+      setError('Failed to delete agent. Please try again.');
     }
   };
 
@@ -62,6 +62,14 @@ export default function Agents() {
   const closeModal = () => {
     setIsModalOpen(false);
     setResponseMessage('');
+    setFormData({
+      full_name: '',
+      email: '',
+      phone: '',
+      province: '',
+      district: '',
+      sector: ''
+    });
   };
 
   const handleChange = (e) => {
@@ -69,23 +77,68 @@ export default function Agents() {
     setFormData({ ...formData, [name]: value });
   };
 
+  const handleFilterChange = (e) => {
+    const { name, value } = e.target;
+    setFilters(prev => ({ ...prev, [name]: value, page: 1 }));
+  };
+
+  const validateForm = () => {
+    if (!formData.full_name.trim()) return 'Full name is required';
+    if (!formData.email.trim()) return 'Email is required';
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) return 'Invalid email format';
+    if (!formData.phone.trim()) return 'Phone number is required';
+    if (!formData.province.trim()) return 'Province is required';
+    if (!formData.district.trim()) return 'District is required';
+    if (!formData.sector.trim()) return 'Sector is required';
+    return null;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const validationError = validateForm();
+    if (validationError) {
+      setResponseMessage(validationError);
+      return;
+    }
+
     try {
-      const response = await axios.post('https://pwallet-api.onrender.com/api/auth/create-agent', formData);
+      setSubmitLoading(true);
+      setResponseMessage('');
+      setError(null);
+
+      const agentData = {
+        full_name: formData.full_name.trim(),
+        email: formData.email.trim(),
+        phone: formData.phone.trim(),
+        role: 'agent',
+        profile: {
+          province: formData.province.trim(),
+          district: formData.district.trim(),
+          sector: formData.sector.trim()
+        }
+      };
+
+      await createUser(agentData);
+
+      const response = await listAgents(filters);
+      setAgents(response.data || []);
+
       setResponseMessage('Agent created successfully');
-      setAgents([...agents, response.data]);
+
       setFormData({
-        fullname: '',
+        full_name: '',
         email: '',
-        phonenumber: '',
+        phone: '',
         province: '',
         district: '',
         sector: ''
       });
+      setTimeout(closeModal, 2000);
     } catch (error) {
-      setResponseMessage('Error creating agent');
       console.error('Error creating agent:', error);
+      setResponseMessage(error.message || 'Error creating agent');
+    } finally {
+      setSubmitLoading(false);
     }
   };
 
@@ -95,7 +148,28 @@ export default function Agents() {
         <h1>Agents Management</h1>
         <button className="btn-primary" onClick={openModal}>+ Add New Agent</button>
       </div>
-      
+
+      <div className="filter-container" style={{ margin: '20px 0', display: 'flex', gap: '10px' }}>
+        <input
+          type="text"
+          name="search"
+          value={filters.search}
+          onChange={handleFilterChange}
+          placeholder="Search by name or email"
+          style={{ padding: '8px', width: '200px' }}
+        />
+        <select
+          name="status"
+          value={filters.status}
+          onChange={handleFilterChange}
+          style={{ padding: '8px', width: '150px' }}
+        >
+          <option value="">All Statuses</option>
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+        </select>
+      </div>
+
       <div className="stats-container">
         <div className="stats-card1">
           <p>Total Agents</p>
@@ -103,18 +177,18 @@ export default function Agents() {
         </div>
         <div className="stats-card1">
           <p>Active Agents</p>
-          <p className="stats-number">{agents.length}</p>
+          <p className="stats-number">{agents.filter(agent => agent.status === 'active').length}</p>
         </div>
         <div className="stats-card1">
           <p>Provinces Covered</p>
           <p className="stats-number">
-            {new Set(agents.map(a => a.province)).size}
+            {new Set(agents.map(a => a.profile?.province)).size}
           </p>
         </div>
         <div className="stats-card1">
           <p>Districts Covered</p>
           <p className="stats-number">
-            {new Set(agents.map(a => a.district)).size}
+            {new Set(agents.map(a => a.profile?.district)).size}
           </p>
         </div>
       </div>
@@ -126,7 +200,15 @@ export default function Agents() {
               <ClipLoader color="#3498db" loading={loading} size={50} />
             </div>
           ) : error ? (
-            <div className="error-message">{error}</div>
+            <div className="error-message">
+              {error}
+              <button
+                onClick={() => window.location.reload()}
+                style={{ marginLeft: '10px', padding: '5px 10px', backgroundColor: '#4CAF50', color: 'white', border: 'none', borderRadius: '5px' }}
+              >
+                Retry
+              </button>
+            </div>
           ) : agents.length > 0 ? (
             <table className="users-table">
               <thead>
@@ -143,21 +225,22 @@ export default function Agents() {
                     <td>
                       <div className="user-details">
                         <div className="user-avatar">
-                          {agent.fullname ? agent.fullname.charAt(0) : 'A'}
+                          {agent.full_name ? agent.full_name.charAt(0).toUpperCase() : 'A'}
                         </div>
                         <div className="user-info">
-                          <div className="user-name">{agent.fullname}</div>
+                          <div className="user-name">{agent.full_name}</div>
+                          <div className="user-role">{agent.role}</div>
                         </div>
                       </div>
                     </td>
                     <td className="contact-column">
                       <div className="contact-primary">{agent.email}</div>
-                      <div className="contact-secondary">{agent.phonenumber}</div>
+                      <div className="contact-secondary">{agent.phone}</div>
                     </td>
                     <td className="location-column">
-                      <div className="location-primary">{agent.province}</div>
+                      <div className="location-primary">{agent.profile?.province || 'N/A'}</div>
                       <div className="location-secondary">
-                        {agent.district}, {agent.sector}
+                        {agent.profile?.district || 'N/A'}, {agent.profile?.sector || 'N/A'}
                       </div>
                     </td>
                     <td>
@@ -185,25 +268,85 @@ export default function Agents() {
             <button className="modal-close" onClick={closeModal}>×</button>
             <h2>Create New Agent</h2>
             <form onSubmit={handleSubmit}>
-              {Object.entries(formData).map(([key, value]) => (
-                <div key={key} className="form-group">
-                  <label>{key}</label>
-                  <input
-                    type={key === 'email' ? 'email' : 'text'}
-                    name={key}
-                    value={value}
-                    onChange={handleChange}
-                    required
-                  />
-                </div>
-              ))}
+              <div className="form-group">
+                <label>Full Name</label>
+                <input
+                  type="text"
+                  name="full_name"
+                  value={formData.full_name}
+                  onChange={handleChange}
+                  required
+                  placeholder="Enter full name"
+                />
+              </div>
+              <div className="form-group">
+                <label>Email</label>
+                <input
+                  type="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                  required
+                  placeholder="Enter email"
+                />
+              </div>
+              <div className="form-group">
+                <label>Phone</label>
+                <input
+                  type="tel"
+                  name="phone"
+                  value={formData.phone}
+                  onChange={handleChange}
+                  required
+                  placeholder="Enter phone number"
+                />
+              </div>
+              <div className="form-group">
+                <label>Province</label>
+                <input
+                  type="text"
+                  name="province"
+                  value={formData.province}
+                  onChange={handleChange}
+                  required
+                  placeholder="Enter province"
+                />
+              </div>
+              <div className="form-group">
+                <label>District</label>
+                <input
+                  type="text"
+                  name="district"
+                  value={formData.district}
+                  onChange={handleChange}
+                  required
+                  placeholder="Enter district"
+                />
+              </div>
+              <div className="form-group">
+                <label>Sector</label>
+                <input
+                  type="text"
+                  name="sector"
+                  value={formData.sector}
+                  onChange={handleChange}
+                  required
+                  placeholder="Enter sector"
+                />
+              </div>
               <div className="form-actions">
                 <button type="button" className="btn-secondary" onClick={closeModal}>Cancel</button>
-                <button type="submit" className="btn-primary1">Create Agent</button>
+                <button
+                  type="submit"
+                  className="btn-primary1"
+                  disabled={submitLoading}
+                >
+                  {submitLoading ? 'Creating...' : 'Create Agent'}
+                </button>
               </div>
             </form>
             {responseMessage && (
-              <p className={`response-message ${responseMessage.includes('success') ? 'success' : 'error'}`}>
+              <p className={`response-message ${responseMessage.includes('success') || responseMessage.includes('created') ? 'success' : 'error'}`}>
                 {responseMessage}
               </p>
             )}

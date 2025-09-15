@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ClipboardList, Clock, CheckCircle, XCircle, Eye, Calendar, User, MapPin, Bell } from 'lucide-react';
 import DashboardHeader from '../../components/Header/DashboardHeader';
+import { getServiceRequestsForFarmer } from '../../services/serviceRequestsService';
 
 export default function MyServiceRequests() {
   const [requests, setRequests] = useState([]);
@@ -10,38 +11,39 @@ export default function MyServiceRequests() {
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterType, setFilterType] = useState('all');
   const [showNotifications, setShowNotifications] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     loadRequests();
     loadNotifications();
   }, []);
 
-  const loadRequests = () => {
-    const savedRequests = localStorage.getItem('farmerServiceRequests');
-    if (savedRequests) {
-      const allRequests = JSON.parse(savedRequests);
-      // Assuming farmerId for filtering, default to 'farmer1' for demo
-      const farmerRequests = allRequests.filter(request => request.farmerId === 'farmer1');
-      setRequests(farmerRequests);
+  const loadRequests = async () => {
+    setLoading(true);
+    try {
+      // Get farmer ID from auth context or localStorage
+      const user = JSON.parse(localStorage.getItem('user'));
+      const farmerId = user?.id;
+      
+      if (farmerId) {
+        const response = await getServiceRequestsForFarmer(farmerId);
+        setRequests(response || []);
+      } else {
+        console.error('Farmer ID not found');
+        setRequests([]);
+      }
+    } catch (error) {
+      console.error('Error loading service requests:', error);
+      setRequests([]);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const loadNotifications = () => {
-    const savedNotifications = localStorage.getItem('farmerNotifications');
-    if (savedNotifications) {
-      const allNotifications = JSON.parse(savedNotifications);
-      // Filter notifications for the current farmer
-      const farmerNotifications = allNotifications.filter(n => n.farmerId === 'farmer1');
-      setNotifications(farmerNotifications);
-    }
-  };
-
-  const markNotificationAsRead = (notificationId) => {
-    const updatedNotifications = notifications.map(notification =>
-      notification.id === notificationId ? { ...notification, read: true } : notification
-    );
-    setNotifications(updatedNotifications);
-    localStorage.setItem('farmerNotifications', JSON.stringify(updatedNotifications));
+  const loadNotifications = async () => {
+    // In a real implementation, this would fetch notifications from the API
+    // For now, we'll initialize with an empty array
+    setNotifications([]);
   };
 
   const getStatusColor = (status) => {
@@ -126,7 +128,6 @@ export default function MyServiceRequests() {
                       <div
                         key={notification.id}
                         className={`p-3 mb-2 rounded-md ${notification.read ? 'bg-gray-50' : 'bg-blue-50'}`}
-                        onClick={() => markNotificationAsRead(notification.id)}
                       >
                         <p className="text-sm text-gray-900">{notification.message}</p>
                         <p className="text-xs text-gray-500">{formatDate(notification.timestamp)}</p>
@@ -170,6 +171,16 @@ export default function MyServiceRequests() {
                 <option value="Property Evaluation">Property Evaluation</option>
               </select>
             </div>
+            
+            <div className="flex items-end">
+              <button
+                onClick={loadRequests}
+                disabled={loading}
+                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-50"
+              >
+                {loading ? 'Loading...' : 'Refresh'}
+              </button>
+            </div>
           </div>
         </div>
 
@@ -181,7 +192,12 @@ export default function MyServiceRequests() {
             </h3>
           </div>
           
-          {filteredRequests.length === 0 ? (
+          {loading ? (
+            <div className="px-6 py-12 text-center">
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-green-500 mb-4"></div>
+              <p className="text-gray-600">Loading your service requests...</p>
+            </div>
+          ) : filteredRequests.length === 0 ? (
             <div className="px-6 py-12 text-center">
               <ClipboardList className="mx-auto h-12 w-12 text-gray-400" />
               <h3 className="mt-2 text-sm font-medium text-gray-900">No requests found</h3>

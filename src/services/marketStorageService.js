@@ -1,740 +1,432 @@
-// Market and Shop Local Storage Service
-import { lsGet, lsSet, seedIfEmpty, nextId } from './demoData';
+// Save or update suppliers in backend API
+export async function saveSuppliers(suppliers) {
+  if (!Array.isArray(suppliers)) throw new Error('Suppliers must be an array');
+  // This assumes a bulk update endpoint exists. Adjust as needed for your API.
+  const response = await apiClient.put('/market/suppliers/bulk', suppliers);
+  return extractData(response);
+}
+export async function getProducts({ page, limit, category, supplier_id, status, price_min, price_max, in_stock, search } = {}) {
+  const params = {};
+  if (page) params.page = page;
+  if (limit) params.limit = limit;
+  if (category) params.category = category;
+  if (supplier_id) params.supplier_id = supplier_id;
+  if (status) params.status = status;
+  if (price_min) params.price_min = price_min;
+  if (price_max) params.price_max = price_max;
+  if (typeof in_stock !== 'undefined') params.in_stock = in_stock;
+  if (search) params.search = search;
 
-// Storage Keys
-const STORAGE_KEYS = {
-  FARMER_PRODUCTS: 'farmer_products',
-  SHOP_INVENTORY: 'shop_inventory',
-  SHOP_ORDERS: 'shop_orders',
-  SHOP_CUSTOMERS: 'shop_customers',
-  SHOP_SUPPLIERS: 'shop_suppliers',
-  MARKET_TRANSACTIONS: 'market_transactions',
-  FARMER_PROFILE: 'farmer_profile',
-  SHOP_PROFILE: 'shop_profile'
-};
+  const response = await apiClient.get('/products', { params });
+  return extractData(response);
+}
+// Stub for syncAllFarmerData to prevent import errors
+export function syncAllFarmerData() {
+  // No sync needed; API-based only
+  return true;
+}
+// Fetch market transactions from backend API
+export async function getMarketTransactions() {
+  const response = await apiClient.get('/market/transactions');
+  return extractData(response);
+}
+// Stub for initializeStorage to prevent import errors
+export function initializeStorage() {
+  // No initialization needed; API-based only
+  return true;
+}
+import apiClient, { extractData } from './apiClient';
 
-// Default Data Seeds
-const DEFAULT_FARMER_PRODUCTS = [
-  {
-    id: 1,
-    name: 'Organic Avocados',
-    category: 'Fruits',
-    quantity: 150,
-    unit: 'kg',
-    pricePerUnit: 25.00,
-    harvestDate: '2024-08-20',
-    quality: 'Premium',
-    farmerId: 'f1',
-    farmerName: 'Jean Uwimana',
-    location: 'Gasabo, Remera',
-    status: 'available',
-    description: 'Fresh organic avocados, perfect for export quality'
-  },
-  {
-    id: 2,
-    name: 'Fresh Tomatoes',
-    category: 'Vegetables',
-    quantity: 200,
-    unit: 'kg',
-    pricePerUnit: 15.00,
-    harvestDate: '2024-08-21',
-    quality: 'Good',
-    farmerId: 'f2',
-    farmerName: 'Marie Mukamana',
-    location: 'Musanze, Cyuve',
-    status: 'available',
-    description: 'Locally grown fresh tomatoes'
-  },
-  {
-    id: 3,
-    name: 'Sweet Corn',
-    category: 'Vegetables',
-    quantity: 100,
-    unit: 'cobs',
-    pricePerUnit: 12.00,
-    harvestDate: '2024-08-19',
-    quality: 'Premium',
-    farmerId: 'f1',
-    farmerName: 'Jean Uwimana',
-    location: 'Gasabo, Remera',
-    status: 'available',
-    description: 'Sweet and tender corn cobs'
-  }
-];
-
-const DEFAULT_SHOP_INVENTORY = [
-  {
-    id: 1,
-    name: 'Organic Avocados',
-    category: 'Fruits',
-    quantity: 45,
-    unit: 'kg',
-    price: 30.00,
-    cost: 25.00,
-    minStock: 20,
-    supplier: 'Jean Uwimana (Farmer)',
-    supplierId: 'f1',
-    harvestDate: '2024-08-20',
-    expiryDate: '2024-08-30',
-    status: 'in-stock',
-    sourceType: 'farmer',
-    sourceId: 1
-  },
-  {
-    id: 2,
-    name: 'Fresh Tomatoes',
-    category: 'Vegetables',
-    quantity: 12,
-    unit: 'kg',
-    price: 18.00,
-    cost: 15.00,
-    minStock: 15,
-    supplier: 'Marie Mukamana (Farmer)',
-    supplierId: 'f2',
-    harvestDate: '2024-08-21',
-    expiryDate: '2024-08-28',
-    status: 'low-stock',
-    sourceType: 'farmer',
-    sourceId: 2
-  }
-];
-
-const DEFAULT_SHOP_ORDERS = [
-  {
-    id: 'ORD-001',
-    customer: 'Green Valley Market',
-    customerId: 'c1',
-    orderDate: '2024-08-22',
-    deliveryDate: '2024-08-24',
-    status: 'pending',
-    totalAmount: 540.00,
-    items: [
-      { productId: 1, name: 'Organic Avocados', quantity: 15, price: 30.00, total: 450.00 },
-      { productId: 2, name: 'Fresh Tomatoes', quantity: 5, price: 18.00, total: 90.00 }
-    ],
-    paymentStatus: 'pending',
-    notes: 'Delivery to main warehouse'
-  },
-  {
-    id: 'ORD-002',
-    customer: 'Farm Fresh Store',
-    customerId: 'c2',
-    orderDate: '2024-08-22',
-    deliveryDate: '2024-08-23',
-    status: 'processing',
-    totalAmount: 216.00,
-    items: [
-      { productId: 2, name: 'Fresh Tomatoes', quantity: 12, price: 18.00, total: 216.00 }
-    ],
-    paymentStatus: 'paid',
-    notes: 'Express delivery requested'
-  }
-];
-
-const DEFAULT_SHOP_CUSTOMERS = [
-  {
-    id: 'c1',
-    name: 'Green Valley Market',
-    email: 'orders@greenvalleymarket.com',
-    phone: '+250788123001',
-    address: '123 Market Street, Kigali',
-    district: 'Gasabo',
-    totalOrders: 45,
-    totalSpent: 12450.75,
-    status: 'active',
-    registrationDate: '2024-01-15',
-    lastOrderDate: '2024-08-22'
-  },
-  {
-    id: 'c2',
-    name: 'Farm Fresh Store',
-    email: 'purchasing@farmfresh.com',
-    phone: '+250788123002',
-    address: '456 Fresh Ave, Musanze',
-    district: 'Musanze',
-    totalOrders: 32,
-    totalSpent: 8920.50,
-    status: 'active',
-    registrationDate: '2024-02-10',
-    lastOrderDate: '2024-08-22'
-  }
-];
-
-const DEFAULT_MARKET_TRANSACTIONS = [
-  {
-    id: 1,
-    type: 'farmer_to_shop',
-    farmerId: 'f1',
-    farmerName: 'Jean Uwimana',
-    shopId: 's1',
-    shopName: 'Downtown Agro Shop',
-    productId: 1,
-    productName: 'Organic Avocados',
-    quantity: 50,
-    pricePerUnit: 25.00,
-    totalAmount: 1250.00,
-    transactionDate: '2024-08-20',
-    status: 'completed',
-    paymentMethod: 'mobile_money'
-  },
-  {
-    id: 2,
-    type: 'farmer_to_shop',
-    farmerId: 'f2',
-    farmerName: 'Marie Mukamana',
-    shopId: 's1',
-    shopName: 'Downtown Agro Shop',
-    productId: 2,
-    productName: 'Fresh Tomatoes',
-    quantity: 30,
-    pricePerUnit: 15.00,
-    totalAmount: 450.00,
-    transactionDate: '2024-08-21',
-    status: 'completed',
-    paymentMethod: 'cash'
-  }
-];
-
-// Service Functions
-export class MarketStorageService {
-  // Initialize storage with default data
-  static initializeStorage() {
-    seedIfEmpty(STORAGE_KEYS.FARMER_PRODUCTS, DEFAULT_FARMER_PRODUCTS);
-    seedIfEmpty(STORAGE_KEYS.SHOP_INVENTORY, DEFAULT_SHOP_INVENTORY);
-    seedIfEmpty(STORAGE_KEYS.SHOP_ORDERS, DEFAULT_SHOP_ORDERS);
-    seedIfEmpty(STORAGE_KEYS.SHOP_CUSTOMERS, DEFAULT_SHOP_CUSTOMERS);
-    seedIfEmpty(STORAGE_KEYS.MARKET_TRANSACTIONS, DEFAULT_MARKET_TRANSACTIONS);
-    seedIfEmpty(STORAGE_KEYS.SHOP_SUPPLIERS, []);
-  }
-
-  // Farmer Products Management
-  static getFarmerProducts(farmerId = null) {
-    const products = lsGet(STORAGE_KEYS.FARMER_PRODUCTS, []);
-    return farmerId ? products.filter(p => p.farmerId === farmerId) : products;
-  }
-
-  static addFarmerProduct(product) {
-    const products = this.getFarmerProducts();
-    const newProduct = {
-      ...product,
-      id: nextId(products),
-      status: 'available'
-    };
-    products.push(newProduct);
-    lsSet(STORAGE_KEYS.FARMER_PRODUCTS, products);
-    
-    // Auto-sync with shop inventory
-    this.syncFarmerProductToShop(newProduct);
-    
-    // Update farmer as supplier
-    this.updateFarmerAsSupplier(product.farmerId, product.farmerName, product.location);
-    
-    return newProduct;
-  }
-
-  static updateFarmerProduct(productId, updates) {
-    const products = this.getFarmerProducts();
-    const index = products.findIndex(p => p.id === productId);
-    if (index !== -1) {
-      products[index] = { ...products[index], ...updates };
-      lsSet(STORAGE_KEYS.FARMER_PRODUCTS, products);
-      return products[index];
-    }
-    return null;
-  }
-
-  // Shop Inventory Management
-  static getShopInventory() {
-    return lsGet(STORAGE_KEYS.SHOP_INVENTORY, []);
-  }
-
-  static addToShopInventory(item) {
-    const inventory = this.getShopInventory();
-    const newItem = {
-      ...item,
-      id: nextId(inventory)
-    };
-    inventory.push(newItem);
-    lsSet(STORAGE_KEYS.SHOP_INVENTORY, inventory);
-    return newItem;
-  }
-
-  static updateShopInventory(itemId, updates) {
-    const inventory = this.getShopInventory();
-    const index = inventory.findIndex(item => item.id === itemId);
-    if (index !== -1) {
-      inventory[index] = { ...inventory[index], ...updates };
-      lsSet(STORAGE_KEYS.SHOP_INVENTORY, inventory);
-      return inventory[index];
-    }
-    return null;
-  }
-
-  // Purchase from Farmer to Shop
-  static purchaseFromFarmer(farmerId, productId, quantity, shopId = 's1') {
-    const farmerProducts = this.getFarmerProducts();
-    const shopInventory = this.getShopInventory();
-    const transactions = this.getMarketTransactions();
-
-    const farmerProduct = farmerProducts.find(p => p.id === productId && p.farmerId === farmerId);
-    if (!farmerProduct || farmerProduct.quantity < quantity) {
-      throw new Error('Insufficient product quantity available');
-    }
-
-    // Update farmer product quantity
-    this.updateFarmerProduct(productId, {
-      quantity: farmerProduct.quantity - quantity,
-      status: farmerProduct.quantity - quantity === 0 ? 'sold_out' : 'available'
-    });
-
-    // Check if product exists in shop inventory
-    const existingInventoryItem = shopInventory.find(item => 
-      item.sourceType === 'farmer' && item.sourceId === productId
-    );
-
-    if (existingInventoryItem) {
-      // Update existing inventory
-      this.updateShopInventory(existingInventoryItem.id, {
-        quantity: existingInventoryItem.quantity + quantity,
-        status: 'in-stock'
-      });
-    } else {
-      // Add new inventory item
-      this.addToShopInventory({
-        name: farmerProduct.name,
-        category: farmerProduct.category,
-        quantity: quantity,
-        unit: farmerProduct.unit,
-        price: farmerProduct.pricePerUnit * 1.2, // 20% markup
-        cost: farmerProduct.pricePerUnit,
-        minStock: 10,
-        supplier: `${farmerProduct.farmerName} (Farmer)`,
-        supplierId: farmerId,
-        harvestDate: farmerProduct.harvestDate,
-        expiryDate: this.calculateExpiryDate(farmerProduct.harvestDate, farmerProduct.category),
-        status: 'in-stock',
-        sourceType: 'farmer',
-        sourceId: productId
-      });
-    }
-
-    // Record transaction
-    const transaction = {
-      id: nextId(transactions),
-      type: 'farmer_to_shop',
-      farmerId: farmerId,
-      farmerName: farmerProduct.farmerName,
-      shopId: shopId,
-      shopName: 'Downtown Agro Shop',
-      productId: productId,
-      productName: farmerProduct.name,
-      quantity: quantity,
-      pricePerUnit: farmerProduct.pricePerUnit,
-      totalAmount: quantity * farmerProduct.pricePerUnit,
-      transactionDate: new Date().toISOString().split('T')[0],
-      status: 'completed',
-      paymentMethod: 'mobile_money'
-    };
-
-    transactions.push(transaction);
-    lsSet(STORAGE_KEYS.MARKET_TRANSACTIONS, transactions);
-
-    return transaction;
-  }
-
-  // Shop Orders Management
-  static getShopOrders() {
-    return lsGet(STORAGE_KEYS.SHOP_ORDERS, []);
-  }
-
-  static addShopOrder(order) {
-    const orders = this.getShopOrders();
-    const newOrder = {
-      ...order,
-      id: `ORD-${String(nextId(orders, 'id')).padStart(3, '0')}`
-    };
-    orders.push(newOrder);
-    lsSet(STORAGE_KEYS.SHOP_ORDERS, orders);
-    return newOrder;
-  }
-
-  static updateShopOrder(orderId, updates) {
-    const orders = this.getShopOrders();
-    const index = orders.findIndex(order => order.id === orderId);
-    if (index !== -1) {
-      orders[index] = { ...orders[index], ...updates };
-      lsSet(STORAGE_KEYS.SHOP_ORDERS, orders);
-      return orders[index];
-    }
-    return null;
-  }
-
-  // Shop Customers Management
-  static getShopCustomers() {
-    return lsGet(STORAGE_KEYS.SHOP_CUSTOMERS, []);
-  }
-
-  static addShopCustomer(customer) {
-    const customers = this.getShopCustomers();
-    const newCustomer = {
-      ...customer,
-      id: `c${nextId(customers)}`,
-      registrationDate: new Date().toISOString().split('T')[0],
-      totalOrders: 0,
-      totalSpent: 0,
-      status: 'active'
-    };
-    customers.push(newCustomer);
-    lsSet(STORAGE_KEYS.SHOP_CUSTOMERS, customers);
-    return newCustomer;
-  }
-
-  // Market Transactions
-  static getMarketTransactions() {
-    return lsGet(STORAGE_KEYS.MARKET_TRANSACTIONS, []);
-  }
-
-  // Analytics and Reports
-  static getDashboardStats() {
-    const inventory = this.getShopInventory();
-    const orders = this.getShopOrders();
-    const customers = this.getShopCustomers();
-    const transactions = this.getMarketTransactions();
-
-    const totalRevenue = orders.reduce((sum, order) => sum + order.totalAmount, 0);
-    const totalOrders = orders.length;
-    const totalCustomers = customers.length;
-    const lowStockItems = inventory.filter(item => item.quantity <= item.minStock).length;
-
-    const recentOrders = orders
-      .sort((a, b) => new Date(b.orderDate) - new Date(a.orderDate))
-      .slice(0, 5);
-
-    const topProducts = inventory
-      .map(item => ({
-        name: item.name,
-        sold: orders.reduce((sum, order) => {
-          const orderItem = order.items.find(i => i.productId === item.id);
-          return sum + (orderItem ? orderItem.quantity : 0);
-        }, 0),
-        revenue: orders.reduce((sum, order) => {
-          const orderItem = order.items.find(i => i.productId === item.id);
-          return sum + (orderItem ? orderItem.total : 0);
-        }, 0)
-      }))
-      .sort((a, b) => b.revenue - a.revenue)
-      .slice(0, 3);
-
-    return {
-      totalRevenue,
-      totalOrders,
-      totalCustomers,
-      lowStockItems,
-      recentOrders,
-      topProducts
-    };
-  }
-
-  // Helper Methods
-  static calculateExpiryDate(harvestDate, category) {
-    const harvest = new Date(harvestDate);
-    const daysToAdd = category === 'Fruits' ? 10 : 7; // Fruits last longer
-    harvest.setDate(harvest.getDate() + daysToAdd);
-    return harvest.toISOString().split('T')[0];
-  }
-
-  // Shop Suppliers Management
-  static getSuppliers() {
-    return lsGet(STORAGE_KEYS.SHOP_SUPPLIERS, []);
-  }
-
-  static saveSuppliers(suppliers) {
-    lsSet(STORAGE_KEYS.SHOP_SUPPLIERS, suppliers);
-    return suppliers;
-  }
-
-  static addSupplier(supplier) {
-    const suppliers = this.getSuppliers();
-    const newSupplier = {
-      ...supplier,
-      id: `SUP-${String(nextId(suppliers)).padStart(3, '0')}`,
-      joinDate: new Date().toISOString().split('T')[0],
-      totalOrders: 0,
-      totalSales: 0,
-      status: supplier.status || 'Active'
-    };
-    suppliers.push(newSupplier);
-    lsSet(STORAGE_KEYS.SHOP_SUPPLIERS, suppliers);
-    return newSupplier;
-  }
-
-  static updateSupplier(supplierId, updates) {
-    const suppliers = this.getSuppliers();
-    const index = suppliers.findIndex(supplier => supplier.id === supplierId);
-    if (index !== -1) {
-      suppliers[index] = { ...suppliers[index], ...updates };
-      lsSet(STORAGE_KEYS.SHOP_SUPPLIERS, suppliers);
-      return suppliers[index];
-    }
-    return null;
-  }
-
-  static deleteSupplier(supplierId) {
-    const suppliers = this.getSuppliers();
-    const filteredSuppliers = suppliers.filter(supplier => supplier.id !== supplierId);
-    lsSet(STORAGE_KEYS.SHOP_SUPPLIERS, filteredSuppliers);
-    return filteredSuppliers;
-  }
-
-  // Get sales data for suppliers
-  static getSalesData() {
-    const orders = this.getShopOrders();
-    return orders.map(order => ({
-      id: order.id,
-      supplierId: order.supplierId || null,
-      amount: order.totalAmount,
-      date: order.orderDate
-    }));
-  }
-
-  static getOrders() {
-    return this.getShopOrders();
-  }
-
-  // Dynamic Sync Methods
-  static syncFarmerProductToShop(farmerProduct) {
-    const inventory = this.getShopInventory();
-    
-    // Check if product already exists in shop inventory
-    const existingItem = inventory.find(item => 
-      item.sourceType === 'farmer' && item.sourceId === farmerProduct.id
-    );
-    
-    if (!existingItem) {
-      // Add new item to shop inventory
-      const shopItem = {
-        id: nextId(inventory),
-        name: farmerProduct.name,
-        category: farmerProduct.category,
-        quantity: Math.floor(farmerProduct.quantity * 0.3), // Shop takes 30% of farmer's stock
-        unit: farmerProduct.unit,
-        price: farmerProduct.pricePerUnit * 1.2, // 20% markup
-        cost: farmerProduct.pricePerUnit,
-        minStock: Math.max(5, Math.floor(farmerProduct.quantity * 0.1)),
-        supplier: `${farmerProduct.farmerName} (Farmer)`,
-        supplierId: farmerProduct.farmerId,
-        harvestDate: farmerProduct.harvestDate,
-        expiryDate: this.calculateExpiryDate(farmerProduct.harvestDate, farmerProduct.category),
-        status: farmerProduct.quantity > 20 ? 'in-stock' : 'low-stock',
-        sourceType: 'farmer',
-        sourceId: farmerProduct.id,
-        quality: farmerProduct.quality,
-        description: farmerProduct.description
-      };
-      
-      inventory.push(shopItem);
-      lsSet(STORAGE_KEYS.SHOP_INVENTORY, inventory);
-      
-      // Create market transaction
-      this.createMarketTransaction(farmerProduct, shopItem);
-    }
-  }
-  
-  static updateFarmerAsSupplier(farmerId, farmerName, location) {
-    const suppliers = this.getSuppliers();
-    const existingSupplier = suppliers.find(s => s.id === farmerId);
-    
-    if (!existingSupplier) {
-      const newSupplier = {
-        id: farmerId,
-        name: `${farmerName} Farm`,
-        contactPerson: farmerName,
-        email: `${farmerName.toLowerCase().replace(' ', '.')}@farmer.local`,
-        phone: `+250788${Math.floor(Math.random() * 900000 + 100000)}`,
-        category: "Organic Produce",
-        location: location,
-        specialization: "Fresh Farm Products",
-        status: "Active",
-        joinDate: new Date().toISOString().split('T')[0],
-        totalOrders: 1,
-        lastOrderDate: new Date().toISOString().split('T')[0],
-        rating: 4.5 + Math.random() * 0.5,
-        deliveryTime: "1-2 days",
-        paymentTerms: "Net 15",
-        certifications: ["Organic", "Local Farmer"],
-        totalSales: 0,
-        performance: {
-          avgDeliveryTime: 1.5,
-          onTimeRate: 95.0,
-          totalRevenue: 0,
-          orderFrequency: 1
-        },
-        sourceType: 'farmer'
-      };
-      
-      suppliers.push(newSupplier);
-      this.saveSuppliers(suppliers);
-    } else {
-      // Update existing supplier stats
-      existingSupplier.totalOrders += 1;
-      existingSupplier.lastOrderDate = new Date().toISOString().split('T')[0];
-      existingSupplier.performance.orderFrequency += 1;
-      this.saveSuppliers(suppliers);
-    }
-  }
-  
-  static createMarketTransaction(farmerProduct, shopItem) {
-    const transactions = lsGet(STORAGE_KEYS.MARKET_TRANSACTIONS, []);
-    const newTransaction = {
-      id: nextId(transactions),
-      type: 'farmer_to_shop',
-      farmerId: farmerProduct.farmerId,
-      farmerName: farmerProduct.farmerName,
-      shopId: 's1',
-      shopName: 'pWallet Shop Manager',
-      productId: farmerProduct.id,
-      productName: farmerProduct.name,
-      quantity: shopItem.quantity,
-      pricePerUnit: farmerProduct.pricePerUnit,
-      totalAmount: shopItem.quantity * farmerProduct.pricePerUnit,
-      transactionDate: new Date().toISOString().split('T')[0],
-      status: 'completed',
-      paymentMethod: 'mobile_money'
-    };
-    
-    transactions.push(newTransaction);
-    lsSet(STORAGE_KEYS.MARKET_TRANSACTIONS, transactions);
-    
-    // Update sales data for analytics
-    this.updateSalesFromTransaction(newTransaction);
-  }
-  
-  static updateSalesFromTransaction(transaction) {
-    const orders = this.getShopOrders();
-    
-    // Create corresponding shop order
-    const newOrder = {
-      id: `ORD-${String(orders.length + 1).padStart(3, '0')}`,
-      customer: 'Internal Stock Purchase',
-      customerId: 'internal',
-      orderDate: transaction.transactionDate,
-      deliveryDate: transaction.transactionDate,
-      status: 'completed',
-      totalAmount: transaction.totalAmount,
-      items: [{
-        productId: transaction.productId,
-        productName: transaction.productName,
-        quantity: transaction.quantity,
-        price: transaction.pricePerUnit,
-        total: transaction.totalAmount
-      }],
-      paymentStatus: 'paid',
-      paymentMethod: transaction.paymentMethod,
-      notes: `Stock purchase from farmer: ${transaction.farmerName}`,
-      supplierId: transaction.farmerId,
-      sourceType: 'farmer_purchase'
-    };
-    
-    orders.push(newOrder);
-    lsSet(STORAGE_KEYS.SHOP_ORDERS, orders);
-  }
-  
-  static syncAllFarmerData() {
-    // Sync all farmer products to shop inventory
-    const farmerProducts = this.getFarmerProducts();
-    farmerProducts.forEach(product => {
-      if (product.status === 'available') {
-        this.syncFarmerProductToShop(product);
-      }
-    });
-    
-    // Update supplier performance metrics
-    this.updateSupplierMetrics();
-  }
-  
-  static updateSupplierMetrics() {
-    const suppliers = this.getSuppliers();
-    const transactions = lsGet(STORAGE_KEYS.MARKET_TRANSACTIONS, []);
-    const orders = this.getShopOrders();
-    
-    suppliers.forEach(supplier => {
-      if (supplier.sourceType === 'farmer') {
-        const supplierTransactions = transactions.filter(t => t.farmerId === supplier.id);
-        const supplierOrders = orders.filter(o => o.supplierId === supplier.id);
-        
-        supplier.totalSales = supplierTransactions.reduce((sum, t) => sum + t.totalAmount, 0);
-        supplier.totalOrders = supplierTransactions.length;
-        supplier.performance.totalRevenue = supplier.totalSales;
-        supplier.performance.orderFrequency = supplier.totalOrders;
-        
-        if (supplierTransactions.length > 0) {
-          supplier.lastOrderDate = supplierTransactions
-            .sort((a, b) => new Date(b.transactionDate) - new Date(a.transactionDate))[0]
-            .transactionDate;
-        }
-      }
-    });
-    
-    this.saveSuppliers(suppliers);
-  }
-  
-  static getFarmerSuppliers() {
-    return this.getSuppliers().filter(supplier => supplier.sourceType === 'farmer');
-  }
-  
-  static getMarketTransactions() {
-    return lsGet(STORAGE_KEYS.MARKET_TRANSACTIONS, []);
-  }
-  
-  static getFarmerToShopTransactions() {
-    return this.getMarketTransactions().filter(t => t.type === 'farmer_to_shop');
-  }
-  
-  // Enhanced analytics for shop dashboard
-  static getShopAnalytics() {
-    const inventory = this.getShopInventory();
-    const orders = this.getShopOrders();
-    const transactions = this.getMarketTransactions();
-    const farmerProducts = this.getFarmerProducts();
-    
-    // Farmer-sourced inventory
-    const farmerInventory = inventory.filter(item => item.sourceType === 'farmer');
-    const farmerRevenue = transactions
-      .filter(t => t.type === 'farmer_to_shop')
-      .reduce((sum, t) => sum + t.totalAmount, 0);
-    
-    // Low stock alerts from farmer products
-    const lowStockFarmerItems = farmerInventory.filter(item => 
-      item.quantity <= item.minStock
-    );
-    
-    // Available farmer products not yet in shop
-    const availableFarmerProducts = farmerProducts.filter(product => 
-      product.status === 'available' && 
-      !inventory.some(item => item.sourceId === product.id)
-    );
-    
-    return {
-      ...this.getShopDashboardData(),
-      farmerMetrics: {
-        totalFarmerSuppliers: this.getFarmerSuppliers().length,
-        farmerInventoryItems: farmerInventory.length,
-        farmerRevenue: farmerRevenue,
-        lowStockFarmerItems: lowStockFarmerItems.length,
-        availableFarmerProducts: availableFarmerProducts.length,
-        farmerTransactions: transactions.filter(t => t.type === 'farmer_to_shop').length
-      },
-      availableFarmerProducts,
-      lowStockFarmerItems
-    };
-  }
-
-  // Clear all data (for testing)
-  static clearAllData() {
-    Object.values(STORAGE_KEYS).forEach(key => {
-      localStorage.removeItem(key);
-    });
+// Supplier management
+export async function getSuppliers() {
+  try {
+    const response = await apiClient.get('/market/suppliers');
+    return extractData(response);
+  } catch (error) {
+    console.error('Error fetching suppliers:', error);
+    throw error;
   }
 }
 
-export default MarketStorageService;
+export async function createSupplier(supplierData) {
+  if (!supplierData || typeof supplierData !== 'object') {
+    throw new Error('Valid supplier data is required');
+  }
+  
+  try {
+    const response = await apiClient.post('/market/suppliers', supplierData);
+    return extractData(response);
+  } catch (error) {
+    console.error('Error creating supplier:', error);
+    throw error;
+  }
+}
+
+export async function updateSupplier(supplierId, supplierData) {
+  if (!supplierId) {
+    throw new Error('Supplier ID is required');
+  }
+  
+  if (!supplierData || typeof supplierData !== 'object') {
+    throw new Error('Valid supplier data is required');
+  }
+  
+  try {
+    const response = await apiClient.put(`/market/suppliers/${supplierId}`, supplierData);
+    return extractData(response);
+  } catch (error) {
+    console.error('Error updating supplier:', error);
+    throw error;
+  }
+}
+
+export async function deleteSupplier(supplierId) {
+  if (!supplierId) {
+    throw new Error('Supplier ID is required');
+  }
+  
+  try {
+    const response = await apiClient.delete(`/market/suppliers/${supplierId}`);
+    return extractData(response);
+  } catch (error) {
+    console.error('Error deleting supplier:', error);
+    throw error;
+  }
+}
+
+// Shop inventory management
+export async function getShopInventory() {
+  try {
+    const response = await apiClient.get('/market/inventory');
+    return extractData(response);
+  } catch (error) {
+    console.error('Error fetching shop inventory:', error);
+    throw error;
+  }
+}
+
+export async function addToShopInventory(item) {
+  if (!item || typeof item !== 'object') {
+    throw new Error('Valid inventory item data is required');
+  }
+  
+  try {
+    const response = await apiClient.post('/market/inventory', item);
+    return extractData(response);
+  } catch (error) {
+    console.error('Error adding item to inventory:', error);
+    throw error;
+  }
+}
+
+export async function updateShopInventory(id, item) {
+  if (!id) {
+    throw new Error('Inventory item ID is required');
+  }
+  
+  if (!item || typeof item !== 'object') {
+    throw new Error('Valid inventory item data is required');
+  }
+  
+  try {
+    const response = await apiClient.put(`/market/inventory/${id}`, item);
+    return extractData(response);
+  } catch (error) {
+    console.error('Error updating inventory item:', error);
+    throw error;
+  }
+}
+
+export async function deleteInventoryItem(id) {
+  if (!id) {
+    throw new Error('Inventory item ID is required');
+  }
+  
+  try {
+    const response = await apiClient.delete(`/market/inventory/${id}`);
+    return extractData(response);
+  } catch (error) {
+    console.error('Error deleting inventory item:', error);
+    throw error;
+  }
+}
+
+// Order management
+export async function getOrders() {
+  try {
+    const response = await apiClient.get('/market/orders');
+    return extractData(response);
+  } catch (error) {
+    console.error('Error fetching orders:', error);
+    throw error;
+  }
+}
+
+export async function createOrder(orderData) {
+  if (!orderData || typeof orderData !== 'object') {
+    throw new Error('Valid order data is required');
+  }
+  
+  try {
+    const response = await apiClient.post('/market/orders', orderData);
+    return extractData(response);
+  } catch (error) {
+    console.error('Error creating order:', error);
+    throw error;
+  }
+}
+
+export async function updateOrder(id, order) {
+  if (!id) {
+    throw new Error('Order ID is required');
+  }
+  
+  if (!order || typeof order !== 'object') {
+    throw new Error('Valid order data is required');
+  }
+  
+  try {
+    const response = await apiClient.put(`/market/orders/${id}`, order);
+    return extractData(response);
+  } catch (error) {
+    console.error('Error updating order:', error);
+    throw error;
+  }
+}
+
+export async function deleteOrder(id) {
+  if (!id) {
+    throw new Error('Order ID is required');
+  }
+  
+  try {
+    const response = await apiClient.delete(`/market/orders/${id}`);
+    return extractData(response);
+  } catch (error) {
+    console.error('Error deleting order:', error);
+    throw error;
+  }
+}
+
+// Farmer products
+export async function getFarmerProducts(farmerId) {
+  try {
+    const params = farmerId ? { farmerId } : {};
+    const response = await apiClient.get('/market/products', { params });
+    return extractData(response);
+  } catch (error) {
+    console.error('Error fetching farmer products:', error);
+    throw error;
+  }
+}
+
+export async function addFarmerProduct(product) {
+  if (!product || typeof product !== 'object') {
+    throw new Error('Valid product data is required');
+  }
+  
+  try {
+    const response = await apiClient.post('/market/products', product);
+    return extractData(response);
+  } catch (error) {
+    console.error('Error adding farmer product:', error);
+    throw error;
+  }
+}
+
+export async function updateFarmerProduct(id, product) {
+  if (!id) {
+    throw new Error('Product ID is required');
+  }
+  
+  if (!product || typeof product !== 'object') {
+    throw new Error('Valid product data is required');
+  }
+  
+  try {
+    const response = await apiClient.put(`/market/products/${id}`, product);
+    return extractData(response);
+  } catch (error) {
+    console.error('Error updating farmer product:', error);
+    throw error;
+  }
+}
+
+export async function deleteFarmerProduct(id) {
+  if (!id) {
+    throw new Error('Product ID is required');
+  }
+  
+  try {
+    const response = await apiClient.delete(`/market/products/${id}`);
+    return extractData(response);
+  } catch (error) {
+    console.error('Error deleting farmer product:', error);
+    throw error;
+  }
+}
+
+// Transactions
+export async function getFarmerToShopTransactions() {
+  try {
+    const response = await apiClient.get('/market/transactions');
+    return extractData(response);
+  } catch (error) {
+    console.error('Error fetching transactions:', error);
+    throw error;
+  }
+}
+
+export async function createTransaction(transactionData) {
+  if (!transactionData || typeof transactionData !== 'object') {
+    throw new Error('Valid transaction data is required');
+  }
+  
+  try {
+    const response = await apiClient.post('/market/transactions', transactionData);
+    return extractData(response);
+  } catch (error) {
+    console.error('Error creating transaction:', error);
+    throw error;
+  }
+}
+
+// Shop orders
+export async function getShopOrders() {
+  try {
+    const response = await apiClient.get('/market/shop-orders');
+    return extractData(response);
+  } catch (error) {
+    console.error('Error fetching shop orders:', error);
+    throw error;
+  }
+}
+
+export async function createShopOrder(orderData) {
+  if (!orderData || typeof orderData !== 'object') {
+    throw new Error('Valid order data is required');
+  }
+  
+  try {
+    const response = await apiClient.post('/market/shop-orders', orderData);
+    return extractData(response);
+  } catch (error) {
+    console.error('Error creating shop order:', error);
+    throw error;
+  }
+}
+
+// Shop customers
+export async function getShopCustomers() {
+  try {
+    const response = await apiClient.get('/market/customers');
+    return extractData(response);
+  } catch (error) {
+    console.error('Error fetching customers:', error);
+    throw error;
+  }
+}
+
+export async function createCustomer(customerData) {
+  if (!customerData || typeof customerData !== 'object') {
+    throw new Error('Valid customer data is required');
+  }
+  
+  try {
+    const response = await apiClient.post('/market/customers', customerData);
+    return extractData(response);
+  } catch (error) {
+    console.error('Error creating customer:', error);
+    throw error;
+  }
+}
+
+export async function updateCustomer(id, customerData) {
+  if (!id) {
+    throw new Error('Customer ID is required');
+  }
+  
+  if (!customerData || typeof customerData !== 'object') {
+    throw new Error('Valid customer data is required');
+  }
+  
+  try {
+    const response = await apiClient.put(`/market/customers/${id}`, customerData);
+    return extractData(response);
+  } catch (error) {
+    console.error('Error updating customer:', error);
+    throw error;
+  }
+}
+
+export async function deleteCustomer(id) {
+  if (!id) {
+    throw new Error('Customer ID is required');
+  }
+  
+  try {
+    const response = await apiClient.delete(`/market/customers/${id}`);
+    return extractData(response);
+  } catch (error) {
+    console.error('Error deleting customer:', error);
+    throw error;
+  }
+}
+
+// Sales data
+export async function getSalesData() {
+  try {
+    const response = await apiClient.get('/market/sales');
+    return extractData(response);
+  } catch (error) {
+    console.error('Error fetching sales data:', error);
+    throw error;
+  }
+}
+
+export async function addSalesData(salesData) {
+  if (!salesData || typeof salesData !== 'object') {
+    throw new Error('Valid sales data is required');
+  }
+  
+  try {
+    const response = await apiClient.post('/market/sales', salesData);
+    return extractData(response);
+  } catch (error) {
+    console.error('Error adding sales data:', error);
+    throw error;
+  }
+}
+
+// Utility functions
+export function calculateExpiryDate(harvestDate, category) {
+  if (!harvestDate) return '';
+  
+  const date = new Date(harvestDate);
+  
+  // Different expiry times based on category
+  let daysToAdd = 7; // Default to 1 week
+  
+  switch (category) {
+    case 'Hass Avocados':
+    case 'Fuerte Avocados':
+    case 'Bacon Avocados':
+    case 'Zutano Avocados':
+      daysToAdd = 14; // 2 weeks for avocados
+      break;
+    case 'Avocado Seedlings':
+      daysToAdd = 30; // 1 month for seedlings
+      break;
+    case 'Fertilizers':
+      daysToAdd = 365; // 1 year for fertilizers
+      break;
+    case 'Pesticides':
+      daysToAdd = 180; // 6 months for pesticides
+      break;
+    default:
+      daysToAdd = 7; // 1 week default
+  }
+  
+  date.setDate(date.getDate() + daysToAdd);
+  return date.toISOString().split('T')[0];
+}

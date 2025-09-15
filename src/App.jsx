@@ -41,56 +41,60 @@ import ShopProfile from './Pages/ShopManager/ShopProfile'
 import ShopSuppliers from './Pages/ShopManager/ShopSuppliers'
 import ShopProducts from './Pages/ShopManager/ShopProducts'
 
+// Import route protection components
+import ProtectedRoute from './components/Layout/ProtectedRoute';
+import RoleBasedRoute from './components/Layout/RoleBasedRoute';
+
 function App() {
   return (
     <Router>
       <Routes>
         <Route path="/" element={<Login />} />
-        <Route path="/dashboard" element={<Layout />}>
+        <Route path="/dashboard" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
           <Route index element={<Home />} />
           
           {/* Admin Routes */}
-          <Route path="admin" element={<Admin />} />
-          <Route path="admin/users" element={<Users />} />
-          <Route path="admin/agents" element={<Agents/>} />
-          <Route path="admin/reports" element={<Reports/>} />
-          <Route path="admin/shops" element={<ShopView/>} />
-          <Route path="admin/statistics" element={<Statistics/>} />
-          <Route path="admin/service-requests" element={<ServiceRequests/>} />
+          <Route path="admin" element={<RoleBasedRoute allowedRoles={['admin']}><Admin /></RoleBasedRoute>} />
+          <Route path="admin/users" element={<RoleBasedRoute allowedRoles={['admin']}><Users /></RoleBasedRoute>} />
+          <Route path="admin/agents" element={<RoleBasedRoute allowedRoles={['admin']}><Agents/></RoleBasedRoute>} />
+          <Route path="admin/reports" element={<RoleBasedRoute allowedRoles={['admin']}><Reports/></RoleBasedRoute>} />
+          <Route path="admin/shops" element={<RoleBasedRoute allowedRoles={['admin']}><ShopView/></RoleBasedRoute>} />
+          <Route path="admin/statistics" element={<RoleBasedRoute allowedRoles={['admin']}><Statistics/></RoleBasedRoute>} />
+          <Route path="admin/service-requests" element={<RoleBasedRoute allowedRoles={['admin']}><ServiceRequests/></RoleBasedRoute>} />
           
           {/* Agent Routes */}
-          <Route path="agent" element={<Agent />} />
-          <Route path='agent/FarmerList' element={<FarmerList/>}/>
-          <Route path='agent/PendingService' element={<PendingService/>}/>
-          <Route path='agent/Report' element={<Report/>}/>
-          <Route path='agent/Shop' element={<Shop/>}/>
+          <Route path="agent" element={<RoleBasedRoute allowedRoles={['agent']}><Agent /></RoleBasedRoute>} />
+          <Route path='agent/FarmerList' element={<RoleBasedRoute allowedRoles={['agent']}><FarmerList/></RoleBasedRoute>}/>
+          <Route path='agent/PendingService' element={<RoleBasedRoute allowedRoles={['agent']}><PendingService/></RoleBasedRoute>}/>
+          <Route path='agent/Report' element={<RoleBasedRoute allowedRoles={['agent']}><Report/></RoleBasedRoute>}/>
+          <Route path='agent/Shop' element={<RoleBasedRoute allowedRoles={['agent']}><Shop/></RoleBasedRoute>}/>
           
           {/* Farmer Routes */}
-          <Route path="farmer" element={<Farmer />} />
-          <Route path='farmer/market' element={<Market />} />
-          <Route path="farmer/IrrigationKits" element={<IrrigationKits />} />
-          <Route path="farmer/HarvestingKit" element={<HarvestingKit />} />
-          <Route path='farmer/protection' element={<Protection/>}/>
-          <Route path='farmer/container' element={<Container/>}/>
-          <Route path='farmer/pest' element={<Pest/>}/>
-          <Route path='farmer/service' element={<Service/>}/>
-          <Route path='farmer/PestManagement' element={<PestManagement/>}/>
-          <Route path='farmer/HarvestingDay' element={<HarvestingDay/>}/>
-          <Route path='farmer/PropertyEvaluation' element={<PropertyEvaluation/>}/>
-          <Route path='farmer/my-service-requests' element={<MyServiceRequests/>}/>
-          <Route path='farmer/profile' element={<Profile/>}/>
-          <Route path='farmer/product' element={<Product/>}/>
+          <Route path="farmer" element={<RoleBasedRoute allowedRoles={['farmer']}><Farmer /></RoleBasedRoute>} />
+          <Route path='farmer/market' element={<RoleBasedRoute allowedRoles={['farmer']}><Market /></RoleBasedRoute>} />
+          <Route path="farmer/IrrigationKits" element={<RoleBasedRoute allowedRoles={['farmer']}><IrrigationKits /></RoleBasedRoute>} />
+          <Route path="farmer/HarvestingKit" element={<RoleBasedRoute allowedRoles={['farmer']}><HarvestingKit /></RoleBasedRoute>} />
+          <Route path='farmer/protection' element={<RoleBasedRoute allowedRoles={['farmer']}><Protection/></RoleBasedRoute>}/>
+          <Route path='farmer/container' element={<RoleBasedRoute allowedRoles={['farmer']}><Container/></RoleBasedRoute>}/>
+          <Route path='farmer/pest' element={<RoleBasedRoute allowedRoles={['farmer']}><Pest/></RoleBasedRoute>}/>
+          <Route path='farmer/service' element={<RoleBasedRoute allowedRoles={['farmer']}><Service/></RoleBasedRoute>}/>
+          <Route path='farmer/PestManagement' element={<RoleBasedRoute allowedRoles={['farmer']}><PestManagement/></RoleBasedRoute>}/>
+          <Route path='farmer/HarvestingDay' element={<RoleBasedRoute allowedRoles={['farmer']}><HarvestingDay/></RoleBasedRoute>}/>
+          <Route path='farmer/PropertyEvaluation' element={<RoleBasedRoute allowedRoles={['farmer']}><PropertyEvaluation/></RoleBasedRoute>}/>
+          <Route path='farmer/my-service-requests' element={<RoleBasedRoute allowedRoles={['farmer']}><MyServiceRequests/></RoleBasedRoute>}/>
+          <Route path='farmer/profile' element={<RoleBasedRoute allowedRoles={['farmer']}><Profile/></RoleBasedRoute>}/>
+          <Route path='farmer/product' element={<RoleBasedRoute allowedRoles={['farmer']}><Product/></RoleBasedRoute>}/>
           
           {/* Shop Manager Routes */}
-          <Route path="shop-manager" element={<ShopManager />} />
-          <Route path='shop-manager/inventory' element={<ShopInventory/>}/>
-          <Route path='shop-manager/orders' element={<ShopOrders/>}/>
-          <Route path='shop-manager/sales' element={<ShopSales/>}/>
-          <Route path='shop-manager/customers' element={<ShopCustomers/>}/>
-          <Route path='shop-manager/products' element={<ShopProducts/>}/>
-          <Route path='shop-manager/suppliers' element={<ShopSuppliers/>}/>
-          <Route path='shop-manager/analytics' element={<ShopAnalytics/>}/>
-          <Route path='shop-manager/profile' element={<ShopProfile/>}/>
+          <Route path="shop-manager" element={<RoleBasedRoute allowedRoles={['shop_manager']}><ShopManager /></RoleBasedRoute>} />
+          <Route path='shop-manager/inventory' element={<RoleBasedRoute allowedRoles={['shop_manager']}><ShopInventory/></RoleBasedRoute>}/>
+          <Route path='shop-manager/orders' element={<RoleBasedRoute allowedRoles={['shop_manager']}><ShopOrders/></RoleBasedRoute>}/>
+          <Route path='shop-manager/sales' element={<RoleBasedRoute allowedRoles={['shop_manager']}><ShopSales/></RoleBasedRoute>}/>
+          <Route path='shop-manager/customers' element={<RoleBasedRoute allowedRoles={['shop_manager']}><ShopCustomers/></RoleBasedRoute>}/>
+          <Route path='shop-manager/products' element={<RoleBasedRoute allowedRoles={['shop_manager']}><ShopProducts/></RoleBasedRoute>}/>
+          <Route path='shop-manager/suppliers' element={<RoleBasedRoute allowedRoles={['shop_manager']}><ShopSuppliers/></RoleBasedRoute>}/>
+          <Route path='shop-manager/analytics' element={<RoleBasedRoute allowedRoles={['shop_manager']}><ShopAnalytics/></RoleBasedRoute>}/>
+          <Route path='shop-manager/profile' element={<RoleBasedRoute allowedRoles={['shop_manager']}><ShopProfile/></RoleBasedRoute>}/>
           
         </Route>
         <Route path="*" element={<h1>Not Found</h1>} />

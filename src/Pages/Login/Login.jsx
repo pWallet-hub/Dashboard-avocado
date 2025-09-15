@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LogIn } from "lucide-react";
+import { login } from '../../services/authService'; // Import the authService
 
 function Login() {
   const [username, setUsername] = useState('');
@@ -9,70 +10,78 @@ function Login() {
   const [message, setMessage] = useState('');
   const navigate = useNavigate();
   
-   const handleLogin = (e) => {
+  // Add form validation
+  const validateForm = () => {
+    if (!username || !password) {
+      setMessage('Please fill in all fields');
+      return false;
+    }
+    
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(username)) {
+      setMessage('Please enter a valid email address');
+      return false;
+    }
+    
+    // Password length validation
+    if (password.length < 6) {
+      setMessage('Password must be at least 6 characters long');
+      return false;
+    }
+    
+    return true;
+  };
+  
+  const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
     setMessage('');
     
-    // Simulate loading delay
-    setTimeout(() => {
-      // Local demo auth: map credentials to roles
-      const email = username.trim().toLowerCase();
+    // Validate form before submitting
+    if (!validateForm()) {
+      setLoading(false);
+      return;
+    }
+    
+    try {
+      // Actual API call to authenticate user
       const credentials = {
-        'admin@avocado.rw': { role: 'admin', requirePassword: 'password123' },
-        'agent@avocado.rw': { role: 'agent', requirePassword: 'password123rw' },
-        'peter@avocado.rw': { role: 'farmer', requirePassword: 'password123umurima' },
-        'shopmanager@avocado.rw': { role: 'shop-manager', requirePassword: 'shop123' },
-        'shop@avocado.rw': { role: 'shop-manager', requirePassword: null }
+        email: username,
+        password: password
       };
-
-      if (!email) {
-        setMessage('Please enter your email');
-        setLoading(false);
-        return;
-      }
-
-      const match = credentials[email];
-      if (!match) {
-        setMessage('Invalid credentials. Use admin@avocado.rw, agent@avocado.rw, peter@avocado.rw, shopmanager@avocado.rw, or shop@avocado.rw');
-        setLoading(false);
-        return;
-      }
-
-      // All accounts now require password
-      if (!password) {
-        setMessage('Please enter your password');
-        setLoading(false);
-        return;
-      }
-
-      if (password !== match.requirePassword) {
-        setMessage(`Incorrect password for ${email}`);
-        setLoading(false);
-        return;
-      }
-
-      // Persist session in localStorage for layout/sidebar
-      localStorage.setItem('username', email);
-      localStorage.setItem('role', match.role);
-      localStorage.setItem('id', String(Date.now()));
-      localStorage.setItem('token', 'demo-token');
-
+      
+      const response = await login(credentials);
+      
+      // Store token and user data in localStorage
+      localStorage.setItem('token', response.token);
+      localStorage.setItem('user', JSON.stringify(response.user));
+      
+      // Store role and other user data with correct keys
+      localStorage.setItem('role', response.user.role);
+      localStorage.setItem('id', response.user.id);
+      localStorage.setItem('username', response.user.email); // Store email as username
+      
       // If it's a shop manager, also store shop information
-      if (match.role === 'shop-manager') {
-        // You can customize this based on which shop they manage
+      if (response.user.role === 'shop_manager') {
+        // In a real implementation, this would come from the user profile
         const shopInfo = {
-          shopId: email === 'shopmanager@avocado.rw' ? 'shop-001' : 'shop-002',
-          shopName: email === 'shopmanager@avocado.rw' ? 'Kigali Agricultural Shop' : 'Musanze Farm Supplies'
+          shopId: 'shop-001', // This would come from the API
+          shopName: 'Kigali Agricultural Shop' // This would come from the API
         };
         localStorage.setItem('shopInfo', JSON.stringify(shopInfo));
       }
-
+      
       setMessage('Login successful! Redirecting...');
-      // Redirect to role dashboard
-      navigate(`/dashboard/${match.role}`);
+      
+      // Redirect to role dashboard with standardized format
+      const rolePath = response.user.role.replace('_', '-');
+      navigate(`/dashboard/${rolePath}`);
+    } catch (error) {
+      setMessage(error.message || 'Login failed. Please check your credentials.');
+    } finally {
       setLoading(false);
-    }, 1000);
+    }
   };
 
   return (
@@ -85,23 +94,14 @@ function Login() {
             Ibarura ry'abahinzi bafite ubutaka bakaba bifuza gutera no gukora Ubuhinzi bw' avoka by' umwuga
           </p>
           
-          {/* Demo Credentials Section */}
-          <div className="mt-6 p-4 bg-green-700 bg-opacity-50 rounded-lg text-left">
-            <h5 className="text-sm font-semibold text-white mb-2">Demo Credentials:</h5>
-            <div className="text-xs text-green-100 space-y-1">
-              <div>👤 <strong>Admin:</strong> admin@avocado.rw (password: password123)</div>
-              <div>🏢 <strong>Agent:</strong> agent@avocado.rw (password: password123rw)</div>
-              <div>🌾 <strong>Farmer:</strong> peter@avocado.rw (password: password123umurima)</div>
-              <div>🏪 <strong>Shop Manager:</strong> shopmanager@avocado.rw (password: shop123)</div>
-            </div>
-          </div>
+         
         </div>
         <div className="flex flex-col items-center justify-center w-full p-10 bg-white md:w-1/2">
           <h2 className="mb-5 text-2xl font-bold md:text-3xl">Login</h2>
           <div className="w-full">
             <input
               type="text"
-              placeholder="Username"
+              placeholder="Email"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               disabled={loading}

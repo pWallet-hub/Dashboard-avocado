@@ -1,103 +1,126 @@
-import client from './airtableApi';
+import apiClient, { extractData } from './apiClient';
 
-// Prefer stable table id to avoid breakage on name changes
-const TABLE = 'tblJTbpjFpkQEpIw5'; // Orders
-
-function buildParams({
-  fields,
-  filterByFormula,
-  maxRecords,
-  pageSize,
-  sort,
-  view,
-  cellFormat,
-  timeZone,
-  userLocale,
-  returnFieldsByFieldId,
-  recordMetadata,
-  offset,
-} = {}) {
-  const params = {};
-  if (Array.isArray(fields) && fields.length) {
-    fields.forEach((f, i) => {
-      params[`fields[${i}]`] = f;
-    });
-  }
-  if (filterByFormula) params.filterByFormula = filterByFormula;
-  if (maxRecords) params.maxRecords = maxRecords;
-  if (pageSize) params.pageSize = pageSize;
-  if (Array.isArray(sort) && sort.length) {
-    sort.forEach((s, i) => {
-      if (s?.field) params[`sort[${i}][field]`] = s.field;
-      if (s?.direction) params[`sort[${i}][direction]`] = s.direction;
-    });
-  }
-  if (view) params.view = view;
-  if (cellFormat) params.cellFormat = cellFormat;
-  if (timeZone) params.timeZone = timeZone;
-  if (userLocale) params.userLocale = userLocale;
-  if (returnFieldsByFieldId !== undefined) params.returnFieldsByFieldId = returnFieldsByFieldId;
-  if (Array.isArray(recordMetadata) && recordMetadata.length) {
-    recordMetadata.forEach((m, i) => {
-      params[`recordMetadata[${i}]`] = m;
-    });
-  }
-  if (offset) params.offset = offset;
-  return params;
-}
-
+// Get all orders
 export async function listOrders(options = {}) {
-  const params = buildParams(options);
-  const res = await client.get(TABLE, { params });
-  return res.data; // { records: [...], offset? }
-}
-
-export async function getOrder(recordId) {
-  const res = await client.get(`${TABLE}/${recordId}`);
-  return res.data; // { id, fields, createdTime }
-}
-
-export async function createOrders(records, { typecast } = {}) {
-  // records: [{ fields: { ... } }, ...]
-  const res = await client.post(TABLE, { records, typecast });
-  return res.data; // { records: [...] }
-}
-
-export async function createOrder(fields, { typecast } = {}) {
-  return createOrders([{ fields }], { typecast });
-}
-
-export async function updateOrders(records, { typecast } = {}) {
-  // PATCH for partial updates. records: [{ id, fields }]
-  const res = await client.patch(TABLE, { records, typecast });
-  return res.data;
-}
-
-export async function updateOrder(recordId, fields, { typecast } = {}) {
-  return updateOrders([{ id: recordId, fields }], { typecast });
-}
-
-export async function upsertOrders(records, fieldsToMergeOn, { typecast } = {}) {
-  const res = await client.patch(TABLE, {
-    records,
-    typecast,
-    performUpsert: {
-      fieldsToMergeOn,
-    },
-  });
-  return res.data;
-}
-
-export async function deleteOrders(recordIds) {
   const params = {};
-  recordIds.forEach((id, i) => {
-    params[`records[${i}]`] = id;
-  });
-  const res = await client.delete(TABLE, { params });
-  return res.data; // { records: [{ id, deleted: true } ...] }
+  if (options.page) params.page = options.page;
+  if (options.limit) params.limit = options.limit;
+  if (options.customer_id) params.customer_id = options.customer_id;
+  if (options.status) params.status = options.status;
+  if (options.payment_status) params.payment_status = options.payment_status;
+  if (options.date_from) params.date_from = options.date_from;
+  if (options.date_to) params.date_to = options.date_to;
+  if (options.amount_min) params.amount_min = options.amount_min;
+  if (options.amount_max) params.amount_max = options.amount_max;
+  if (options.search) params.search = options.search;
+  
+  const response = await apiClient.get('/orders', { params });
+  return extractData(response);
 }
 
-export async function deleteOrder(recordId) {
-  const res = await client.delete(`${TABLE}/${recordId}`);
-  return res.data; // { id, deleted }
+// Get order by ID
+export async function getOrder(orderId) {
+  if (!orderId) {
+    throw new Error("Order ID is required");
+  }
+  
+  const response = await apiClient.get(`/orders/${orderId}`);
+  return extractData(response);
+}
+
+// Create new order
+export async function createOrder(orderData) {
+  // Validate required fields
+  if (!orderData || typeof orderData !== 'object') {
+    throw new Error("Order data is required");
+  }
+  
+  if (!orderData.items || !Array.isArray(orderData.items) || orderData.items.length === 0) {
+    throw new Error("At least one item is required in the order");
+  }
+  
+  if (!orderData.shipping_address) {
+    throw new Error("Shipping address is required");
+  }
+  
+  // Validate shipping address required fields
+  if (!orderData.shipping_address.full_name) {
+    throw new Error("Shipping address full name is required");
+  }
+  
+  if (!orderData.shipping_address.phone) {
+    throw new Error("Shipping address phone is required");
+  }
+  
+  if (!orderData.shipping_address.street_address) {
+    throw new Error("Shipping address street address is required");
+  }
+  
+  if (!orderData.shipping_address.city) {
+    throw new Error("Shipping address city is required");
+  }
+  
+  if (!orderData.shipping_address.province) {
+    throw new Error("Shipping address province is required");
+  }
+  
+  if (!orderData.shipping_address.country) {
+    throw new Error("Shipping address country is required");
+  }
+  
+  const response = await apiClient.post('/orders', orderData);
+  return extractData(response);
+}
+
+// Update order
+export async function updateOrder(orderId, orderData) {
+  if (!orderId) {
+    throw new Error("Order ID is required");
+  }
+  
+  if (!orderData || typeof orderData !== 'object') {
+    throw new Error("Valid order data is required");
+  }
+  
+  const response = await apiClient.put(`/orders/${orderId}`, orderData);
+  return extractData(response);
+}
+
+// Delete order
+export async function deleteOrder(orderId) {
+  if (!orderId) {
+    throw new Error("Order ID is required");
+  }
+  
+  const response = await apiClient.delete(`/orders/${orderId}`);
+  return extractData(response);
+}
+
+// Update order status
+export async function updateOrderStatus(orderId, status) {
+  if (!orderId) {
+    throw new Error("Order ID is required");
+  }
+  
+  if (!status || typeof status !== 'string') {
+    throw new Error("Valid status is required");
+  }
+  
+  const response = await apiClient.put(`/orders/${orderId}/status`, { status });
+  return extractData(response);
+}
+
+// Get orders for a specific user
+export async function getOrdersForUser(userId, options = {}) {
+  if (!userId) {
+    throw new Error("User ID is required");
+  }
+  
+  const params = {};
+  if (options.page) params.page = options.page;
+  if (options.limit) params.limit = options.limit;
+  if (options.status) params.status = options.status;
+  
+  const response = await apiClient.get(`/orders/user/${userId}`, { params });
+  return extractData(response);
 }
