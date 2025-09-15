@@ -88,13 +88,15 @@ export async function listFarmers(options = {}) {
 
 // Get all agents
 export async function listAgents(options = {}) {
-  const params = {};
-  if (options.page) params.page = options.page;
-  if (options.limit) params.limit = options.limit;
-  if (options.status) params.status = options.status;
-  if (options.search) params.search = options.search;
-  
-  const response = await apiClient.get('/users/agents', { params });
+  // Only send parameters if they are required by the backend
+  // If you know which params are valid, add them below. Otherwise, send no params.
+  const validParams = {};
+  // Example: if backend supports 'status' and 'search', uncomment below
+  // if (options.status) validParams.status = options.status;
+  // if (options.search) validParams.search = options.search;
+  const response = Object.keys(validParams).length > 0
+    ? await apiClient.get('/users/agents', { params: validParams })
+    : await apiClient.get('/users/agents');
   return extractData(response);
 }
 

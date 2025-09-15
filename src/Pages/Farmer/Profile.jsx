@@ -9,24 +9,26 @@ export default function Profile() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('personal');
+    
 
-  useEffect(() => {
-    const fetchProfile = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const profileData = await getProfile();
-        setProfile(profileData);
-      } catch (error) {
-        setError('There was an error fetching the profile data!');
-        console.error('Error fetching profile:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
+ useEffect(() => {
+  const fetchProfile = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const profileData = await getProfile();
+      console.log('Profile response:', profileData); // Debug: see what backend returns
+      setProfile(profileData);
+    } catch (error) {
+      setError('There was an error fetching the profile data!');
+      console.error('Error fetching profile:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    fetchProfile();
-  }, []);
+  fetchProfile();
+}, []);
 
   if (loading) {
     return (

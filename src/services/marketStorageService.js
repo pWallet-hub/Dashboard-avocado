@@ -1,3 +1,40 @@
+// Save or update suppliers in backend API
+export async function saveSuppliers(suppliers) {
+  if (!Array.isArray(suppliers)) throw new Error('Suppliers must be an array');
+  // This assumes a bulk update endpoint exists. Adjust as needed for your API.
+  const response = await apiClient.put('/market/suppliers/bulk', suppliers);
+  return extractData(response);
+}
+export async function getProducts({ page, limit, category, supplier_id, status, price_min, price_max, in_stock, search } = {}) {
+  const params = {};
+  if (page) params.page = page;
+  if (limit) params.limit = limit;
+  if (category) params.category = category;
+  if (supplier_id) params.supplier_id = supplier_id;
+  if (status) params.status = status;
+  if (price_min) params.price_min = price_min;
+  if (price_max) params.price_max = price_max;
+  if (typeof in_stock !== 'undefined') params.in_stock = in_stock;
+  if (search) params.search = search;
+
+  const response = await apiClient.get('/products', { params });
+  return extractData(response);
+}
+// Stub for syncAllFarmerData to prevent import errors
+export function syncAllFarmerData() {
+  // No sync needed; API-based only
+  return true;
+}
+// Fetch market transactions from backend API
+export async function getMarketTransactions() {
+  const response = await apiClient.get('/market/transactions');
+  return extractData(response);
+}
+// Stub for initializeStorage to prevent import errors
+export function initializeStorage() {
+  // No initialization needed; API-based only
+  return true;
+}
 import apiClient, { extractData } from './apiClient';
 
 // Supplier management
