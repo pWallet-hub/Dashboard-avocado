@@ -23,7 +23,7 @@ export async function getUser(userId) {
   return extractData(response);
 }
 
-// Create user
+// UPDATED: Create user - now handles agents correctly
 export async function createUser(userData) {
   if (!userData || typeof userData !== 'object') {
     throw new Error("Valid user data is required");
@@ -34,8 +34,67 @@ export async function createUser(userData) {
     throw new Error("Email and full name are required");
   }
   
+  // Check if this is agent data (has location fields)
+  const isAgentData = userData.province || userData.district || userData.sector;
+  
+  if (isAgentData) {
+    console.log('Creating agent with data:', userData);
+    // Use the agent-specific endpoint
+    const response = await apiClient.post('/users/agents', userData);
+    return extractData(response);
+  }
+  
+  // For regular users, use the standard endpoint
   const response = await apiClient.post('/users', userData);
   return extractData(response);
+}
+
+// NEW: Dedicated function for creating farmers
+export async function createFarmer(farmerData) {
+  if (!farmerData || typeof farmerData !== 'object') {
+    throw new Error("Valid farmer data is required");
+  }
+  
+  // Validate required fields for farmer creation
+  if (!farmerData.email || !farmerData.full_name || !farmerData.gender) {
+    throw new Error("Email, full name, and gender are required");
+  }
+  
+  console.log('Creating farmer with endpoint /users/farmers and data:', farmerData);
+  
+  try {
+    const response = await apiClient.post('/users/farmers', farmerData);
+    console.log('Farmer creation response:', response);
+    return extractData(response);
+  } catch (error) {
+    console.error('Farmer creation error:', error);
+    console.error('Error response:', error.response?.data);
+    throw error;
+  }
+}
+
+// NEW: Dedicated function for creating agents
+export async function createAgent(agentData) {
+  if (!agentData || typeof agentData !== 'object') {
+    throw new Error("Valid agent data is required");
+  }
+  
+  // Validate required fields for agent creation
+  if (!agentData.email || !agentData.full_name) {
+    throw new Error("Email and full name are required");
+  }
+  
+  console.log('Creating agent with endpoint /users/agents and data:', agentData);
+  
+  try {
+    const response = await apiClient.post('/users/agents', agentData);
+    console.log('Agent creation response:', response);
+    return extractData(response);
+  } catch (error) {
+    console.error('Agent creation error:', error);
+    console.error('Error response:', error.response?.data);
+    throw error;
+  }
 }
 
 // Update user
@@ -86,18 +145,18 @@ export async function listFarmers(options = {}) {
   return extractData(response);
 }
 
-// Get all agents
+// UPDATED: Get all agents with better error handling
 export async function listAgents(options = {}) {
-  // Only send parameters if they are required by the backend
-  // If you know which params are valid, add them below. Otherwise, send no params.
-  const validParams = {};
-  // Example: if backend supports 'status' and 'search', uncomment below
-  // if (options.status) validParams.status = options.status;
-  // if (options.search) validParams.search = options.search;
-  const response = Object.keys(validParams).length > 0
-    ? await apiClient.get('/users/agents', { params: validParams })
-    : await apiClient.get('/users/agents');
-  return extractData(response);
+  try {
+    console.log('Fetching agents from /users/agents');
+    const response = await apiClient.get('/users/agents');
+    console.log('Agents response:', response);
+    return extractData(response);
+  } catch (error) {
+    console.error('Error fetching agents:', error);
+    console.error('Error response:', error.response?.data);
+    throw error;
+  }
 }
 
 // Update user status

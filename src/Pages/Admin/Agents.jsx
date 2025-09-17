@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ClipLoader } from 'react-spinners';
 import '../Styles/Agent.css';
-import { listAgents, deleteUser, createUser } from '../../services/usersService';
+import { listAgents, deleteUser, createUser, createAgent } from '../../services/usersService';
 
 export default function Agents() {
   const [agents, setAgents] = useState([]);
@@ -30,8 +30,8 @@ export default function Agents() {
       try {
         setLoading(true);
         setError(null);
-  const response = await listAgents();
-  setAgents(response || []);
+        const response = await listAgents();
+        setAgents(response || []);
       } catch (error) {
         console.error('Error fetching agents:', error);
         setError(error.message || 'Failed to fetch agents. Check token or parameters.');
@@ -93,6 +93,7 @@ export default function Agents() {
     return null;
   };
 
+  // UPDATED: Fixed handleSubmit function to match API structure
   const handleSubmit = async (e) => {
     e.preventDefault();
     const validationError = validateForm();
@@ -105,23 +106,74 @@ export default function Agents() {
       setSubmitLoading(true);
       setResponseMessage('');
       setError(null);
+      const handleSubmit = async (e) => {
+  e.preventDefault();
+  const validationError = validateForm();
+  if (validationError) {
+    setResponseMessage(validationError);
+    return;
+  }
 
+  try {
+    setSubmitLoading(true);
+    setResponseMessage('');
+    setError(null);
+
+    // Agent data matching the API structure
+    const agentData = {
+      full_name: formData.full_name.trim(),
+      email: formData.email.trim(),
+      phone: formData.phone.trim(),
+      province: formData.province.trim(),
+      district: formData.district.trim(),
+      sector: formData.sector.trim()
+    };
+
+    console.log('Submitting agent data:', agentData);
+
+    // Use the dedicated createAgent function
+    await createAgent(agentData);
+
+    // Refresh the agents list after creation
+    const response = await listAgents();
+    setAgents(response || []);
+
+    setResponseMessage('Agent created successfully');
+
+    setFormData({
+      full_name: '',
+      email: '',
+      phone: '',
+      province: '',
+      district: '',
+      sector: ''
+    });
+    setTimeout(closeModal, 2000);
+  } catch (error) {
+    console.error('Error creating agent:', error);
+    console.error('Error details:', error.response?.data);
+    setResponseMessage(error.message || 'Error creating agent');
+  } finally {
+    setSubmitLoading(false);
+  }
+};
+
+      // FIXED: Match the API endpoint structure - flat structure, not nested under profile
       const agentData = {
         full_name: formData.full_name.trim(),
         email: formData.email.trim(),
         phone: formData.phone.trim(),
-        role: 'agent',
-        profile: {
-          province: formData.province.trim(),
-          district: formData.district.trim(),
-          sector: formData.sector.trim()
-        }
+        province: formData.province.trim(),
+        district: formData.district.trim(),
+        sector: formData.sector.trim()
+        // Note: role is not needed as the API endpoint is specifically for agents
       };
 
       await createUser(agentData);
 
-      const response = await listAgents(filters);
-      setAgents(response.data || []);
+      // FIXED: Refresh the agents list after creation
+      const response = await listAgents();
+      setAgents(response || []); // Match the structure from useEffect
 
       setResponseMessage('Agent created successfully');
 
@@ -182,13 +234,13 @@ export default function Agents() {
         <div className="stats-card1">
           <p>Provinces Covered</p>
           <p className="stats-number">
-            {new Set(agents.map(a => a.profile?.province)).size}
+            {new Set(agents.map(a => a.profile?.province || a.province)).size}
           </p>
         </div>
         <div className="stats-card1">
           <p>Districts Covered</p>
           <p className="stats-number">
-            {new Set(agents.map(a => a.profile?.district)).size}
+            {new Set(agents.map(a => a.profile?.district || a.district)).size}
           </p>
         </div>
       </div>
@@ -238,9 +290,9 @@ export default function Agents() {
                       <div className="contact-secondary">{agent.phone}</div>
                     </td>
                     <td className="location-column">
-                      <div className="location-primary">{agent.profile?.province || 'N/A'}</div>
+                      <div className="location-primary">{agent.profile?.province || agent.province || 'N/A'}</div>
                       <div className="location-secondary">
-                        {agent.profile?.district || 'N/A'}, {agent.profile?.sector || 'N/A'}
+                        {agent.profile?.district || agent.district || 'N/A'}, {agent.profile?.sector || agent.sector || 'N/A'}
                       </div>
                     </td>
                     <td>
