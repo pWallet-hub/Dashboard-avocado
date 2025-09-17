@@ -287,6 +287,47 @@ Authorization: Bearer <token>
 ##### Error Responses
 - `500`: Failed to retrieve users
 
+   Create New Agent
+
+URL: /users/agents
+Method: POST
+Access: Private (Admin only)
+Description: Create a new agent with default credentials
+
+Request Body
+
+```json
+{
+  "full_name": "string (required)",
+  "email": "string (required)",
+  "phone": "string (optional)",
+  "province": "string (optional)",
+  "district": "string (optional)",
+  "sector": "string (optional)"
+}
+
+Response 
+{
+  "success": true,
+  "data": {
+    "id": "string",
+    "email": "string",
+    "full_name": "string",
+    "phone": "string",
+    "role": "agent",
+    "status": "active",
+    "profile": {
+      "province": "string",
+      "district": "string",
+      "service_areas": ["string"]
+    },
+    "created_at": "date",
+    "updated_at": "date",
+    "default_password": "AgentPass123!"
+  },
+  "message": "Agent created successfully"
+}
+
 #### Get User by ID
 - **URL**: `/users/:id`
 - **Method**: `GET`
@@ -419,6 +460,94 @@ Authorization: Bearer <token>
 
 ##### Error Responses
 - `500`: Failed to retrieve farmers
+
+Create New Farmer
+
+URL: /users/farmers
+Method: POST
+Access: Private (Admin only)
+Description: Create a new farmer with default credentials
+
+Request Body
+```json
+{
+  "full_name": "string (required)",
+  "email": "string (required)",
+  "phone": "string (optional)",
+  "age": "number (optional)",
+  "gender": "string (required, values: 'Male', 'Female', 'Other')",
+  "marital_status": "string (optional, values: 'Single', 'Married', 'Divorced', 'Widowed')",
+  "education_level": "string (optional, values: 'Primary', 'Secondary', 'University', 'None')",
+  "province": "string (optional)",
+  "district": "string (optional)",
+  "sector": "string (optional)",
+  "cell": "string (optional)",
+  "village": "string (optional)",
+  "farm_province": "string (optional)",
+  "farm_district": "string (optional)",
+  "farm_sector": "string (optional)",
+  "farm_cell": "string (optional)",
+  "farm_village": "string (optional)",
+  "farm_age": "number (optional)",
+  "planted": "string (optional)",
+  "avocado_type": "string (optional)",
+  "mixed_percentage": "number (optional, 0-100)",
+  "farm_size": "number (optional)",
+  "tree_count": "number (optional)",
+  "upi_number": "string (optional)",
+  "assistance": "string (optional)"
+}
+
+Success Response
+
+{
+  "success": true,
+  "data": {
+    "id": "string",
+    "email": "string",
+    "full_name": "string",
+    "phone": "string",
+    "role": "farmer",
+    "status": "active",
+    "profile": {
+      "age": "number",
+      "gender": "string",
+      "marital_status": "string",
+      "education_level": "string",
+      "province": "string",
+      "district": "string",
+      "sector": "string",
+      "cell": "string",
+      "village": "string",
+      "farm_details": {
+        "farm_location": {
+          "province": "string",
+          "district": "string",
+          "sector": "string",
+          "cell": "string",
+          "village": "string"
+        },
+        "farm_age": "number",
+        "planted": "string",
+        "avocado_type": "string",
+        "mixed_percentage": "number",
+        "farm_size": "number",
+        "tree_count": "number",
+        "upi_number": "string",
+        "assistance": "string"
+      }
+    },
+    "created_at": "date",
+    "updated_at": "date",
+    "default_password": "FarmerPass123!"
+  },
+  "message": "Farmer created successfully"
+}
+Error Responses
+400: User with this email already exists
+400: Validation error: [specific validation errors]
+500: Failed to create farmer
+
 
 #### Get All Agents
 - **URL**: `/users/agents`

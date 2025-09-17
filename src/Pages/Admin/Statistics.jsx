@@ -105,7 +105,7 @@ export default function Statistics() {
             <div className="stat-header">
               <div className="stat-info">
                 <p className="stat-label">Total Revenue</p>
-                <p className="stat-value">${stats.orders.revenue.total.toLocaleString()}</p>
+                <p className="stat-value">RWF      {stats.orders.revenue.total.toLocaleString()}</p>
               </div>
               <div className="stat-icon icon-yellow">
                 <DollarSign className="w-6 h-6" />
