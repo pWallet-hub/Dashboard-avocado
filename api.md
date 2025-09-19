@@ -591,6 +591,62 @@ Error Responses
 ##### Error Responses
 - `500`: Failed to retrieve agents
 
+ #### Get Current User Profile
+
+- **URL**: `users/me`
+- **Method**: `GET`
+- **Access**: Private (Any authenticated user)
+- **Description**: Get the profile of the currently authenticated user with flattened farm data structure
+
+##### Success Response
+```json
+{
+  "success": true,
+  "data": {
+    "id": "string",
+    "email": "string",
+    "full_name": "string",
+    "phone": "string",
+    "role": "string",
+    "status": "string",
+    "profile": {
+      "age": "number",
+      "gender": "string",
+      "marital_status": "string",
+      "education_level": "string",
+      "id_number": "string",
+      "image": "string",
+      "province": "string",
+      "district": "string",
+      "sector": "string",
+      "cell": "string",
+      "village": "string",
+      "farm_age": "number",
+      "planted": "string",
+      "avocado_type": "string",
+      "mixed_percentage": "string",
+      "farm_size": "string",
+      "tree_count": "number",
+      "upi_number": "string",
+      "assistance": ["string"],
+      "farm_province": "string",
+      "farm_district": "string",
+      "farm_sector": "string",
+      "farm_cell": "string",
+      "farm_village": "string"
+    },
+    "created_at": "date",
+    "updated_at": "date"
+  },
+  "message": "Profile retrieved successfully"
+}
+```
+##### Error Responses
+- `400`: Unauthorized - Invalid or missing token
+- `404`: User not found
+- `500`: Failed to retrieve profile
+
+
 #### Update User Status
 - **URL**: `/users/:id/status`
 - **Method**: `PUT`
@@ -1676,6 +1732,346 @@ Error Responses
 - `403`: Access denied
 - `404`: Service request not found
 - `500`: Failed to retrieve service request
+
+#### Create Harvest-day Request
+- **URL**: `/service-requests/harvest`
+- **Method**: `POST`
+- **Access**: Private (Farmers only)
+- **Description**: Create a new harvest-day request
+```json
+{
+  "workersNeeded": "integer (required, min: 1)",
+  "equipmentNeeded": "array (optional, array of strings)",
+  "treesToHarvest": "integer (required, min: 1)",
+  "harvestDateFrom": "string (required, ISO date format)",
+  "harvestDateTo": "string (required, ISO date format)",
+  "harvestImages": "array (optional, array of image URLs)",
+  "hassBreakdown": "object (optional)",
+  "location": {
+    "province": "string (required)",
+    "city": "string (required)",
+    "address": "string (required)"
+  },
+  "priority": "string (optional, default: 'medium', values: 'low', 'medium', 'high', 'urgent')",
+  "notes": "string (optional)"
+}
+```
+#### Hass Breakdown Object Structure
+```json
+{
+  "selectedSizes": "array (optional, array of strings)",
+  "c12c14": "string (optional, count or percentage)",
+  "c16c18": "string (optional, count or percentage)",
+  "c20c24": "string (optional, count or percentage)"
+}
+```
+#### Success Response
+```json
+{
+  "success": true,
+  "data": {
+    "id": "string",
+    "request_number": "string (format: HRV-{timestamp}-{random})",
+    "farmer_id": "string",
+    "service_type": "harvest",
+    "title": "Harvest Request",
+    "description": "string (auto-generated)",
+    "status": "pending",
+    "priority": "string",
+    "requested_date": "date",
+    "location": {
+      "province": "string",
+      "city": "string",
+      "address": "string"
+    },
+    "harvest_details": {
+      "workers_needed": "integer",
+      "equipment_needed": "array",
+      "trees_to_harvest": "integer",
+      "harvest_date_from": "date",
+      "harvest_date_to": "date",
+      "harvest_images": "array",
+      "hass_breakdown": "object"
+    },
+    "notes": "string",
+    "created_at": "date",
+    "updated_at": "date"
+  },
+  "message": "Harvest request submitted successfully"
+}
+```
+#### Error Responses
+
+400: Validation errors (missing required fields, invalid date ranges)
+500: Failed to create harvest request
+
+#### Get All Harvest-day Requests
+URL: /service-requests/harvest
+Method: GET
+Access: Private (Role-based filtering applied)
+Description: Retrieve harvest requests with role-based filtering and advanced query options
+
+#### Query Parameters
+
+page: integer (default: 1)
+limit: integer (default: 10)
+status: string (filter by status)
+priority: string (filter by priority)
+harvest_date_from: string (ISO date, filter by harvest start date)
+harvest_date_to: string (ISO date, filter by harvest end date)
+
+#### Access Rules
+
+Farmers: Only see their own harvest requests
+Agents: See assigned requests and unassigned requests
+Admins: See all harvest requests
+
+#### Success Response
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "string",
+      "request_number": "string",
+      "farmer_id": "string",
+      "agent_id": "string",
+      "service_type": "harvest",
+      "title": "string",
+      "description": "string",
+      "status": "string",
+      "priority": "string",
+      "requested_date": "date",
+      "location": "object",
+      "harvest_details": {
+        "workers_needed": "integer",
+        "equipment_needed": "array",
+        "trees_to_harvest": "integer",
+        "harvest_date_from": "date",
+        "harvest_date_to": "date",
+        "harvest_images": "array",
+        "hass_breakdown": "object",
+        "approved_workers": "integer",
+        "approved_equipment": "array",
+        "actual_workers_used": "integer",
+        "actual_harvest_amount": "string",
+        "harvest_quality_notes": "string",
+        "completion_images": "array"
+      },
+      "notes": "string",
+      "created_at": "date",
+      "updated_at": "date",
+      "farmer": {
+        "id": "string",
+        "full_name": "string",
+        "email": "string",
+        "phone": "string"
+      },
+      "agent": {
+        "id": "string",
+        "full_name": "string",
+        "email": "string",
+        "phone": "string"
+      }
+    }
+  ],
+  "pagination": {
+    "currentPage": "integer",
+    "totalPages": "integer",
+    "totalItems": "integer",
+    "itemsPerPage": "integer"
+  },
+  "message": "Harvest requests retrieved successfully"
+}
+```
+Error Responses
+
+500: Failed to retrieve harvest requests
+#### Approve Harvest Request
+
+URL: /service-requests/:id/approve
+Method: PUT
+Access: Private (Admin only)
+Description: Approve a harvest request with optional agent assignment and harvest-specific approvals
+
+#### Request Body
+```json
+{
+  "agent_id": "string (optional, valid agent ObjectId)",
+  "scheduled_date": "string (optional, ISO date format)",
+  "cost_estimate": "number (optional, min: 0)",
+  "notes": "string (optional)",
+  "approved_workers": "integer (optional, approved worker count)",
+  "approved_equipment": "array (optional, approved equipment list)"
+}
+```
+#### Success Response
+```json
+{
+  "success": true,
+  "data": {
+    "id": "string",
+    "request_number": "string",
+    "farmer_id": "string",
+    "agent_id": "string",
+    "service_type": "harvest",
+    "status": "approved",
+    "approved_at": "date",
+    "approved_by": "string",
+    "scheduled_date": "date",
+    "cost_estimate": "number",
+    "harvest_details": {
+      "workers_needed": "integer",
+      "equipment_needed": "array",
+      "trees_to_harvest": "integer",
+      "harvest_date_from": "date",
+      "harvest_date_to": "date",
+      "approved_workers": "integer",
+      "approved_equipment": "array"
+    },
+    "notes": "string",
+    "created_at": "date",
+    "updated_at": "date"
+  },
+  "message": "Harvest request approved successfully"
+}
+```
+#### Error Responses
+
+400: Invalid or inactive agent
+400: This endpoint is only for harvest requests
+404: Service request not found
+500: Failed to approve harvest request
+
+#### Reject Harvest Request
+
+URL: /service-requests/:id/reject
+Method: PUT
+Access: Private (Admin only)
+Description: Reject a harvest request with mandatory rejection reason
+
+#### Request Body
+```json
+{
+  "rejection_reason": "string (required)",
+  "notes": "string (optional)"
+}
+```
+#### Success Response
+```json
+{
+  "success": true,
+  "data": {
+    "id": "string",
+    "request_number": "string",
+    "farmer_id": "string",
+    "service_type": "harvest",
+    "status": "rejected",
+    "rejected_at": "date",
+    "rejected_by": "string",
+    "rejection_reason": "string",
+    "notes": "string",
+    "created_at": "date",
+    "updated_at": "date"
+  },
+  "message": "Harvest request rejected"
+}
+```
+#### Error Responses
+
+400: Rejection reason is required
+400: This endpoint is only for harvest requests
+404: Service request not found
+500: Failed to reject harvest request
+
+#### Start Harvest-day Request
+URL: /service-requests/:id/start
+Method: PUT
+Access: Private (Assigned agent only)
+Description: Mark a harvest request as started by the assigned agent
+
+#### Request Body
+```json
+{
+  "start_notes": "string (optional)",
+  "actual_start_date": "string (optional, ISO date format, defaults to current time)"
+}
+```
+#### Success Response
+```json
+{
+  "success": true,
+  "data": {
+    "id": "string",
+    "request_number": "string",
+    "farmer_id": "string",
+    "agent_id": "string",
+    "service_type": "harvest",
+    "status": "in_progress",
+    "started_at": "date",
+    "start_notes": "string",
+    "created_at": "date",
+    "updated_at": "date"
+  },
+  "message": "Harvest request started"
+}
+```
+
+#### Error Responses
+
+400: This endpoint is only for harvest requests
+400: Only approved requests can be started
+403: Only assigned agent can start the harvest
+404: Service request not found
+500: Failed to start harvest request
+
+
+#### Complete Harvest Request
+
+URL: /service-requests/:id/complete
+Method: PUT
+Access: Private (Admin or assigned agent)
+Description: Mark harvest request as completed with completion details
+
+#### Request Body
+```json
+{
+  "completion_notes": "string (optional)",
+  "actual_workers_used": "integer (optional)",
+  "actual_harvest_amount": "string (optional, e.g., '500kg', '2 tons')",
+  "harvest_quality_notes": "string (optional)",
+  "completion_images": "array (optional, array of image URLs)"
+}
+```
+#### Success Response
+```json
+{
+  "success": true,
+  "data": {
+    "id": "string",
+    "request_number": "string",
+    "farmer_id": "string",
+    "agent_id": "string",
+    "service_type": "harvest",
+    "status": "completed",
+    "completed_at": "date",
+    "completed_by": "string",
+    "completion_notes": "string",
+    "harvest_details": {
+      "workers_needed": "integer",
+      "approved_workers": "integer",
+      "actual_workers_used": "integer",
+      "trees_to_harvest": "integer",
+      "actual_harvest_amount": "string",
+      "harvest_quality_notes": "string",
+      "completion_images": "array"
+    },
+    "created_at": "date",
+    "updated_at": "date"
+  },
+  "message": "Harvest request marked as completed"
+}
+```
 
 #### Create New Service Request
 - **URL**: `/service-requests`

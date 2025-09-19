@@ -1,7 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { CheckCircle, XCircle, Clock, Eye, Filter, Search, Calendar, User, MapPin, Phone, Mail, Database, CalendarClock } from 'lucide-react';
 import '../Styles/Admin.css';
-import { listServiceRequests, updateServiceRequestStatus as updateServiceRequestStatusAPI } from '../../services/serviceRequestsService';
+import { 
+  listServiceRequests, 
+  listHarvestRequests,
+  approveHarvestRequest,
+  rejectHarvestRequest,
+  startHarvestRequest,
+  completeHarvestRequest,
+  updateServiceRequestStatus as updateServiceRequestStatusAPI 
+} from '../../services/serviceRequestsService';
 
 export default function ServiceRequests() {
   const [requests, setRequests] = useState([]);
@@ -23,9 +31,39 @@ export default function ServiceRequests() {
   const loadServiceRequests = async () => {
     setLoading(true);
     try {
-      const response = await listServiceRequests();
-      setRequests(response || []);
-      setFilteredRequests(response || []);
+      // Load both regular service requests and harvest requests
+      const [regularRequests, harvestRequests] = await Promise.all([
+        listServiceRequests(),
+        listHarvestRequests()
+      ]);
+      
+      // Combine and format requests
+      const allRequests = [
+        ...(regularRequests || []),
+        ...(harvestRequests?.data || []).map(req => ({
+          ...req,
+          service_type: 'harvest', // Use consistent field name
+          type: 'Harvesting Day', // Keep both for backward compatibility
+          farmerName: req.farmer_id?.full_name,
+          farmerPhone: req.farmer_id?.phone,
+          farmerEmail: req.farmer_id?.email,
+          farmerLocation: req.location ? `${req.location.village}, ${req.location.cell}, ${req.location.sector}, ${req.location.district}, ${req.location.province}` : 'N/A',
+          submittedAt: req.created_at,
+          // Map harvest-specific fields for display - handle both old and new structure
+          workersNeeded: req.workersNeeded || req.harvest_details?.workers_needed,
+          equipmentNeeded: req.equipmentNeeded || req.harvest_details?.equipment_needed,
+          treesToHarvest: req.treesToHarvest || req.harvest_details?.trees_to_harvest,
+          harvestDateFrom: req.harvestDateFrom || req.harvest_details?.harvest_date_from,
+          harvestDateTo: req.harvestDateTo || req.harvest_details?.harvest_date_to,
+          hassBreakdown: req.hassBreakdown || req.harvest_details?.hass_breakdown,
+          harvestImages: req.harvestImages || req.harvest_details?.harvest_images,
+          priority: req.priority,
+          notes: req.notes
+        }))
+      ];
+      
+      setRequests(allRequests);
+      setFilteredRequests(allRequests);
     } catch (error) {
       console.error('Error loading service requests:', error);
       setRequests([]);
@@ -46,16 +84,22 @@ export default function ServiceRequests() {
 
     // Filter by type
     if (filterType !== 'all') {
-      filtered = filtered.filter(request => request.type === filterType);
+      filtered = filtered.filter(request => 
+        request.type === filterType || request.service_type === filterType
+      );
     }
 
     // Filter by search term
     if (searchTerm) {
       filtered = filtered.filter(request => 
         (request.farmer_id?.full_name && request.farmer_id.full_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (request.farmerName && request.farmerName.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (request.farmer_id?.phone && request.farmer_id.phone.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (request.farmerPhone && request.farmerPhone.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (request.farmer_id?.email && request.farmer_id.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (request.farmerEmail && request.farmerEmail.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (request.service_type && request.service_type.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (request.type && request.type.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (request.title && request.title.toLowerCase().includes(searchTerm.toLowerCase()))
       );
     }
@@ -112,10 +156,10 @@ export default function ServiceRequests() {
       const notification = {
         id: `${requestId}-${Date.now()}`, // Unique ID for notification
         requestId,
-        farmerId: request.farmerId || 'farmer1', // Assuming farmerId exists or default to 'farmer1'
+        farmerId: request.farmerId || request.farmer_id?.id || 'farmer1',
         message: newStatus === 'postponed'
-          ? `Your ${request.type} request (ID: ${requestId}) has been postponed${rescheduleDate ? ` to ${new Date(rescheduleDate).toLocaleDateString('en-US')}` : ''}.`
-          : `Your ${request.type} request (ID: ${requestId}) has been ${newStatus}.`,
+          ? `Your ${request.type || request.service_type} request (ID: ${requestId}) has been postponed${rescheduleDate ? ` to ${new Date(rescheduleDate).toLocaleDateString('en-US')}` : ''}.`
+          : `Your ${request.type || request.service_type} request (ID: ${requestId}) has been ${newStatus}.`,
         status: newStatus,
         timestamp: new Date().toISOString(),
         read: false
@@ -152,15 +196,15 @@ export default function ServiceRequests() {
       setRequests(updatedRequests);
       localStorage.setItem('farmerServiceRequests', JSON.stringify(updatedRequests));
 
-      // Create and store notification
+      // Create and store notification for fallback
       const request = updatedRequests.find(r => r.id === requestId);
       const notification = {
-        id: `${requestId}-${Date.now()}`, // Unique ID for notification
+        id: `${requestId}-${Date.now()}`,
         requestId,
-        farmerId: request.farmerId || 'farmer1', // Assuming farmerId exists or default to 'farmer1'
+        farmerId: request.farmerId || request.farmer_id?.id || 'farmer1',
         message: newStatus === 'postponed'
-          ? `Your ${request.type} request (ID: ${requestId}) has been postponed${rescheduleDate ? ` to ${new Date(rescheduleDate).toLocaleDateString('en-US')}` : ''}.`
-          : `Your ${request.type} request (ID: ${requestId}) has been ${newStatus}.`,
+          ? `Your ${request.type || request.service_type} request (ID: ${requestId}) has been postponed${rescheduleDate ? ` to ${new Date(rescheduleDate).toLocaleDateString('en-US')}` : ''}.`
+          : `Your ${request.type || request.service_type} request (ID: ${requestId}) has been ${newStatus}.`,
         status: newStatus,
         timestamp: new Date().toISOString(),
         read: false
@@ -220,6 +264,43 @@ export default function ServiceRequests() {
     }
   };
 
+  const handleHarvestAction = async (action, requestId, additionalData = {}) => {
+    try {
+      let response;
+      switch (action) {
+        case 'approve':
+          response = await approveHarvestRequest(requestId, {
+            scheduled_date: new Date().toISOString(),
+            notes: 'Approved by admin',
+            ...additionalData
+          });
+          break;
+        case 'reject':
+          const reason = additionalData.reason || prompt('Please provide a rejection reason:');
+          if (!reason) return;
+          response = await rejectHarvestRequest(requestId, {
+            rejection_reason: reason,
+            notes: 'Rejected by admin'
+          });
+          break;
+        case 'start':
+          response = await startHarvestRequest(requestId, additionalData);
+          break;
+        case 'complete':
+          response = await completeHarvestRequest(requestId, additionalData);
+          break;
+        default:
+          console.error('Unknown harvest action:', action);
+          return;
+      }
+      
+      // Reload requests to get updated data
+      await loadServiceRequests();
+    } catch (error) {
+      console.error(`Error ${action}ing harvest request:`, error);
+    }
+  };
+
   const RequestModal = ({ request, onClose }) => (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-2xl p-6 max-w-4xl w-full max-h-[90vh] overflow-y-auto">
@@ -243,27 +324,27 @@ export default function ServiceRequests() {
             <div className="space-y-3">
               <div>
                 <label className="text-sm font-medium text-gray-600">Name</label>
-                <p className="text-gray-900">{request.farmerName}</p>
+                <p className="text-gray-900">{request.farmerName || request.farmer_id?.full_name || 'N/A'}</p>
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-600">Phone</label>
                 <p className="text-gray-900 flex items-center">
                   <Phone className="w-4 h-4 mr-2" />
-                  {request.farmerPhone}
+                  {request.farmerPhone || request.farmer_id?.phone || 'N/A'}
                 </p>
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-600">Email</label>
                 <p className="text-gray-900 flex items-center">
                   <Mail className="w-4 h-4 mr-2" />
-                  {request.farmerEmail}
+                  {request.farmerEmail || request.farmer_id?.email || 'N/A'}
                 </p>
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-600">Location</label>
                 <p className="text-gray-900 flex items-center">
                   <MapPin className="w-4 h-4 mr-2" />
-                  {request.farmerLocation}
+                  {request.farmerLocation || 'N/A'}
                 </p>
               </div>
             </div>
@@ -278,7 +359,7 @@ export default function ServiceRequests() {
             <div className="space-y-3">
               <div>
                 <label className="text-sm font-medium text-gray-600">Service Type</label>
-                <p className="text-gray-900 font-semibold">{request.service_type}</p>
+                <p className="text-gray-900 font-semibold">{request.service_type || request.type}</p>
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-600">Status</label>
@@ -289,7 +370,7 @@ export default function ServiceRequests() {
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-600">Submitted</label>
-                <p className="text-gray-900">{formatDate(request.submittedAt)}</p>
+                <p className="text-gray-900">{formatDate(request.submittedAt || request.created_at)}</p>
               </div>
               {request.updatedAt && (
                 <div>
@@ -350,46 +431,74 @@ export default function ServiceRequests() {
             </div>
           )}
 
-          {request.type === 'Harvesting Day' && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium text-gray-600">Workers Needed</label>
-                  <p className="text-gray-900">{request.workersNeeded || 'N/A'}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-600">Equipment Needed</label>
-                  <p className="text-gray-900">
-                    {(request.equipmentNeeded || []).length > 0 
-                      ? request.equipmentNeeded.join(', ') 
-                      : 'No equipment needed'}
-                  </p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-600">Transportation</label>
-                  <p className="text-gray-900">{request.transportationNeeded || 'N/A'}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-600">Harvest Period</label>
-                  <p className="text-gray-900">
-                    {request.harvestDateFrom || 'N/A'} to {request.harvestDateTo || 'N/A'}
-                  </p>
-                </div>
-              </div>
-              {request.harvestImages && request.harvestImages.length > 0 && (
-                <div>
-                  <label className="text-sm font-medium text-gray-600">Crop Images</label>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-2">
-                    {request.harvestImages.map((image, index) => (
-                      <div key={index} className="aspect-square bg-gray-100 rounded-lg flex items-center justify-center">
-                        <span className="text-xs text-gray-500">Image {index + 1}</span>
-                      </div>
-                    ))}
+              {(request.type === 'Harvesting Day' || request.service_type === 'harvest') && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-medium text-gray-600">Workers Needed</label>
+                      <p className="text-gray-900">{request.workersNeeded || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-600">Equipment Needed</label>
+                      <p className="text-gray-900">
+                        {Array.isArray(request.equipmentNeeded) 
+                          ? request.equipmentNeeded.join(', ') 
+                          : request.equipmentNeeded || 'No equipment needed'}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-600">Trees to Harvest</label>
+                      <p className="text-gray-900">{request.treesToHarvest || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-600">Harvest Period</label>
+                      <p className="text-gray-900">
+                        {request.harvestDateFrom || 'N/A'} to {request.harvestDateTo || 'N/A'}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-600">Priority</label>
+                      <p className="text-gray-900 capitalize">{request.priority || 'N/A'}</p>
+                    </div>
                   </div>
+                  {request.notes && (
+                    <div>
+                      <label className="text-sm font-medium text-gray-600">Notes</label>
+                      <p className="text-gray-900">{request.notes}</p>
+                    </div>
+                  )}
+                  {request.hassBreakdown && (
+                    <div>
+                      <label className="text-sm font-medium text-gray-600">Hass Breakdown</label>
+                      <div className="mt-2 space-y-1">
+                        {request.hassBreakdown.selectedSizes?.map(size => (
+                          <p key={size} className="text-gray-900 text-sm">
+                            {size.toUpperCase()}: {request.hassBreakdown[size] || 0}%
+                          </p>
+                        )) || Object.entries(request.hassBreakdown).map(([size, count]) => (
+                          size !== 'selectedSizes' && (
+                            <p key={size} className="text-gray-900 text-sm">
+                              {size.toUpperCase()}: {count}%
+                            </p>
+                          )
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {request.harvestImages && request.harvestImages.length > 0 && (
+                    <div>
+                      <label className="text-sm font-medium text-gray-600">Crop Images</label>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-2">
+                        {request.harvestImages.map((image, index) => (
+                          <div key={index} className="aspect-square bg-gray-100 rounded-lg flex items-center justify-center">
+                            <span className="text-xs text-gray-500">Image {index + 1}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
-            </div>
-          )}
 
           {request.type === 'Property Evaluation' && (
             <div className="space-y-4">
@@ -431,7 +540,9 @@ export default function ServiceRequests() {
           >
             Close
           </button>
-          {request.status === 'pending' && (
+          
+          {/* Regular service request actions */}
+          {request.service_type !== 'harvest' && request.status === 'pending' && (
             <>
               <button
                 onClick={() => {
@@ -459,6 +570,31 @@ export default function ServiceRequests() {
               </button>
             </>
           )}
+          
+          {/* Harvest-specific actions */}
+          {request.service_type === 'harvest' && request.status === 'pending' && (
+            <>
+              <button
+                onClick={async () => {
+                  await handleHarvestAction('approve', request.id);
+                  onClose();
+                }}
+                className="px-4 py-2 text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors"
+              >
+                Approve Harvest
+              </button>
+              <button
+                onClick={async () => {
+                  await handleHarvestAction('reject', request.id);
+                  onClose();
+                }}
+                className="px-4 py-2 text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
+              >
+                Reject Harvest
+              </button>
+            </>
+          )}
+          
           {request.status === 'approved' && (
             <>
               <button
@@ -478,6 +614,7 @@ export default function ServiceRequests() {
               </button>
             </>
           )}
+          
           {request.status === 'postponed' && (
             <button
               onClick={() => {
@@ -566,7 +703,7 @@ export default function ServiceRequests() {
         {/* Summary Section */}
         <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 mb-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Request Summary</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
             <div className="bg-gray-50 p-4 rounded-lg text-center">
               <p className="text-sm font-medium text-gray-600">Total Requests</p>
               <p className="text-2xl font-bold text-gray-900">{summary.total}</p>
@@ -637,6 +774,7 @@ export default function ServiceRequests() {
                 <option value="all">All Types</option>
                 <option value="Pest Management">Pest Management</option>
                 <option value="Harvesting Day">Harvesting Day</option>
+                <option value="harvest">Harvest Requests</option>
                 <option value="Property Evaluation">Property Evaluation</option>
               </select>
             </div>
@@ -690,12 +828,18 @@ export default function ServiceRequests() {
                     <tr key={request.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div>
-                          <div className="text-sm font-medium text-gray-900">{request.farmer_id?.full_name || 'N/A'}</div>
-                          <div className="text-sm text-gray-500">{request.farmer_id?.phone || 'N/A'}</div>
+                          <div className="text-sm font-medium text-gray-900">
+                            {request.farmer_id?.full_name || request.farmerName || 'N/A'}
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            {request.farmer_id?.phone || request.farmerPhone || 'N/A'}
+                          </div>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="text-sm text-gray-900">{request.service_type}</span>
+                        <span className="text-sm text-gray-900">
+                          {request.service_type || request.type}
+                        </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(request.status)}`}>
@@ -704,7 +848,7 @@ export default function ServiceRequests() {
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {formatDate(request.submittedAt)}
+                        {formatDate(request.submittedAt || request.created_at)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <button

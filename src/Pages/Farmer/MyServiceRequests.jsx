@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ClipboardList, Clock, CheckCircle, XCircle, Eye, Calendar, User, MapPin, Bell } from 'lucide-react';
 import DashboardHeader from '../../components/Header/DashboardHeader';
-import { getServiceRequestsForFarmer } from '../../services/serviceRequestsService';
+import { getServiceRequestsForFarmer, listHarvestRequests } from '../../services/serviceRequestsService';
 
 export default function MyServiceRequests() {
   const [requests, setRequests] = useState([]);
@@ -26,8 +26,37 @@ export default function MyServiceRequests() {
       const farmerId = user?.id;
       
       if (farmerId) {
-        const response = await getServiceRequestsForFarmer(farmerId);
-        setRequests(response || []);
+        // Load both regular service requests and harvest requests
+        const [regularRequests, harvestRequests] = await Promise.all([
+          getServiceRequestsForFarmer(farmerId),
+          listHarvestRequests({ farmer_id: farmerId })
+        ]);
+        
+        // Combine and format requests
+        const allRequests = [
+          ...(regularRequests || []),
+          ...(harvestRequests?.data || []).map(req => ({
+            ...req,
+            type: req.service_type === 'harvest' ? 'Harvesting Day' : req.service_type,
+            farmerName: req.farmer_id?.full_name,
+            farmerPhone: req.farmer_id?.phone,
+            farmerEmail: req.farmer_id?.email,
+            farmerLocation: req.location ? `${req.location.village}, ${req.location.cell}, ${req.location.sector}, ${req.location.district}, ${req.location.province}` : 'N/A',
+            submittedAt: req.created_at,
+            // Map harvest-specific fields - handle both old and new structure
+            workersNeeded: req.workersNeeded || req.harvest_details?.workers_needed,
+            equipmentNeeded: req.equipmentNeeded || req.harvest_details?.equipment_needed,
+            treesToHarvest: req.treesToHarvest || req.harvest_details?.trees_to_harvest,
+            harvestDateFrom: req.harvestDateFrom || req.harvest_details?.harvest_date_from,
+            harvestDateTo: req.harvestDateTo || req.harvest_details?.harvest_date_to,
+            hassBreakdown: req.hassBreakdown || req.harvest_details?.hass_breakdown,
+            harvestImages: req.harvestImages || req.harvest_details?.harvest_images,
+            priority: req.priority,
+            notes: req.notes
+          }))
+        ];
+        
+        setRequests(allRequests);
       } else {
         console.error('Farmer ID not found');
         setRequests([]);
@@ -40,10 +69,11 @@ export default function MyServiceRequests() {
     }
   };
 
-  const loadNotifications = async () => {
-    // In a real implementation, this would fetch notifications from the API
-    // For now, we'll initialize with an empty array
-    setNotifications([]);
+  const loadNotifications = () => {
+    // Load notifications from localStorage or initialize with empty array
+    const savedNotifications = localStorage.getItem('farmerNotifications');
+    const farmerNotifications = savedNotifications ? JSON.parse(savedNotifications) : [];
+    setNotifications(farmerNotifications);
   };
 
   const getStatusColor = (status) => {
@@ -52,6 +82,7 @@ export default function MyServiceRequests() {
       case 'approved': return 'bg-blue-100 text-blue-800';
       case 'completed': return 'bg-green-100 text-green-800';
       case 'rejected': return 'bg-red-100 text-red-800';
+      case 'postponed': return 'bg-orange-100 text-orange-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -62,11 +93,13 @@ export default function MyServiceRequests() {
       case 'approved': return <CheckCircle className="w-4 h-4" />;
       case 'completed': return <CheckCircle className="w-4 h-4" />;
       case 'rejected': return <XCircle className="w-4 h-4" />;
+      case 'postponed': return <Clock className="w-4 h-4" />;
       default: return <Clock className="w-4 h-4" />;
     }
   };
 
   const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
@@ -76,11 +109,15 @@ export default function MyServiceRequests() {
     });
   };
 
-  const filteredRequests = requests.filter(request => {
-    const statusMatch = filterStatus === 'all' || request.status === filterStatus;
-    const typeMatch = filterType === 'all' || request.type === filterType;
-    return statusMatch && typeMatch;
-  });
+  const markNotificationAsRead = (notificationId) => {
+    const updatedNotifications = notifications.map(notification =>
+      notification.id === notificationId
+        ? { ...notification, read: true }
+        : notification
+    );
+    setNotifications(updatedNotifications);
+    localStorage.setItem('farmerNotifications', JSON.stringify(updatedNotifications));
+  };
 
   const openRequestModal = (request) => {
     setSelectedRequest(request);
@@ -92,7 +129,78 @@ export default function MyServiceRequests() {
     setSelectedRequest(null);
   };
 
+  const closeNotifications = () => {
+    setShowNotifications(false);
+  };
+
+  // Computed values
+  const filteredRequests = requests.filter(request => {
+    const statusMatch = filterStatus === 'all' || request.status === filterStatus;
+    const typeMatch = filterType === 'all' || request.type === filterType;
+    return statusMatch && typeMatch;
+  });
+
   const unreadNotificationsCount = notifications.filter(n => !n.read).length;
+
+  const renderServiceDetails = (request) => {
+    if (!request) return null;
+
+    switch (request.type) {
+      case 'Pest Management':
+        return (
+          <div className="space-y-2">
+            <p><span className="font-medium">Pest Type:</span> {request.pestType || 'N/A'}</p>
+            <p><span className="font-medium">Infestation Level:</span> {request.infestationLevel || 'N/A'}</p>
+            <p><span className="font-medium">Crop Type:</span> {request.cropType || 'N/A'}</p>
+            <p><span className="font-medium">Farm Size:</span> {request.farmSize || 'N/A'}</p>
+            <p><span className="font-medium">Description:</span> {request.description || 'N/A'}</p>
+          </div>
+        );
+
+      case 'Harvesting Day':
+        return (
+          <div className="space-y-2">
+            <p><span className="font-medium">Workers Needed:</span> {request.workersNeeded || 'N/A'}</p>
+            <p><span className="font-medium">Equipment:</span> {
+              Array.isArray(request.equipmentNeeded) 
+                ? request.equipmentNeeded.join(', ') 
+                : request.equipmentNeeded || 'N/A'
+            }</p>
+            <p><span className="font-medium">Trees to Harvest:</span> {request.treesToHarvest || request.transportationNeeded || 'N/A'}</p>
+            <p><span className="font-medium">Harvest Period:</span> {formatDate(request.harvestDateFrom)} to {formatDate(request.harvestDateTo)}</p>
+            <p><span className="font-medium">Priority:</span> <span className="capitalize">{request.priority || 'N/A'}</span></p>
+            {request.notes && (
+              <p><span className="font-medium">Notes:</span> {request.notes}</p>
+            )}
+            {request.hassBreakdown && (
+              <p><span className="font-medium">HASS Breakdown:</span> {
+                request.hassBreakdown.selectedSizes 
+                  ? request.hassBreakdown.selectedSizes.map(size => 
+                      `${size.toUpperCase()}: ${request.hassBreakdown[size] || 0}%`
+                    ).join(', ')
+                  : Object.entries(request.hassBreakdown)
+                      .filter(([key]) => key !== 'selectedSizes')
+                      .map(([key, value]) => `${key.toUpperCase()}: ${value}%`)
+                      .join(', ') || 'N/A'
+              }</p>
+            )}
+          </div>
+        );
+
+      case 'Property Evaluation':
+        return (
+          <div className="space-y-2">
+            <p><span className="font-medium">Irrigation:</span> {request.irrigationSource || 'N/A'}</p>
+            <p><span className="font-medium">Soil Testing:</span> {request.soilTesting || 'N/A'}</p>
+            <p><span className="font-medium">Visit Period:</span> {formatDate(request.visitStartDate)} to {formatDate(request.visitEndDate)}</p>
+            <p><span className="font-medium">Evaluation Purpose:</span> {request.evaluationPurpose || 'N/A'}</p>
+          </div>
+        );
+
+      default:
+        return <p className="text-gray-500">No additional details available.</p>;
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -104,10 +212,11 @@ export default function MyServiceRequests() {
             <h1 className="text-3xl font-bold text-gray-900 mb-2">My Service Requests</h1>
             <p className="text-gray-600">Track the status of your submitted service requests</p>
           </div>
+          
           <div className="relative">
             <button
               onClick={() => setShowNotifications(!showNotifications)}
-              className="flex items-center text-gray-600 hover:text-gray-900"
+              className="flex items-center text-gray-600 hover:text-gray-900 transition-colors"
             >
               <Bell className="w-6 h-6 mr-2" />
               <span>Notifications</span>
@@ -117,25 +226,49 @@ export default function MyServiceRequests() {
                 </span>
               )}
             </button>
+            
             {showNotifications && (
-              <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
-                <div className="p-4">
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">Notifications</h3>
-                  {notifications.length === 0 ? (
-                    <p className="text-sm text-gray-500">No notifications</p>
-                  ) : (
-                    notifications.map(notification => (
-                      <div
-                        key={notification.id}
-                        className={`p-3 mb-2 rounded-md ${notification.read ? 'bg-gray-50' : 'bg-blue-50'}`}
+              <>
+                <div 
+                  className="fixed inset-0 z-40" 
+                  onClick={closeNotifications}
+                />
+                <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
+                  <div className="p-4">
+                    <div className="flex justify-between items-center mb-4">
+                      <h3 className="text-lg font-medium text-gray-900">Notifications</h3>
+                      <button
+                        onClick={closeNotifications}
+                        className="text-gray-400 hover:text-gray-600"
                       >
-                        <p className="text-sm text-gray-900">{notification.message}</p>
-                        <p className="text-xs text-gray-500">{formatDate(notification.timestamp)}</p>
+                        <XCircle className="w-5 h-5" />
+                      </button>
+                    </div>
+                    
+                    {notifications.length === 0 ? (
+                      <p className="text-sm text-gray-500">No notifications</p>
+                    ) : (
+                      <div className="max-h-96 overflow-y-auto">
+                        {notifications.map(notification => (
+                          <div
+                            key={notification.id}
+                            className={`p-3 mb-2 rounded-md cursor-pointer transition-colors ${
+                              notification.read ? 'bg-gray-50' : 'bg-blue-50 hover:bg-blue-100'
+                            }`}
+                            onClick={() => markNotificationAsRead(notification.id)}
+                          >
+                            <p className="text-sm text-gray-900">{notification.message}</p>
+                            <p className="text-xs text-gray-500">{formatDate(notification.timestamp)}</p>
+                            {!notification.read && (
+                              <div className="w-2 h-2 bg-blue-500 rounded-full mt-1"></div>
+                            )}
+                          </div>
+                        ))}
                       </div>
-                    ))
-                  )}
+                    )}
+                  </div>
                 </div>
-              </div>
+              </>
             )}
           </div>
         </div>
@@ -155,6 +288,7 @@ export default function MyServiceRequests() {
                 <option value="approved">Approved</option>
                 <option value="completed">Completed</option>
                 <option value="rejected">Rejected</option>
+                <option value="postponed">Postponed</option>
               </select>
             </div>
             
@@ -176,7 +310,7 @@ export default function MyServiceRequests() {
               <button
                 onClick={loadRequests}
                 disabled={loading}
-                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-50"
+                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-50 transition-colors"
               >
                 {loading ? 'Loading...' : 'Refresh'}
               </button>
@@ -229,7 +363,7 @@ export default function MyServiceRequests() {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {filteredRequests.map((request) => (
-                    <tr key={request.id} className="hover:bg-gray-50">
+                    <tr key={request.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
                           <div className="ml-4">
@@ -254,7 +388,7 @@ export default function MyServiceRequests() {
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <button
                           onClick={() => openRequestModal(request)}
-                          className="text-green-600 hover:text-green-900 flex items-center"
+                          className="text-green-600 hover:text-green-900 flex items-center transition-colors"
                         >
                           <Eye className="w-4 h-4 mr-1" />
                           View Details
@@ -280,7 +414,7 @@ export default function MyServiceRequests() {
                 </h3>
                 <button
                   onClick={closeModal}
-                  className="text-gray-400 hover:text-gray-600"
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
                 >
                   <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -320,12 +454,12 @@ export default function MyServiceRequests() {
                       <div className="flex items-center">
                         <User className="w-4 h-4 mr-2 text-gray-500" />
                         <span className="font-medium">Name:</span>
-                        <span className="ml-2">{selectedRequest.farmerName}</span>
+                        <span className="ml-2">{selectedRequest.farmerName || 'N/A'}</span>
                       </div>
                       <div className="flex items-center">
                         <MapPin className="w-4 h-4 mr-2 text-gray-500" />
                         <span className="font-medium">Location:</span>
-                        <span className="ml-2">{selectedRequest.farmerLocation}</span>
+                        <span className="ml-2">{selectedRequest.farmerLocation || 'N/A'}</span>
                       </div>
                     </div>
                   </div>
@@ -335,33 +469,7 @@ export default function MyServiceRequests() {
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <h4 className="font-medium text-gray-900 mb-2">Service Details</h4>
                   <div className="text-sm text-gray-700">
-                    {selectedRequest.type === 'Pest Management' && (
-                      <div className="space-y-2">
-                        <p><span className="font-medium">Pest Type:</span> {selectedRequest.pestType || 'N/A'}</p>
-                        <p><span className="font-medium">Infestation Level:</span> {selectedRequest.infestationLevel || 'N/A'}</p>
-                        <p><span className="font-medium">Crop Type:</span> {selectedRequest.cropType || 'N/A'}</p>
-                        <p><span className="font-medium">Farm Size:</span> {selectedRequest.farmSize || 'N/A'}</p>
-                        <p><span className="font-medium">Description:</span> {selectedRequest.description || 'N/A'}</p>
-                      </div>
-                    )}
-                    
-                    {selectedRequest.type === 'Harvesting Day' && (
-                      <div className="space-y-2">
-                        <p><span className="font-medium">Workers Needed:</span> {selectedRequest.workersNeeded || 'N/A'}</p>
-                        <p><span className="font-medium">Equipment:</span> {selectedRequest.equipmentNeeded || 'N/A'}</p>
-                        <p><span className="font-medium">Transportation:</span> {selectedRequest.transportationNeeded || 'N/A'}</p>
-                        <p><span className="font-medium">Harvest Period:</span> {selectedRequest.harvestDateFrom || 'N/A'} to {selectedRequest.harvestDateTo || 'N/A'}</p>
-                      </div>
-                    )}
-                    
-                    {selectedRequest.type === 'Property Evaluation' && (
-                      <div className="space-y-2">
-                        <p><span className="font-medium">Irrigation:</span> {selectedRequest.irrigationSource || 'N/A'}</p>
-                        <p><span className="font-medium">Soil Testing:</span> {selectedRequest.soilTesting || 'N/A'}</p>
-                        <p><span className="font-medium">Visit Period:</span> {selectedRequest.visitStartDate || 'N/A'} to {selectedRequest.visitEndDate || 'N/A'}</p>
-                        <p><span className="font-medium">Evaluation Purpose:</span> {selectedRequest.evaluationPurpose || 'N/A'}</p>
-                      </div>
-                    )}
+                    {renderServiceDetails(selectedRequest)}
                   </div>
                 </div>
 
@@ -376,7 +484,7 @@ export default function MyServiceRequests() {
                             <div className="w-2 h-2 bg-green-400 rounded-full mt-2"></div>
                           </div>
                           <div className="text-sm">
-                            <p className="text-gray-900">{update.status}</p>
+                            <p className="text-gray-900 capitalize">{update.status}</p>
                             <p className="text-gray-500">{formatDate(update.timestamp)}</p>
                             {update.note && <p className="text-gray-600 mt-1">{update.note}</p>}
                           </div>

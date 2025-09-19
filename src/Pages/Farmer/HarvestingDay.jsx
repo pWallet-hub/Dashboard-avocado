@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import "../Styles/HarvestingDay.css";
 import DashboardHeader from "../../components/Header/DashboardHeader";
+import { createHarvestRequest } from '../../services/serviceRequestsService';
 
 export default function HarvestingDay() {
   const [formData, setFormData] = useState({
@@ -20,12 +21,33 @@ export default function HarvestingDay() {
   const [submitted, setSubmitted] = useState(false);
   const [errors, setErrors] = useState({});
   const [showEquipmentOptions, setShowEquipmentOptions] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const sizeCategories = [
+    { key: 'c12c14', label: 'C12 & C14' },
+    { key: 'c16c18', label: 'C16 & C18' },
+    { key: 'c20c24', label: 'C20 & C24' }
+  ];
+
+  const sizeLabels = {
+    'c12c14': 'C12&C14',
+    'c16c18': 'C16&C18', 
+    'c20c24': 'C20&C24'
+  };
+
+  const equipmentOptions = [
+    "Tractors", "Harvesters", "Plows", "Seeders", "Sprayers", 
+    "Irrigation Equipment", "Hand Tools", "Transport Vehicles", 
+    "Storage Containers", "Weighing Scales", "Processing Equipment", "Other"
+  ];
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
     }));
+    
+    // Clear field-specific error when user starts typing
     if (errors[field]) {
       setErrors(prev => ({
         ...prev,
@@ -64,19 +86,17 @@ export default function HarvestingDay() {
           harvestDateRange: "Date range cannot exceed 5 days"
         }));
         return;
-      } else {
-        setErrors(prev => ({
-          ...prev,
-          harvestDateRange: ""
-        }));
-      }
-      
-      if (toDate < fromDate) {
+      } else if (toDate < fromDate) {
         setErrors(prev => ({
           ...prev,
           harvestDateRange: "End date must be after start date"
         }));
         return;
+      } else {
+        setErrors(prev => ({
+          ...prev,
+          harvestDateRange: ""
+        }));
       }
     }
     
@@ -91,14 +111,38 @@ export default function HarvestingDay() {
     }));
   };
 
+  const handleEquipmentChange = (equipment, checked) => {
+    const currentEquipment = formData.equipmentNeeded;
+    const updatedEquipment = checked
+      ? [...currentEquipment, equipment]
+      : currentEquipment.filter(item => item !== equipment);
+    handleInputChange("equipmentNeeded", updatedEquipment);
+  };
+
   const validateForm = () => {
     const newErrors = {};
-    if (!formData.workersNeeded) newErrors.workersNeeded = "Please specify how many workers you need";
-    if (formData.equipmentDropdown === "Yes" && !formData.equipmentNeeded.length) newErrors.equipmentNeeded = "Please select equipment needed";
-    if (!formData.equipmentDropdown) newErrors.equipmentDropdown = "Please specify if you need equipment";
-    if (!formData.transportationNeeded.trim()) newErrors.transportationNeeded = "Please specify number of trees";
-    if (!formData.harvestDateFrom) newErrors.harvestDateFrom = "Please select harvest start date";
-    if (!formData.harvestDateTo) newErrors.harvestDateTo = "Please select harvest end date";
+    
+    if (!formData.workersNeeded) {
+      newErrors.workersNeeded = "Please specify how many workers you need";
+    }
+    
+    if (!formData.equipmentDropdown) {
+      newErrors.equipmentDropdown = "Please specify if you need equipment";
+    } else if (formData.equipmentDropdown === "Yes" && !formData.equipmentNeeded.length) {
+      newErrors.equipmentNeeded = "Please select equipment needed";
+    }
+    
+    if (!formData.transportationNeeded.trim()) {
+      newErrors.transportationNeeded = "Please specify number of trees";
+    }
+    
+    if (!formData.harvestDateFrom) {
+      newErrors.harvestDateFrom = "Please select harvest start date";
+    }
+    
+    if (!formData.harvestDateTo) {
+      newErrors.harvestDateTo = "Please select harvest end date";
+    }
     
     // Validate HASS size breakdown percentages
     const selectedSizes = formData.selectedSizes || [];
@@ -132,16 +176,54 @@ export default function HarvestingDay() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = () => {
-    if (validateForm()) {
+  const handleSubmit = async () => {
+    if (!validateForm()) {
+      return;
+    }
+
+    setIsSubmitting(true);
+    
+    try {
+      const selectedSizes = formData.selectedSizes || [];
+      
+      const harvestRequestData = {
+        workersNeeded: parseInt(formData.workersNeeded),
+        equipmentNeeded: formData.equipmentDropdown === "Yes" ? formData.equipmentNeeded : [],
+        treesToHarvest: parseInt(formData.transportationNeeded),
+        harvestDateFrom: formData.harvestDateFrom,
+        harvestDateTo: formData.harvestDateTo,
+        harvestImages: formData.harvestImages.map(file => file.name), // In real app, upload files first
+        hassBreakdown: {
+          selectedSizes: selectedSizes,
+          c12c14: selectedSizes.includes('c12c14') ? formData.c12c14 : '',
+          c16c18: selectedSizes.includes('c16c18') ? formData.c16c18 : '',
+          c20c24: selectedSizes.includes('c20c24') ? formData.c20c24 : ''
+        },
+        location: {
+          province: localStorage.getItem('farmerProvince') || 'Eastern Province',
+          district: localStorage.getItem('farmerDistrict') || 'Gatsibo',
+          sector: localStorage.getItem('farmerSector') || 'Kageyo',
+          cell: localStorage.getItem('farmerCell') || 'Karangazi',
+          village: localStorage.getItem('farmerVillage') || 'Nyagatare'
+        },
+        priority: 'medium',
+        notes: `Ready for harvest. Trees are at full maturity with good fruit quality. Request for ${formData.transportationNeeded} trees requiring ${formData.workersNeeded} workers.`
+      };
+
+      // Call the API
+      const response = await createHarvestRequest(harvestRequestData);
+      
+      console.log("Harvest request submitted successfully:", response);
+      setSubmitted(true);
+      
+      // Store locally as backup
       const farmerName = localStorage.getItem('farmerName') || 'John Doe';
       const farmerPhone = localStorage.getItem('farmerPhone') || '+250 123 456 789';
       const farmerEmail = localStorage.getItem('farmerEmail') || 'farmer@example.com';
       const farmerLocation = localStorage.getItem('farmerLocation') || 'Kigali, Rwanda';
 
-      const selectedSizes = formData.selectedSizes || [];
       const newRequest = {
-        id: Date.now().toString(),
+        id: response.id || Date.now().toString(),
         type: 'Harvesting Day',
         status: 'pending',
         submittedAt: new Date().toISOString(),
@@ -149,42 +231,22 @@ export default function HarvestingDay() {
         farmerPhone,
         farmerEmail,
         farmerLocation,
-        workersNeeded: formData.workersNeeded,
-        equipmentNeeded: formData.equipmentNeeded,
-        treesToHarvest: formData.transportationNeeded,
-        harvestDateFrom: formData.harvestDateFrom,
-        harvestDateTo: formData.harvestDateTo,
-        harvestImages: formData.harvestImages.map(file => file.name),
-        hassBreakdown: {
-          selectedSizes: selectedSizes,
-          c12c14: selectedSizes.includes('c12c14') ? formData.c12c14 : '',
-          c16c18: selectedSizes.includes('c16c18') ? formData.c16c18 : '',
-          c20c24: selectedSizes.includes('c20c24') ? formData.c20c24 : ''
-        }
+        ...harvestRequestData
       };
 
       const existingRequests = JSON.parse(localStorage.getItem('farmerServiceRequests') || '[]');
       const updatedRequests = [...existingRequests, newRequest];
-      
       localStorage.setItem('farmerServiceRequests', JSON.stringify(updatedRequests));
       
-      setSubmitted(true);
-      console.log("Harvest plan submitted:", formData);
+    } catch (error) {
+      console.error('Error submitting harvest request:', error);
+      setErrors({ submit: error.message || 'Failed to submit harvest request. Please try again.' });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const sizeCategories = [
-    { key: 'c12c14', label: 'C12 & C14' },
-    { key: 'c16c18', label: 'C16 & C18' },
-    { key: 'c20c24', label: 'C20 & C24' }
-  ];
-
-  const sizeLabels = {
-    'c12c14': 'C12&C14',
-    'c16c18': 'C16&C18', 
-    'c20c24': 'C20&C24'
-  };
-
+  // Calculate derived values
   const selectedSizes = formData.selectedSizes || [];
   const totalPercentage = selectedSizes.reduce((total, size) => total + parseInt(formData[size] || 0), 0);
 
@@ -278,31 +340,12 @@ export default function HarvestingDay() {
                 
                 {showEquipmentOptions && (
                   <div className="grid grid-cols-2 gap-3 mt-4">
-                    {[
-                      "Tractors",
-                      "Harvesters", 
-                      "Plows",
-                      "Seeders",
-                      "Sprayers",
-                      "Irrigation Equipment",
-                      "Hand Tools",
-                      "Transport Vehicles",
-                      "Storage Containers",
-                      "Weighing Scales",
-                      "Processing Equipment",
-                      "Other"
-                    ].map((equipment) => (
+                    {equipmentOptions.map((equipment) => (
                       <label key={equipment} className="flex items-center space-x-2 cursor-pointer">
                         <input
                           type="checkbox"
                           checked={formData.equipmentNeeded.includes(equipment)}
-                          onChange={(e) => {
-                            const currentEquipment = formData.equipmentNeeded;
-                            const updatedEquipment = e.target.checked
-                              ? [...currentEquipment, equipment]
-                              : currentEquipment.filter(item => item !== equipment);
-                            handleInputChange("equipmentNeeded", updatedEquipment);
-                          }}
+                          onChange={(e) => handleEquipmentChange(equipment, e.target.checked)}
                           className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
                         />
                         <span className="text-sm text-gray-700">{equipment}</span>
@@ -505,6 +548,7 @@ export default function HarvestingDay() {
                 <button
                   onClick={() => document.getElementById("file-upload").click()}
                   className="button-upload"
+                  type="button"
                 >
                   Upload
                 </button>
@@ -525,11 +569,15 @@ export default function HarvestingDay() {
 
             {/* Submit Button */}
             <div className="submit-button-container">
+              {errors.submit && (
+                <p className="error-text mb-4">{errors.submit}</p>
+              )}
               <button
                 onClick={handleSubmit}
+                disabled={isSubmitting}
                 className="button-submit"
               >
-                Save
+                {isSubmitting ? 'Submitting...' : 'Save'}
               </button>
             </div>
           </div>
