@@ -21,27 +21,174 @@ export default function MyServiceRequests() {
   const loadRequests = async () => {
     setLoading(true);
     try {
-      // Get farmer ID from auth context or localStorage
-      const user = JSON.parse(localStorage.getItem('user'));
-      const farmerId = user?.id;
+      // Get authentication info first
+      const authToken = localStorage.getItem('token') || localStorage.getItem('authToken');
+      const userString = localStorage.getItem('user');
       
-      if (farmerId) {
-        // Load both regular service requests and harvest requests
-        const [regularRequests, harvestRequests] = await Promise.all([
-          getServiceRequestsForFarmer(farmerId),
-          listHarvestRequests({ farmer_id: farmerId })
+      console.log('=== AUTHENTICATION DEBUG ===');
+      console.log('Auth token exists:', !!authToken);
+      console.log('User string exists:', !!userString);
+      
+      if (!authToken) {
+        console.error('No authentication token found');
+        // Redirect to login or show authentication error
+        setRequests([]);
+        return;
+      }
+      
+      let user = null;
+      try {
+        user = userString ? JSON.parse(userString) : null;
+        console.log('Parsed user:', user);
+      } catch (parseError) {
+        console.error('Failed to parse user from localStorage:', parseError);
+      }
+      
+      // Get farmer ID with multiple fallback strategies
+      let farmerId = user?.id || user?._id || user?.user_id;
+      
+      if (!farmerId) {
+        // Try alternative storage locations
+        farmerId = localStorage.getItem('farmerId') || 
+                  localStorage.getItem('userId') || 
+                  localStorage.getItem('currentUserId');
+                  
+        // Try parsing currentUser if it exists
+        const currentUser = localStorage.getItem('currentUser');
+        if (!farmerId && currentUser) {
+          try {
+            const parsedCurrentUser = JSON.parse(currentUser);
+            farmerId = parsedCurrentUser?.id || parsedCurrentUser?._id || parsedCurrentUser?.user_id;
+          } catch (e) {
+            console.error('Failed to parse currentUser:', e);
+          }
+        }
+      }
+      
+      console.log('Final farmer ID:', farmerId);
+      console.log('Farmer ID type:', typeof farmerId);
+      console.log('Farmer ID length:', farmerId?.length);
+      
+      if (!farmerId || farmerId === 'undefined' || farmerId === 'null') {
+        console.error('No valid farmer ID found');
+        // Try to use only localStorage data
+        const localRequests = JSON.parse(localStorage.getItem('farmerServiceRequests') || '[]');
+        setRequests(localRequests);
+        return;
+      }
+      
+      // Clean and validate farmer ID
+      let cleanFarmerId = String(farmerId).trim();
+      
+      // Check if the farmer ID is truncated or incomplete
+      console.log('Clean farmer ID:', cleanFarmerId);
+      console.log('Clean farmer ID length:', cleanFarmerId.length);
+      
+      // Validate farmer ID format (should be MongoDB ObjectId)
+      const objectIdRegex = /^[a-f\d]{24}$/i;
+      
+      if (!objectIdRegex.test(cleanFarmerId)) {
+        console.error('Invalid MongoDB ObjectId format:', cleanFarmerId);
+        console.error('Expected: 24 character hexadecimal string (e.g., 507f1f77bcf86cd799439011)');
+        console.error('Received length:', cleanFarmerId.length);
+        
+        // Check if it's a truncated ID
+        if (cleanFarmerId.length < 24 && cleanFarmerId.length > 10) {
+          console.error('ID appears to be truncated. Full ID might be stored elsewhere.');
+          
+          // Try to find the full ID in user object
+          if (user && typeof user === 'object') {
+            console.log('Searching user object for complete ID:', user);
+            // Try different possible ID fields
+            const possibleIds = [
+              user.id, user._id, user.userId, user.user_id, 
+              user.farmerId, user.farmer_id, user.uid
+            ];
+            
+            for (const possibleId of possibleIds) {
+              if (possibleId && typeof possibleId === 'string' && objectIdRegex.test(possibleId)) {
+                console.log('Found valid ObjectId:', possibleId);
+                cleanFarmerId = possibleId;
+                break;
+              }
+            }
+          }
+        }
+        
+        // If still invalid, fallback to localStorage
+        if (!objectIdRegex.test(cleanFarmerId)) {
+          console.error('Could not find valid farmer ID, using localStorage fallback');
+          const localRequests = JSON.parse(localStorage.getItem('farmerServiceRequests') || '[]');
+          setRequests(localRequests);
+          return;
+        }
+      }
+      
+      console.log('Making API calls with validated farmer ID:', cleanFarmerId);
+      
+      try {
+        // Use Promise.allSettled to handle individual failures
+        const results = await Promise.allSettled([
+          getServiceRequestsForFarmer(cleanFarmerId, { limit: 100 }),
+          listHarvestRequests({ farmer_id: cleanFarmerId, limit: 100 })
         ]);
+
+        console.log('API Results:', results);
+
+        let regularRequests = [];
+        let harvestRequestsResult = { data: [] };
+
+        if (results[0].status === 'fulfilled') {
+          regularRequests = results[0].value || [];
+        } else {
+          console.error('=== Regular Service Requests API Error ===');
+          const error = results[0].reason;
+          console.error('Full error object:', error);
+          console.error('Error message:', error?.message);
+          
+          // Better error response extraction
+          if (error?.response) {
+            console.error('Error response status:', error.response.status);
+            console.error('Error response data:', error.response.data);
+            console.error('Error response text:', error.response.statusText);
+          } else if (error?.status) {
+            console.error('Error status:', error.status);
+            console.error('Error data:', error.data);
+          }
+          
+          // Specific error handling
+          if (error?.message === 'Validation failed') {
+            console.error('VALIDATION FAILED - This means the farmer ID format is wrong');
+            console.error('Current farmer ID being sent:', cleanFarmerId);
+            console.error('Expected format: 24-character MongoDB ObjectId (e.g., 507f1f77bcf86cd799439011)');
+            
+            // Check if we can extract the issue
+            if (cleanFarmerId.length !== 24) {
+              console.error(`ID LENGTH ISSUE: Expected 24 characters, got ${cleanFarmerId.length}`);
+              console.error('This is likely why validation is failing');
+            }
+          }
+        }
+
+        if (results[1].status === 'fulfilled') {
+          harvestRequestsResult = results[1].value || { data: [] };
+        } else {
+          console.error('=== Harvest Requests API Error ===');
+          const error = results[1].reason;
+          console.error('Error message:', error?.message);
+          console.error('Error response:', error?.response?.data);
+        }
         
         // Combine and format requests
         const allRequests = [
           ...(regularRequests || []),
-          ...(harvestRequests?.data || []).map(req => ({
+          ...(harvestRequestsResult?.data || []).map(req => ({
             ...req,
             type: req.service_type === 'harvest' ? 'Harvesting Day' : req.service_type,
             farmerName: req.farmer_id?.full_name,
             farmerPhone: req.farmer_id?.phone,
             farmerEmail: req.farmer_id?.email,
-            farmerLocation: req.location ? `${req.location.village}, ${req.location.cell}, ${req.location.sector}, ${req.location.district}, ${req.location.province}` : 'N/A',
+            farmerLocation: req.location ? `${req.location.village || ''}, ${req.location.cell || ''}, ${req.location.sector || ''}, ${req.location.district || ''}, ${req.location.province || ''}`.replace(/,\s*,/g, ',').replace(/^,|,$/g, '') : 'N/A',
             submittedAt: req.created_at,
             // Map harvest-specific fields - handle both old and new structure
             workersNeeded: req.workersNeeded || req.harvest_details?.workers_needed,
@@ -56,14 +203,29 @@ export default function MyServiceRequests() {
           }))
         ];
         
+        console.log('Successfully loaded requests:', allRequests.length);
         setRequests(allRequests);
-      } else {
-        console.error('Farmer ID not found');
-        setRequests([]);
+        
+        // Also update localStorage as backup
+        localStorage.setItem('farmerServiceRequests', JSON.stringify(allRequests));
+        
+      } catch (apiError) {
+        console.error('=== Critical API Error ===');
+        console.error('Error details:', apiError);
+        
+        // Fallback to localStorage
+        const localRequests = JSON.parse(localStorage.getItem('farmerServiceRequests') || '[]');
+        console.log('Using localStorage fallback:', localRequests.length, 'requests');
+        setRequests(localRequests);
       }
+      
     } catch (error) {
-      console.error('Error loading service requests:', error);
-      setRequests([]);
+      console.error('=== Function Error ===');
+      console.error('Error in loadRequests:', error);
+      
+      // Final fallback to localStorage
+      const localRequests = JSON.parse(localStorage.getItem('farmerServiceRequests') || '[]');
+      setRequests(localRequests);
     } finally {
       setLoading(false);
     }
