@@ -81,7 +81,7 @@ export default function Profile() {
     </button>
   );
 
-  // Extract farmer-specific profile data
+  // Extract farmer-specific profile data (now flattened from API)
   const farmerProfile = profile.profile || {};
 
   return (
@@ -90,6 +90,8 @@ export default function Profile() {
         <div style={{display:'flex',justifyContent:'center',marginBottom:'2rem'}}>
           <MembershipCard
             name={profile.full_name}
+            email={profile.email}
+            phone={profile.phone}
             treeCount={farmerProfile.tree_count || 'N/A'}
             propertyId={farmerProfile.upi_number || 'N/A'}
             location={`${farmerProfile.district || ''}${farmerProfile.province ? `, ${farmerProfile.province}` : ''}`.trim() || 'N/A'}
@@ -114,7 +116,11 @@ export default function Profile() {
       <div className="content-grid">
         {activeTab === 'personal' && (
           <div className="content-section">
+            <h2 className="section-title">Personal Information</h2>
             <div className="info-grid">
+              <InfoItem label="Full Name" value={profile.full_name} />
+              <InfoItem label="Email" value={profile.email} />
+              <InfoItem label="Phone" value={profile.phone} />
               <InfoItem label="Age" value={farmerProfile.age} />
               <InfoItem label="ID Number" value={farmerProfile.id_number} />
               <InfoItem label="Gender" value={farmerProfile.gender} />
@@ -126,6 +132,7 @@ export default function Profile() {
 
         {activeTab === 'location' && (
           <div className="content-section">
+            <h2 className="section-title">Personal Location</h2>
             <div className="info-grid">
               <InfoItem label="Province" value={farmerProfile.province} />
               <InfoItem label="District" value={farmerProfile.district} />
@@ -139,17 +146,19 @@ export default function Profile() {
         {activeTab === 'farm' && (
           <>
             <div className="content-section">
+              <h2 className="section-title">Farm Information</h2>
               <div className="info-grid">
                 <InfoItem label="Farm Age" value={farmerProfile.farm_age ? `${farmerProfile.farm_age} years` : 'N/A'} />
                 <InfoItem label="Avocado Type" value={farmerProfile.avocado_type} />
                 <InfoItem label="Farm Size" value={farmerProfile.farm_size} />
                 <InfoItem label="Tree Count" value={farmerProfile.tree_count} />
                 <InfoItem label="UPI Number" value={farmerProfile.upi_number} />
-                <InfoItem label="Planted" value={farmerProfile.planted} />
+                <InfoItem label="Planted Year" value={farmerProfile.planted} />
                 <InfoItem label="Mixed Percentage" value={farmerProfile.mixed_percentage} />
               </div>
             </div>
             <div className="content-section">
+              <h2 className="section-title">Farm Location</h2>
               <div className="info-grid">
                 <InfoItem label="Province" value={farmerProfile.farm_province} />
                 <InfoItem label="District" value={farmerProfile.farm_district} />

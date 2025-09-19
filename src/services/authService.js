@@ -74,36 +74,79 @@ export async function logout() {
   }
 }
 
-// Get current user profile
+// Get current user profile - role-based endpoint selection
 export async function getProfile() {
-  const response = await apiClient.get('/auth/profile');
-  return extractData(response);
+  try {
+    // Get user role from localStorage
+    const userRole = localStorage.getItem('role');
+    
+    let endpoint;
+    if (userRole === 'farmer') {
+      // Farmers use the enhanced profile endpoint with flattened data
+      endpoint = '/users/me';
+      console.log('Fetching farmer profile from /users/me');
+    } else {
+      // Other roles use the standard auth profile endpoint
+      endpoint = '/auth/profile';
+      console.log('Fetching profile from /auth/profile for role:', userRole);
+    }
+    
+    const response = await apiClient.get(endpoint);
+    console.log('Profile response:', response);
+    return extractData(response);
+  } catch (error) {
+    console.error('Error fetching profile:', error);
+    console.error('Error response:', error.response?.data);
+    throw error;
+  }
 }
 
-// Update current user profile
+// Update current user profile - role-based endpoint selection
 export async function updateProfile(profileData) {
   // Validate input data
   if (!profileData || typeof profileData !== 'object') {
     throw new Error("Valid profile data is required");
   }
   
-  const response = await apiClient.put('/auth/profile', profileData);
-  const updatedUser = extractData(response);
-  
-  // Update user data in localStorage
-  if (updatedUser) {
-    localStorage.setItem('user', JSON.stringify(updatedUser));
-    // Update role if it changed
-    if (updatedUser.role) {
-      localStorage.setItem('role', updatedUser.role);
+  try {
+    // Get user role from localStorage
+    const userRole = localStorage.getItem('role');
+    
+    let endpoint;
+    if (userRole === 'farmer') {
+      // Farmers use the enhanced profile endpoint with flattened data structure
+      endpoint = '/users/me';
+      console.log('Updating farmer profile at /users/me with data:', profileData);
+    } else {
+      // Other roles use the standard auth profile endpoint
+      endpoint = '/auth/profile';
+      console.log('Updating profile at /auth/profile for role:', userRole, 'with data:', profileData);
     }
-    // Update id if it changed
-    if (updatedUser.id) {
-      localStorage.setItem('id', updatedUser.id);
+    
+    const response = await apiClient.put(endpoint, profileData);
+    console.log('Profile update response:', response);
+    
+    const updatedUser = extractData(response);
+    
+    // Update user data in localStorage
+    if (updatedUser) {
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+      // Update role if it changed
+      if (updatedUser.role) {
+        localStorage.setItem('role', updatedUser.role);
+      }
+      // Update id if it changed
+      if (updatedUser.id) {
+        localStorage.setItem('id', updatedUser.id);
+      }
     }
+    
+    return updatedUser;
+  } catch (error) {
+    console.error('Error updating profile:', error);
+    console.error('Error response:', error.response?.data);
+    throw error;
   }
-  
-  return updatedUser;
 }
 
 // Change user password

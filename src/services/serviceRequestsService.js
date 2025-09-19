@@ -195,3 +195,88 @@ export async function getServiceRequestsForAgent(agentId, options = {}) {
   const response = await apiClient.get(`/service-requests/agent/${agentId}`, { params });
   return extractData(response);
 }
+
+// Create harvest request
+export async function createHarvestRequest(harvestData) {
+  // Validate required fields
+  if (!harvestData || typeof harvestData !== 'object') {
+    throw new Error("Harvest request data is required");
+  }
+  
+  if (!harvestData.workersNeeded) {
+    throw new Error("Workers needed is required");
+  }
+  
+  if (!harvestData.treesToHarvest) {
+    throw new Error("Number of trees to harvest is required");
+  }
+  
+  if (!harvestData.harvestDateFrom || !harvestData.harvestDateTo) {
+    throw new Error("Harvest date range is required");
+  }
+  
+  if (!harvestData.location) {
+    throw new Error("Location is required");
+  }
+  
+  const response = await apiClient.post('/service-requests/harvest', harvestData);
+  return extractData(response);
+}
+
+// Get all harvest requests
+export async function listHarvestRequests(options = {}) {
+  const params = {};
+  if (options.page) params.page = options.page;
+  if (options.limit) params.limit = options.limit;
+  if (options.status) params.status = options.status;
+  if (options.priority) params.priority = options.priority;
+  if (options.harvest_date_from) params.harvest_date_from = options.harvest_date_from;
+  if (options.harvest_date_to) params.harvest_date_to = options.harvest_date_to;
+  
+  const response = await apiClient.get('/service-requests/harvest', { params });
+  return extractData(response);
+}
+
+// Approve harvest request (Admin only)
+export async function approveHarvestRequest(requestId, approvalData) {
+  if (!requestId) {
+    throw new Error("Request ID is required");
+  }
+  
+  const response = await apiClient.put(`/service-requests/${requestId}/approve`, approvalData);
+  return extractData(response);
+}
+
+// Reject harvest request (Admin only)
+export async function rejectHarvestRequest(requestId, rejectionData) {
+  if (!requestId) {
+    throw new Error("Request ID is required");
+  }
+  
+  if (!rejectionData.rejection_reason) {
+    throw new Error("Rejection reason is required");
+  }
+  
+  const response = await apiClient.put(`/service-requests/${requestId}/reject`, rejectionData);
+  return extractData(response);
+}
+
+// Start harvest request (Agent only)
+export async function startHarvestRequest(requestId, startData) {
+  if (!requestId) {
+    throw new Error("Request ID is required");
+  }
+  
+  const response = await apiClient.put(`/service-requests/${requestId}/start`, startData);
+  return extractData(response);
+}
+
+// Complete harvest request (Admin/Agent)
+export async function completeHarvestRequest(requestId, completionData) {
+  if (!requestId) {
+    throw new Error("Request ID is required");
+  }
+  
+  const response = await apiClient.put(`/service-requests/${requestId}/complete`, completionData);
+  return extractData(response);
+}

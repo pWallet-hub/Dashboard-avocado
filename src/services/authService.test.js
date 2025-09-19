@@ -389,3 +389,4 @@ describe('authService', () => {
     await expect(authService.changePassword(passwordData)).rejects.toThrow('Current password is incorrect');
   });
 });
+
