@@ -1806,7 +1806,8 @@ Error Responses
 500: Failed to create harvest request
 
 #### Get All Harvest-day Requests
-URL: /service-requests/harvest
+URL: 
+
 Method: GET
 Access: Private (Role-based filtering applied)
 Description: Retrieve harvest requests with role-based filtering and advanced query options
@@ -2072,6 +2073,457 @@ Description: Mark harvest request as completed with completion details
   "message": "Harvest request marked as completed"
 }
 ```
+
+  ### Pest Management Endpoints
+  ### Create Pest Management Request
+
+- **URL** `/service-requests/pest-management`
+- **Method**: `POST`
+- **Access**: Private (Farmers only)
+- **Description**: Create a new pest management/pest control request with       detailed pest information and farmer details
+
+  ### Request Body
+
+  ```json
+  {
+  "service_type": "pest_control (required, must equal 'pest_control')",
+  "title": "string (required, max 200 characters)",
+  "description": "string (required, max 1000 characters)",
+  "priority": "string (optional, default: 'medium', values: 'low', 'medium', 'high', 'urgent')",
+  "preferred_date": "date (optional, ISO date format)",
+  "location": {
+    "province": "string (required)"
+  },
+  "pest_management_details": {
+    "pests_diseases": [
+      {
+        "name": "string (required)",
+        "first_spotted_date": "string (optional, ISO date format)"
+      }
+    ],
+    "first_noticed": "string (required, max 500 characters)",
+    "damage_observed": "string (required)",
+    "damage_details": "string (required, max 1000 characters)",
+    "control_methods_tried": "string (required, max 1000 characters)",
+    "severity_level": "string (required, values: 'low', 'medium', 'high', 'critical')"
+  },
+  "farmer_info": {
+    "name": "string (required)",
+    "phone": "string (required)",
+    "location": "string (required)"
+  },
+  "attachments": ["string"] (optional, array of attachment URLs),
+  "notes": "string (optional)"
+}
+
+ ### Success Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "string",
+    "request_number": "string (format: PC-{timestamp}-{random})",
+    "farmer_id": "string",
+    "service_type": "pest_control",
+    "title": "string",
+    "description": "string",
+    "status": "pending",
+    "priority": "string",
+    "requested_date": "date",
+    "scheduled_date": "date",
+    "location": {
+      "province": "string"
+    },
+    "pest_management_details": {
+      "pests_diseases": [
+        {
+          "name": "string",
+          "first_spotted_date": "date"
+        }
+      ],
+      "first_noticed": "string",
+      "damage_observed": "string",
+      "damage_details": "string",
+      "control_methods_tried": "string",
+      "severity_level": "string"
+    },
+    "farmer_info": {
+      "name": "string",
+      "phone": "string",
+      "location": "string"
+    },
+    "attachments": ["string"],
+    "notes": "string",
+    "created_at": "date",
+    "updated_at": "date"
+  },
+  "message": "Pest management request submitted successfully"
+}
+```
+Get All Pest Management Requests
+
+URL: /service-requests/pest-management
+Method: GET
+Access: Private (Role-based filtering)
+Description: Retrieve pest management requests with role-based filtering
+
+Access Rules
+
+Farmers: Only see their own pest management requests
+Agents: See assigned requests and unassigned requests
+Admins: See all pest management requests
+
+Query Parameters
+
+page: integer (default: 1)
+limit: integer (default: 10)
+status: string (filter by status)
+priority: string (filter by priority)
+
+  ### Success Response
+```json
+  {
+  "success": true,
+  "data": [
+    {
+      "id": "string",
+      "request_number": "string",
+      "farmer_id": "string",
+      "agent_id": "string",
+      "service_type": "pest_control",
+      "title": "string",
+      "description": "string",
+      "status": "string",
+      "priority": "string",
+      "requested_date": "date",
+      "scheduled_date": "date",
+      "location": {
+        "province": "string"
+      },
+      "pest_management_details": {
+        "pests_diseases": [
+          {
+            "name": "string",
+            "first_spotted_date": "date"
+          }
+        ],
+        "first_noticed": "string",
+        "damage_observed": "string",
+        "damage_details": "string",
+        "control_methods_tried": "string",
+        "severity_level": "string"
+      },
+      "farmer_info": {
+        "name": "string",
+        "phone": "string",
+        "location": "string"
+      },
+      "attachments": ["string"],
+      "notes": "string",
+      "created_at": "date",
+      "updated_at": "date",
+      "farmer": {
+        "full_name": "string",
+        "email": "string",
+        "phone": "string"
+      },
+      "agent": {
+        "full_name": "string",
+        "email": "string",
+        "phone": "string"
+      }
+    }
+  ],
+  "pagination": {
+    "currentPage": "integer",
+    "totalPages": "integer",
+    "totalItems": "integer",
+    "itemsPerPage": "integer"
+  },
+  "message": "Pest management requests retrieved successfully"
+}
+```
+
+Error Responses
+
+401: Unauthorized - Invalid or missing token
+500: Failed to retrieve pest management requests
+
+Approve Pest Management Request
+
+URL: /service-requests/:id/approve-pest-management
+Method: PUT
+Access: Private (Admin only)
+Description: Approve a pest management request with optional agent assignment and treatment recommendations
+
+  ### Request Body
+```json
+{
+  "agent_id": "string (optional, valid agent ObjectId)",
+  "scheduled_date": "string (optional, ISO date format)",
+  "cost_estimate": "number (optional, min: 0)",
+  "notes": "string (optional)",
+  "recommended_treatment": "string (optional, treatment recommendations)",
+  "inspection_priority": "string (optional, inspection priority level)"
+}
+```
+ ### Success Response
+ ```json
+ {
+  "success": true,
+  "data": {
+    "id": "string",
+    "request_number": "string",
+    "farmer_id": "string",
+    "agent_id": "string",
+    "service_type": "pest_control",
+    "status": "approved",
+    "approved_at": "date",
+    "approved_by": "string",
+    "scheduled_date": "date",
+    "cost_estimate": "number",
+    "pest_management_details": {
+      "pests_diseases": [
+        {
+          "name": "string",
+          "first_spotted_date": "date"
+        }
+      ],
+      "first_noticed": "string",
+      "damage_observed": "string",
+      "damage_details": "string",
+      "control_methods_tried": "string",
+      "severity_level": "string"
+    },
+    "farmer_info": {
+      "name": "string",
+      "phone": "string",
+      "location": "string"
+    },
+    "notes": "string (includes recommended treatment and inspection priority)",
+    "created_at": "date",
+    "updated_at": "date"
+  },
+  "message": "Pest management request approved successfully"
+}
+```
+#### Error Responses
+
+400: Invalid or inactive agent
+400: This endpoint is only for pest management requests
+401: Unauthorized - Invalid or missing token
+403: Forbidden - Not an admin
+404: Service request not found
+500: Failed to approve pest management request
+
+#### Property Evaluation Endpoints
+#### Create Property Evaluation Request
+
+- **URL**:`/service-requests/property-evaluation`
+- **Method**: `POST`
+- **Access**: Private (Farmers only)
+- **Description**: Create a new property evaluation request with irrigation details and visit scheduling
+
+### Request Body
+```json
+{
+  "irrigationSource": "Yes",
+  "irrigationTiming": "This Coming Season",
+  "soilTesting": "Previous soil tests showed pH levels of 6.2 and moderate nitrogen content. Looking for updated analysis including phosphorus and potassium levels.",
+  "visitStartDate": "2025-10-15",
+  "visitEndDate": "2025-10-19",
+  "evaluationPurpose": "Evaluating property for potential irrigation system upgrade and general farm productivity assessment. Need certified valuation for loan application.",
+  "priority": "medium",
+  "notes": "Property access is available via the main road. Best time for visit is between 8 AM and 4 PM. Two guard dogs on property - please coordinate with farmer before arrival.",
+  "location": {
+    "province": "Eastern Province",
+    "district": "Bugesera",
+    "farm_name": "Green Valley Farm",
+    "city": "Nyamata",
+    "access_instructions": "Enter through the main gate, follow the dirt road for 500m"
+  }
+}
+```
+### Validation Rules
+
+visitEndDate must be exactly 5 days after visitStartDate (inclusive range)
+visitEndDate must be after visitStartDate
+irrigationTiming is required when irrigationSource is 'Yes'
+
+  ### Success Response
+  ```json
+  {
+  "success": true,
+  "data": {
+    "id": "string",
+    "request_number": "string (format: PROP-{timestamp}-{random})",
+    "farmer_id": "string",
+    "service_type": "other",
+    "title": "Property Evaluation Request",
+    "description": "string (auto-generated based on irrigation source)",
+    "status": "pending",
+    "priority": "string",
+    "requested_date": "date",
+    "property_evaluation_details": {
+      "irrigation_source": "string",
+      "irrigation_timing": "string",
+      "soil_testing": "string",
+      "visit_start_date": "date",
+      "visit_end_date": "date",
+      "evaluation_purpose": "string",
+      "certified_valuation_requested": "boolean"
+    },
+    "notes": "string",
+    "created_at": "date",
+    "updated_at": "date"
+  },
+  "message": "Property evaluation request submitted successfully"
+}
+```
+### Error Responses
+
+400: Validation failed - specific validation errors in response
+400: Irrigation timing is required when irrigation source is Yes
+400: Visit date range must be exactly 5 days
+401: Unauthorized - Invalid or missing token
+403: Forbidden - Not a farmer role
+500: Failed to create property evaluation request
+
+#### Get All Property Evaluation Requests
+
+URL: /service-requests/property-evaluation
+Method: GET
+Access: Private (Role-based filtering)
+Description: Retrieve property evaluation requests with role-based filtering and date range filtering
+
+#### Access Rules
+
+Farmers: Only see their own property evaluation requests
+Agents: See assigned requests and unassigned requests
+Admins: See all property evaluation requests
+
+#### Query Parameters
+
+page: integer (default: 1)
+limit: integer (default: 10)
+status: string (filter by status)
+priority: string (filter by priority)
+visit_date_from: string (ISO date, filter by visit start date)
+visit_date_to: string (ISO date, filter by visit end date)
+
+#### Success Response
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "string",
+      "request_number": "string",
+      "farmer_id": "string",
+      "agent_id": "string",
+      "service_type": "other",
+      "title": "Property Evaluation Request",
+      "description": "string",
+      "status": "string",
+      "priority": "string",
+      "requested_date": "date",
+      "property_evaluation_details": {
+        "irrigation_source": "string",
+        "irrigation_timing": "string",
+        "soil_testing": "string",
+        "visit_start_date": "date",
+        "visit_end_date": "date",
+        "evaluation_purpose": "string",
+        "certified_valuation_requested": "boolean"
+      },
+      "notes": "string",
+      "created_at": "date",
+      "updated_at": "date",
+      "farmer": {
+        "full_name": "string",
+        "email": "string",
+        "phone": "string"
+      },
+      "agent": {
+        "full_name": "string",
+        "email": "string",
+        "phone": "string"
+      }
+    }
+  ],
+  "pagination": {
+    "currentPage": "integer",
+    "totalPages": "integer",
+    "totalItems": "integer",
+    "itemsPerPage": "integer"
+  },
+  "message": "Property evaluation requests retrieved successfully"
+}
+```
+#### Error Responses
+
+401: Unauthorized - Invalid or missing token
+500: Failed to retrieve property evaluation requests
+
+#### Approve Property Evaluation Request
+
+URL: /service-requests/:id/approve-property-evaluation
+Method: PUT
+Access: Private (Admin only)
+Description: Approve a property evaluation request with optional agent assignment and evaluation specifications
+
+#### Request Body
+```json
+{
+  "agent_id": "string (optional, valid agent ObjectId)",
+  "scheduled_date": "string (optional, ISO date format)",
+  "cost_estimate": "number (optional, min: 0)",
+  "notes": "string (optional)",
+  "evaluation_type": "string (optional, type of evaluation to be performed)",
+  "specialist_required": "boolean (optional, whether specialist is required)"
+}
+```
+### Success Response
+```json
+{
+  "success": true,
+  "data": {
+    "id": "string",
+    "request_number": "string",
+    "farmer_id": "string",
+    "agent_id": "string",
+    "service_type": "other",
+    "status": "approved",
+    "approved_at": "date",
+    "approved_by": "string",
+    "scheduled_date": "date",
+    "cost_estimate": "number",
+    "property_evaluation_details": {
+      "irrigation_source": "string",
+      "irrigation_timing": "string",
+      "soil_testing": "string",
+      "visit_start_date": "date",
+      "visit_end_date": "date",
+      "evaluation_purpose": "string",
+      "certified_valuation_requested": "boolean"
+    },
+    "notes": "string (includes evaluation type and specialist requirements)",
+    "created_at": "date",
+    "updated_at": "date"
+  },
+  "message": "Property evaluation request approved successfully"
+}
+```
+#### Error Responses
+
+400: Invalid or inactive agent
+400: This endpoint is only for property evaluation requests
+401: Unauthorized - Invalid or missing token
+403: Forbidden - Not an admin
+404: Service request not found
+500: Failed to approve property evaluation request
+
 
 #### Create New Service Request
 - **URL**: `/service-requests`
