@@ -1,18 +1,79 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { CheckCircle } from 'lucide-react';
 import '../Styles/FarmerPropertyEvaluation.css';
 import DashboardHeader from "../../components/Header/DashboardHeader";
+import { 
+  createPropertyEvaluationRequest, 
+  updatePropertyEvaluationRequest,
+  getPropertyEvaluationRequestById 
+} from '../../services/serviceRequestsService';
 
-const PropertyEvaluationForm = () => {
+const PropertyEvaluationForm = ({ requestId = null, mode = 'create' }) => {
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   const [formData, setFormData] = useState({
     irrigationSource: '',
     irrigationTiming: '',
     soilTesting: '',
     visitStartDate: '',
     visitEndDate: '',
-    evaluationPurpose: ''
+    evaluationPurpose: '',
+    priority: 'medium',
+    notes: '',
+    farmSize: '',
+    cropTypes: '',
+    currentIrrigationSystem: '',
+    soilType: '',
+    waterAccess: '',
+    location: {
+      street_address: '',
+      city: '',
+      province: ''
+    }
   });
+
+  // Load existing request data for edit mode
+  useEffect(() => {
+    if (mode === 'edit' && requestId) {
+      loadRequestData();
+    }
+  }, [requestId, mode]);
+
+  const loadRequestData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const request = await getPropertyEvaluationRequestById(requestId);
+      
+      // Map API response to form data
+      setFormData({
+        irrigationSource: request.irrigationSource || '',
+        irrigationTiming: request.irrigationTiming || '',
+        soilTesting: request.soilTesting ? 'Yes' : 'No',
+        visitStartDate: request.visitStartDate || '',
+        visitEndDate: request.visitEndDate || '',
+        evaluationPurpose: request.evaluationPurpose || '',
+        priority: request.priority || 'medium',
+        notes: request.notes || '',
+        farmSize: request.property_details?.farm_size || '',
+        cropTypes: request.property_details?.crop_types || '',
+        currentIrrigationSystem: request.property_details?.current_irrigation_system || '',
+        soilType: request.property_details?.soil_type || '',
+        waterAccess: request.property_details?.water_access || '',
+        location: {
+          street_address: request.location?.street_address || '',
+          city: request.location?.city || '',
+          province: request.location?.province || ''
+        }
+      });
+    } catch (err) {
+      console.error('Error loading request data:', err);
+      setError('Failed to load request data. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Date range picker component
   const DateRangePicker = ({ startDate, endDate, onStartDateChange, onEndDateChange }) => {
@@ -89,6 +150,20 @@ const PropertyEvaluationForm = () => {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
+    
+    // Handle nested location fields
+    if (name.startsWith('location.')) {
+      const locationField = name.split('.')[1];
+      setFormData(prev => ({
+        ...prev,
+        location: {
+          ...prev.location,
+          [locationField]: value
+        }
+      }));
+      return;
+    }
+
     setFormData(prev => ({
       ...prev,
       [name]: value,
@@ -97,41 +172,75 @@ const PropertyEvaluationForm = () => {
     }));
   };
 
-  const handleSubmit = (e) => {
+  const validateForm = () => {
+    const errors = [];
+
+    if (!formData.irrigationSource) {
+      errors.push('Irrigation source is required');
+    }
+
+    if (!formData.visitStartDate || !formData.visitEndDate) {
+      errors.push('Visit dates are required');
+    }
+
+    if (!formData.location.street_address || !formData.location.city || !formData.location.province) {
+      errors.push('Complete location details are required');
+    }
+
+    if (errors.length > 0) {
+      setError(errors.join(', '));
+      return false;
+    }
+
+    setError(null);
+    return true;
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Get farmer information from localStorage or use default values
-    const farmerName = localStorage.getItem('farmerName') || 'John Doe';
-    const farmerPhone = localStorage.getItem('farmerPhone') || '+250 123 456 789';
-    const farmerEmail = localStorage.getItem('farmerEmail') || 'farmer@example.com';
-    const farmerLocation = localStorage.getItem('farmerLocation') || 'Kigali, Rwanda';
+    if (!validateForm()) {
+      return;
+    }
 
-    const newRequest = {
-      id: Date.now().toString(),
-      type: 'Property Evaluation',
-      status: 'pending',
-      submittedAt: new Date().toISOString(),
-      farmerName,
-      farmerPhone,
-      farmerEmail,
-      farmerLocation,
-      irrigationSource: formData.irrigationSource,
-      irrigationTiming: formData.irrigationTiming,
-      soilTesting: formData.soilTesting,
-      visitStartDate: formData.visitStartDate,
-      visitEndDate: formData.visitEndDate,
-      evaluationPurpose: formData.evaluationPurpose
-    };
+    try {
+      setLoading(true);
+      setError(null);
 
-    // Get existing requests from localStorage
-    const existingRequests = JSON.parse(localStorage.getItem('farmerServiceRequests') || '[]');
-    const updatedRequests = [...existingRequests, newRequest];
-    
-    // Save to localStorage
-    localStorage.setItem('farmerServiceRequests', JSON.stringify(updatedRequests));
-    
-    console.log('Form submitted:', formData);
-    setShowSuccessMessage(true);
+      // Prepare request data
+      const requestData = {
+        irrigationSource: formData.irrigationSource,
+        irrigationTiming: formData.irrigationTiming,
+        soilTesting: formData.soilTesting === 'Yes',
+        visitStartDate: formData.visitStartDate,
+        visitEndDate: formData.visitEndDate,
+        evaluationPurpose: formData.evaluationPurpose,
+        priority: formData.priority,
+        notes: formData.notes,
+        farmSize: formData.farmSize,
+        cropTypes: formData.cropTypes,
+        currentIrrigationSystem: formData.currentIrrigationSystem,
+        soilType: formData.soilType,
+        waterAccess: formData.waterAccess,
+        location: formData.location
+      };
+
+      let response;
+      if (mode === 'edit' && requestId) {
+        response = await updatePropertyEvaluationRequest(requestId, requestData);
+        console.log('Property evaluation request updated:', response);
+      } else {
+        response = await createPropertyEvaluationRequest(requestData);
+        console.log('Property evaluation request created:', response);
+      }
+
+      setShowSuccessMessage(true);
+    } catch (err) {
+      console.error('Error submitting property evaluation request:', err);
+      setError(err.message || 'Failed to submit request. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const resetForm = () => {
@@ -141,9 +250,22 @@ const PropertyEvaluationForm = () => {
       soilTesting: '',
       visitStartDate: '',
       visitEndDate: '',
-      evaluationPurpose: ''
+      evaluationPurpose: '',
+      priority: 'medium',
+      notes: '',
+      farmSize: '',
+      cropTypes: '',
+      currentIrrigationSystem: '',
+      soilType: '',
+      waterAccess: '',
+      location: {
+        street_address: '',
+        city: '',
+        province: ''
+      }
     });
     setShowSuccessMessage(false);
+    setError(null);
   };
 
   const renderSuccessMessage = () => (
@@ -153,11 +275,15 @@ const PropertyEvaluationForm = () => {
           <CheckCircle size={64} className="success-icon" />
         </div>
         
-        <h2 className="success-title">Property Evaluation Submitted Successfully!</h2>
-        <p className="success-message">Thank you! We've received your property evaluation request.</p>
+        <h2 className="success-title">
+          Property Evaluation {mode === 'edit' ? 'Updated' : 'Submitted'} Successfully!
+        </h2>
+        <p className="success-message">
+          Thank you! We've {mode === 'edit' ? 'updated' : 'received'} your property evaluation request.
+        </p>
         
         <button onClick={resetForm} className="success-button">
-          Submit Another Request
+          {mode === 'edit' ? 'Make Another Update' : 'Submit Another Request'}
         </button>
       </div>
     </div>
@@ -167,6 +293,17 @@ const PropertyEvaluationForm = () => {
     return renderSuccessMessage();
   }
 
+  if (loading && mode === 'edit') {
+    return (
+      <div className="form-page">
+        <DashboardHeader />
+        <div className="form-container">
+          <div className="loading-spinner">Loading request data...</div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="form-page">
        <DashboardHeader />
@@ -174,6 +311,20 @@ const PropertyEvaluationForm = () => {
         <h1 className="form-title">
           <span className="underlined">Farmer</span> Property Evaluation
         </h1>
+        
+        {/* Display error message */}
+        {error && (
+          <div className="error-message" style={{ 
+            backgroundColor: '#fee', 
+            color: '#c33', 
+            padding: '10px', 
+            borderRadius: '5px', 
+            marginBottom: '20px',
+            border: '1px solid #fcc'
+          }}>
+            {error}
+          </div>
+        )}
         
         {/* Amazing Explanation Paragraph */}
         <div className="explanation-container">
@@ -200,6 +351,38 @@ const PropertyEvaluationForm = () => {
         </div>
         
         <div className="form-grid">
+          {/* Location Fields */}
+          <div className="form-field full-width">
+            <label className="field-label">• Property Location</label>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '10px' }}>
+              <input
+                type="text"
+                name="location.street_address"
+                value={formData.location.street_address}
+                onChange={handleInputChange}
+                placeholder="Street Address"
+                className="field-input"
+              />
+              <input
+                type="text"
+                name="location.city"
+                value={formData.location.city}
+                onChange={handleInputChange}
+                placeholder="City"
+                className="field-input"
+              />
+            </div>
+            <input
+              type="text"
+              name="location.province"
+              value={formData.location.province}
+              onChange={handleInputChange}
+              placeholder="Province"
+              className="field-input"
+              style={{ marginTop: '10px' }}
+            />
+          </div>
+
           <div className="form-field">
             <label className="field-label">
               • Do you want to upgrade your farm and water irrigation?
@@ -247,22 +430,22 @@ const PropertyEvaluationForm = () => {
               </p>
             </div>
             
-            <input
-              type="text"
+            <select
               name="soilTesting"
               value={formData.soilTesting}
               onChange={handleInputChange}
-              className="field-input"
-            />
+              className="field-select"
+            >
+              <option value="">Select an option</option>
+              <option value="Yes">Yes</option>
+              <option value="No">No</option>
+            </select>
           </div>
 
           <div className="form-field full-width">
             <label className="field-label">
               • In Which Week Can our Farm Property <br />Specialist Visit Your Farm?
             </label>
-            
-            {/* Farm Visit Information */}
-            
             
             <DateRangePicker
               startDate={formData.visitStartDate}
@@ -278,7 +461,7 @@ const PropertyEvaluationForm = () => {
             </label>
             <div className="farm-visit-info">
               <p className="visit-info-text">
-                Certified Property  Valuation papers are stamped by both ASR and an Accredited Property Valuer to be used withing all Banks and MFIs
+                Certified Property Valuation papers are stamped by both ASR and an Accredited Property Valuer to be used within all Banks and MFIs
               </p>
             </div>
             <input
@@ -287,12 +470,69 @@ const PropertyEvaluationForm = () => {
               value={formData.evaluationPurpose}
               onChange={handleInputChange}
               className="field-input"
+              placeholder="Enter your purpose (e.g., Bank loan, Insurance, etc.)"
+            />
+          </div>
+
+          {/* Additional Fields for Better Evaluation */}
+          <div className="form-field">
+            <label className="field-label">• Farm Size (in hectares)</label>
+            <input
+              type="text"
+              name="farmSize"
+              value={formData.farmSize}
+              onChange={handleInputChange}
+              className="field-input"
+              placeholder="e.g., 2.5 hectares"
+            />
+          </div>
+
+          <div className="form-field">
+            <label className="field-label">• Current Crop Types</label>
+            <input
+              type="text"
+              name="cropTypes"
+              value={formData.cropTypes}
+              onChange={handleInputChange}
+              className="field-input"
+              placeholder="e.g., Maize, Beans, Coffee"
+            />
+          </div>
+
+          <div className="form-field">
+            <label className="field-label">• Priority Level</label>
+            <select
+              name="priority"
+              value={formData.priority}
+              onChange={handleInputChange}
+              className="field-select"
+            >
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+              <option value="urgent">Urgent</option>
+            </select>
+          </div>
+
+          <div className="form-field full-width">
+            <label className="field-label">• Additional Notes</label>
+            <textarea
+              name="notes"
+              value={formData.notes}
+              onChange={handleInputChange}
+              className="field-input"
+              rows="3"
+              placeholder="Any additional information about your property or specific requirements..."
             />
           </div>
         </div>
 
-        <button onClick={handleSubmit} className="save-button">
-          Save
+        <button 
+          onClick={handleSubmit} 
+          className="save-button"
+          disabled={loading}
+        >
+          {loading ? 'Submitting...' : (mode === 'edit' ? 'Update Request' : 'Save')}
         </button>
       </div>
     </div>
