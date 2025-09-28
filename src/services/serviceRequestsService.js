@@ -240,9 +240,11 @@ export async function createHarvestRequest(harvestData) {
   return extractData(response);
 }
 
-// Get all harvest requests
+// Get all harvest requests with improved error handling
 export async function listHarvestRequests(options = {}) {
   try {
+    console.log('🔄 Calling harvest requests API...');
+    
     const params = {};
     if (options.page) params.page = options.page;
     if (options.limit) params.limit = options.limit;
@@ -251,17 +253,43 @@ export async function listHarvestRequests(options = {}) {
     if (options.harvest_date_from) params.harvest_date_from = options.harvest_date_from;
     if (options.harvest_date_to) params.harvest_date_to = options.harvest_date_to;
     
-    const response = await apiClient.get('/service-requests/harvest', { params });
-    return extractData(response);
-  } catch (error) {
-    console.error('API Error in listHarvestRequests:', error.response?.status, error.message);
+    console.log('📤 Request params:', params);
     
-    if (error.response?.status === 404) {
-      console.warn('Harvest requests endpoint not found. Using fallback data.');
-      return { data: [] };
+    const response = await apiClient.get('/service-requests/harvest', { params });
+    console.log('📥 Raw API response:', response);
+    
+    // Handle different response structures
+    if (response.data) {
+      console.log('📊 Response data structure:', {
+        type: typeof response.data,
+        hasSuccess: 'success' in response.data,
+        hasData: 'data' in response.data,
+        isArray: Array.isArray(response.data),
+        keys: Object.keys(response.data)
+      });
+      
+      return response.data; // Return the full response structure
     }
     
-    throw error;
+    return { success: false, data: [], message: 'No data received' };
+    
+  } catch (error) {
+    console.error('❌ Error fetching harvest requests:', error);
+    console.error('Error details:', {
+      message: error.message,
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      data: error.response?.data
+    });
+    
+    // Return consistent error structure for fallback handling
+    if (error.response?.status === 404) {
+      console.warn('Harvest requests endpoint not found. Using fallback data.');
+      return { success: false, data: [], message: 'Endpoint not found' };
+    }
+    
+    // Rethrow for other errors
+    throw new Error(`Failed to fetch harvest requests: ${error.message}`);
   }
 }
 
@@ -734,12 +762,376 @@ export async function cancelPropertyEvaluationRequest(requestId, cancellationDat
   return extractData(response);
 }
 
+// =============================================================================
+// PEST MANAGEMENT REQUEST FUNCTIONS
+// =============================================================================
+
+/**
+ * Create a new pest management request (Farmers only)
+ */
+export async function createPestManagementRequest(requestData) {
+  try {
+    console.log('🔄 Creating pest management request:', requestData);
+    
+    // Validate required fields according to API specification
+    if (!requestData || typeof requestData !== 'object') {
+      throw new Error('Request data is required and must be an object');
+    }
+
+    // Validate service_type
+    if (!requestData.service_type || requestData.service_type !== 'pest_control') {
+      throw new Error('service_type is required and must equal "pest_control"');
+    }
+
+    // Validate required string fields
+    if (!requestData.title || requestData.title.length > 200) {
+      throw new Error('title is required and must not exceed 200 characters');
+    }
+
+    if (!requestData.description || requestData.description.length > 1000) {
+      throw new Error('description is required and must not exceed 1000 characters');
+    }
+
+    // Validate location
+    if (!requestData.location || !requestData.location.province) {
+      throw new Error('location.province is required');
+    }
+
+    // Validate pest_management_details
+    if (!requestData.pest_management_details) {
+      throw new Error('pest_management_details is required');
+    }
+
+    const pestDetails = requestData.pest_management_details;
+    
+    // Validate pests_diseases array
+    if (!pestDetails.pests_diseases || !Array.isArray(pestDetails.pests_diseases) || pestDetails.pests_diseases.length === 0) {
+      throw new Error('pest_management_details.pests_diseases is required and must be a non-empty array');
+    }
+
+    // Validate each pest/disease entry
+    for (const pest of pestDetails.pests_diseases) {
+      if (!pest.name) {
+        throw new Error('Each pest/disease must have a name');
+      }
+    }
+
+    // Validate required pest management fields
+    if (!pestDetails.first_noticed || pestDetails.first_noticed.length > 500) {
+      throw new Error('pest_management_details.first_noticed is required and must not exceed 500 characters');
+    }
+
+    if (!pestDetails.damage_observed) {
+      throw new Error('pest_management_details.damage_observed is required');
+    }
+
+    if (!pestDetails.damage_details || pestDetails.damage_details.length > 1000) {
+      throw new Error('pest_management_details.damage_details is required and must not exceed 1000 characters');
+    }
+
+    if (!pestDetails.control_methods_tried || pestDetails.control_methods_tried.length > 1000) {
+      throw new Error('pest_management_details.control_methods_tried is required and must not exceed 1000 characters');
+    }
+
+    if (!pestDetails.severity_level || !['low', 'medium', 'high', 'critical'].includes(pestDetails.severity_level)) {
+      throw new Error('pest_management_details.severity_level is required and must be one of: low, medium, high, critical');
+    }
+
+    // Validate farmer_info
+    if (!requestData.farmer_info) {
+      throw new Error('farmer_info is required');
+    }
+
+    const farmerInfo = requestData.farmer_info;
+    if (!farmerInfo.name) {
+      throw new Error('farmer_info.name is required');
+    }
+
+    if (!farmerInfo.phone) {
+      throw new Error('farmer_info.phone is required');
+    }
+
+    if (!farmerInfo.location) {
+      throw new Error('farmer_info.location is required');
+    }
+
+    // Validate priority if provided
+    if (requestData.priority && !['low', 'medium', 'high', 'urgent'].includes(requestData.priority)) {
+      throw new Error('priority must be one of: low, medium, high, urgent');
+    }
+
+    const response = await apiClient.post('/service-requests/pest-management', requestData);
+    console.log('✅ Pest management request created:', response.data);
+    return extractData(response);
+  } catch (error) {
+    console.error('❌ Error creating pest management request:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get all pest management requests with role-based filtering
+ */
+export async function listPestManagementRequests(options = {}) {
+  try {
+    console.log('🔄 Fetching pest management requests...');
+    
+    const params = {};
+    if (options.page) params.page = options.page;
+    if (options.limit) params.limit = options.limit;
+    if (options.status) params.status = options.status;
+    if (options.priority) params.priority = options.priority;
+    if (options.severity_level) params.severity_level = options.severity_level;
+    if (options.farmer_id) params.farmer_id = options.farmer_id;
+    
+    console.log('📤 Request params:', params);
+    
+    const response = await apiClient.get('/service-requests/pest-management', { params });
+    console.log('📥 Pest management requests response:', response);
+    
+    // Handle different response structures from the API
+    if (response.data) {
+      console.log('📊 Response data structure:', {
+        type: typeof response.data,
+        hasSuccess: 'success' in response.data,
+        hasMessage: 'message' in response.data,
+        hasData: 'data' in response.data,
+        isArray: Array.isArray(response.data),
+        keys: Object.keys(response.data),
+        dataLength: response.data.data ? response.data.data.length : 'N/A'
+      });
+      
+      return response.data;
+    }
+    
+    return { 
+      success: false, 
+      data: [], 
+      message: 'No data received from server',
+      total: 0
+    };
+    
+  } catch (error) {
+    console.error('❌ Error fetching pest management requests:', error);
+    console.error('Error details:', {
+      message: error.message,
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      data: error.response?.data,
+      url: error.config?.url
+    });
+    
+    // Return consistent error structure instead of throwing for better UI handling
+    if (error.response?.status === 404) {
+      return { 
+        success: false, 
+        data: [], 
+        message: 'Pest management requests endpoint not found',
+        total: 0
+      };
+    }
+    
+    if (error.response?.status === 500) {
+      return { 
+        success: false, 
+        data: [], 
+        message: 'Server error occurred',
+        total: 0
+      };
+    }
+    
+    throw new Error(`Failed to fetch pest management requests: ${error.message}`);
+  }
+}
+
+/**
+ * Get pest management request by ID
+ */
+export async function getPestManagementRequestById(requestId) {
+  if (!requestId) {
+    throw new Error('Request ID is required');
+  }
+  
+  try {
+    const response = await apiClient.get(`/service-requests/pest-management/${requestId}`);
+    return extractData(response);
+  } catch (error) {
+    console.error('Error fetching pest management request:', error);
+    throw error;
+  }
+}
+
+/**
+ * Update pest management request (Farmers only, before approval)
+ */
+export async function updatePestManagementRequest(requestId, requestData) {
+  if (!requestId) {
+    throw new Error('Request ID is required');
+  }
+  
+  if (!requestData || typeof requestData !== 'object') {
+    throw new Error('Request data is required and must be an object');
+  }
+  
+  try {
+    const response = await apiClient.put(`/service-requests/pest-management/${requestId}`, requestData);
+    return extractData(response);
+  } catch (error) {
+    console.error('Error updating pest management request:', error);
+    throw error;
+  }
+}
+
+/**
+ * Approve a pest management request (Admin only)
+ */
+export async function approvePestManagementRequest(requestId, approvalData = {}) {
+  if (!requestId) {
+    throw new Error('Request ID is required');
+  }
+  
+  try {
+    const response = await apiClient.put(`/service-requests/pest-management/${requestId}/approve`, approvalData);
+    return extractData(response);
+  } catch (error) {
+    console.error('Error approving pest management request:', error);
+    throw error;
+  }
+}
+
+/**
+ * Reject a pest management request (Admin only)
+ */
+export async function rejectPestManagementRequest(requestId, rejectionData) {
+  if (!requestId) {
+    throw new Error('Request ID is required');
+  }
+  
+  if (!rejectionData || !rejectionData.rejection_reason) {
+    throw new Error('Rejection reason is required');
+  }
+  
+  try {
+    const response = await apiClient.put(`/service-requests/pest-management/${requestId}/reject`, rejectionData);
+    return extractData(response);
+  } catch (error) {
+    console.error('Error rejecting pest management request:', error);
+    throw error;
+  }
+}
+
+/**
+ * Assign agent to pest management request (Admin only)
+ */
+export async function assignAgentToPestManagement(requestId, agentData) {
+  if (!requestId) {
+    throw new Error('Request ID is required');
+  }
+  
+  if (!agentData || !agentData.agent_id) {
+    throw new Error('Agent ID is required');
+  }
+  
+  try {
+    const response = await apiClient.put(`/service-requests/pest-management/${requestId}/assign`, agentData);
+    return extractData(response);
+  } catch (error) {
+    console.error('Error assigning agent to pest management request:', error);
+    throw error;
+  }
+}
+
+/**
+ * Start pest management treatment (Agent only)
+ */
+export async function startPestManagementTreatment(requestId, startData = {}) {
+  if (!requestId) {
+    throw new Error('Request ID is required');
+  }
+  
+  try {
+    const response = await apiClient.put(`/service-requests/pest-management/${requestId}/start`, startData);
+    return extractData(response);
+  } catch (error) {
+    console.error('Error starting pest management treatment:', error);
+    throw error;
+  }
+}
+
+/**
+ * Complete pest management treatment with report (Agent only)
+ */
+export async function completePestManagementTreatment(requestId, completionData) {
+  if (!requestId) {
+    throw new Error('Request ID is required');
+  }
+  
+  if (!completionData || typeof completionData !== 'object') {
+    throw new Error('Completion data is required');
+  }
+  
+  try {
+    const response = await apiClient.put(`/service-requests/pest-management/${requestId}/complete`, completionData);
+    return extractData(response);
+  } catch (error) {
+    console.error('Error completing pest management treatment:', error);
+    throw error;
+  }
+}
+
+/**
+ * Submit pest management feedback (Farmer only)
+ */
+export async function submitPestManagementFeedback(requestId, feedbackData) {
+  if (!requestId) {
+    throw new Error('Request ID is required');
+  }
+  
+  if (!feedbackData || typeof feedbackData !== 'object') {
+    throw new Error('Feedback data is required');
+  }
+  
+  if (feedbackData.rating === undefined || feedbackData.rating === null) {
+    throw new Error('Rating is required');
+  }
+  
+  if (feedbackData.effectiveness_rating === undefined || feedbackData.effectiveness_rating === null) {
+    throw new Error('Effectiveness rating is required');
+  }
+  
+  try {
+    const response = await apiClient.post(`/service-requests/pest-management/${requestId}/feedback`, feedbackData);
+    return extractData(response);
+  } catch (error) {
+    console.error('Error submitting pest management feedback:', error);
+    throw error;
+  }
+}
+
+/**
+ * Cancel pest management request
+ */
+export async function cancelPestManagementRequest(requestId, cancellationData) {
+  if (!requestId) {
+    throw new Error('Request ID is required');
+  }
+  
+  try {
+    const response = await apiClient.put(`/service-requests/pest-management/${requestId}/cancel`, cancellationData);
+    return extractData(response);
+  } catch (error) {
+    console.error('Error cancelling pest management request:', error);
+    throw error;
+  }
+}
+
 // Helper function to get all service requests from different endpoints
 export async function getAllServiceRequests(options = {}) {
   const results = {
     regular: [],
     harvest: [],
     propertyEvaluation: [],
+    pestManagement: [],
     errors: []
   };
 
@@ -766,6 +1158,15 @@ export async function getAllServiceRequests(options = {}) {
   } catch (error) {
     console.error('Failed to fetch property evaluation requests:', error.message);
     results.errors.push({ type: 'propertyEvaluation', error: error.message });
+  }
+
+  // Try to get pest management requests
+  try {
+    const pestResponse = await listPestManagementRequests(options);
+    results.pestManagement = pestResponse?.data || pestResponse || [];
+  } catch (error) {
+    console.error('Failed to fetch pest management requests:', error.message);
+    results.errors.push({ type: 'pestManagement', error: error.message });
   }
 
   // Combine all requests with proper formatting
@@ -830,6 +1231,25 @@ export async function getAllServiceRequests(options = {}) {
       evaluationPurpose: req.evaluationPurpose || req.evaluation_purpose,
       priority: req.priority || 'medium',
       notes: req.notes || ''
+    })),
+    ...(results.pestManagement || []).map(req => ({
+      ...req,
+      service_type: 'pest_management',
+      type: 'Pest Management',
+      farmerName: req.farmer_id?.full_name || req.farmerName,
+      farmerPhone: req.farmer_id?.phone || req.farmerPhone,
+      farmerEmail: req.farmer_id?.email || req.farmerEmail,
+      farmerLocation: req.location ? 
+        `${req.location.street_address || ''}, ${req.location.city || ''}, ${req.location.province || ''}`.replace(/^,\s*|,\s*$/g, '') 
+        : req.farmerLocation || 'N/A',
+      submittedAt: req.created_at || req.submittedAt,
+      pestType: req.pest_type || req.pestType,
+      affectedArea: req.affected_area || req.affectedArea,
+      severityLevel: req.severity_level || req.severityLevel,
+      treatmentMethod: req.treatment_method || req.treatmentMethod,
+      estimatedCost: req.estimated_cost || req.estimatedCost,
+      priority: req.priority || 'medium',
+      notes: req.notes || req.description || ''
     }))
   ];
 
@@ -840,7 +1260,9 @@ export async function getAllServiceRequests(options = {}) {
     summary: {
       regular: results.regular?.length || 0,
       harvest: results.harvest?.length || 0,
-      propertyEvaluation: results.propertyEvaluation?.length || 0
+      propertyEvaluation: results.propertyEvaluation?.length || 0,
+      pestManagement: results.pestManagement?.length || 0
     }
   };
 }
+

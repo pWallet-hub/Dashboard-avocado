@@ -44,6 +44,7 @@ import ShopProducts from './Pages/ShopManager/ShopProducts'
 // Import route protection components
 import ProtectedRoute from './components/Layout/ProtectedRoute';
 import RoleBasedRoute from './components/Layout/RoleBasedRoute';
+import AdminServiceRequestsDashboard from './components/Dashboard/AdminServiceRequestsDashboard';
 
 function App() {
   return (
@@ -51,6 +52,7 @@ function App() {
       <Routes>
         <Route path="/" element={<Login />} />
         <Route path="/dashboard" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+        <Route path="/dashboard/admin/service-requests" element={<AdminServiceRequestsDashboard />} />
           <Route index element={<Home />} />
           
           {/* Admin Routes */}
@@ -61,6 +63,8 @@ function App() {
           <Route path="admin/shops" element={<RoleBasedRoute allowedRoles={['admin']}><ShopView/></RoleBasedRoute>} />
           <Route path="admin/statistics" element={<RoleBasedRoute allowedRoles={['admin']}><Statistics/></RoleBasedRoute>} />
           <Route path="admin/service-requests" element={<RoleBasedRoute allowedRoles={['admin']}><ServiceRequests/></RoleBasedRoute>} />
+          <Route path="/dashboard/admin/service-requests" element={<AdminServiceRequestsDashboard />} />
+          
           
           {/* Agent Routes */}
           <Route path="agent" element={<RoleBasedRoute allowedRoles={['agent']}><Agent /></RoleBasedRoute>} />
