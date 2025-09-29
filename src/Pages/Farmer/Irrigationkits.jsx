@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ShoppingCart, X, CheckCircle, Loader2, CreditCard, Droplets, Settings, Zap, Shield, Heart, Minus, Plus, Trash2, Smartphone, Filter } from 'lucide-react';
+import { getIrrigationProducts } from '../../services/productsService';
+
 
 // Mock CartService implementation
 const CartService = {
@@ -74,7 +76,7 @@ function CartSidebar({ isCartOpen, setIsCartOpen, cartItems, cartCount, updateCa
               <div className="space-y-4">
                 {cartItems.map((item) => (
                   <div key={item.id} className="flex items-center space-x-4 rounded-lg border border-gray-200 p-4">
-                    <img src={item.image} alt={item.name} className="h-16 w-16 rounded-lg object-cover" />
+                    <img src={item.image || 'https://via.placeholder.com/150'} alt={item.name} className="h-16 w-16 rounded-lg object-cover" />
                     <div className="flex-1 min-w-0">
                       <h3 className="text-sm font-medium text-gray-900 truncate">{item.name}</h3>
                       <div className="flex items-center space-x-2 mt-1">
@@ -83,7 +85,7 @@ function CartSidebar({ isCartOpen, setIsCartOpen, cartItems, cartCount, updateCa
                           <span className="text-sm text-gray-400 line-through">{item.originalPrice.toLocaleString()} RWF</span>
                         )}
                       </div>
-                      <p className="text-xs text-gray-500 mt-1">{item.capacity}</p>
+                      <p className="text-xs text-gray-500 mt-1">{item.capacity || `${item.quantity} ${item.unit}`}</p>
                     </div>
                     <div className="flex flex-col items-end space-y-2">
                       <div className="flex items-center space-x-2">
@@ -150,28 +152,65 @@ export default function IrrigationKits() {
   const [likedProducts, setLikedProducts] = useState(new Set());
   const [justAdded, setJustAdded] = useState(null);
   const [addingToCart, setAddingToCart] = useState(null);
+  
+  // New states for API integration
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pagination, setPagination] = useState({});
 
-  // Updated products array with Irrigation Kit item from Excel
-  const products = [
-    {
-      id: 1,
-      name: 'Powered Sprayers',
-      description: 'Necessary for avocado orchard spraying activities. Protects workers from chemicals while improving efficiency in tall trees.',
-      price: 150000,
-      originalPrice: 180000,
-      image: 'https://m.media-amazon.com/images/I/71aHYmq3UFL._AC_SL1500_.jpg',
-      capacity: 'Covers up to 500m²',
-      inStock: true,
-      features: [
-        'High-pressure spray for tall trees',
-        'Chemical-resistant materials',
-        'Ergonomic design for safe use',
-        'Battery-powered for efficiency'
-      ],
-    }
-  ];
+  // Fetch irrigation products from API
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        const response = await getIrrigationProducts({
+          page: currentPage,
+          limit: 20,
+          status: 'available'
+        });
+        
+        // Transform API data to match component structure
+        const transformedProducts = response.data.map(product => ({
+          id: product.id,
+          name: product.name,
+          description: product.description,
+          price: product.price,
+          originalPrice: null, // Add if your API has this field
+          image: product.image_url || 'https://via.placeholder.com/150',
+          capacity: `${product.quantity} ${product.unit}`,
+          inStock: product.status === 'available' && product.quantity > 0,
+          features: product.features || [
+            product.description || 'High-quality irrigation equipment',
+            'Suitable for avocado farms',
+            'Durable and efficient',
+            'Easy to install'
+          ],
+          unit: product.unit,
+          quantity: product.quantity,
+          supplier_id: product.supplier_id
+        }));
+        
+        setProducts(transformedProducts);
+        setPagination(response.pagination || {});
+        
+      } catch (err) {
+        console.error('Error fetching irrigation products:', err);
+        setError('Failed to load products. Please try again later.');
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const filteredProducts = filterType === 'all' ? products : products.filter((product) => product.name.toLowerCase().includes('sprayer'));
+    fetchProducts();
+  }, [currentPage]);
+
+  const filteredProducts = filterType === 'all' ? products : products.filter((product) => 
+    product.name.toLowerCase().includes(filterType.toLowerCase())
+  );
 
   const addToCart = (product) => {
     setAddingToCart(product.id);
@@ -328,7 +367,26 @@ export default function IrrigationKits() {
         {/* Products Grid */}
         <div className="bg-white rounded-2xl shadow-xl border border-green-200 overflow-hidden">
           <div className="p-8">
-            {filteredProducts.length > 0 ? (
+            {loading ? (
+              <div className="flex items-center justify-center py-16">
+                <Loader2 className="w-12 h-12 text-green-600 animate-spin" />
+                <span className="ml-4 text-lg text-gray-600">Loading irrigation kits...</span>
+              </div>
+            ) : error ? (
+              <div className="text-center py-16">
+                <div className="w-16 h-16 mx-auto mb-4 bg-red-100 rounded-full flex items-center justify-center">
+                  <X className="w-8 h-8 text-red-600" />
+                </div>
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">Error Loading Products</h3>
+                <p className="text-gray-600">{error}</p>
+                <button 
+                  onClick={() => window.location.reload()} 
+                  className="mt-4 px-6 py-2 bg-green-700 text-white rounded-lg hover:bg-green-800"
+                >
+                  Try Again
+                </button>
+              </div>
+            ) : filteredProducts.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                 {filteredProducts.map((product) => (
                   <div key={product.id} className="group bg-white rounded-2xl shadow-lg border border-green-200 overflow-hidden hover:shadow-2xl transition-all duration-300 hover:-translate-y-1">
@@ -356,7 +414,7 @@ export default function IrrigationKits() {
                         </div>
                         <div className="flex items-center space-x-2 mb-1">
                           <CheckCircle className="w-4 h-4 text-green-700" />
-                          <span className="text-black text-xs">{product.features[0]}</span>
+                          <span className="text-black text-xs">{Array.isArray(product.features) ? product.features[0] : product.description}</span>
                         </div>
                       </div>
                       <div className="flex items-center gap-2 mt-1">
