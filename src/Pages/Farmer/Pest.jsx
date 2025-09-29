@@ -1,5 +1,7 @@
-import { useState } from 'react';
-import { ArrowLeft, ShoppingCart, Star, CheckCircle, Shield, Bug, Zap, Eye, Heart, Filter, Package, Timer, AlertTriangle, Leaf, Droplets, Home, User, Phone, Mail, MapPin } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { ArrowLeft, ShoppingCart, Star, CheckCircle, Shield, Bug, Zap, Eye, Heart, Filter, Package, Timer, AlertTriangle, Leaf, Droplets, Home, User, Phone, Mail, MapPin, Loader2, X } from 'lucide-react';
+// Import the real API service
+import { getPestManagementProducts } from '../../services/productsService';
 
 export default function PestManagement() {
   const [selectedProduct, setSelectedProduct] = useState(null);
@@ -16,137 +18,159 @@ export default function PestManagement() {
   });
   const [requestSubmitted, setRequestSubmitted] = useState(false);
 
-  // Mock product data for pest management
-  const products = [
-    {
-      _id: '1',
-      name: 'Bio-Organic Insect Spray',
-      price: '12,500',
-      originalPrice: '15,000',
-      image: 'https://images.unsplash.com/photo-1588964895597-cfccd6e2dbf9?w=400&h=300&fit=crop',
-      rating: 4.8,
-      reviews: 156,
-      features: ['100% Organic', 'Non-toxic formula', 'Long-lasting protection', 'Safe for crops'],
-      description: 'Eco-friendly organic insect spray that effectively controls pests while being safe for your crops and environment.',
-      category: 'organic',
-      inStock: true,
-      discount: 17,
-      capacity: '500ml bottle',
-      effectiveness: '95% pest control'
-    },
-    {
-      _id: '2',
-      name: 'Professional Rodent Control Kit',
-      price: '25,000',
-      originalPrice: '30,000',
-      image: 'https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=400&h=300&fit=crop',
-      rating: 4.9,
-      reviews: 203,
-      features: ['Humane traps', 'Bait stations', 'Monitoring system', 'Reusable design'],
-      description: 'Complete rodent control solution with professional-grade traps and monitoring system.',
-      category: 'rodent',
-      inStock: true,
-      discount: 17,
-      capacity: '12-piece kit',
-      effectiveness: '98% capture rate'
-    },
-    {
-      _id: '3',
-      name: 'Aphid & Mite Control Spray',
-      price: '8,500',
-      originalPrice: '11,000',
-      image: 'https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=400&h=300&fit=crop',
-      rating: 4.7,
-      reviews: 134,
-      features: ['Targeted formula', 'Quick action', 'Leaf-safe', 'Residue-free'],
-      description: 'Specialized spray for controlling aphids and mites without harming beneficial insects.',
-      category: 'spray',
-      inStock: true,
-      discount: 23,
-      capacity: '250ml concentrate',
-      effectiveness: '92% elimination'
-    },
-    {
-      _id: '4',
-      name: 'Termite Protection System',
-      price: '45,000',
-      originalPrice: '55,000',
-      image: 'https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=400&h=300&fit=crop',
-      rating: 4.6,
-      reviews: 89,
-      features: ['Underground barriers', 'Monitoring stations', 'Long-term protection', 'Professional grade'],
-      description: 'Complete termite protection system with underground barriers and monitoring technology.',
-      category: 'termite',
-      inStock: false,
-      discount: 18,
-      capacity: 'Full property kit',
-      effectiveness: '99% prevention'
-    },
-    {
-      _id: '5',
-      name: 'Mosquito Larvicide Tablets',
-      price: '6,500',
-      originalPrice: '8,500',
-      image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400&h=300&fit=crop',
-      rating: 4.8,
-      reviews: 178,
-      features: ['Water-soluble', 'Prevents breeding', 'Safe for fish', '30-day protection'],
-      description: 'Effective larvicide tablets that prevent mosquito breeding in water sources.',
-      category: 'mosquito',
-      inStock: true,
-      discount: 24,
-      capacity: '20 tablets',
-      effectiveness: '96% larvae control'
-    },
-    {
-      _id: '6',
-      name: 'Ant Colony Elimination Kit',
-      price: '18,000',
-      originalPrice: '22,000',
-      image: 'https://images.unsplash.com/photo-1585951736442-0b5ee8c6f9a6?w=400&h=300&fit=crop',
-      rating: 4.9,
-      reviews: 145,
-      features: ['Gel baits', 'Bait stations', 'Colony targeting', 'Weather resistant'],
-      description: 'Complete ant elimination system that targets entire colonies at their source.',
-      category: 'ant',
-      inStock: true,
-      discount: 18,
-      capacity: '8-station kit',
-      effectiveness: '94% colony elimination'
-    },
-    {
-      _id: '7',
-      name: 'Fungal Disease Control Solution',
-      price: '15,000',
-      originalPrice: '19,000',
-      image: 'https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=400&h=300&fit=crop',
-      rating: 4.7,
-      reviews: 112,
-      features: ['Broad spectrum', 'Preventive action', 'Crop safe', 'Systemic protection'],
-      description: 'Advanced fungal control solution that prevents and treats plant diseases effectively.',
-      category: 'fungal',
-      inStock: true,
-      discount: 21,
-      capacity: '1L concentrate',
-      effectiveness: '91% disease prevention'
-    },
-    {
-      _id: '8',
-      name: 'Smart Pest Monitoring System',
-      price: '85,000',
-      originalPrice: '100,000',
-      image: 'https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=400&h=300&fit=crop',
-      rating: 4.8,
-      reviews: 67,
-      features: ['IoT sensors', 'Mobile alerts', 'Real-time monitoring', 'Data analytics'],
-      description: 'Advanced IoT-based pest monitoring system with real-time alerts and analytics.',
-      category: 'technology',
-      inStock: true,
-      discount: 15,
-      capacity: '5-sensor system',
-      effectiveness: '99% detection accuracy'
+  // API integration states
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pagination, setPagination] = useState({});
+
+  // Fetch pest management products from real API
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        console.log('🔄 Fetching pest management products from API...');
+        
+        const response = await getPestManagementProducts({
+          page: currentPage,
+          limit: 20,
+          status: 'available'
+        });
+        
+        console.log('📥 API Response:', response);
+        
+        // Transform API data to match component structure
+        const transformedProducts = response.data.map(product => ({
+          _id: product.id?.toString() || product._id?.toString(),
+          id: product.id || product._id,
+          name: product.name,
+          description: product.description,
+          price: typeof product.price === 'number' ? product.price.toLocaleString() : product.price,
+          originalPrice: product.originalPrice || null,
+          image: product.image_url || product.image || 'https://via.placeholder.com/400x300?text=Pest+Management+Product',
+          rating: 4.7, // Default rating since API might not have this
+          reviews: 120, // Default reviews count
+          features: generateFeatures(product.name),
+          category: determineCategory(product.name),
+          inStock: product.status === 'available' && (product.quantity || 0) > 0,
+          discount: 15, // Default discount
+          capacity: `${product.quantity || 0} ${product.unit || 'piece'}`,
+          effectiveness: '95% effectiveness',
+          unit: product.unit || 'piece',
+          quantity: Number(product.quantity) || 0,
+          supplier_id: product.supplier_id || product.supplierId || 'unknown'
+        }));
+        
+        console.log('🔄 Transformed products:', transformedProducts);
+        
+        setProducts(transformedProducts);
+        setPagination(response.pagination || {});
+        
+        if (transformedProducts.length === 0) {
+          setError('No pest management products found. This might be because the API doesn\'t have any products with category "pest-management" yet.');
+        }
+        
+      } catch (err) {
+        console.error('❌ Error fetching pest management products:', err);
+        setError(`Failed to load products: ${err.message}`);
+        
+        // Fallback to mock data in case of API failure for development
+        console.log('🔄 Loading fallback mock data...');
+        const mockProducts = [
+          {
+            _id: 'mock-1',
+            id: 'mock-1',
+            name: 'Bio-Organic Insect Spray',
+            description: 'Eco-friendly organic insect spray that effectively controls pests while being safe for crops and environment.',
+            price: '12,500',
+            originalPrice: null,
+            image: 'https://images.unsplash.com/photo-1588964895597-cfccd6e2dbf9?w=400&h=300&fit=crop',
+            rating: 4.7,
+            reviews: 120,
+            features: ['100% Organic', 'Non-toxic formula', 'Long-lasting protection', 'Safe for crops'],
+            category: 'organic',
+            inStock: true,
+            discount: 15,
+            capacity: '50 bottle',
+            effectiveness: '95% effectiveness',
+            unit: 'bottle',
+            quantity: 50,
+            supplier_id: 'mock-supplier'
+          },
+          {
+            _id: 'mock-2',
+            id: 'mock-2',
+            name: 'Professional Rodent Control Kit',
+            description: 'Complete rodent control solution with professional-grade traps and monitoring system.',
+            price: '25,000',
+            originalPrice: null,
+            image: 'https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=400&h=300&fit=crop',
+            rating: 4.6,
+            reviews: 85,
+            features: ['Humane traps', 'Bait stations', 'Monitoring system', 'Reusable design'],
+            category: 'rodent',
+            inStock: true,
+            discount: 15,
+            capacity: '20 kit',
+            effectiveness: '95% effectiveness',
+            unit: 'kit',
+            quantity: 20,
+            supplier_id: 'mock-supplier'
+          }
+        ];
+        
+        setProducts(mockProducts);
+        setError(null); // Clear error since we're showing fallback data
+        
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProducts();
+  }, [currentPage]);
+
+  const generateFeatures = (name) => {
+    if (!name) return ['Effective control', 'Easy to use', 'Safe formula', 'Long-lasting'];
+    
+    const lowerName = name.toLowerCase();
+    if (lowerName.includes('organic') || lowerName.includes('bio')) {
+      return ['100% Organic', 'Non-toxic formula', 'Long-lasting protection', 'Safe for crops'];
+    } else if (lowerName.includes('rodent')) {
+      return ['Humane traps', 'Bait stations', 'Monitoring system', 'Reusable design'];
+    } else if (lowerName.includes('spray')) {
+      return ['Targeted formula', 'Quick action', 'Leaf-safe', 'Residue-free'];
+    } else if (lowerName.includes('termite')) {
+      return ['Underground barriers', 'Monitoring stations', 'Long-term protection', 'Professional grade'];
+    } else if (lowerName.includes('mosquito')) {
+      return ['Water-soluble', 'Prevents breeding', 'Safe for fish', '30-day protection'];
+    } else if (lowerName.includes('ant')) {
+      return ['Gel baits', 'Bait stations', 'Colony targeting', 'Weather resistant'];
+    } else if (lowerName.includes('fungal')) {
+      return ['Broad spectrum', 'Preventive action', 'Crop safe', 'Systemic protection'];
+    } else if (lowerName.includes('smart') || lowerName.includes('monitoring')) {
+      return ['IoT sensors', 'Mobile alerts', 'Real-time monitoring', 'Data analytics'];
     }
-  ];
+    return ['Effective control', 'Easy to use', 'Safe formula', 'Long-lasting'];
+  };
+
+  const determineCategory = (name) => {
+    if (!name) return 'organic';
+    
+    const lowerName = name.toLowerCase();
+    if (lowerName.includes('organic') || lowerName.includes('bio')) return 'organic';
+    if (lowerName.includes('rodent')) return 'rodent';
+    if (lowerName.includes('spray') || lowerName.includes('aphid') || lowerName.includes('mite')) return 'spray';
+    if (lowerName.includes('termite')) return 'termite';
+    if (lowerName.includes('mosquito')) return 'mosquito';
+    if (lowerName.includes('ant')) return 'ant';
+    if (lowerName.includes('fungal') || lowerName.includes('disease')) return 'fungal';
+    if (lowerName.includes('smart') || lowerName.includes('monitoring') || lowerName.includes('iot')) return 'technology';
+    return 'organic';
+  };
 
   const filteredProducts = filterType === 'all' 
     ? products 
@@ -170,7 +194,6 @@ export default function PestManagement() {
   };
 
   const handleRequestFormSubmit = () => {
-    // Get farmer information from localStorage or use default values
     const farmerName = localStorage.getItem('farmerName') || 'John Doe';
     const farmerPhone = localStorage.getItem('farmerPhone') || '+250 123 456 789';
     const farmerEmail = localStorage.getItem('farmerEmail') || 'farmer@example.com';
@@ -193,11 +216,9 @@ export default function PestManagement() {
       images: requestFormData.images
     };
 
-    // Get existing requests from localStorage
     const existingRequests = JSON.parse(localStorage.getItem('farmerServiceRequests') || '[]');
     const updatedRequests = [...existingRequests, newRequest];
     
-    // Save to localStorage
     localStorage.setItem('farmerServiceRequests', JSON.stringify(updatedRequests));
     
     setRequestSubmitted(true);
@@ -212,6 +233,11 @@ export default function PestManagement() {
     });
   };
 
+  // Check if showing fallback/mock data
+  const showingMockData = products.some(p => {
+    return p && p.id && typeof p.id === 'string' && p.id.startsWith('mock-');
+  });
+
   const ProductModal = ({ product, onClose }) => (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 animate-fadeIn">
       <div className="bg-white rounded-3xl p-6 max-w-4xl w-full max-h-[90vh] overflow-y-auto animate-slideUp">
@@ -221,9 +247,7 @@ export default function PestManagement() {
             onClick={onClose}
             className="p-2 hover:bg-gray-100 rounded-full transition-all duration-200 hover:rotate-90"
           >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
+            <X className="w-6 h-6" />
           </button>
         </div>
         
@@ -234,18 +258,11 @@ export default function PestManagement() {
                 src={product.image} 
                 alt={product.name}
                 className="w-full h-80 object-cover rounded-2xl group-hover:scale-105 transition-transform duration-300"
+                onError={(e) => {
+                  e.target.src = 'https://via.placeholder.com/400x300?text=Pest+Management+Product';
+                }}
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-            </div>
-            <div className="flex space-x-2">
-              {[1,2,3,4].map(i => (
-                <img 
-                  key={i}
-                  src={product.image} 
-                  alt={`${product.name} view ${i}`}
-                  className="w-20 h-20 object-cover rounded-lg border-2 border-gray-200 hover:border-green-500 cursor-pointer transition-all duration-200 hover:scale-110"
-                />
-              ))}
             </div>
           </div>
           
@@ -270,9 +287,6 @@ export default function PestManagement() {
             <div className="space-y-2">
               <div className="flex items-center space-x-3">
                 <span className="text-3xl font-bold text-green-600">{product.price} RWF</span>
-                {product.originalPrice && (
-                  <span className="text-xl text-gray-400 line-through">{product.originalPrice} RWF</span>
-                )}
               </div>
               <p className="text-gray-600">{product.description}</p>
               <div className="flex items-center space-x-4 text-sm text-gray-500">
@@ -291,7 +305,7 @@ export default function PestManagement() {
               <h3 className="text-lg font-semibold text-gray-900">Key Features:</h3>
               <ul className="space-y-2">
                 {product.features.map((feature, index) => (
-                  <li key={index} className="flex items-center space-x-2 animate-slideInLeft" style={{animationDelay: `${index * 0.1}s`}}>
+                  <li key={index} className="flex items-center space-x-2">
                     <CheckCircle className="w-5 h-5 text-green-600" />
                     <span className="text-gray-700">{feature}</span>
                   </li>
@@ -304,22 +318,9 @@ export default function PestManagement() {
                 disabled={!product.inStock}
                 className={`flex-1 py-3 px-6 rounded-2xl font-semibold transition-all duration-300 ${
                   product.inStock 
-                    ? 'text-white transform hover:scale-105 shadow-lg hover:shadow-xl' 
+                    ? 'bg-gradient-to-r from-green-600 to-emerald-600 text-white hover:scale-105' 
                     : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                 }`}
-                style={product.inStock ? {
-                  background: 'linear-gradient(to right, #16a34a, #15803d)',
-                } : {}}
-                onMouseEnter={(e) => {
-                  if (product.inStock) {
-                    e.target.style.background = 'linear-gradient(to right, #15803d, #166534)';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (product.inStock) {
-                    e.target.style.background = 'linear-gradient(to right, #16a34a, #15803d)';
-                  }
-                }}
               >
                 {product.inStock ? (
                   <>
@@ -447,131 +448,148 @@ export default function PestManagement() {
         {/* Products Grid */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden animate-fadeIn">
           <div className="p-8">
-            {filteredProducts.length > 0 ? (
-              <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-8">
-                {filteredProducts.map((product, index) => (
-                  <div
-                    key={product._id}
-                    className="group bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-2xl transition-all duration-500 border border-gray-100 hover:border-green-200 transform hover:-translate-y-2 animate-slideInUp"
-                    style={{
-                      animationDelay: `${index * 0.1}s`
-                    }}
-                  >
-                    <div className="relative overflow-hidden">
-                      <img
-                        src={product.image}
-                        alt={product.name}
-                        className="w-full h-64 object-cover group-hover:scale-110 transition-transform duration-500"
-                      />
-                      
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                      
-                      {product.discount && (
-                        <div className="absolute top-4 left-4 bg-gradient-to-r from-green-500 to-emerald-500 text-white px-3 py-1 rounded-full text-sm font-semibold animate-pulse">
-                          {product.discount}% OFF
+            {loading ? (
+              <div className="flex items-center justify-center py-16">
+                <Loader2 className="w-12 h-12 text-green-600 animate-spin" />
+                <span className="ml-4 text-lg text-gray-600">Loading pest management solutions...</span>
+              </div>
+            ) : error ? (
+              <div className="text-center py-16">
+                <div className="w-16 h-16 mx-auto mb-4 bg-red-100 rounded-full flex items-center justify-center">
+                  <X className="w-8 h-8 text-red-600" />
+                </div>
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">API Connection Issue</h3>
+                <p className="text-gray-600 mb-4">{error}</p>
+                <button 
+                  onClick={() => window.location.reload()} 
+                  className="mt-4 px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                >
+                  Try Again
+                </button>
+              </div>
+            ) : filteredProducts.length > 0 ? (
+              <>
+                <div className="mb-4 text-sm text-gray-600">
+                  Showing {filteredProducts.length} pest management products
+                  {showingMockData && (
+                    <span className="ml-2 px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full">
+                      Showing fallback data - API connection needed
+                    </span>
+                  )}
+                </div>
+                
+                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-8">
+                  {filteredProducts.map((product, index) => (
+                    <div
+                      key={product._id}
+                      className="group bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-2xl transition-all duration-500 border border-gray-100 hover:border-green-200 transform hover:-translate-y-2 animate-slideInUp"
+                      style={{
+                        animationDelay: `${index * 0.1}s`
+                      }}
+                    >
+                      <div className="relative overflow-hidden">
+                        <img
+                          src={product.image}
+                          alt={product.name}
+                          className="w-full h-64 object-cover group-hover:scale-110 transition-transform duration-500"
+                          onError={(e) => {
+                            e.target.src = 'https://via.placeholder.com/400x300?text=Pest+Management+Product';
+                          }}
+                        />
+                        
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                        
+                        {product.discount && (
+                          <div className="absolute top-4 left-4 bg-gradient-to-r from-green-500 to-emerald-500 text-white px-3 py-1 rounded-full text-sm font-semibold animate-pulse">
+                            {product.discount}% OFF
+                          </div>
+                        )}
+                        
+                        <div className="absolute top-4 right-4 space-y-2">
+                          <button
+                            onClick={() => toggleLike(product._id)}
+                            className={`p-2 rounded-full transition-all duration-300 transform hover:scale-110 ${
+                              likedProducts.has(product._id)
+                                ? 'bg-green-100 text-green-600 scale-110'
+                                : 'bg-white/80 text-gray-600 hover:bg-white'
+                            }`}
+                          >
+                            <Heart className={`w-5 h-5 ${likedProducts.has(product._id) ? 'fill-current animate-pulse' : ''}`} />
+                          </button>
+                          
+                          <button
+                            onClick={() => setSelectedProduct(product)}
+                            className="p-2 rounded-full bg-white/80 text-gray-600 hover:bg-white transition-all duration-300 transform hover:scale-110"
+                          >
+                            <Eye className="w-5 h-5" />
+                          </button>
                         </div>
-                      )}
+                        
+                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-6 transform translate-y-full group-hover:translate-y-0 transition-transform duration-300">
+                          <h3 className="text-xl font-bold text-white mb-2">{product.name}</h3>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-1">
+                              {[...Array(5)].map((_, i) => (
+                                <Star 
+                                  key={i} 
+                                  className={`w-4 h-4 ${i < Math.floor(product.rating) ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`}
+                                />
+                              ))}
+                              <span className="text-white/90 text-sm ml-1">({product.reviews})</span>
+                            </div>
+                            <div className="flex items-center space-x-1 text-white/80 text-sm">
+                              <Zap className="w-4 h-4" />
+                              <span>{product.effectiveness}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
                       
-                      <div className="absolute top-4 right-4 space-y-2">
-                        <button
-                          onClick={() => toggleLike(product._id)}
-                          className={`p-2 rounded-full transition-all duration-300 transform hover:scale-110 ${
-                            likedProducts.has(product._id)
-                              ? 'bg-green-100 text-green-600 scale-110'
-                              : 'bg-white/80 text-gray-600 hover:bg-white'
-                          }`}
-                        >
-                          <Heart className={`w-5 h-5 ${likedProducts.has(product._id) ? 'fill-current animate-pulse' : ''}`} />
-                        </button>
+                      <div className="p-6 bg-gradient-to-br from-gray-50 to-white">
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="flex items-center space-x-2">
+                            <span className="text-2xl font-bold text-green-600">{product.price} RWF</span>
+                          </div>
+                          <div className={`px-3 py-1 rounded-full text-sm font-medium transition-all duration-200 ${
+                            product.inStock 
+                              ? 'bg-green-100 text-green-800 animate-pulse' 
+                              : 'bg-red-100 text-red-800'
+                          }`}>
+                            {product.inStock ? 'In Stock' : 'Out of Stock'}
+                          </div>
+                        </div>
+                        
+                        <div className="space-y-2 mb-4">
+                          {product.features.slice(0, 3).map((feature, i) => (
+                            <div key={i} className="flex items-center space-x-2">
+                              <CheckCircle className="w-4 h-4 text-green-600" />
+                              <span className="text-gray-700 text-sm">{feature}</span>
+                            </div>
+                          ))}
+                        </div>
                         
                         <button
-                          onClick={() => setSelectedProduct(product)}
-                          className="p-2 rounded-full bg-white/80 text-gray-600 hover:bg-white transition-all duration-300 transform hover:scale-110"
+                          disabled={!product.inStock}
+                          className={`w-full py-3 px-4 rounded-xl font-semibold transition-all duration-300 ${
+                            product.inStock
+                              ? 'bg-gradient-to-r from-green-600 to-emerald-600 text-white hover:scale-105 shadow-lg hover:shadow-xl transform'
+                              : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                          }`}
                         >
-                          <Eye className="w-5 h-5" />
+                          {product.inStock ? (
+                            <>
+                              <ShoppingCart className="w-5 h-5 inline mr-2" />
+                              Buy Now
+                            </>
+                          ) : (
+                            'Out of Stock'
+                          )}
                         </button>
                       </div>
-                      
-                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-6 transform translate-y-full group-hover:translate-y-0 transition-transform duration-300">
-                        <h3 className="text-xl font-bold text-white mb-2">{product.name}</h3>
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-1">
-                            {[...Array(5)].map((_, i) => (
-                              <Star 
-                                key={i} 
-                                className={`w-4 h-4 ${i < Math.floor(product.rating) ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`}
-                              />
-                            ))}
-                            <span className="text-white/90 text-sm ml-1">({product.reviews})</span>
-                          </div>
-                          <div className="flex items-center space-x-1 text-white/80 text-sm">
-                            <Zap className="w-4 h-4" />
-                            <span>{product.effectiveness}</span>
-                          </div>
-                        </div>
-                      </div>
                     </div>
-                    
-                    <div className="p-6 bg-gradient-to-br from-gray-50 to-white">
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center space-x-2">
-                          <span className="text-2xl font-bold text-green-600">{product.price} RWF</span>
-                          {product.originalPrice && (
-                            <span className="text-lg text-gray-400 line-through">{product.originalPrice} RWF</span>
-                          )}
-                        </div>
-                        <div className={`px-3 py-1 rounded-full text-sm font-medium transition-all duration-200 ${
-                          product.inStock 
-                            ? 'bg-green-100 text-green-800 animate-pulse' 
-                            : 'bg-red-100 text-red-800'
-                        }`}>
-                          {product.inStock ? 'In Stock' : 'Out of Stock'}
-                        </div>
-                      </div>
-                      
-                      <div className="space-y-2 mb-4">
-                        {product.features.slice(0, 3).map((feature, i) => (
-                          <div key={i} className="flex items-center space-x-2 opacity-0 animate-slideInLeft" style={{animationDelay: `${i * 0.1}s`, animationFillMode: 'forwards'}}>
-                            <CheckCircle className="w-4 h-4 text-green-600" />
-                            <span className="text-gray-700 text-sm">{feature}</span>
-                          </div>
-                        ))}
-                      </div>
-                      
-                      <button
-                        disabled={!product.inStock}
-                        className={`w-full py-3 px-4 rounded-xl font-semibold transition-all duration-300 ${
-                          product.inStock
-                            ? 'text-white hover:scale-105 shadow-lg hover:shadow-xl transform'
-                            : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                        }`}
-                        style={product.inStock ? {
-                          background: 'linear-gradient(to right, #16a34a, #15803d)',
-                        } : {}}
-                        onMouseEnter={(e) => {
-                          if (product.inStock) {
-                            e.target.style.background = 'linear-gradient(to right, #15803d, #166534)';
-                          }
-                        }}
-                        onMouseLeave={(e) => {
-                          if (product.inStock) {
-                            e.target.style.background = 'linear-gradient(to right, #16a34a, #15803d)';
-                          }
-                        }}
-                      >
-                        {product.inStock ? (
-                          <>
-                            <ShoppingCart className="w-5 h-5 inline mr-2" />
-                            Buy Now
-                          </>
-                        ) : (
-                          'Out of Stock'
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              </>
             ) : (
               <div className="text-center py-16 animate-fadeIn">
                 <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
@@ -603,7 +621,7 @@ export default function PestManagement() {
                 onClick={() => setShowRequestForm(false)}
                 className="p-2 hover:bg-gray-100 rounded-full transition-all duration-200"
               >
-                <XCircle className="w-6 h-6" />
+                <X className="w-6 h-6" />
               </button>
             </div>
 

@@ -1,8 +1,9 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ShoppingCart, X, CheckCircle, Loader2, Scissors, Settings, Zap, Shield, Heart, Minus, Plus, Trash2, Smartphone, Filter } from 'lucide-react';
+// Import the real API service instead of using mock
+import { getHarvestingProducts } from '../../services/productsService';
 
-// Mock CartService implementation
+// Mock CartService implementation (keep this as is for now)
 const CartService = {
   cart: [],
   addToCart: (product) => {
@@ -46,7 +47,7 @@ const CartService = {
   },
 };
 
-// CartSidebar Component
+// CartSidebar Component (keep as is)
 function CartSidebar({ isCartOpen, setIsCartOpen, cartItems, cartCount, updateCartQuantity, removeFromCart, handleCheckout }) {
   const cartSummary = CartService.getCartSummary();
   return (
@@ -75,7 +76,14 @@ function CartSidebar({ isCartOpen, setIsCartOpen, cartItems, cartCount, updateCa
               <div className="space-y-4">
                 {cartItems.map((item) => (
                   <div key={item.id} className="flex items-center space-x-4 rounded-lg border border-gray-200 p-4">
-                    <img src={item.image} alt={item.name} className="h-16 w-16 rounded-lg object-cover" />
+                    <img 
+                      src={item.image} 
+                      alt={item.name} 
+                      className="h-16 w-16 rounded-lg object-cover" 
+                      onError={(e) => {
+                        e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTUwIiBoZWlnaHQ9IjE1MCIgdmlld0JveD0iMCAwIDE1MCAxNTAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxNTAiIGhlaWdodD0iMTUwIiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik03NSA0NUw5MCA2MEw3NSA3NUw2MCA2MEw3NSA0NVoiIGZpbGw9IiM5Q0EzQUYiLz4KPC9zdmc+';
+                      }}
+                    />
                     <div className="flex-1 min-w-0">
                       <h3 className="text-sm font-medium text-gray-900 truncate">{item.name}</h3>
                       <div className="flex items-center space-x-2 mt-1">
@@ -84,7 +92,7 @@ function CartSidebar({ isCartOpen, setIsCartOpen, cartItems, cartCount, updateCa
                           <span className="text-sm text-gray-400 line-through">{item.originalPrice.toLocaleString()} RWF</span>
                         )}
                       </div>
-                      <p className="text-xs text-gray-500 mt-1">{item.capacity}</p>
+                      <p className="text-xs text-gray-500 mt-1">{item.capacity || `${item.quantity} ${item.unit}`}</p>
                     </div>
                     <div className="flex flex-col items-end space-y-2">
                       <div className="flex items-center space-x-2">
@@ -152,121 +160,138 @@ export default function ModernHarvestingKits() {
   const [justAdded, setJustAdded] = useState(null);
   const [addingToCart, setAddingToCart] = useState(null);
 
-  // Products array from Harvesting Kit category with stock images
-  const products = [
-    {
-      id: '1',
-      name: 'Balance Scale',
-      price: 20000,
-      originalPrice: 25000,
-      image: 'https://images-na.ssl-images-amazon.com/images/I/61awknV7AhL._AC_SL1200_.jpg',
-      capacity: 'Up to 50kg',
-      inStock: true,
-      features: [
-        'Accurate weight measurement',
-        'Portable design for farm use',
-        'Durable for outdoor conditions',
-        'Easy to read display'
-      ],
-      description: 'Necessary during sorting work and important for farmers to know prices as avocados are sold by sizes. Helps farmers track fruit quantity by size.'
-    },
-    {
-      id: '2',
-      name: 'Fruit Tree Harvesting Clippers',
-      price: 12000,
-      originalPrice: 15000,
-      image: 'https://tse1.mm.bing.net/th/id/OIP.3JxdezlL20PgzIscoCRTsgAAAA?pid=Api&P=0&h=220',
-      capacity: '200 cuts/hour',
-      inStock: true,
-      features: [
-        'Sharp stainless steel blades',
-        'Ergonomic grip for comfort',
-        'Lightweight for easy use',
-        'Rust-resistant for Rwandan climate'
-      ],
-      description: 'Used for harvesting avocados directly from trees while keeping them intact. Prevents damage to fruits.'
-    },
-    {
-      id: '3',
-      name: 'Clippers for Cutting Fruit Stems',
-      price: 10000,
-      originalPrice: 13000,
-      image: 'https://tse3.mm.bing.net/th/id/OIP.SGxpcKz1BXRRDUc5PrlrzAHaFj?pid=Api&P=0&h=220',
-      capacity: '300 cuts/hour',
-      inStock: true,
-      features: [
-        'Precision cutting blades',
-        'Comfortable handle design',
-        'Durable for repeated use',
-        'Safe for fruit handling'
-      ],
-      description: 'Used for cutting avocado fruit stems during sorting on the farm.'
-    },
-    {
-      id: '4',
-      name: 'Pruning Saw / Secateur',
-      price: 15000,
-      originalPrice: 18000,
-      image: 'https://tse4.mm.bing.net/th/id/OIP.U8N4LUYoy1kjpkGR39E_6gHaDb?pid=Api&P=0&h=220',
-      capacity: '500 cuts/hour',
-      inStock: true,
-      features: [
-        'Sharp, durable blade',
-        'Ergonomic, non-slip handle',
-        'Suitable for thick branches',
-        'Rust-resistant for long-term use'
-      ],
-      description: 'Helps farmers care for trees during pruning, reduces damage, and improves efficiency.'
-    },
-    {
-      id: '5',
-      name: 'Harvesting Bag',
-      price: 10000,
-      originalPrice: 13000,
-      image: 'https://vigopresses.co.uk/images/detailed/4/Harvesting-Bag-with-apples-not-included_800x670.jpg',
-      capacity: '20kg',
-      inStock: true,
-      features: [
-        'Breathable, strong fabric',
-        'Adjustable straps for comfort',
-        'Large capacity for avocados',
-        'Durable for repeated use'
-      ],
-      description: 'Keeps avocados clean and off the ground. Supports HACCP certification and allows easy transfer into crates.'
-    },
-    {
-      id: '6',
-      name: 'Plastic Crates',
-      price: 8000,
-      originalPrice: 10000,
-      image: 'https://i5.walmartimages.com/asr/04dd16f6-8363-4e17-8cb3-843d16e90d1a.5d253f4c62679f625282f7ca5f10d725.jpeg',
-      capacity: '25kg',
-      inStock: true,
-      features: [
-        'Stackable design',
-        'Durable plastic material',
-        'Ventilated for fruit freshness',
-        'Easy to clean'
-      ],
-      description: 'Safeguards fruit quality during and after harvest until packing and storage. Mandatory for Global GAP certification.'
-    },
-    {
-      id: '7',
-      name: 'Complete Harvesting Kit',
-      price: 60000,
-      originalPrice: 75000,
-      image: 'https://tse2.mm.bing.net/th/id/OIP.BBJCIGYA9PYVi43CREhOUgHaEK?pid=Api&P=0&h=220',
-      capacity: 'Full kit',
-      inStock: true,
-      features: [
-        'Includes balance scale, clippers, pruning saw, bag, and crates',
-        'Durable carry case',
-        'Perfect for Rwandan farmers',
-        'Saves money and time'
-      ],
-      description: 'A full set for Rwandan avocado farmers: balance scale, clippers, pruning saw, harvesting bag, and plastic crates. Everything needed for a successful harvest.'
-    }
-  ];
+  // API integration states
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pagination, setPagination] = useState({});
+
+  // Fetch harvesting products from REAL API
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        console.log('🔄 Fetching harvesting products from API...');
+        
+        const response = await getHarvestingProducts({
+          page: currentPage,
+          limit: 20,
+          status: 'available'
+        });
+        
+        console.log('✅ API Response:', response);
+        
+        // Handle different response structures
+        let productsData = [];
+        
+        if (response.data && Array.isArray(response.data)) {
+          productsData = response.data;
+        } else if (Array.isArray(response)) {
+          productsData = response;
+        }
+        
+        console.log('📦 Products data:', productsData);
+        
+        // Transform API data to match component structure
+        const transformedProducts = productsData.map(product => ({
+          id: String(product.id), // Ensure ID is always a string
+          name: product.name || 'Unknown Product',
+          description: product.description || 'No description available',
+          price: Number(product.price) || 0,
+          originalPrice: product.originalPrice ? Number(product.originalPrice) : null,
+          image: (product.images && product.images.length > 0) 
+            ? product.images[0] 
+            : product.image_url || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTUwIiBoZWlnaHQ9IjE1MCIgdmlld0JveD0iMCAwIDE1MCAxNTAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxNTAiIGhlaWdodD0iMTUwIiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik03NSA0NUw5MCA2MEw3NSA3NUw2MCA2MEw3NSA0NVoiIGZpbGw9IiM5Q0EzQUYiLz4KPC9zdmc+',
+          capacity: `${product.quantity || 0} ${product.unit || 'piece'}`,
+          inStock: product.status === 'available' && (product.quantity || 0) > 0,
+          features: [
+            product.description || 'High-quality harvesting equipment',
+            'Suitable for avocado farms',
+            'Durable and efficient',
+            'Easy to use'
+          ],
+          unit: product.unit || 'piece',
+          quantity: Number(product.quantity) || 0,
+          supplier_id: product.supplier_id || product.supplierId || 'unknown',
+          category: product.category || 'harvesting'
+        }));
+        
+        console.log('🔄 Transformed products:', transformedProducts);
+        
+        setProducts(transformedProducts);
+        setPagination(response.pagination || {});
+        
+        if (transformedProducts.length === 0) {
+          setError('No harvesting products found. This might be because the API doesn\'t have any products with category "harvesting" yet.');
+        }
+        
+      } catch (err) {
+        console.error('❌ Error fetching harvesting products:', err);
+        setError(`Failed to load products: ${err.message}`);
+        
+        // If API fails, show mock data as fallback
+        console.log('🔄 Using fallback mock data...');
+        const mockProducts = [
+          {
+            id: 'mock-1',
+            name: 'Balance Scale',
+            description: 'Necessary during sorting work and important for farmers to know prices as avocados are sold by sizes.',
+            price: 20000,
+            originalPrice: null,
+            image: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTUwIiBoZWlnaHQ9IjE1MCIgdmlld0JveD0iMCAwIDE1MCAxNTAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxNTAiIGhlaWdodD0iMTUwIiBmaWxsPSIjRUZGREY1Ii8+CjxwYXRoIGQ9Ik03NSA0NUw5MCA2MEw3NSA3NUw2MCA2MEw3NSA0NVoiIGZpbGw9IiMxMDU5M0UiLz4KPHR2ZCBzdHJva2U9IiMxMDU5M0UiIGZvbnQtc2l6ZT0iMTIiIGZpbGw9IiMxMDU5M0UiIHRleHQtYW5jaG9yPSJtaWRkbGUiIHg9Ijc1IiB5PSI5MCI+U2NhbGU8L3RleHQ+Cjwvc3ZnPg==',
+            capacity: '10 piece',
+            inStock: true,
+            features: ['High-quality harvesting equipment', 'Suitable for avocado farms', 'Durable and efficient', 'Easy to use'],
+            unit: 'piece',
+            quantity: 10,
+            supplier_id: 'mock-supplier',
+            category: 'harvesting'
+          },
+          {
+            id: 'mock-2',
+            name: 'Fruit Tree Harvesting Clippers',
+            description: 'Used for harvesting avocados directly from trees while keeping them intact.',
+            price: 12000,
+            originalPrice: null,
+            image: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTUwIiBoZWlnaHQ9IjE1MCIgdmlld0JveD0iMCAwIDE1MCAxNTAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxNTAiIGhlaWdodD0iMTUwIiBmaWxsPSIjRUZGREY1Ii8+CjxwYXRoIGQ9Ik03NSA0NUw5MCA2MEw3NSA3NUw2MCA2MEw3NSA0NVoiIGZpbGw9IiMxMDU5M0UiLz4KPHR2ZCBzdHJva2U9IiMxMDU5M0UiIGZvbnQtc2l6ZT0iMTAiIGZpbGw9IiMxMDU5M0UiIHRleHQtYW5jaG9yPSJtaWRkbGUiIHg9Ijc1IiB5PSI5MCI+Q2xpcHBlcjwvdGV4dD4KPC9zdmc+',
+            capacity: '25 piece',
+            inStock: true,
+            features: ['High-quality harvesting equipment', 'Suitable for avocado farms', 'Durable and efficient', 'Easy to use'],
+            unit: 'piece',
+            quantity: 25,
+            supplier_id: 'mock-supplier',
+            category: 'harvesting'
+          },
+          {
+            id: 'mock-3',
+            name: 'Complete Harvesting Kit',
+            description: 'A full set for Rwandan avocado farmers: balance scale, clippers, pruning saw, harvesting bag, and plastic crates.',
+            price: 60000,
+            originalPrice: null,
+            image: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTUwIiBoZWlnaHQ9IjE1MCIgdmlld0JveD0iMCAwIDE1MCAxNTAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxNTAiIGhlaWdodD0iMTUwIiBmaWxsPSIjRUZGREY1Ii8+CjxwYXRoIGQ9Ik03NSA0NUw5MCA2MEw3NSA3NUw2MCA2MEw3NSA0NVoiIGZpbGw9IiMxMDU5M0UiLz4KPHR5ZCBzdHJva2U9IiMxMDU5M0UiIGZvbnQtc2l6ZT0iMTAiIGZpbGw9IiMxMDU5M0UiIHRleHQtYW5jaG9yPSJtaWRkbGUiIHg9Ijc1IiB5PSI5MCI+S2l0PC90ZXh0Pgo8L3N2Zz4=',
+            capacity: '5 kit',
+            inStock: true,
+            features: ['Complete harvesting solution', 'Suitable for avocado farms', 'Durable and efficient', 'Easy to use'],
+            unit: 'kit',
+            quantity: 5,
+            supplier_id: 'mock-supplier',
+            category: 'harvesting'
+          }
+        ];
+        
+        setProducts(mockProducts);
+        setError(null); // Clear error since we're showing fallback data
+        
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProducts();
+  }, [currentPage]);
 
   const filteredProducts = filterType === 'all' 
     ? products 
@@ -354,6 +379,12 @@ export default function ModernHarvestingKits() {
     setPaymentError('');
   };
 
+  // Check if showing fallback/mock data - FIX THE ERROR HERE
+  const showingMockData = products.some(p => {
+    // Safely check if id exists and is a string before calling startsWith
+    return p && p.id && typeof p.id === 'string' && p.id.startsWith('mock-');
+  });
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 via-lime-50 to-emerald-100">
       {/* Top Bar */}
@@ -378,7 +409,7 @@ export default function ModernHarvestingKits() {
             <div className="w-12 h-12 mx-auto mb-4 bg-green-100 rounded-full flex items-center justify-center">
               <Scissors className="w-6 h-6 text-green-600" />
             </div>
-            <h3 className="text-2xl font-bold text-gray-900">7+</h3>
+            <h3 className="text-2xl font-bold text-gray-900">{products.length}+</h3>
             <p className="text-gray-600">Harvesting Tools</p>
           </div>
           <div className="bg-white rounded-2xl p-6 text-center shadow-lg border border-green-200 hover:shadow-2xl transition-all duration-300 hover:-translate-y-1">
@@ -432,97 +463,158 @@ export default function ModernHarvestingKits() {
         {/* Products Grid */}
         <div className="bg-white rounded-2xl shadow-xl border border-green-200 overflow-hidden">
           <div className="p-8">
-            {filteredProducts.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {filteredProducts.map((product) => (
-                  <div key={product.id} className="group bg-white rounded-2xl shadow-lg border border-green-200 overflow-hidden hover:shadow-2xl transition-all duration-300 hover:-translate-y-1">
-                    <div className="relative overflow-hidden">
-                      <img
-                        src={product.image}
-                        alt={product.name}
-                        className="w-full h-32 object-cover group-hover:scale-105 transition-transform duration-500 rounded-t-2xl border-b-2 border-green-200"
-                        style={{ background: '#e5fbe5' }}
-                      />
-                    </div>
-                    <div className="flex-1 flex flex-col justify-between p-3 bg-gradient-to-br from-white to-green-50 min-h-[120px]">
-                      <div>
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-base font-bold text-green-800">{product.name}</span>
-                          <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${product.inStock ? 'bg-green-700 text-white' : 'bg-black text-white'}`}>
-                            {product.inStock ? 'In Stock' : 'Out of Stock'}
-                          </span>
-                        </div>
-                        <div className="flex items-center space-x-2 mb-1">
-                          <span className="text-base font-bold text-black">{product.price.toLocaleString()} RWF</span>
-                          {product.originalPrice && (
-                            <span className="text-xs text-black/40 line-through">{product.originalPrice.toLocaleString()} RWF</span>
-                          )}
-                        </div>
-                        <div className="flex items-center space-x-2 mb-1">
-                          <CheckCircle className="w-4 h-4 text-green-700" />
-                          <span className="text-black text-xs">{product.features[0]}</span>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 mt-1">
-                        <button
-                          onClick={() => toggleLike(product.id)}
-                          className={`p-2 rounded-full border-2 transition-all duration-300 transform hover:scale-110 ${
-                            likedProducts.has(product.id)
-                              ? 'bg-green-700 text-white border-green-700 scale-110'
-                              : 'bg-white text-green-700 border-green-200 hover:bg-green-50'
-                          }`}
-                          title={likedProducts.has(product.id) ? 'Unlike' : 'Like'}
-                        >
-                          <Heart className="w-5 h-5" />
-                        </button>
-                        <button
-                          onClick={() => addToCart(product)}
-                          className={`flex-1 py-2 px-2 rounded-xl font-bold transition-all duration-300 shadow-lg hover:shadow-xl text-base ${
-                            justAdded === product.id
-                              ? 'bg-green-700 text-white'
-                              : addingToCart === product.id
-                              ? 'bg-black text-white'
-                              : product.inStock
-                              ? 'bg-gradient-to-r from-green-700 to-black text-white hover:from-black hover:to-green-700 hover:scale-105'
-                              : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                          }`}
-                          disabled={!product.inStock || addingToCart === product.id}
-                        >
-                          {addingToCart === product.id ? (
-                            <>
-                              <div className="w-4 h-4 inline mr-1 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                              Adding...
-                            </>
-                          ) : justAdded === product.id ? (
-                            <>
-                              <CheckCircle className="w-4 h-4 inline mr-1" />
-                              Added!
-                            </>
-                          ) : product.inStock ? (
-                            <>
-                              <ShoppingCart className="w-4 h-4 inline mr-1" />
-                              Add
-                            </>
-                          ) : (
-                            'Out of Stock'
-                          )}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+            {loading ? (
+              <div className="flex items-center justify-center py-16">
+                <Loader2 className="w-12 h-12 text-green-600 animate-spin" />
+                <span className="ml-4 text-lg text-gray-600">Loading harvesting kits from API...</span>
               </div>
+            ) : error ? (
+              <div className="text-center py-16">
+                <div className="w-16 h-16 mx-auto mb-4 bg-red-100 rounded-full flex items-center justify-center">
+                  <X className="w-8 h-8 text-red-600" />
+                </div>
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">API Connection Issue</h3>
+                <p className="text-gray-600 mb-4">{error}</p>
+                <button 
+                  onClick={() => window.location.reload()} 
+                  className="mt-4 px-6 py-2 bg-green-700 text-white rounded-lg hover:bg-green-800"
+                >
+                  Try Again
+                </button>
+              </div>
+            ) : filteredProducts.length > 0 ? (
+              <>
+                <div className="mb-4 text-sm text-gray-600">
+                  Showing {filteredProducts.length} harvesting products
+                  {showingMockData && (
+                    <span className="ml-2 px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full">
+                      Showing fallback data - API connection needed
+                    </span>
+                  )}
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                  {filteredProducts.map((product) => (
+                    <div key={product.id} className="group bg-white rounded-2xl shadow-lg border border-green-200 overflow-hidden hover:shadow-2xl transition-all duration-300 hover:-translate-y-1">
+                      <div className="relative overflow-hidden">
+                        <img
+                          src={product.image}
+                          alt={product.name}
+                          className="w-full h-32 object-cover group-hover:scale-105 transition-transform duration-500 rounded-t-2xl border-b-2 border-green-200"
+                          style={{ background: '#e5fbe5' }}
+                          onError={(e) => {
+                            e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTUwIiBoZWlnaHQ9IjE1MCIgdmlld0JveD0iMCAwIDE1MCAxNTAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxNTAiIGhlaWdodD0iMTUwIiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik03NSA0NUw5MCA2MEw3NSA3NUw2MCA2MEw3NSA0NVoiIGZpbGw9IiM5Q0EzQUYiLz4KPC9zdmc+';
+                          }}
+                        />
+                      </div>
+                      <div className="flex-1 flex flex-col justify-between p-3 bg-gradient-to-br from-white to-green-50 min-h-[120px]">
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-base font-bold text-green-800">{product.name}</span>
+                            <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${product.inStock ? 'bg-green-700 text-white' : 'bg-black text-white'}`}>
+                              {product.inStock ? 'In Stock' : 'Out of Stock'}
+                            </span>
+                          </div>
+                          <div className="flex items-center space-x-2 mb-1">
+                            <span className="text-base font-bold text-black">{product.price.toLocaleString()} RWF</span>
+                            {product.originalPrice && (
+                              <span className="text-xs text-black/40 line-through">{product.originalPrice.toLocaleString()} RWF</span>
+                            )}
+                          </div>
+                          <div className="flex items-center space-x-2 mb-1">
+                            <CheckCircle className="w-4 h-4 text-green-700" />
+                            <span className="text-black text-xs">{Array.isArray(product.features) ? product.features[0] : product.description}</span>
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            Stock: {product.capacity}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 mt-1">
+                          <button
+                            onClick={() => toggleLike(product.id)}
+                            className={`p-2 rounded-full border-2 transition-all duration-300 transform hover:scale-110 ${
+                              likedProducts.has(product.id)
+                                ? 'bg-green-700 text-white border-green-700 scale-110'
+                                : 'bg-white text-green-700 border-green-200 hover:bg-green-50'
+                            }`}
+                            title={likedProducts.has(product.id) ? 'Unlike' : 'Like'}
+                          >
+                            <Heart className="w-5 h-5" />
+                          </button>
+                          <button
+                            onClick={() => addToCart(product)}
+                            className={`flex-1 py-2 px-2 rounded-xl font-bold transition-all duration-300 shadow-lg hover:shadow-xl text-base ${
+                              justAdded === product.id
+                                ? 'bg-green-700 text-white'
+                                : addingToCart === product.id
+                                ? 'bg-black text-white'
+                                : product.inStock
+                                ? 'bg-gradient-to-r from-green-700 to-black text-white hover:from-black hover:to-green-700 hover:scale-105'
+                                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                            }`}
+                            disabled={!product.inStock || addingToCart === product.id}
+                          >
+                            {addingToCart === product.id ? (
+                              <>
+                                <div className="w-4 h-4 inline mr-1 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                Adding...
+                              </>
+                            ) : justAdded === product.id ? (
+                              <>
+                                <CheckCircle className="w-4 h-4 inline mr-1" />
+                                Added!
+                              </>
+                            ) : product.inStock ? (
+                              <>
+                                <ShoppingCart className="w-4 h-4 inline mr-1" />
+                                Add
+                              </>
+                            ) : (
+                              'Out of Stock'
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
             ) : (
               <div className="text-center py-16">
                 <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
                   <Scissors className="w-8 h-8 text-gray-400" />
                 </div>
                 <h3 className="text-xl font-semibold text-gray-900 mb-2">No harvesting kits found</h3>
-                <p className="text-gray-600">Try adjusting your filter criteria</p>
+                <p className="text-gray-600">Try adjusting your filter criteria or check your API connection</p>
               </div>
             )}
           </div>
         </div>
+
+        {/* Pagination */}
+        {pagination.totalPages > 1 && (
+          <div className="flex justify-center space-x-2 mt-8">
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+              className="px-4 py-2 border border-gray-300 rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+            >
+              Previous
+            </button>
+            
+            <span className="px-4 py-2 text-sm text-gray-700">
+              Page {currentPage} of {pagination.totalPages}
+            </span>
+            
+            <button
+              onClick={() => setCurrentPage(prev => Math.min(prev + 1, pagination.totalPages))}
+              disabled={currentPage === pagination.totalPages}
+              className="px-4 py-2 border border-gray-300 rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+            >
+              Next
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Cart Sidebar */}
@@ -536,16 +628,13 @@ export default function ModernHarvestingKits() {
         handleCheckout={handleCheckout}
       />
 
-      {/* Payment Modal */}
+      {/* Payment Modal - keeping the existing modal code */}
       {showPaymentModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto shadow-2xl border-2 border-green-700">
             <div className="bg-gradient-to-r from-green-700 to-black text-white p-6 rounded-t-2xl flex justify-between items-center">
               <h2 className="text-2xl font-extrabold tracking-tight">Complete Payment</h2>
-              <button
-                onClick={closePaymentModal}
-                className="text-white hover:text-green-200"
-              >
+              <button onClick={closePaymentModal} className="text-white hover:text-green-200">
                 <X className="w-6 h-6" />
               </button>
             </div>
