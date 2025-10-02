@@ -9,19 +9,96 @@ const ShopInventory = () => {
   const [inventory, setInventory] = useState([]);
   const [loading, setLoading] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     initializeStorage();
     loadInventory();
   }, []);
 
-  const loadInventory = () => {
+  const loadInventory = async () => {
     setLoading(true);
+    setError(null);
     try {
-      const inventoryData = getShopInventory();
-      setInventory(inventoryData);
+      const inventoryData = await getShopInventory();
+      // Ensure inventoryData is always an array
+      const validInventory = Array.isArray(inventoryData) ? inventoryData : [];
+      setInventory(validInventory);
     } catch (error) {
       console.error('Error loading inventory:', error);
+      setError(error.message || 'Failed to load inventory');
+      // Set empty array as fallback
+      setInventory([]);
+      
+      // Create mock data for development/testing when API fails
+      const mockInventory = [
+        {
+          id: 'INV-001',
+          name: 'Hass Avocado - Premium Grade',
+          category: 'Hass Avocados',
+          quantity: 150,
+          unit: 'kg',
+          price: 2500,
+          minStock: 20,
+          supplier: 'Musanze Farm Cooperative',
+          harvestDate: '2024-09-15',
+          expiryDate: '2024-10-15',
+          cost: 2000,
+          status: 'in-stock',
+          sourceType: 'direct'
+        },
+        {
+          id: 'INV-002',
+          name: 'Fuerte Avocado - Grade A',
+          category: 'Fuerte Avocados',
+          quantity: 15,
+          unit: 'kg',
+          price: 2200,
+          minStock: 25,
+          supplier: 'Huye Agricultural Cooperative',
+          harvestDate: '2024-09-10',
+          expiryDate: '2024-10-10',
+          cost: 1800,
+          status: 'low-stock',
+          sourceType: 'direct'
+        },
+        {
+          id: 'INV-003',
+          name: 'Avocado Seedlings',
+          category: 'Avocado Seedlings',
+          quantity: 50,
+          unit: 'plants',
+          price: 15000,
+          minStock: 10,
+          supplier: 'Rwanda Agricultural Board',
+          harvestDate: '2024-08-01',
+          expiryDate: 'N/A',
+          cost: 12000,
+          status: 'in-stock',
+          sourceType: 'nursery'
+        },
+        {
+          id: 'INV-004',
+          name: 'Organic Fertilizer',
+          category: 'Fertilizers',
+          quantity: 0,
+          unit: 'bags',
+          price: 8000,
+          minStock: 5,
+          supplier: 'Kigali Agro Supplies',
+          harvestDate: 'N/A',
+          expiryDate: '2025-06-01',
+          cost: 6500,
+          status: 'out-of-stock',
+          sourceType: 'purchase'
+        }
+      ];
+      
+      // Use mock data when API fails (for development)
+      if (process.env.NODE_ENV === 'development') {
+        setInventory(mockInventory);
+        setError('Using mock data - API unavailable');
+      }
     } finally {
       setLoading(false);
     }
@@ -41,38 +118,47 @@ const ShopInventory = () => {
 
   const categories = ['Hass Avocados', 'Fuerte Avocados', 'Bacon Avocados', 'Zutano Avocados', 'Avocado Seedlings', 'Fertilizers', 'Pesticides'];
 
-  const filteredInventory = inventory.filter(item => {
-    const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         item.supplier.toLowerCase().includes(searchTerm.toLowerCase());
+  // Ensure inventory is always an array before filtering
+  const safeInventory = Array.isArray(inventory) ? inventory : [];
+  
+  const filteredInventory = safeInventory.filter(item => {
+    if (!item) return false;
+    
+    const matchesSearch = (item.name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+                         (item.supplier?.toLowerCase() || '').includes(searchTerm.toLowerCase());
     const matchesCategory = filterCategory === 'all' || item.category === filterCategory;
     return matchesSearch && matchesCategory;
   });
 
-  const handleSaveItem = () => {
-    if (!newItem.name || !newItem.quantity || !newItem.price) return;
+  const handleSaveItem = async () => {
+    if (!newItem.name || !newItem.quantity || !newItem.price) {
+      alert('Please fill in all required fields (Name, Quantity, Price)');
+      return;
+    }
     
     try {
       const item = {
         ...newItem,
-        quantity: parseInt(newItem.quantity),
-        price: parseFloat(newItem.price),
-        cost: parseFloat(newItem.price) * 0.8, // Assume 20% markup
-        minStock: parseInt(newItem.minStock),
-        status: parseInt(newItem.quantity) <= parseInt(newItem.minStock) ? 'low-stock' : 'in-stock',
+        quantity: parseInt(newItem.quantity) || 0,
+        price: parseFloat(newItem.price) || 0,
+        cost: (parseFloat(newItem.price) || 0) * 0.8, // Assume 20% markup
+        minStock: parseInt(newItem.minStock) || 0,
+        status: (parseInt(newItem.quantity) || 0) <= (parseInt(newItem.minStock) || 0) ? 'low-stock' : 'in-stock',
         sourceType: 'manual',
         expiryDate: newItem.expiryDate || calculateExpiryDate(newItem.harvestDate, newItem.category)
       };
       
       if (editingItem) {
-        // Assume update method
-        updateShopInventory(editingItem.id, item);
+        await updateShopInventory(editingItem.id, item);
       } else {
-        addToShopInventory(item);
+        await addToShopInventory(item);
       }
-      loadInventory();
+      await loadInventory();
       resetForm();
       setShowAddModal(false);
+      alert(`Item ${editingItem ? 'updated' : 'added'} successfully!`);
     } catch (error) {
+      console.error('Error saving item:', error);
       alert('Error saving item: ' + error.message);
     }
   };
@@ -93,35 +179,39 @@ const ShopInventory = () => {
   };
 
   const handleEditItem = (item) => {
+    if (!item) return;
     setEditingItem(item);
     setNewItem({
-      name: item.name,
-      category: item.category,
-      quantity: item.quantity.toString(),
-      unit: item.unit,
-      price: item.price.toString(),
-      minStock: item.minStock.toString(),
-      supplier: item.supplier,
-      harvestDate: item.harvestDate,
-      expiryDate: item.expiryDate
+      name: item.name || '',
+      category: item.category || '',
+      quantity: (item.quantity || 0).toString(),
+      unit: item.unit || '',
+      price: (item.price || 0).toString(),
+      minStock: (item.minStock || 0).toString(),
+      supplier: item.supplier || '',
+      harvestDate: item.harvestDate || '',
+      expiryDate: item.expiryDate || ''
     });
     setShowAddModal(true);
   };
 
-  const handleDeleteItem = (id) => {
-    if (confirm('Are you sure you want to delete this item?')) {
-      try {
-        deleteInventoryItem(id);
-        loadInventory();
-      } catch (error) {
-        alert('Error deleting item: ' + error.message);
-      }
+  const handleDeleteItem = async (id) => {
+    if (!id || !window.confirm('Are you sure you want to delete this item?')) return;
+    
+    try {
+      await deleteInventoryItem(id);
+      await loadInventory();
+      alert('Item deleted successfully!');
+    } catch (error) {
+      console.error('Error deleting item:', error);
+      alert('Error deleting item: ' + error.message);
     }
   };
 
   const getStockStatus = (item) => {
-    if (item.quantity === 0) return 'out-of-stock';
-    if (item.quantity <= item.minStock) return 'low-stock';
+    if (!item) return 'unknown';
+    if ((item.quantity || 0) === 0) return 'out-of-stock';
+    if ((item.quantity || 0) <= (item.minStock || 0)) return 'low-stock';
     return 'in-stock';
   };
 
@@ -129,7 +219,8 @@ const ShopInventory = () => {
     switch (status) {
       case 'low-stock': return 'bg-yellow-200 text-yellow-800 ring-yellow-500';
       case 'out-of-stock': return 'bg-red-200 text-red-800 ring-red-500';
-      default: return 'bg-green-200 text-green-800 ring-green-500';
+      case 'in-stock': return 'bg-green-200 text-green-800 ring-green-500';
+      default: return 'bg-gray-200 text-gray-800 ring-gray-500';
     }
   };
 
@@ -137,13 +228,18 @@ const ShopInventory = () => {
     <div className="space-y-6 p-4 bg-gradient-to-b from-green-50 to-emerald-50 min-h-screen">
       {/* Header */}
       <div className="bg-white rounded-xl shadow-lg p-6 ring-1 ring-emerald-100">
-        <div className="flex justify-between items-center">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <h2 className="text-2xl font-bold text-emerald-800 flex items-center">
               <Leaf className="h-7 w-7 mr-3 text-emerald-600 animate-pulse" />
               Avocado Inventory Management
             </h2>
             <p className="text-emerald-600 mt-1">Manage your Rwandan avocado farm produce and stock levels</p>
+            {error && (
+              <div className="mt-2 p-2 bg-yellow-100 border border-yellow-400 rounded text-sm text-yellow-700">
+                ⚠️ {error}
+              </div>
+            )}
           </div>
           <button
             onClick={() => { resetForm(); setShowAddModal(true); }}
@@ -166,6 +262,7 @@ const ShopInventory = () => {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-emerald-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+              aria-label="Search items or suppliers"
             />
           </div>
           <div className="relative">
@@ -174,6 +271,7 @@ const ShopInventory = () => {
               value={filterCategory}
               onChange={(e) => setFilterCategory(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-emerald-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent appearance-none transition-all"
+              aria-label="Filter by category"
             >
               <option value="all">All Categories</option>
               {categories.map(category => (
@@ -185,101 +283,128 @@ const ShopInventory = () => {
             <span className="text-sm text-emerald-600">
               Total Items: <span className="font-semibold">{filteredInventory.length}</span>
             </span>
+            <button
+              onClick={loadInventory}
+              className="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-lg hover:bg-emerald-200 transition-all text-sm"
+              disabled={loading}
+            >
+              {loading ? 'Loading...' : 'Refresh'}
+            </button>
           </div>
         </div>
       </div>
 
       {/* Inventory Table */}
       <div className="bg-white rounded-xl shadow-lg overflow-hidden ring-1 ring-emerald-100">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-emerald-100">
-            <thead className="bg-emerald-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-emerald-700 uppercase tracking-wider">
-                  Product
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-emerald-700 uppercase tracking-wider">
-                  Category
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-emerald-700 uppercase tracking-wider">
-                  Stock
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-emerald-700 uppercase tracking-wider">
-                  Price (RWF)
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-emerald-700 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-emerald-700 uppercase tracking-wider">
-                  Supplier
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-emerald-700 uppercase tracking-wider">
-                  Expiry Date
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-emerald-700 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-emerald-100">
-              {loading ? (
+        {loading ? (
+          <div className="p-8 text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600 mx-auto"></div>
+            <p className="mt-2 text-emerald-600">Loading inventory...</p>
+          </div>
+        ) : filteredInventory.length === 0 ? (
+          <div className="p-8 text-center">
+            <Package className="h-12 w-12 text-emerald-400 mx-auto mb-4" />
+            <p className="text-emerald-600">
+              {error ? 'Unable to load inventory. Please check your connection.' : 'No items found. Add some avocado products!'}
+            </p>
+            {error && (
+              <button
+                onClick={loadInventory}
+                className="mt-4 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all"
+              >
+                Try Again
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-emerald-100">
+              <thead className="bg-emerald-50">
                 <tr>
-                  <td colSpan={8} className="px-6 py-4 text-center text-emerald-600">
-                    Loading inventory...
-                  </td>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-emerald-700 uppercase tracking-wider">
+                    Product
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-emerald-700 uppercase tracking-wider">
+                    Category
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-emerald-700 uppercase tracking-wider">
+                    Stock
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-emerald-700 uppercase tracking-wider">
+                    Price (RWF)
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-emerald-700 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-emerald-700 uppercase tracking-wider">
+                    Supplier
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-emerald-700 uppercase tracking-wider">
+                    Expiry Date
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-emerald-700 uppercase tracking-wider">
+                    Actions
+                  </th>
                 </tr>
-              ) : filteredInventory.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="px-6 py-4 text-center text-emerald-600">
-                    No items found. Add some avocado products!
-                  </td>
-                </tr>
-              ) : (
-                filteredInventory.map((item) => {
+              </thead>
+              <tbody className="bg-white divide-y divide-emerald-100">
+                {filteredInventory.map((item) => {
                   const status = getStockStatus(item);
                   return (
-                    <tr key={item.id} className="hover:bg-emerald-50 transition-colors">
+                    <tr key={item.id || Math.random()} className="hover:bg-emerald-50 transition-colors">
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-emerald-900">{item.name}</div>
+                        <div className="text-sm font-medium text-emerald-900">{item.name || 'N/A'}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-emerald-600">{item.category}</div>
+                        <div className="text-sm text-emerald-600">{item.category || 'N/A'}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-emerald-900">
-                          {item.quantity} {item.unit}
-                          {item.quantity <= item.minStock && (
+                          {item.quantity || 0} {item.unit || 'units'}
+                          {(item.quantity || 0) <= (item.minStock || 0) && (
                             <AlertTriangle className="inline h-4 w-4 ml-1 text-yellow-500" />
                           )}
                         </div>
-                        <div className="text-xs text-emerald-500">Min: {item.minStock} {item.unit}</div>
+                        <div className="text-xs text-emerald-500">Min: {item.minStock || 0} {item.unit || 'units'}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-emerald-900">{item.price.toFixed(0)} RWF</div>
+                        <div className="text-sm text-emerald-900">{(item.price || 0).toLocaleString()} RWF</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ring-1 ${getStatusColor(status)}`}>
                           {status === 'low-stock' ? 'Low Stock' : 
-                           status === 'out-of-stock' ? 'Out of Stock' : 'In Stock'}
+                           status === 'out-of-stock' ? 'Out of Stock' : 
+                           status === 'in-stock' ? 'In Stock' : 'Unknown'}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-emerald-600">{item.supplier}</div>
+                        <div className="text-sm text-emerald-600">{item.supplier || 'N/A'}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-emerald-600">{item.expiryDate}</div>
+                        <div className="text-sm text-emerald-600">{item.expiryDate || 'N/A'}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <div className="flex space-x-3">
-                          <button onClick={() => handleEditItem(item)} className="text-blue-600 hover:text-blue-800 transform hover:scale-110 transition">
+                          <button 
+                            onClick={() => handleEditItem(item)} 
+                            className="text-blue-600 hover:text-blue-800 transform hover:scale-110 transition"
+                            title="Edit Item"
+                            aria-label="Edit Item"
+                          >
                             <Edit className="h-5 w-5" />
                           </button>
-                          <button className="text-emerald-600 hover:text-emerald-800 transform hover:scale-110 transition">
+                          <button 
+                            className="text-emerald-600 hover:text-emerald-800 transform hover:scale-110 transition"
+                            title="View Details"
+                            aria-label="View Details"
+                          >
                             <Eye className="h-5 w-5" />
                           </button>
                           <button 
                             onClick={() => handleDeleteItem(item.id)}
                             className="text-red-600 hover:text-red-800 transform hover:scale-110 transition"
+                            title="Delete Item"
+                            aria-label="Delete Item"
                           >
                             <Trash2 className="h-5 w-5" />
                           </button>
@@ -287,11 +412,11 @@ const ShopInventory = () => {
                       </td>
                     </tr>
                   );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {/* Add/Edit Modal */}
@@ -301,8 +426,9 @@ const ShopInventory = () => {
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-xl font-semibold text-emerald-800">{editingItem ? 'Edit Inventory Item' : 'Add New Inventory Item'}</h3>
               <button
-                onClick={() => setShowAddModal(false)}
+                onClick={() => { setShowAddModal(false); resetForm(); }}
                 className="text-emerald-400 hover:text-emerald-600 text-2xl"
+                aria-label="Close"
               >
                 ×
               </button>
@@ -310,22 +436,24 @@ const ShopInventory = () => {
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-medium text-emerald-700 mb-2">Product Name</label>
+                <label className="block text-sm font-medium text-emerald-700 mb-2">Product Name *</label>
                 <input
                   type="text"
                   value={newItem.name}
                   onChange={(e) => setNewItem({...newItem, name: e.target.value})}
                   className="w-full p-3 border border-emerald-300 rounded-lg focus:ring-2 focus:ring-emerald-500 transition-all"
                   placeholder="Enter product name"
+                  required
                 />
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-emerald-700 mb-2">Category</label>
+                <label className="block text-sm font-medium text-emerald-700 mb-2">Category *</label>
                 <select
                   value={newItem.category}
                   onChange={(e) => setNewItem({...newItem, category: e.target.value})}
                   className="w-full p-3 border border-emerald-300 rounded-lg focus:ring-2 focus:ring-emerald-500 transition-all"
+                  required
                 >
                   <option value="">Select category</option>
                   {categories.map(category => (
@@ -335,13 +463,15 @@ const ShopInventory = () => {
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-emerald-700 mb-2">Quantity</label>
+                <label className="block text-sm font-medium text-emerald-700 mb-2">Quantity *</label>
                 <input
                   type="number"
+                  min="0"
                   value={newItem.quantity}
                   onChange={(e) => setNewItem({...newItem, quantity: e.target.value})}
                   className="w-full p-3 border border-emerald-300 rounded-lg focus:ring-2 focus:ring-emerald-500 transition-all"
                   placeholder="Enter quantity"
+                  required
                 />
               </div>
               
@@ -357,14 +487,16 @@ const ShopInventory = () => {
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-emerald-700 mb-2">Price (RWF)</label>
+                <label className="block text-sm font-medium text-emerald-700 mb-2">Price (RWF) *</label>
                 <input
                   type="number"
+                  min="0"
                   step="1"
                   value={newItem.price}
                   onChange={(e) => setNewItem({...newItem, price: e.target.value})}
                   className="w-full p-3 border border-emerald-300 rounded-lg focus:ring-2 focus:ring-emerald-500 transition-all"
                   placeholder="Enter price in RWF"
+                  required
                 />
               </div>
               
@@ -372,6 +504,7 @@ const ShopInventory = () => {
                 <label className="block text-sm font-medium text-emerald-700 mb-2">Minimum Stock</label>
                 <input
                   type="number"
+                  min="0"
                   value={newItem.minStock}
                   onChange={(e) => setNewItem({...newItem, minStock: e.target.value})}
                   className="w-full p-3 border border-emerald-300 rounded-lg focus:ring-2 focus:ring-emerald-500 transition-all"
@@ -400,7 +533,7 @@ const ShopInventory = () => {
                 />
               </div>
               
-              <div>
+              <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-emerald-700 mb-2">Expiry Date</label>
                 <input
                   type="date"
@@ -408,12 +541,15 @@ const ShopInventory = () => {
                   onChange={(e) => setNewItem({...newItem, expiryDate: e.target.value})}
                   className="w-full p-3 border border-emerald-300 rounded-lg focus:ring-2 focus:ring-emerald-500 transition-all"
                 />
+                <p className="text-xs text-emerald-600 mt-1">
+                  If left empty, expiry date will be calculated based on harvest date and category
+                </p>
               </div>
             </div>
             
             <div className="flex justify-end space-x-4 mt-8">
               <button
-                onClick={() => setShowAddModal(false)}
+                onClick={() => { setShowAddModal(false); resetForm(); }}
                 className="px-6 py-3 border border-emerald-300 rounded-lg text-emerald-700 hover:bg-emerald-50 transition-all"
               >
                 Cancel
@@ -421,6 +557,7 @@ const ShopInventory = () => {
               <button
                 onClick={handleSaveItem}
                 className="px-6 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all transform hover:scale-105"
+                disabled={!newItem.name || !newItem.quantity || !newItem.price}
               >
                 {editingItem ? 'Update Item' : 'Add Item'}
               </button>

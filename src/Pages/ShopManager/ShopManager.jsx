@@ -29,6 +29,7 @@ import {
   Clock
 } from 'lucide-react';
 
+
 const RwandaAvocadoManager = () => {
   const [activeSection, setActiveSection] = useState('dashboard');
   const [dashboardData, setDashboardData] = useState({});

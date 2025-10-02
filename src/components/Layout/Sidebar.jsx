@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { 
   Home, 
   User, 
@@ -22,9 +22,68 @@ import {
 import asr from '../../assets/image/pwallet-logo-new.png';
 import './Sidebar.css';
 
-const Sidebar = ({ role }) => {
+const Sidebar = ({ role: propRole }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const [currentRole, setCurrentRole] = useState(null);
+  const location = useLocation();
+
+  // Enhanced role detection
+  useEffect(() => {
+    const detectRole = () => {
+      // Priority 1: Use prop role if provided
+      if (propRole) {
+        setCurrentRole(propRole);
+        return;
+      }
+
+      // Priority 2: Detect from current path
+      const path = location.pathname;
+      if (path.includes('/admin')) {
+        setCurrentRole('admin');
+        return;
+      }
+      if (path.includes('/agent')) {
+        setCurrentRole('agent');
+        return;
+      }
+      if (path.includes('/farmer')) {
+        setCurrentRole('farmer');
+        return;
+      }
+      if (path.includes('/shop-manager') || path.includes('/shop_manager')) {
+        setCurrentRole('shop-manager');
+        return;
+      }
+
+      // Priority 3: Check localStorage
+      const storedRole = localStorage.getItem('userRole');
+      if (storedRole) {
+        // Normalize role format (convert underscore to hyphen if needed)
+        const normalizedRole = storedRole.replace('_', '-');
+        setCurrentRole(normalizedRole);
+        return;
+      }
+
+      // Priority 4: Check user data in localStorage
+      const userData = localStorage.getItem('user');
+      if (userData) {
+        try {
+          const user = JSON.parse(userData);
+          const userRole = user.role?.replace('_', '-');
+          setCurrentRole(userRole);
+          return;
+        } catch (e) {
+          console.error('Error parsing user data:', e);
+        }
+      }
+
+      // Fallback
+      setCurrentRole('farmer');
+    };
+
+    detectRole();
+  }, [propRole, location.pathname]);
 
   // Get shop info from localStorage if available
   const getShopInfo = () => {
@@ -32,11 +91,13 @@ const Sidebar = ({ role }) => {
     return shopInfo ? JSON.parse(shopInfo) : { shopName: 'Shop Manager' };
   };
 
-  const NavItem = ({ to, icon: Icon, children }) => (
+  const NavItem = ({ to, icon: Icon, children, isActive = false }) => (
     <li className="group">
       <Link 
         to={to}
-        className={`nav-item ${isCollapsed ? 'justify-center' : ''}`}
+        className={`nav-item ${isCollapsed ? 'justify-center' : ''} ${
+          isActive ? 'nav-item-active' : ''
+        }`}
       >
         <Icon className="nav-item-icon" />
         <span className={`nav-item-text ${isCollapsed ? 'hidden hidden-on-collapse' : ''}`}>
@@ -72,7 +133,7 @@ const Sidebar = ({ role }) => {
   ];
 
   const shopManagerLinks = [
-    { to: "/dashboard/shop-manager", icon: Store, text: "Shop Manager" },
+    { to: "/dashboard/shop-manager", icon: Store, text: "Dashboard" },
     { to: "/dashboard/shop-manager/inventory", icon: Package, text: "Inventory" },
     { to: "/dashboard/shop-manager/orders", icon: ShoppingCart, text: "Orders" },
     { to: "/dashboard/shop-manager/products", icon: ShoppingBag, text: "Products" },
@@ -84,7 +145,9 @@ const Sidebar = ({ role }) => {
   ];
 
   const getLinks = () => {
-    switch (role) {
+    console.log('Current role in sidebar:', currentRole); // Debug log
+    
+    switch (currentRole) {
       case 'admin':
         return adminLinks;
       case 'agent':
@@ -92,26 +155,43 @@ const Sidebar = ({ role }) => {
       case 'farmer':
         return farmerLinks;
       case 'shop-manager':
+      case 'shop_manager': // Handle both formats
         return shopManagerLinks;
       default:
-        return [];
+        console.log('No matching role found, defaulting to farmer links');
+        return farmerLinks; // Default fallback
     }
   };
 
   const getSidebarTitle = () => {
-    switch (role) {
+    switch (currentRole) {
       case 'admin':
-        return 'AS-Rwanda';
+        return 'AS-Rwanda Admin';
       case 'agent':
-        return 'AS-Rwanda';
+        return 'AS-Rwanda Agent';
       case 'farmer':
-        return 'AS-Rwanda';
+        return 'AS-Rwanda Farmer';
       case 'shop-manager':
-        return 'AS-Rwanda';
+      case 'shop_manager':
+        return 'AS-Rwanda Shop';
       default:
         return 'AS-Rwanda';
     }
   };
+
+  // Show loading state while role is being determined
+  if (!currentRole) {
+    return (
+      <div className="sidebar">
+        <div className="sidebar-header">
+          <img src={asr} alt="Logo" className="topbar-logo" />
+          <h2 className="sidebar-header-title">Loading...</h2>
+        </div>
+      </div>
+    );
+  }
+
+  const currentLinks = getLinks();
 
   return (
     <>
@@ -160,7 +240,7 @@ const Sidebar = ({ role }) => {
         </div>
 
         {/* Shop Manager Info Panel (only for shop-manager role) */}
-        {/* {role === 'shop-manager' && !isCollapsed && (
+        {currentRole === 'shop-manager' && !isCollapsed && (
           <div className="px-4 py-3 mx-4 mb-2 bg-green-50 border border-green-200 rounded-lg">
             <div className="flex items-center space-x-2">
               <Store className="w-4 h-4 text-green-600" />
@@ -169,19 +249,30 @@ const Sidebar = ({ role }) => {
                   {getShopInfo().shopName || 'Shop Manager'}
                 </p>
                 <p className="text-xs text-green-600">
-                  ID: {getShopInfo().shopId || 'N/A'}
+                  Active Shop
                 </p>
               </div>
             </div>
           </div>
-        )} */}
+        )}
 
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto">
           <ul className="p-4 space-y-2">
-            <NavItem to="/dashboard" icon={Home}>Home</NavItem>
-            {getLinks().map((link) => (
-              <NavItem key={link.to} to={link.to} icon={link.icon}>
+            <NavItem 
+              to="/dashboard" 
+              icon={Home}
+              isActive={location.pathname === '/dashboard'}
+            >
+              Home
+            </NavItem>
+            {currentLinks.map((link) => (
+              <NavItem 
+                key={link.to} 
+                to={link.to} 
+                icon={link.icon}
+                isActive={location.pathname === link.to}
+              >
                 {link.text}
               </NavItem>
             ))}
@@ -189,19 +280,20 @@ const Sidebar = ({ role }) => {
         </nav>
 
         {/* Role Badge at Bottom */}
-        {/* <div className={`p-4 border-t border-gray-200 ${isCollapsed ? 'hidden' : ''}`}>
+        <div className={`p-4 border-t border-gray-200 ${isCollapsed ? 'hidden' : ''}`}>
           <div className="flex items-center space-x-2">
             <div className={`px-2 py-1 text-xs font-medium rounded-full ${
-              role === 'admin' ? 'bg-red-100 text-red-800' :
-              role === 'agent' ? 'bg-blue-100 text-blue-800' :
-              role === 'farmer' ? 'bg-green-100 text-green-800' :
-              role === 'shop-manager' ? 'bg-purple-100 text-purple-800' :
+              currentRole === 'admin' ? 'bg-red-100 text-red-800' :
+              currentRole === 'agent' ? 'bg-blue-100 text-blue-800' :
+              currentRole === 'farmer' ? 'bg-green-100 text-green-800' :
+              currentRole === 'shop-manager' ? 'bg-purple-100 text-purple-800' :
               'bg-gray-100 text-gray-800'
             }`}>
-              {role === 'shop-manager' ? 'Shop Manager' : role?.charAt(0).toUpperCase() + role?.slice(1)}
+              {currentRole === 'shop-manager' ? 'Shop Manager' : 
+               currentRole?.charAt(0).toUpperCase() + currentRole?.slice(1)}
             </div>
           </div>
-        </div> */}
+        </div>
       </div>
     </>
   );

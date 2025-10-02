@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { ShoppingCart, Search, Filter, Eye, Edit, CheckCircle, Leaf } from 'lucide-react';
 import { initializeStorage, getOrders, updateOrder } from '../../services/marketStorageService';
@@ -11,28 +10,103 @@ const ShopOrders = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [showEditModal, setShowEditModal] = useState(false);
   const [editOrder, setEditOrder] = useState(null);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     initializeStorage();
     loadOrders();
   }, []);
 
-  const loadOrders = () => {
+  const loadOrders = async () => {
     setLoading(true);
+    setError(null);
     try {
-      const ordersData = getOrders();
-      setOrders(ordersData);
+      const ordersData = await getOrders();
+      // Ensure ordersData is always an array
+      const validOrders = Array.isArray(ordersData) ? ordersData : [];
+      setOrders(validOrders);
     } catch (error) {
       console.error('Error loading orders:', error);
-      alert('Error loading orders: ' + error.message);
+      setError(error.message || 'Failed to load orders');
+      // Set empty array as fallback
+      setOrders([]);
+      
+      // Create mock data for development/testing when API fails
+      const mockOrders = [
+        {
+          id: 'ORD-001',
+          customer: {
+            name: 'John Uwimana',
+            email: 'john@example.com'
+          },
+          orderDate: '2024-10-01',
+          status: 'pending',
+          totalAmount: 25000,
+          items: [
+            {
+              name: 'Hass Avocado',
+              quantity: 10,
+              unit: 'kg',
+              price: 2500
+            }
+          ]
+        },
+        {
+          id: 'ORD-002',
+          customer: {
+            name: 'Marie Mukamana',
+            email: 'marie@example.com'
+          },
+          orderDate: '2024-10-02',
+          status: 'processing',
+          totalAmount: 45000,
+          items: [
+            {
+              name: 'Fuerte Avocado',
+              quantity: 15,
+              unit: 'kg',
+              price: 3000
+            }
+          ]
+        },
+        {
+          id: 'ORD-003',
+          customer: {
+            name: 'Paul Nsengimana',
+            email: 'paul@example.com'
+          },
+          orderDate: '2024-10-03',
+          status: 'completed',
+          totalAmount: 60000,
+          items: [
+            {
+              name: 'Premium Avocado Mix',
+              quantity: 20,
+              unit: 'kg',
+              price: 3000
+            }
+          ]
+        }
+      ];
+      
+      // Use mock data when API fails (for development)
+      if (process.env.NODE_ENV === 'development') {
+        setOrders(mockOrders);
+        setError('Using mock data - API unavailable');
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  const filteredOrders = orders.filter(order => {
-    const matchesSearch = order.id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         order.customer?.name?.toLowerCase().includes(searchTerm.toLowerCase());
+  // Ensure orders is always an array before filtering
+  const safeOrders = Array.isArray(orders) ? orders : [];
+  
+  const filteredOrders = safeOrders.filter(order => {
+    if (!order) return false;
+    
+    const matchesSearch = (order.id?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+                         (order.customer?.name?.toLowerCase() || '').includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
@@ -47,20 +121,23 @@ const ShopOrders = () => {
     }
   };
 
-  const handleEditOrder = () => {
-    if (!editOrder?.status) return;
+  const handleEditOrder = async () => {
+    if (!editOrder?.status || !editOrder?.id) return;
+    
     try {
-      updateOrder(editOrder.id, { ...editOrder });
-      loadOrders();
+      await updateOrder(editOrder.id, { ...editOrder });
+      await loadOrders(); // Reload orders after update
       setShowEditModal(false);
       setEditOrder(null);
       alert('Order updated successfully');
     } catch (error) {
+      console.error('Error updating order:', error);
       alert('Error updating order: ' + error.message);
     }
   };
 
   const openEditModal = (order) => {
+    if (!order) return;
     setEditOrder({ ...order });
     setShowEditModal(true);
   };
@@ -76,6 +153,11 @@ const ShopOrders = () => {
               Avocado Order Management
             </h2>
             <p className="text-emerald-600 mt-1">Track and manage customer orders for your Rwandan avocado farm</p>
+            {error && (
+              <div className="mt-2 p-2 bg-yellow-100 border border-yellow-400 rounded text-sm text-yellow-700">
+                ⚠️ {error}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -113,6 +195,13 @@ const ShopOrders = () => {
             <span className="text-sm text-emerald-600">
               Total Orders: <span className="font-semibold">{filteredOrders.length}</span>
             </span>
+            <button
+              onClick={loadOrders}
+              className="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-lg hover:bg-emerald-200 transition-all text-sm"
+              disabled={loading}
+            >
+              {loading ? 'Loading...' : 'Refresh'}
+            </button>
           </div>
         </div>
       </div>
@@ -127,7 +216,17 @@ const ShopOrders = () => {
         ) : filteredOrders.length === 0 ? (
           <div className="p-8 text-center">
             <ShoppingCart className="h-12 w-12 text-emerald-400 mx-auto mb-4" />
-            <p className="text-emerald-600">No orders found for your avocado farm</p>
+            <p className="text-emerald-600">
+              {error ? 'Unable to load orders. Please check your connection.' : 'No orders found for your avocado farm'}
+            </p>
+            {error && (
+              <button
+                onClick={loadOrders}
+                className="mt-4 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all"
+              >
+                Try Again
+              </button>
+            )}
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -158,22 +257,24 @@ const ShopOrders = () => {
                 {filteredOrders.map((order) => (
                   <tr key={order.id} className="hover:bg-emerald-50 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-emerald-900">{order.id}</div>
+                      <div className="text-sm font-medium text-emerald-900">{order.id || 'N/A'}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-emerald-900">{order.customer?.name || 'N/A'}</div>
                       <div className="text-sm text-emerald-600">{order.customer?.email || ''}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-emerald-900">{order.orderDate}</div>
+                      <div className="text-sm text-emerald-900">{order.orderDate || 'N/A'}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ring-1 ${getStatusColor(order.status)}`}>
-                        {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                        {order.status ? order.status.charAt(0).toUpperCase() + order.status.slice(1) : 'Unknown'}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-emerald-900">{order.totalAmount?.toFixed(0) || '0'} RWF</div>
+                      <div className="text-sm font-medium text-emerald-900">
+                        {order.totalAmount ? order.totalAmount.toLocaleString() : '0'} RWF
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex space-x-3">
@@ -225,13 +326,15 @@ const ShopOrders = () => {
               </div>
               <div>
                 <h4 className="text-sm font-medium text-emerald-700">Order Information</h4>
-                <p className="text-sm text-emerald-600">Order Date: {selectedOrder.orderDate}</p>
+                <p className="text-sm text-emerald-600">Order Date: {selectedOrder.orderDate || 'N/A'}</p>
                 <p className="text-sm text-emerald-600">Status: 
                   <span className={`inline-flex ml-2 px-3 py-1 text-xs font-semibold rounded-full ring-1 ${getStatusColor(selectedOrder.status)}`}>
-                    {selectedOrder.status.charAt(0).toUpperCase() + selectedOrder.status.slice(1)}
+                    {selectedOrder.status ? selectedOrder.status.charAt(0).toUpperCase() + selectedOrder.status.slice(1) : 'Unknown'}
                   </span>
                 </p>
-                <p className="text-sm text-emerald-600">Total: {selectedOrder.totalAmount?.toFixed(0) || '0'} RWF</p>
+                <p className="text-sm text-emerald-600">
+                  Total: {selectedOrder.totalAmount ? selectedOrder.totalAmount.toLocaleString() : '0'} RWF
+                </p>
               </div>
               <div>
                 <h4 className="text-sm font-medium text-emerald-700">Items Ordered</h4>
@@ -239,7 +342,7 @@ const ShopOrders = () => {
                   <ul className="list-disc pl-5 space-y-2 text-sm text-emerald-600">
                     {selectedOrder.items.map((item, index) => (
                       <li key={index}>
-                        {item.name} - {item.quantity} {item.unit} @ {item.price.toFixed(0)} RWF
+                        {item.name || 'N/A'} - {item.quantity || 0} {item.unit || 'units'} @ {(item.price || 0).toLocaleString()} RWF
                       </li>
                     ))}
                   </ul>
@@ -278,7 +381,7 @@ const ShopOrders = () => {
               <div>
                 <label className="block text-sm font-medium text-emerald-700 mb-2">Order Status</label>
                 <select
-                  value={editOrder.status}
+                  value={editOrder.status || 'pending'}
                   onChange={(e) => setEditOrder({ ...editOrder, status: e.target.value })}
                   className="w-full p-3 border border-emerald-300 rounded-lg focus:ring-2 focus:ring-emerald-500 transition-all"
                   aria-label="Order status"
