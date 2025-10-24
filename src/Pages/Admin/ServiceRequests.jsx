@@ -376,7 +376,9 @@ export default function ServiceRequests() {
         <div className="flex justify-between items-start mb-6">
           <div>
             <h2 className="text-2xl font-bold text-slate-900">Service Request Details</h2>
-            <p className="text-sm text-slate-500 mt-1">Request #{request.requestNumber}</p>
+            <p className="text-sm text-slate-500 mt-1">
+              {request.service_type === 'property_evaluation' ? 'Property Evaluation Request' : `Request #${request.requestNumber}`}
+            </p>
           </div>
           <button
             onClick={onClose}
@@ -431,13 +433,22 @@ export default function ServiceRequests() {
               Request Information
             </h3>
             <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-slate-600">Request ID:</span>
-                <span className="text-sm font-mono bg-white px-2 py-1 rounded border border-emerald-200">{request.requestNumber || 'N/A'}</span>
-              </div>
+              {/* Only show Request ID for non-property evaluation and non-harvest requests */}
+              {request.service_type !== 'property_evaluation' && request.service_type !== 'harvest' && (
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-slate-600">Request ID:</span>
+                  <span className="text-sm font-mono bg-white px-2 py-1 rounded border border-emerald-200">
+                    {request.requestNumber || 'N/A'}
+                  </span>
+                </div>
+              )}
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium text-slate-600">Service Type:</span>
-                <span className="text-sm font-semibold text-slate-900">{request.service_type || 'Unknown'}</span>
+                <span className="text-sm font-semibold text-slate-900">
+                  {request.service_type === 'property_evaluation' ? 'Property Evaluation' :
+                   request.service_type === 'harvest' ? 'Harvesting Day' :
+                   request.service_type || 'Unknown'}
+                </span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium text-slate-600">Status:</span>
@@ -958,7 +969,7 @@ export default function ServiceRequests() {
                     <tr key={request.id} className="hover:bg-slate-50 transition-colors duration-150">
                       <td className="px-6 py-4">
                         <span className="text-xs font-mono bg-slate-100 text-slate-700 px-2.5 py-1 rounded-lg font-semibold">
-                          {request.requestNumber || request.id}
+                          {request.service_type === 'property_evaluation' ? 'Property Eval' : (request.requestNumber || request.id)}
                         </span>
                       </td>
                       <td className="px-6 py-4">

@@ -16,6 +16,7 @@ import {
   startPestManagementTreatment,
   completePestManagementTreatment
 } from '../../services/serviceRequestsService';
+import './AdminServiceRequestsDashboard.css';
 
 const AdminServiceRequestsDashboard = () => {
   const [serviceRequests, setServiceRequests] = useState([]);
@@ -27,6 +28,10 @@ const AdminServiceRequestsDashboard = () => {
   const [actionLoading, setActionLoading] = useState({});
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [viewMode, setViewMode] = useState('table'); // 'table' or 'cards'
+  const [selectedRequest, setSelectedRequest] = useState(null);
+  const [showModal, setShowModal] = useState(false);
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
 
   useEffect(() => {
     fetchAllRequests();
@@ -37,26 +42,20 @@ const AdminServiceRequestsDashboard = () => {
     setError(null);
     
     try {
-      console.log('🔄 Fetching all service requests...');
-      
       const [propertyResponse, harvestResponse, pestResponse] = await Promise.allSettled([
         listServiceRequests(),
         listHarvestRequests(),
         listPestManagementRequests()
       ]);
 
-      // Handle property evaluation requests
       if (propertyResponse.status === 'fulfilled') {
         const propData = propertyResponse.value;
         const requests = Array.isArray(propData) ? propData : propData?.data || [];
         setServiceRequests(requests);
-        console.log('✅ Property evaluation requests:', requests.length);
       } else {
-        console.error('❌ Property evaluation failed:', propertyResponse.reason);
         setServiceRequests([]);
       }
 
-      // Handle harvest requests
       if (harvestResponse.status === 'fulfilled') {
         const harvestData = harvestResponse.value;
         let requests = [];
@@ -70,13 +69,10 @@ const AdminServiceRequestsDashboard = () => {
         }
         
         setHarvestRequests(requests);
-        console.log('✅ Harvest requests:', requests.length);
       } else {
-        console.error('❌ Harvest requests failed:', harvestResponse.reason);
         setHarvestRequests([]);
       }
 
-      // Handle pest management requests
       if (pestResponse.status === 'fulfilled') {
         const pestData = pestResponse.value;
         let requests = [];
@@ -90,14 +86,11 @@ const AdminServiceRequestsDashboard = () => {
         }
         
         setPestManagementRequests(requests);
-        console.log('✅ Pest management requests:', requests.length);
       } else {
-        console.error('❌ Pest management requests failed:', pestResponse.reason);
         setPestManagementRequests([]);
       }
 
     } catch (err) {
-      console.error('❌ Critical error:', err);
       setError(err.message);
     } finally {
       setLoading(false);
@@ -133,6 +126,7 @@ const AdminServiceRequestsDashboard = () => {
         });
       }
       await fetchAllRequests();
+      setShowModal(false);
     } catch (err) {
       alert(`Failed to approve request: ${err.message}`);
     } finally {
@@ -156,6 +150,7 @@ const AdminServiceRequestsDashboard = () => {
         await rejectPropertyEvaluationRequest(requestId, { rejection_reason: reason });
       }
       await fetchAllRequests();
+      setShowModal(false);
     } catch (err) {
       alert(`Failed to reject request: ${err.message}`);
     } finally {
@@ -185,6 +180,7 @@ const AdminServiceRequestsDashboard = () => {
         });
       }
       await fetchAllRequests();
+      setShowModal(false);
     } catch (err) {
       alert(`Failed to start request: ${err.message}`);
     } finally {
@@ -215,6 +211,7 @@ const AdminServiceRequestsDashboard = () => {
         });
       }
       await fetchAllRequests();
+      setShowModal(false);
     } catch (err) {
       alert(`Failed to complete request: ${err.message}`);
     } finally {
@@ -247,32 +244,16 @@ const AdminServiceRequestsDashboard = () => {
   };
 
   const getStatusBadge = (status) => {
-    const statusClasses = {
-      'pending': 'bg-yellow-100 text-yellow-800 border-yellow-200',
-      'approved': 'bg-green-100 text-green-800 border-green-200',
-      'in_progress': 'bg-blue-100 text-blue-800 border-blue-200',
-      'completed': 'bg-purple-100 text-purple-800 border-purple-200',
-      'rejected': 'bg-red-100 text-red-800 border-red-200',
-      'cancelled': 'bg-gray-100 text-gray-800 border-gray-200'
-    };
-    
     return (
-      <span className={`px-3 py-1 rounded-full text-xs font-medium border ${statusClasses[status] || statusClasses.pending}`}>
-        {(status || 'pending').charAt(0).toUpperCase() + (status || 'pending').slice(1)}
+      <span className={`status-badge status-${status || 'pending'}`}>
+        {(status || 'pending').charAt(0).toUpperCase() + (status || 'pending').slice(1).replace('_', ' ')}
       </span>
     );
   };
 
   const getPriorityBadge = (priority) => {
-    const priorityClasses = {
-      'low': 'bg-green-100 text-green-800 border-green-200',
-      'medium': 'bg-yellow-100 text-yellow-800 border-yellow-200',
-      'high': 'bg-orange-100 text-orange-800 border-orange-200',
-      'urgent': 'bg-red-100 text-red-800 border-red-200'
-    };
-    
     return (
-      <span className={`px-3 py-1 rounded-full text-xs font-medium border ${priorityClasses[priority] || priorityClasses.medium}`}>
+      <span className={`priority-badge priority-${priority || 'medium'}`}>
         {(priority || 'medium').charAt(0).toUpperCase() + (priority || 'medium').slice(1)}
       </span>
     );
@@ -284,20 +265,20 @@ const AdminServiceRequestsDashboard = () => {
     const status = request.status || 'pending';
 
     return (
-      <div className="flex gap-1 flex-wrap">
+      <div className="action-buttons">
         {status === 'pending' && (
           <>
             <button
               onClick={() => handleApproveRequest(request, type)}
               disabled={isLoading}
-              className="px-3 py-1 bg-green-500 text-white rounded-md text-xs hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="btn btn-approve"
             >
               {isLoading ? '⏳' : '✓ Approve'}
             </button>
             <button
               onClick={() => handleRejectRequest(request, type)}
               disabled={isLoading}
-              className="px-3 py-1 bg-red-500 text-white rounded-md text-xs hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="btn btn-reject"
             >
               {isLoading ? '⏳' : '✗ Reject'}
             </button>
@@ -307,7 +288,7 @@ const AdminServiceRequestsDashboard = () => {
           <button
             onClick={() => handleStartRequest(request, type)}
             disabled={isLoading}
-            className="px-3 py-1 bg-blue-500 text-white rounded-md text-xs hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="btn btn-start"
           >
             {isLoading ? '⏳' : '▶ Start'}
           </button>
@@ -316,37 +297,39 @@ const AdminServiceRequestsDashboard = () => {
           <button
             onClick={() => handleCompleteRequest(request, type)}
             disabled={isLoading}
-            className="px-3 py-1 bg-purple-500 text-white rounded-md text-xs hover:bg-purple-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="btn btn-complete"
           >
             {isLoading ? '⏳' : '✓ Complete'}
           </button>
         )}
         {['completed', 'rejected', 'cancelled'].includes(status) && (
-          <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-md text-xs">
-            No actions
-          </span>
+          <span className="no-action">No actions</span>
         )}
       </div>
     );
   };
 
-  // Filter and search logic
+  const handleSort = (key) => {
+    let direction = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
   const allRequests = [
     ...serviceRequests.map(req => ({ ...req, type: 'property' })),
     ...harvestRequests.map(req => ({ ...req, type: 'harvest' })),
     ...pestManagementRequests.map(req => ({ ...req, type: 'pest' }))
   ];
 
-  const filteredRequests = allRequests.filter(request => {
-    // Tab filter
+  let filteredRequests = allRequests.filter(request => {
     if (activeTab === 'harvest' && request.type !== 'harvest') return false;
     if (activeTab === 'property' && request.type !== 'property') return false;
     if (activeTab === 'pest' && request.type !== 'pest') return false;
     
-    // Status filter
     if (statusFilter && request.status !== statusFilter) return false;
     
-    // Search filter
     if (searchTerm) {
       const searchLower = searchTerm.toLowerCase();
       const farmerName = (request.farmer_id?.full_name || '').toLowerCase();
@@ -363,184 +346,187 @@ const AdminServiceRequestsDashboard = () => {
     return true;
   });
 
+  // Apply sorting
+  if (sortConfig.key) {
+    filteredRequests.sort((a, b) => {
+      let aVal = a[sortConfig.key];
+      let bVal = b[sortConfig.key];
+      
+      if (sortConfig.key === 'farmer') {
+        aVal = a.farmer_id?.full_name || '';
+        bVal = b.farmer_id?.full_name || '';
+      }
+      
+      if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+      if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }
+
   if (loading) {
     return (
-      <div className="flex justify-center items-center min-h-96 bg-white">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading service requests...</p>
-        </div>
+      <div className="loading-container">
+        <div className="spinner"></div>
+        <p>Loading service requests...</p>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="bg-red-50 border border-red-200 rounded-lg p-6 m-4">
-        <div className="flex items-center">
-          <div className="text-red-400">
-            <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd"/>
-            </svg>
-          </div>
-          <div className="ml-3">
-            <h3 className="text-lg font-medium text-red-800">Error Loading Data</h3>
-            <div className="mt-2 text-sm text-red-700">{error}</div>
-            <div className="mt-4">
-              <button
-                onClick={fetchAllRequests}
-                className="bg-red-100 hover:bg-red-200 text-red-800 px-4 py-2 rounded-md text-sm font-medium transition-colors"
-              >
-                Try Again
-              </button>
-            </div>
-          </div>
-        </div>
+      <div className="error-container">
+        <div className="error-icon">⚠️</div>
+        <h3>Error Loading Data</h3>
+        <p>{error}</p>
+        <button onClick={fetchAllRequests} className="btn btn-primary">
+          Try Again
+        </button>
       </div>
     );
   }
 
   return (
-    <div className="max-w-7xl mx-auto p-6 bg-gray-50 min-h-screen">
+    <div className="dashboard-container">
       {/* Header */}
-      <div className="flex justify-between items-center mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Service Requests Management</h1>
-          <p className="text-gray-600">Manage harvest requests, property evaluations, and pest management</p>
+      <div className="dashboard-header">
+        <div className="header-contents">
+          <div className="header-text">
+            <h1>Service Requests Management</h1>
+            <p>Manage harvest requests, property evaluations, and pest management</p>
+          </div>
+          <div className="header-actions">
+            <button
+              onClick={fetchAllRequests}
+              disabled={loading}
+              className="btn btn-refresh"
+            >
+              <span className="refresh-icon">🔄</span>
+              {loading ? 'Refreshing...' : 'Refresh'}
+            </button>
+          </div>
         </div>
-        <button
-          onClick={fetchAllRequests}
-          disabled={loading}
-          className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg disabled:opacity-50 font-medium transition-colors shadow-sm"
-        >
-          {loading ? '🔄 Refreshing...' : '🔄 Refresh'}
-        </button>
       </div>
       
       {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
-        <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-6 rounded-xl shadow-lg">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-semibold mb-2">Total Requests</h3>
-              <p className="text-3xl font-bold">{allRequests.length}</p>
+      <div className="stats-grid">
+        <div className="stat-cards stat-total">
+          <div className="stat-content">
+            <div className="stat-info">
+              <h3>Total Requests</h3>
+              <p className="stat-number">{allRequests.length}</p>
             </div>
-            <div className="text-blue-200">
-              <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-              </svg>
-            </div>
+            {/* <div className="stat-icon"></div> */}
+          </div>
+          <div className="stat-footer">
+            <span className="stat-trend positive">↑ All time</span>
           </div>
         </div>
         
-        <div className="bg-gradient-to-r from-purple-500 to-purple-600 text-white p-6 rounded-xl shadow-lg">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-semibold mb-2">Property Evaluations</h3>
-              <p className="text-3xl font-bold">{serviceRequests.length}</p>
+        <div className="stat-cards stat-property">
+          <div className="stat-content">
+            <div className="stat-info">
+              <h3>Property Evaluations</h3>
+              <p className="stat-number">{serviceRequests.length}</p>
             </div>
-            <div className="text-purple-200">
-              <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
-              </svg>
-            </div>
+            {/* <div className="stat-icon">🏡</div> */}
+          </div>
+          <div className="stat-footer">
+            <span className="stat-label">Active evaluations</span>
           </div>
         </div>
         
-        <div className="bg-gradient-to-r from-orange-500 to-orange-600 text-white p-6 rounded-xl shadow-lg">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-semibold mb-2">Harvest Requests</h3>
-              <p className="text-3xl font-bold">{harvestRequests.length}</p>
+        <div className="stat-cards stat-harvest">
+          <div className="stat-content">
+            <div className="stat-info">
+              <h3>Harvest Requests</h3>
+              <p className="stat-number">{harvestRequests.length}</p>
             </div>
-            <div className="text-orange-200">
-              <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1v-2zM3 12a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1v-2zM3 7a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V7z" clipRule="evenodd"/>
-              </svg>
-            </div>
+            {/* <div className="stat-icon">🌾</div> */}
+          </div>
+          <div className="stat-footer">
+            <span className="stat-label">Pending harvests</span>
           </div>
         </div>
         
-        <div className="bg-gradient-to-r from-green-500 to-green-600 text-white p-6 rounded-xl shadow-lg">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-semibold mb-2">Pest Management</h3>
-              <p className="text-3xl font-bold">{pestManagementRequests.length}</p>
+        <div className="stat-cards stat-pest">
+          <div className="stat-content">
+            <div className="stat-info">
+              <h3>Pest Management</h3>
+              <p className="stat-number">{pestManagementRequests.length}</p>
             </div>
-            <div className="text-green-200">
-              <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd"/>
-              </svg>
-            </div>
+            {/* <div className="stat-icon">🐛</div> */}
+          </div>
+          <div className="stat-footer">
+            <span className="stat-label">Active treatments</span>
           </div>
         </div>
         
-        <div className="bg-gradient-to-r from-yellow-500 to-yellow-600 text-white p-6 rounded-xl shadow-lg">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-semibold mb-2">Pending</h3>
-              <p className="text-3xl font-bold">
+        <div className="stat-cards stat-pending">
+          <div className="stat-content">
+            <div className="stat-info">
+              <h3>Pending</h3>
+              <p className="stat-number">
                 {allRequests.filter(req => req.status === 'pending').length}
               </p>
             </div>
-            <div className="text-yellow-200">
-              <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd"/>
-              </svg>
-            </div>
+            {/* <div className="stat-icon">⏳</div> */}
+          </div>
+          <div className="stat-footer">
+            <span className="stat-trend warning">Needs attention</span>
           </div>
         </div>
       </div>
 
       {/* Controls */}
-      <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+      <div className="controls-panel">
         {/* Tabs */}
-        <div className="border-b border-gray-200 mb-6">
-          <nav className="-mb-px flex space-x-8">
+        <div className="tabs-container">
+          <nav className="tabs">
             {[
-              { key: 'all', label: 'All Requests', count: allRequests.length },
-              { key: 'property', label: 'Property Evaluations', count: serviceRequests.length },
-              { key: 'harvest', label: 'Harvest Requests', count: harvestRequests.length },
-              { key: 'pest', label: 'Pest Management', count: pestManagementRequests.length }
+              { key: 'all', label: 'All Requests', count: allRequests.length, icon: '' },
+              { key: 'property', label: 'Property Evaluations', count: serviceRequests.length, icon: '' },
+              { key: 'harvest', label: 'Harvest Requests', count: harvestRequests.length, icon: '' },
+              { key: 'pest', label: 'Pest Management', count: pestManagementRequests.length, icon: '' }
             ].map((tab) => (
               <button
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
-                className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
-                  activeTab === tab.key
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
+                className={`tab ${activeTab === tab.key ? 'active' : ''}`}
               >
-                {tab.label}
-                <span className={`ml-2 px-2 py-1 rounded-full text-xs ${
-                  activeTab === tab.key 
-                    ? 'bg-blue-100 text-blue-600' 
-                    : 'bg-gray-100 text-gray-600'
-                }`}>
-                  {tab.count}
-                </span>
+                <span className="tab-icon">{tab.icon}</span>
+                <span className="tab-label">{tab.label}</span>
+                <span className="tab-count">{tab.count}</span>
               </button>
             ))}
           </nav>
         </div>
 
         {/* Search and Filter */}
-        <div className="flex flex-col sm:flex-row gap-4">
-          <div className="flex-1">
+        <div className="filters-container">
+          <div className="search-box">
+            <span className="search-icon">🔍</span>
             <input
               type="text"
-              placeholder="Search by farmer name, request ID, location, or pest type..."
+              placeholder="Search by farmer name, location, or pest type..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="search-input"
             />
+            {searchTerm && (
+              <button 
+                className="clear-search" 
+                onClick={() => setSearchTerm('')}
+              >
+                ✕
+              </button>
+            )}
           </div>
-          <div className="sm:w-48">
+          
+          <div className="filter-group">
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="filter-select"
             >
               <option value="">All Statuses</option>
               <option value="pending">Pending</option>
@@ -550,52 +536,79 @@ const AdminServiceRequestsDashboard = () => {
               <option value="rejected">Rejected</option>
               <option value="cancelled">Cancelled</option>
             </select>
+            
+            <div className="view-toggle">
+              <button
+                className={`view-btn ${viewMode === 'table' ? 'active' : ''}`}
+                onClick={() => setViewMode('table')}
+                title="Table View"
+              >
+                ☰
+              </button>
+              <button
+                className={`view-btn ${viewMode === 'cards' ? 'active' : ''}`}
+                onClick={() => setViewMode('cards')}
+                title="Card View"
+              >
+                ▦
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Table */}
-      <div className="bg-white shadow-sm rounded-lg overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+      {/* Content */}
+      {viewMode === 'table' ? (
+        <div className="table-container">
+          <table className="requests-table">
+            <thead>
               <tr>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Request Info
+                <th onClick={() => handleSort('type')} className="sortable">
+                  <div className="th-content">
+                    Type
+                    {sortConfig.key === 'type' && (
+                      <span className="sort-indicator">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+                    )}
+                  </div>
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Farmer
+                <th onClick={() => handleSort('farmer')} className="sortable">
+                  <div className="th-content">
+                    Farmer
+                    {sortConfig.key === 'farmer' && (
+                      <span className="sort-indicator">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+                    )}
+                  </div>
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Location
+                <th>Location</th>
+                <th>Details</th>
+                <th onClick={() => handleSort('status')} className="sortable">
+                  <div className="th-content">
+                    Status
+                    {sortConfig.key === 'status' && (
+                      <span className="sort-indicator">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+                    )}
+                  </div>
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Details
+                <th onClick={() => handleSort('priority')} className="sortable">
+                  <div className="th-content">
+                    Priority
+                    {sortConfig.key === 'priority' && (
+                      <span className="sort-indicator">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+                    )}
+                  </div>
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Priority
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Date Range
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
+                <th>Date Range</th>
+                <th className="actions-column">Actions</th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody>
               {filteredRequests.length === 0 ? (
                 <tr>
-                  <td colSpan="8" className="px-6 py-16 text-center text-gray-500">
-                    <div className="flex flex-col items-center">
-                      <svg className="w-16 h-16 text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                      </svg>
-                      <h3 className="text-lg font-medium text-gray-900 mb-1">No requests found</h3>
-                      <p className="text-sm text-gray-500">
+                  <td colSpan="8" className="empty-state">
+                    <div className="empty-content">
+                      <div className="empty-icon">📭</div>
+                      <h3>No requests found</h3>
+                      <p>
                         {searchTerm || statusFilter 
                           ? 'Try adjusting your search or filter criteria' 
                           : `No ${activeTab === 'all' ? '' : activeTab} requests are available at the moment.`
@@ -606,91 +619,77 @@ const AdminServiceRequestsDashboard = () => {
                 </tr>
               ) : (
                 filteredRequests.map((request, index) => (
-                  <tr key={request.id || request._id || index} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex flex-col">
-                        <div className="text-sm font-medium text-gray-900">
-                          #{request.request_number || request.id || 'N/A'}
-                        </div>
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full mt-1 ${
-                          request.type === 'harvest' 
-                            ? 'bg-orange-100 text-orange-800' 
-                            : request.type === 'pest'
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-purple-100 text-purple-800'
-                        }`}>
-                          {request.type === 'harvest' ? '🌾 Harvest' : 
-                           request.type === 'pest' ? '🐛 Pest Control' : 
-                           '🏡 Property Eval'}
-                        </span>
+                  <tr 
+                    key={request.id || request._id || index} 
+                    className="table-row"
+                    onClick={() => {
+                      setSelectedRequest(request);
+                      setShowModal(true);
+                    }}
+                  >
+                    <td>
+                      <span className={`type-badge type-${request.type}`}>
+                        {request.type === 'harvest' ? 'Harvest' : 
+                         request.type === 'pest' ? 'Pest Control' : 
+                         'Property'}
+                      </span>
+                    </td>
+                    <td>
+                      <div className="farmer-info">
+                        <div className="farmer-name">{request.farmer_id?.full_name || 'Unknown'}</div>
+                        <div className="farmer-contact">{request.farmer_id?.phone || 'No contact'}</div>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex flex-col">
-                        <div className="text-sm font-medium text-gray-900">
-                          {request.farmer_id?.full_name || 'Unknown Farmer'}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          {request.farmer_id?.phone || request.farmer_id?.email || 'No contact'}
-                        </div>
-                      </div>
+                    <td>
+                      <div className="location-text">{formatLocation(request.location)}</div>
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="text-xs text-gray-500 max-w-xs">
-                        {formatLocation(request.location)}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="text-xs text-gray-500">
-                        {request.type === 'harvest' ? (
-                          <div className="space-y-1">
-                            <div>🌳 Trees: {request.harvest_details?.trees_to_harvest || 'N/A'}</div>
-                            <div>👥 Workers: {request.harvest_details?.workers_needed || 'N/A'}</div>
-                            <div>⚡ Equipment: {request.harvest_details?.equipment_needed || 'N/A'}</div>
-                          </div>
-                        ) : request.type === 'pest' ? (
-                          <div className="space-y-1">
-                            <div>🐛 Pest Type: {request.pest_type || 'N/A'}</div>
-                            <div>📏 Affected Area: {request.affected_area || 'N/A'}</div>
-                            <div>⚠️ Severity: {request.severity_level || 'N/A'}</div>
-                            <div>💊 Treatment: {request.treatment_method || request.preferred_treatment || 'N/A'}</div>
-                          </div>
-                        ) : (
-                          <div className="space-y-1">
-                            <div>🎯 Purpose: {request.evaluation_purpose || request.evaluationPurpose || 'N/A'}</div>
-                            <div>💧 Irrigation: {request.irrigationSource || 'N/A'}</div>
-                            <div>📏 Farm Size: {request.farmSize || 'N/A'}</div>
-                          </div>
+                    <td>
+                      <div className="details-cell">
+                        {request.type === 'harvest' && (
+                          <>
+                            <div>Trees: {request.harvest_details?.trees_to_harvest || 'N/A'}</div>
+                            <div>Workers: {request.harvest_details?.workers_needed || 'N/A'}</div>
+                          </>
+                        )}
+                        {request.type === 'pest' && (
+                          <>
+                            <div>Pest: {request.pest_type || 'N/A'}</div>
+                            <div>Severity: {request.severity_level || 'N/A'}</div>
+                          </>
+                        )}
+                        {request.type === 'property' && (
+                          <>
+                            <div>Purpose: {request.evaluation_purpose || 'N/A'}</div>
+                            <div>Size: {request.farmSize || 'N/A'}</div>
+                          </>
                         )}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {getStatusBadge(request.status)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {getPriorityBadge(request.priority)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-xs text-gray-500">
+                    <td>{getStatusBadge(request.status)}</td>
+                    <td>{getPriorityBadge(request.priority)}</td>
+                    <td>
+                      <div className="date-range">
                         {request.type === 'harvest' ? (
-                          <div className="space-y-1">
-                            <div>📅 From: {formatDate(request.harvest_details?.harvest_date_from)}</div>
-                            <div>📅 To: {formatDate(request.harvest_details?.harvest_date_to)}</div>
-                          </div>
+                          <>
+                            <div>{formatDate(request.harvest_details?.harvest_date_from)}</div>
+                            <div className="date-separator">→</div>
+                            <div>{formatDate(request.harvest_details?.harvest_date_to)}</div>
+                          </>
                         ) : request.type === 'pest' ? (
-                          <div className="space-y-1">
-                            <div>📅 Requested: {formatDate(request.created_at || request.createdAt)}</div>
-                            <div>🕐 Preferred: {formatDate(request.preferred_treatment_date)}</div>
-                          </div>
+                          <>
+                            <div>Requested: {formatDate(request.created_at)}</div>
+                            <div>Preferred: {formatDate(request.preferred_treatment_date)}</div>
+                          </>
                         ) : (
-                          <div className="space-y-1">
-                            <div>📅 From: {formatDate(request.visitStartDate)}</div>
-                            <div>📅 To: {formatDate(request.visitEndDate)}</div>
-                          </div>
+                          <>
+                            <div>{formatDate(request.visitStartDate)}</div>
+                            <div className="date-separator">→</div>
+                            <div>{formatDate(request.visitEndDate)}</div>
+                          </>
                         )}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td onClick={(e) => e.stopPropagation()}>
                       {renderActionButtons(request, request.type)}
                     </td>
                   </tr>
@@ -699,15 +698,269 @@ const AdminServiceRequestsDashboard = () => {
             </tbody>
           </table>
         </div>
-      </div>
+      ) : (
+        <div className="cards-grid">
+          {filteredRequests.length === 0 ? (
+            <div className="empty-state-cards">
+              <div className="empty-icon">📭</div>
+              <h3>No requests found</h3>
+              <p>
+                {searchTerm || statusFilter 
+                  ? 'Try adjusting your search or filter criteria' 
+                  : `No ${activeTab === 'all' ? '' : activeTab} requests are available.`
+                }
+              </p>
+            </div>
+          ) : (
+            filteredRequests.map((request, index) => (
+              <div 
+                key={request.id || request._id || index} 
+                className="request-card"
+                onClick={() => {
+                  setSelectedRequest(request);
+                  setShowModal(true);
+                }}
+              >
+                <div className="card-header">
+                  <span className={`type-badge type-${request.type}`}>
+                    {request.type === 'harvest' ? 'Harvest' : 
+                     request.type === 'pest' ? 'Pest Control' : 
+                     'Property'}
+                  </span>
+                  {getPriorityBadge(request.priority)}
+                </div>
+                
+                <div className="card-body">
+                  <div className="card-farmer">
+                    <div className="farmer-avatar">
+                      {(request.farmer_id?.full_name || 'U')[0].toUpperCase()}
+                    </div>
+                    <div className="farmer-details">
+                      <h3>{request.farmer_id?.full_name || 'Unknown Farmer'}</h3>
+                      <p>{request.farmer_id?.phone || 'No contact'}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="card-location">
+                    📍 {formatLocation(request.location)}
+                  </div>
+                  
+                  <div className="card-details">
+                    {request.type === 'harvest' && (
+                      <>
+                        <div className="detail-item">
+                          <span className="detail-label">Trees:</span>
+                          <span className="detail-value">{request.harvest_details?.trees_to_harvest || 'N/A'}</span>
+                        </div>
+                        <div className="detail-item">
+                          <span className="detail-label">Workers:</span>
+                          <span className="detail-value">{request.harvest_details?.workers_needed || 'N/A'}</span>
+                        </div>
+                      </>
+                    )}
+                    {request.type === 'pest' && (
+                      <>
+                        <div className="detail-item">
+                          <span className="detail-label">Pest Type:</span>
+                          <span className="detail-value">{request.pest_type || 'N/A'}</span>
+                        </div>
+                        <div className="detail-item">
+                          <span className="detail-label">Severity:</span>
+                          <span className="detail-value">{request.severity_level || 'N/A'}</span>
+                        </div>
+                      </>
+                    )}
+                    {request.type === 'property' && (
+                      <>
+                        <div className="detail-item">
+                          <span className="detail-label">Purpose:</span>
+                          <span className="detail-value">{request.evaluation_purpose || 'N/A'}</span>
+                        </div>
+                        <div className="detail-item">
+                          <span className="detail-label">Farm Size:</span>
+                          <span className="detail-value">{request.farmSize || 'N/A'}</span>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+                
+                <div className="card-footer">
+                  <div className="card-status">
+                    {getStatusBadge(request.status)}
+                  </div>
+                  <div className="card-actions" onClick={(e) => e.stopPropagation()}>
+                    {renderActionButtons(request, request.type)}
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
 
       {/* Results Summary */}
       {filteredRequests.length > 0 && (
-        <div className="mt-6 bg-white rounded-lg shadow-sm p-4">
-          <div className="text-sm text-gray-600 text-center">
-            Showing {filteredRequests.length} of {allRequests.length} total requests
-            {searchTerm && ` matching "${searchTerm}"`}
-            {statusFilter && ` with status "${statusFilter}"`}
+        <div className="results-summary">
+          Showing <strong>{filteredRequests.length}</strong> of <strong>{allRequests.length}</strong> total requests
+          {searchTerm && ` matching "${searchTerm}"`}
+          {statusFilter && ` with status "${statusFilter}"`}
+        </div>
+      )}
+
+      {/* Modal */}
+      {showModal && selectedRequest && (
+        <div className="modal-overlay" onClick={() => setShowModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-headers">
+              <h2>Request Details</h2>
+              <button className="modal-close" onClick={() => setShowModal(false)}>✕</button>
+            </div>
+            
+            <div className="modal-body">
+              <div className="modal-section">
+                <h3>Request Information</h3>
+                <div className="modal-grid">
+                  <div className="modal-field">
+                    <label>Type</label>
+                    <span className={`type-badge type-${selectedRequest.type}`}>
+                      {selectedRequest.type === 'harvest' ? 'Harvest' : 
+                       selectedRequest.type === 'pest' ? 'Pest Control' : 
+                       'Property Evaluation'}
+                    </span>
+                  </div>
+                  <div className="modal-field">
+                    <label>Status</label>
+                    {getStatusBadge(selectedRequest.status)}
+                  </div>
+                  <div className="modal-field">
+                    <label>Priority</label>
+                    {getPriorityBadge(selectedRequest.priority)}
+                  </div>
+                  <div className="modal-field">
+                    <label>Request ID</label>
+                    <span>{selectedRequest.id || selectedRequest._id || 'N/A'}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="modal-section">
+                <h3>Farmer Information</h3>
+                <div className="modal-grid">
+                  <div className="modal-field">
+                    <label>Name</label>
+                    <span>{selectedRequest.farmer_id?.full_name || 'Unknown'}</span>
+                  </div>
+                  <div className="modal-field">
+                    <label>Phone</label>
+                    <span>{selectedRequest.farmer_id?.phone || 'N/A'}</span>
+                  </div>
+                  <div className="modal-field">
+                    <label>Email</label>
+                    <span>{selectedRequest.farmer_id?.email || 'N/A'}</span>
+                  </div>
+                  <div className="modal-field">
+                    <label>Location</label>
+                    <span>{formatLocation(selectedRequest.location)}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="modal-section">
+                <h3>Request Details</h3>
+                {selectedRequest.type === 'harvest' && (
+                  <div className="modal-grid">
+                    <div className="modal-field">
+                      <label>Trees to Harvest</label>
+                      <span>{selectedRequest.harvest_details?.trees_to_harvest || 'N/A'}</span>
+                    </div>
+                    <div className="modal-field">
+                      <label>Workers Needed</label>
+                      <span>{selectedRequest.harvest_details?.workers_needed || 'N/A'}</span>
+                    </div>
+                    <div className="modal-field">
+                      <label>Equipment Needed</label>
+                      <span>{selectedRequest.harvest_details?.equipment_needed || 'N/A'}</span>
+                    </div>
+                    <div className="modal-field">
+                      <label>Start Date</label>
+                      <span>{formatDate(selectedRequest.harvest_details?.harvest_date_from)}</span>
+                    </div>
+                    <div className="modal-field">
+                      <label>End Date</label>
+                      <span>{formatDate(selectedRequest.harvest_details?.harvest_date_to)}</span>
+                    </div>
+                  </div>
+                )}
+                
+                {selectedRequest.type === 'pest' && (
+                  <div className="modal-grid">
+                    <div className="modal-field">
+                      <label>Pest Type</label>
+                      <span>{selectedRequest.pest_type || 'N/A'}</span>
+                    </div>
+                    <div className="modal-field">
+                      <label>Affected Area</label>
+                      <span>{selectedRequest.affected_area || 'N/A'}</span>
+                    </div>
+                    <div className="modal-field">
+                      <label>Severity Level</label>
+                      <span>{selectedRequest.severity_level || 'N/A'}</span>
+                    </div>
+                    <div className="modal-field">
+                      <label>Treatment Method</label>
+                      <span>{selectedRequest.treatment_method || selectedRequest.preferred_treatment || 'N/A'}</span>
+                    </div>
+                    <div className="modal-field">
+                      <label>Preferred Date</label>
+                      <span>{formatDate(selectedRequest.preferred_treatment_date)}</span>
+                    </div>
+                    <div className="modal-field">
+                      <label>Description</label>
+                      <span>{selectedRequest.description || 'N/A'}</span>
+                    </div>
+                  </div>
+                )}
+                
+                {selectedRequest.type === 'property' && (
+                  <div className="modal-grid">
+                    <div className="modal-field">
+                      <label>Evaluation Purpose</label>
+                      <span>{selectedRequest.evaluation_purpose || selectedRequest.evaluationPurpose || 'N/A'}</span>
+                    </div>
+                    <div className="modal-field">
+                      <label>Farm Size</label>
+                      <span>{selectedRequest.farmSize || 'N/A'}</span>
+                    </div>
+                    <div className="modal-field">
+                      <label>Irrigation Source</label>
+                      <span>{selectedRequest.irrigationSource || 'N/A'}</span>
+                    </div>
+                    <div className="modal-field">
+                      <label>Visit Start Date</label>
+                      <span>{formatDate(selectedRequest.visitStartDate)}</span>
+                    </div>
+                    <div className="modal-field">
+                      <label>Visit End Date</label>
+                      <span>{formatDate(selectedRequest.visitEndDate)}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {(selectedRequest.notes || selectedRequest.special_instructions) && (
+                <div className="modal-section">
+                  <h3>Additional Notes</h3>
+                  <p className="modal-notes">
+                    {selectedRequest.notes || selectedRequest.special_instructions}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="modal-footer">
+              {renderActionButtons(selectedRequest, selectedRequest.type)}
+            </div>
           </div>
         </div>
       )}

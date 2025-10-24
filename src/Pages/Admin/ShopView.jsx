@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { ClipLoader } from 'react-spinners';
 import Select from 'react-select';
+import AddShopForm from '../../components/AddShopForm/AddShopForm';
 import { 
   getAllProducts, 
   createProduct, 
@@ -28,6 +29,7 @@ export default function ShopView() {
   const [currentPage, setCurrentPage] = useState(1);
   const [pagination, setPagination] = useState({});
   const [itemsPerPage] = useState(20);
+  const [isAddShopModalOpen, setIsAddShopModalOpen] = useState(false);
   const [productFormData, setProductFormData] = useState({
     name: '', category: '', description: '', price: 0, quantity: 0,
     unit: 'piece', supplier_id: '', status: 'available', sku: '',
@@ -551,7 +553,7 @@ export default function ShopView() {
                     Export
                   </button>
                   <button
-                    onClick={() => alert('Add New Shop')}
+                    onClick={() => setIsAddShopModalOpen(true)}
                     style={{
                       padding: '0.625rem 1.25rem', background: 'linear-gradient(135deg, #3b82f6 0%, #6366f1 100%)',
                       color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 600,
@@ -869,6 +871,66 @@ export default function ShopView() {
                   {loading ? 'Saving...' : modalMode === 'create' ? 'Create Product' : 'Update Product'}
                 </button>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Shop Modal */}
+      {isAddShopModalOpen && (
+        <div 
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: '1rem'
+          }}
+          onClick={() => setIsAddShopModalOpen(false)}
+        >
+          <div 
+            style={{
+              backgroundColor: 'white',
+              borderRadius: '1rem',
+              maxWidth: '800px',
+              width: '100%',
+              maxHeight: '90vh',
+              overflow: 'auto',
+              position: 'relative'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '1.5rem',
+              borderBottom: '1px solid #e2e8f0'
+            }}>
+              <h2 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#1e293b' }}>
+                Add New Shop
+              </h2>
+              <button
+                onClick={() => setIsAddShopModalOpen(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '1.5rem',
+                  cursor: 'pointer',
+                  color: '#64748b',
+                  padding: '0.25rem',
+                  lineHeight: 1
+                }}
+              >
+                ×
+              </button>
+            </div>
+            
+            <div style={{ padding: '1.5rem' }}>
+              <AddShopForm onClose={() => setIsAddShopModalOpen(false)} />
             </div>
           </div>
         </div>
