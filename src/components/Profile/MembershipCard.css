@@ -1,6 +1,7 @@
-/* Membership Card CSS - exact from provided HTML */
+
 .membership-card {
-    width: 420px;
+    width: 100%;
+    max-width: 100%;
     height: 220px;
     position: relative;
     border-radius: 12px;
@@ -40,7 +41,7 @@
     text-align: center;
     border-bottom: 1px solid #FFD700;
 }
-.card-title {
+.card-titles {
     color: #FFD700;
     font-size: 16px;
     font-weight: 700;
@@ -49,7 +50,6 @@
 }
 .card-content {
     position: relative;
-    padding: 16px 20px;
     height: calc(100% - 36px);
     display: flex;
     align-items: flex-start;
@@ -61,6 +61,7 @@
     align-items: center;
     margin-right: 0;
     position: relative;
+    margin-top: 10px;
 }
 .profile-container {
     width: 85px;
@@ -74,6 +75,21 @@
     box-shadow:
         0 4px 12px rgba(0,0,0,0.4),
         inset 0 1px 2px rgba(255,255,255,0.8);
+    overflow: hidden;
+}
+.profile-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+}
+.profile-initial {
+    width: 75px;
+    height: 75px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 .profile-silhouette {
     width: 75px;
@@ -106,7 +122,7 @@
     background: #fff;
     border-radius: 25px 25px 0 0;
 }
-.profile-name {
+.profile-names {
     color: #fff;
     font-size: 14px;
     font-weight: 600;

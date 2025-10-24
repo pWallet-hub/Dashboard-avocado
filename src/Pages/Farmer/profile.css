@@ -170,7 +170,7 @@
   }
 }
 
-.profile-name {
+.profile-nam {
   font-size: 1.2rem;
   font-weight: bold;
   color: white;
@@ -303,12 +303,6 @@
   display: flex;
   gap: 6rem;
   font-family: poppins;
-}
-
-.profile-wrapper {
-  width: 78%;
-  /* margin: 0 auto; */
-  padding: 1rem 1rem;
 }
 
 /* Loading Styles */
