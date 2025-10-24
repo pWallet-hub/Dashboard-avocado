@@ -187,3 +187,201 @@ Response:
 }
 ```
 
+
+
+<!-- farmer information endpoint -->
+
+Farmer Information API Documentation
+
+2. Get Farmer Information
+GET /api/farmer-information/
+Retrieves complete farmer information including user details and farmer profile.
+Headers
+
+Authorization: Bearer <token> (required)
+
+Success Response (200 OK)
+```json
+{
+    "success": true,
+    "message": "Farmer information retrieved successfully",
+    "data": {
+        "farmer_id": "68c7f1cf8b4e787b3dc4946d",
+        "user_info": {
+            "id": "68c7f1cf8b4e787b3dc4946d",
+            "email": "pacific3@gmail.com",
+            "full_name": "John Farmer",
+            "phone": "+250123456789",
+            "status": "active",
+            "created_at": "2025-09-15T11:00:31.518Z",
+            "updated_at": "2025-10-23T17:56:38.177Z"
+        },
+        "farmer_profile": {
+            "age": 35,
+            "gender": "Male",
+            "marital_status": "Married",
+            "education_level": "Secondary",
+            "province": "Eastern",
+            "district": "Nyagatare",
+            "avocado_type": "Hass",
+            "farm_size": 2.5,
+            "tree_count": 150,
+            "assistance": [],
+            "image": null
+        }
+    },
+    "meta": {
+        "timestamp": "2025-10-23T19:10:26.077Z",
+        "version": "1.0.0"
+    }
+}
+```
+Error Responses
+
+401 Unauthorized: User ID not found in token
+403 Forbidden: User is not a farmer
+404 Not Found: User not found
+500 Internal Server Error: Server error
+
+3. Update Farmer Information
+PUT /api/farmer-information/
+Updates farmer profile information. Creates profile if it doesn't exist (upsert).
+Headers
+
+Authorization: Bearer <token> (required)
+Content-Type: application/json
+
+Request Body
+All fields are optional. Only include fields you want to update.
+
+```json
+{
+  "age": 35,
+  "id_number": "123456789",
+  "gender": "male",
+  "marital_status": "married",
+  "education_level": "secondary",
+  "province": "Northern Province",
+  "district": "Gakenke",
+  "sector": "Ruli",
+  "cell": "Mugandu",
+  "village": "Nyange",
+  "farm_age": 5,
+  "planted": "2020-03-15",
+  "avocado_type": "Hass",
+  "mixed_percentage": 20,
+  "farm_size": 2.5,
+  "tree_count": 150,
+  "upi_number": "UPI123456",
+  "farm_province": "Northern Province",
+  "farm_district": "Gakenke",
+  "farm_sector": "Ruli",
+  "farm_cell": "Mugandu",
+  "farm_village": "Nyange",
+  "assistance": ["irrigation", "fertilizers"],
+  "image": "https://example.com/farm-image.jpg"
+}
+```
+Field Descriptions
+User Information:
+
+full_name (string): Farmer's full name
+phone (string): Phone number
+email (string): Email address
+
+Personal Information:
+
+age (number): Age in years
+id_number (string): National ID number
+gender (string): Gender (e.g., "male", "female")
+marital_status (string): Marital status
+education_level (string): Education level
+
+Personal Location:
+
+province (string): Province of residence
+district (string): District of residence
+sector (string): Sector of residence
+cell (string): Cell of residence
+village (string): Village of residence
+
+Farm Information:
+
+farm_age (number): Age of farm in years
+planted (string): Year planted
+avocado_type (string): Type of avocado
+mixed_percentage (number): Percentage mixed (0-100)
+farm_size (number): Farm size in hectares
+tree_count (number): Number of trees
+upi_number (string): UPI identification number
+
+Farm Location:
+
+farm_province (string): Province where farm is located
+farm_district (string): District where farm is located
+farm_sector (string): Sector where farm is located
+farm_cell (string): Cell where farm is located
+farm_village (string): Village where farm is located
+
+Additional Fields:
+
+assistance (array): Array of assistance types received
+image (string): URL or path to farmer/farm image
+
+Success Response (200 OK)
+Returns the updated farmer information in the same format as GET endpoint.
+Error Responses
+
+401 Unauthorized: User ID not found in token
+403 Forbidden: User is not a farmer
+404 Not Found: User not found
+500 Internal Server Error: Server error
+
+. Create Farmer Profile
+POST /api/farmer-information/create
+Creates a new farmer profile. Use this for first-time profile creation. Returns error if profile already exists.
+Headers
+
+Authorization: Bearer <token> (required)
+Content-Type: application/json
+
+Request Body
+Same fields as the PUT endpoint. All fields are optional.
+
+```json
+{
+  "age": 35,
+  "id_number": "1198012345678901",
+  "gender": "male",
+  "farm_size": 2.5,
+  "tree_count": 150
+}
+```
+5. Update Tree Count
+PUT /api/farmer-information/tree-count
+Quick update endpoint specifically for updating tree count. Creates profile if it doesn't exist.
+Headers
+
+Authorization: Bearer <token> (required)
+Content-Type: application/json
+
+Request Body
+```json
+{
+  "tree_count": 150
+}
+```
+Parameters
+
+tree_count (number, required): Number of trees (must be >= 0)
+
+Success Response (200 OK)
+Returns the updated farmer information with the new tree count.
+Error Responses
+
+400 Bad Request: Invalid tree count (missing, negative, or not a number)
+401 Unauthorized: User ID not found in token
+403 Forbidden: User is not a farmer
+404 Not Found: User not found
+500 Internal Server Error: Server error
+
