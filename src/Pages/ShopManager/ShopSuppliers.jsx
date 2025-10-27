@@ -1,809 +1,869 @@
-import React, { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { ClipLoader } from 'react-spinners';
+import Select from 'react-select';
 import { 
-  Search, Plus, Edit2, Trash2, Truck, Package, Users, TrendingUp, 
-  MapPin, Phone, Mail, Calendar, DollarSign, Star, Clock, 
-  ShoppingCart, BarChart3, Eye, AlertTriangle, CheckCircle,
-  Filter, Download, Upload, MessageCircle, FileText, Leaf
+  getAllShops, 
+  updateShop, 
+  deleteShop, 
+  exportShopsToExcel 
+} from '../../services/shopService';
+import { 
+  Store, MapPin, User, Phone, Mail, Edit, Trash2, Download, 
+  Search, Eye, Building2, MapPinned, TrendingUp, CheckCircle2,
+  XCircle, Filter, RefreshCw, Users, Globe
 } from 'lucide-react';
-import { initializeStorage, syncAllFarmerData, getSuppliers, saveSuppliers, getSalesData, getOrders, getMarketTransactions } from '../../services/marketStorageService';
 
-const ShopSuppliers = () => {
-  const [suppliers, setSuppliers] = useState([]);
+const customSelectStyles = {
+  control: (base, state) => ({
+    ...base,
+    borderRadius: '0.75rem',
+    borderColor: state.isFocused ? '#3b82f6' : '#e2e8f0',
+    padding: '0.25rem',
+    boxShadow: state.isFocused ? '0 0 0 3px rgba(59, 130, 246, 0.1)' : 'none',
+    '&:hover': { borderColor: '#cbd5e1' },
+    backgroundColor: '#f8fafc',
+    transition: 'all 0.2s',
+  }),
+  menu: (base) => ({
+    ...base,
+    borderRadius: '0.75rem',
+    overflow: 'hidden',
+    boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)',
+    border: '1px solid #e2e8f0',
+  }),
+  option: (base, { isFocused, isSelected }) => ({
+    ...base,
+    backgroundColor: isSelected ? '#3b82f6' : isFocused ? '#eff6ff' : '#fff',
+    color: isSelected ? '#fff' : '#0f172a',
+    fontWeight: isSelected ? 600 : 400,
+    '&:active': { backgroundColor: '#dbeafe' },
+  }),
+};
+
+export default function ShopSuppliers() {
+  const [shops, setShops] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [activeView, setActiveView] = useState('list');
-  const [selectedSupplier, setSelectedSupplier] = useState(null);
-  const [supplierSearchTerm, setSupplierSearchTerm] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState('all');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [showModal, setShowModal] = useState(false);
-  const [modalType, setModalType] = useState('add');
   const [error, setError] = useState(null);
+  const [selectedDistrict, setSelectedDistrict] = useState(null);
+  const [selectedProvince, setSelectedProvince] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedShop, setSelectedShop] = useState(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [editFormData, setEditFormData] = useState({
+    shopName: '',
+    description: '',
+    province: '',
+    district: '',
+    ownerName: '',
+    ownerEmail: '',
+    ownerPhone: '',
+  });
+
+  const provinces = [
+    'Kigali',
+    'Eastern Province',
+    'Northern Province',
+    'Southern Province',
+    'Western Province',
+  ];
+
+  const districts = {
+    Kigali: ['Gasabo', 'Kicukiro', 'Nyarugenge'],
+    'Eastern Province': ['Bugesera', 'Gatsibo', 'Kayonza', 'Kirehe', 'Ngoma', 'Nyagatare', 'Rwamagana'],
+    'Northern Province': ['Burera', 'Gakenke', 'Gicumbi', 'Musanze', 'Rulindo'],
+    'Southern Province': ['Gisagara', 'Huye', 'Kamonyi', 'Muhanga', 'Nyamagabe', 'Nyanza', 'Nyaruguru', 'Ruhango'],
+    'Western Province': ['Karongi', 'Ngororero', 'Nyabihu', 'Nyamasheke', 'Rubavu', 'Rusizi', 'Rutsiro'],
+  };
 
   useEffect(() => {
-    initializeStorage();
-    loadSuppliers();
+    fetchShops();
   }, []);
 
-  const loadSuppliers = async () => {
+  const fetchShops = async () => {
     setLoading(true);
     setError(null);
     try {
-      // Sync farmer data first to ensure latest connections
-      await syncAllFarmerData();
-      
-      const storedSuppliers = await getSuppliers() || [];
-      const salesData = await getSalesData() || [];
-      const orders = await getOrders() || [];
-      const transactions = await getMarketTransactions() || [];
-      
-      if (storedSuppliers.length === 0) {
-        // Initialize with default suppliers if none exist
-        const defaultSuppliers = getDefaultSuppliers();
-        await saveSuppliers(defaultSuppliers);
-        setSuppliers(defaultSuppliers);
+      const response = await getAllShops();
+      if (response.success) {
+        setShops(Array.isArray(response.data) ? response.data : []);
       } else {
-        // Enhance suppliers with sales and order data
-        const enhancedSuppliers = storedSuppliers.map(supplier => {
-          const supplierOrders = Array.isArray(orders) ? orders.filter(order => order.supplierId === supplier.id) : [];
-          const supplierSales = Array.isArray(salesData) ? salesData.filter(sale => sale.supplierId === supplier.id) : [];
-          const supplierTransactions = Array.isArray(transactions) ? transactions.filter(t => t.farmerId === supplier.id) : [];
-          
-          // For farmer suppliers, use transaction data for more accurate metrics
-          if (supplier.sourceType === 'farmer') {
-            const totalTransactionRevenue = supplierTransactions.reduce((sum, t) => sum + (t.totalAmount || 0), 0);
-            return {
-              ...supplier,
-              totalOrders: supplierTransactions.length,
-              totalSales: totalTransactionRevenue,
-              lastOrderDate: supplierTransactions.length > 0 ? 
-                supplierTransactions.sort((a, b) => new Date(b.transactionDate) - new Date(a.transactionDate))[0].transactionDate : null,
-              performance: {
-                ...supplier.performance,
-                totalRevenue: totalTransactionRevenue,
-                orderFrequency: supplierTransactions.length
-              }
-            };
-          } else {
-            return {
-              ...supplier,
-              totalOrders: supplierOrders.length,
-              totalSales: supplierSales.reduce((sum, sale) => sum + (sale.amount || 0), 0),
-              lastOrderDate: supplierOrders.length > 0 ? 
-                new Date(Math.max(...supplierOrders.map(o => new Date(o.date || Date.now()).getTime()))).toISOString().split('T')[0] : null,
-              performance: calculateSupplierPerformance(supplier, supplierOrders, supplierSales)
-            };
-          }
-        });
-        
-        setSuppliers(enhancedSuppliers);
+        setShops([]);
+        setError('Failed to load shops.');
       }
     } catch (error) {
-      console.error('Error loading suppliers:', error);
-      setError(error.message || 'Failed to load suppliers');
-      setSuppliers(getDefaultSuppliers());
-      
-      // Use mock data when API fails (for development)
-      if (process.env.NODE_ENV === 'development') {
-        setSuppliers(getDefaultSuppliers());
-        setError('Using mock data - API unavailable');
-      }
+      setShops([]);
+      setError('Failed to load shops. Please try again later.');
     } finally {
       setLoading(false);
     }
   };
 
-  const calculateSupplierPerformance = (supplier, orders, sales) => {
-    const avgDeliveryTime = orders.length > 0 ? 
-      orders.reduce((sum, order) => sum + (order.deliveryDays || 5), 0) / orders.length : 5;
-    const onTimeDeliveries = orders.filter(order => order.onTime !== false).length;
-    const onTimeRate = orders.length > 0 ? (onTimeDeliveries / orders.length) * 100 : 95;
-    
-    return {
-      avgDeliveryTime: Math.round(avgDeliveryTime * 10) / 10,
-      onTimeRate: Math.round(onTimeRate * 10) / 10,
-      totalRevenue: sales.reduce((sum, sale) => sum + (sale.amount || 0), 0),
-      orderFrequency: orders.length
-    };
+  const handleEditShop = (shop) => {
+    setSelectedShop(shop);
+    setEditFormData({
+      shopName: shop.shopName,
+      description: shop.description,
+      province: shop.province,
+      district: shop.district,
+      ownerName: shop.ownerName,
+      ownerEmail: shop.ownerEmail,
+      ownerPhone: shop.ownerPhone,
+    });
+    setIsEditModalOpen(true);
   };
 
-  const getDefaultSuppliers = () => [
-    {
-      id: 'SUP-001',
-      name: "Musanze Avocado Cooperative",
-      contactPerson: "Jean Baptiste Uwimana",
-      email: "jean@musanzeavocado.rw",
-      phone: "+250-788-123-456",
-      category: "Hass Avocados",
-      location: "Musanze, Northern Province",
-      specialization: "Premium Hass Avocados, Organic Farming",
-      status: "Active",
-      joinDate: "2023-01-15",
-      totalOrders: 45,
-      lastOrderDate: "2024-10-01",
-      rating: 4.8,
-      deliveryTime: "2-3 days",
-      paymentTerms: "Net 30",
-      certifications: ["Organic", "Fair Trade"],
-      totalSales: 850000,
-      performance: {
-        avgDeliveryTime: 2.5,
-        onTimeRate: 95.2,
-        totalRevenue: 850000,
-        orderFrequency: 45
+  const handleViewShop = (shop) => {
+    setSelectedShop(shop);
+    setIsViewModalOpen(true);
+  };
+
+  const handleEditFormChange = (name, value) => {
+    setEditFormData((prev) => ({
+      ...prev,
+      [name]: value,
+      ...(name === 'province' && { district: '' }),
+    }));
+  };
+
+  const handleUpdateShop = async () => {
+    if (!selectedShop) return;
+
+    setLoading(true);
+    try {
+      const response = await updateShop(selectedShop.id, editFormData);
+      if (response.success) {
+        alert('Shop updated successfully!');
+        setIsEditModalOpen(false);
+        fetchShops();
       }
-    },
-    {
-      id: 'SUP-002',
-      name: "Huye Agricultural Cooperative",
-      contactPerson: "Marie Claire Mukamana",
-      email: "marie@huyeagri.rw",
-      phone: "+250-788-234-567",
-      category: "Fuerte Avocados",
-      location: "Huye, Southern Province",
-      specialization: "Fuerte Avocados, Grade A Quality",
-      status: "Active",
-      joinDate: "2022-08-20",
-      totalOrders: 32,
-      lastOrderDate: "2024-09-28",
-      rating: 4.6,
-      deliveryTime: "1-2 days",
-      paymentTerms: "Net 15",
-      certifications: ["Organic", "Rwanda Standards Board"],
-      totalSales: 620000,
-      performance: {
-        avgDeliveryTime: 1.5,
-        onTimeRate: 98.1,
-        totalRevenue: 620000,
-        orderFrequency: 32
-      }
-    },
-    {
-      id: 'SUP-003',
-      name: "Rwanda Agricultural Board",
-      contactPerson: "Dr. Paul Nsengimana",
-      email: "paul@rab.gov.rw",
-      phone: "+250-788-345-678",
-      category: "Avocado Seedlings",
-      location: "Kigali, Kigali City",
-      specialization: "Certified Avocado Seedlings, Research Support",
-      status: "Active",
-      joinDate: "2023-03-10",
-      totalOrders: 8,
-      lastOrderDate: "2024-09-15",
-      rating: 4.9,
-      deliveryTime: "1 week",
-      paymentTerms: "Net 60",
-      certifications: ["Government Certified", "Quality Assured"],
-      totalSales: 450000,
-      performance: {
-        avgDeliveryTime: 7,
-        onTimeRate: 100,
-        totalRevenue: 450000,
-        orderFrequency: 8
-      }
-    },
-    {
-      id: 'SUP-004',
-      name: "Kigali Agro Supplies",
-      contactPerson: "Emmanuel Habimana",
-      email: "emmanuel@kigaliagro.rw",
-      phone: "+250-788-456-789",
-      category: "Fertilizers",
-      location: "Kigali, Kigali City",
-      specialization: "Organic Fertilizers, Pest Control, Farm Equipment",
-      status: "Active",
-      joinDate: "2023-06-05",
-      totalOrders: 28,
-      lastOrderDate: "2024-09-30",
-      rating: 4.5,
-      deliveryTime: "2-4 days",
-      paymentTerms: "Net 30",
-      certifications: ["Rwanda Standards Board", "ISO 9001"],
-      totalSales: 380000,
-      performance: {
-        avgDeliveryTime: 3,
-        onTimeRate: 92.5,
-        totalRevenue: 380000,
-        orderFrequency: 28
-      }
+    } catch (error) {
+      alert(`Error: ${error.response?.data?.message || 'Failed to update shop'}`);
+    } finally {
+      setLoading(false);
     }
-  ];
+  };
 
-  // Ensure suppliers is always an array before filtering
-  const safeSuppliers = Array.isArray(suppliers) ? suppliers : [];
+  const handleDeleteShop = async (shopId) => {
+    if (!window.confirm('Are you sure you want to delete this shop?')) return;
 
-  // Filter suppliers based on search and filters
-  const filteredSuppliers = safeSuppliers.filter(supplier => {
-    if (!supplier) return false;
+    try {
+      const response = await deleteShop(shopId);
+      if (response.success) {
+        alert('Shop deleted successfully');
+        fetchShops();
+      }
+    } catch (error) {
+      alert(`Error: ${error.response?.data?.message || 'Failed to delete shop'}`);
+    }
+  };
+
+  const exportToExcel = () => {
+    if (shops.length === 0) {
+      alert('No shops data to export');
+      return;
+    }
+    exportShopsToExcel(shops);
+  };
+
+  const clearFilters = () => {
+    setSelectedDistrict(null);
+    setSelectedProvince(null);
+    setSearchQuery('');
+  };
+
+  const filteredShops = shops.filter((shop) => {
+    const matchesDistrict = !selectedDistrict || shop.district === selectedDistrict;
+    const matchesProvince = !selectedProvince || shop.province === selectedProvince;
+    const matchesSearch = !searchQuery || 
+      shop.shopName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      shop.ownerName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      shop.ownerEmail?.toLowerCase().includes(searchQuery.toLowerCase());
     
-    const matchesSearch = (supplier.name?.toLowerCase() || '').includes(supplierSearchTerm.toLowerCase()) ||
-      (supplier.contactPerson?.toLowerCase() || '').includes(supplierSearchTerm.toLowerCase()) ||
-      (supplier.specialization?.toLowerCase() || '').includes(supplierSearchTerm.toLowerCase());
-    
-    const matchesCategory = categoryFilter === 'all' || supplier.category === categoryFilter;
-    const matchesStatus = statusFilter === 'all' || supplier.status === statusFilter;
-    
-    return matchesSearch && matchesCategory && matchesStatus;
+    return matchesDistrict && matchesProvince && matchesSearch;
   });
 
-  const categories = ['Hass Avocados', 'Fuerte Avocados', 'Avocado Seedlings', 'Fertilizers', 'Pesticides', 'Farm Equipment'];
-
-  const handleAddSupplier = async (supplierData) => {
-    try {
-      const newSupplier = {
-        ...supplierData,
-        id: `SUP-${String(suppliers.length + 1).padStart(3, '0')}`,
-        joinDate: new Date().toISOString().split('T')[0],
-        totalOrders: 0,
-        totalSales: 0,
-        performance: {
-          avgDeliveryTime: 0,
-          onTimeRate: 0,
-          totalRevenue: 0,
-          orderFrequency: 0
-        }
-      };
-      
-      const updatedSuppliers = [...suppliers, newSupplier];
-      setSuppliers(updatedSuppliers);
-      await saveSuppliers(updatedSuppliers);
-      setShowModal(false);
-      alert('Supplier added successfully!');
-    } catch (error) {
-      console.error('Error adding supplier:', error);
-      alert('Error adding supplier: ' + error.message);
-    }
+  const stats = {
+    total: shops.length,
+    active: shops.filter(s => s.canSell !== false).length,
+    provinces: new Set(shops.map(s => s.province).filter(Boolean)).size,
+    districts: new Set(shops.map(s => s.district).filter(Boolean)).size,
   };
 
-  const handleEditSupplier = async (supplierData) => {
-    try {
-      const updatedSuppliers = suppliers.map(supplier => 
-        supplier.id === selectedSupplier.id ? { ...supplier, ...supplierData } : supplier
-      );
-      setSuppliers(updatedSuppliers);
-      await saveSuppliers(updatedSuppliers);
-      setShowModal(false);
-      setSelectedSupplier(null);
-      alert('Supplier updated successfully!');
-    } catch (error) {
-      console.error('Error updating supplier:', error);
-      alert('Error updating supplier: ' + error.message);
-    }
-  };
+  const statCards = [
+    { 
+      label: 'Total Shops', 
+      value: stats.total, 
+      icon: Store, 
+      gradient: 'from-blue-500 to-indigo-600',
+      bg: 'from-blue-50 to-indigo-50',
+      iconColor: 'text-blue-600'
+    },
+    { 
+      label: 'Active Shops', 
+      value: stats.active, 
+      icon: CheckCircle2, 
+      gradient: 'from-emerald-500 to-teal-600',
+      bg: 'from-emerald-50 to-teal-50',
+      iconColor: 'text-emerald-600'
+    },
+    { 
+      label: 'Provinces', 
+      value: stats.provinces, 
+      icon: Globe, 
+      gradient: 'from-amber-500 to-orange-600',
+      bg: 'from-amber-50 to-orange-50',
+      iconColor: 'text-amber-600'
+    },
+    { 
+      label: 'Districts', 
+      value: stats.districts, 
+      icon: MapPinned, 
+      gradient: 'from-purple-500 to-pink-600',
+      bg: 'from-purple-50 to-pink-50',
+      iconColor: 'text-purple-600'
+    },
+  ];
 
-  const handleDeleteSupplier = async (supplierId) => {
-    if (!supplierId || !window.confirm('Are you sure you want to delete this supplier?')) return;
-    
-    try {
-      const updatedSuppliers = suppliers.filter(supplier => supplier.id !== supplierId);
-      setSuppliers(updatedSuppliers);
-      await saveSuppliers(updatedSuppliers);
-      alert('Supplier deleted successfully!');
-    } catch (error) {
-      console.error('Error deleting supplier:', error);
-      alert('Error deleting supplier: ' + error.message);
-    }
-  };
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'Active': return 'bg-green-200 text-green-800 ring-green-500';
-      case 'Inactive': return 'bg-red-200 text-red-800 ring-red-500';
-      default: return 'bg-gray-200 text-gray-800 ring-gray-500';
-    }
-  };
-
-  const SupplierListView = () => (
-    <div className="space-y-6 p-4 bg-gradient-to-b from-green-50 to-emerald-50 min-h-screen">
-      {/* Header */}
-      <div className="bg-white rounded-xl shadow-lg p-6 ring-1 ring-emerald-100">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h2 className="text-2xl font-bold text-emerald-800 flex items-center">
-              <Leaf className="h-7 w-7 mr-3 text-emerald-600 animate-pulse" />
-              Avocado Supplier Management
-            </h2>
-            <p className="text-emerald-600 mt-1">Manage suppliers for your Rwandan avocado farm business</p>
-            {error && (
-              <div className="mt-2 p-2 bg-yellow-100 border border-yellow-400 rounded text-sm text-yellow-700">
-                ⚠️ {error}
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 py-8 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto space-y-6">
+        
+        {/* Header Section */}
+        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
+          <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-8 py-6">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
+                  <Store className="w-8 h-8 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-3xl font-bold text-white flex items-center gap-3">
+                    Shop Management Dashboard
+                  </h1>
+                  <p className="text-blue-100 mt-1">Manage and monitor all shop operations</p>
+                </div>
               </div>
-            )}
+              <div className="flex gap-3">
+                <button
+                  onClick={fetchShops}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-white/20 backdrop-blur-sm text-white rounded-xl font-semibold hover:bg-white/30 transition-all duration-200 border border-white/30"
+                >
+                  <RefreshCw className="w-5 h-5" />
+                  Refresh
+                </button>
+                <button
+                  onClick={exportToExcel}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-white text-blue-600 rounded-xl font-semibold hover:bg-blue-50 transition-all duration-200 shadow-lg"
+                >
+                  <Download className="w-5 h-5" />
+                  Export Excel
+                </button>
+              </div>
+            </div>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <button 
-              onClick={() => {
-                setModalType('add');
-                setSelectedSupplier(null);
-                setShowModal(true);
-              }}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg flex items-center transition-all transform hover:scale-105"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Add Supplier
-            </button>
-            <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center transition-all">
-              <Upload className="h-4 w-4 mr-2" />
-              Import
-            </button>
-            <button className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg flex items-center transition-all">
-              <Download className="h-4 w-4 mr-2" />
-              Export
-            </button>
-          </div>
-        </div>
-      </div>
 
-      {/* Search and Filters */}
-      <div className="bg-white rounded-xl shadow-lg p-6 ring-1 ring-emerald-100">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-emerald-400" />
-            <input
-              type="text"
-              placeholder="Search suppliers..."
-              value={supplierSearchTerm}
-              onChange={(e) => setSupplierSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-emerald-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
-              aria-label="Search suppliers"
-            />
-          </div>
-          
-          <div className="relative">
-            <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-emerald-400" />
-            <select 
-              value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-emerald-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent appearance-none transition-all"
-              aria-label="Filter by category"
-            >
-              <option value="all">All Categories</option>
-              {categories.map(category => (
-                <option key={category} value={category}>{category}</option>
+          {/* Statistics Cards */}
+          <div className="p-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {statCards.map((stat, idx) => (
+                <div
+                  key={idx}
+                  className={`bg-gradient-to-br ${stat.bg} rounded-2xl p-6 border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300 group`}
+                >
+                  <div className="flex items-center justify-between mb-4">
+                    <div className={`w-12 h-12 bg-gradient-to-br ${stat.gradient} rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300`}>
+                      <stat.icon className="w-6 h-6 text-white" />
+                    </div>
+                    <TrendingUp className={`w-5 h-5 ${stat.iconColor} opacity-50`} />
+                  </div>
+                  <p className="text-sm font-semibold text-gray-600 mb-1">{stat.label}</p>
+                  <p className={`text-3xl font-bold bg-gradient-to-br ${stat.gradient} bg-clip-text text-transparent`}>
+                    {stat.value}
+                  </p>
+                </div>
               ))}
-            </select>
-          </div>
-
-          <select 
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-4 py-2 border border-emerald-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
-            aria-label="Filter by status"
-          >
-            <option value="all">All Status</option>
-            <option value="Active">Active</option>
-            <option value="Inactive">Inactive</option>
-          </select>
-
-          <div className="flex items-center space-x-4">
-            <span className="text-sm text-emerald-600">
-              Total Suppliers: <span className="font-semibold">{filteredSuppliers.length}</span>
-            </span>
-            <button
-              onClick={loadSuppliers}
-              className="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-lg hover:bg-emerald-200 transition-all text-sm"
-              disabled={loading}
-            >
-              {loading ? 'Loading...' : 'Refresh'}
-            </button>
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Suppliers Table */}
-      <div className="bg-white rounded-xl shadow-lg overflow-hidden ring-1 ring-emerald-100">
-        {loading ? (
-          <div className="p-8 text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600 mx-auto"></div>
-            <p className="mt-2 text-emerald-600">Loading suppliers...</p>
-          </div>
-        ) : filteredSuppliers.length === 0 ? (
-          <div className="p-8 text-center">
-            <Truck className="h-12 w-12 text-emerald-400 mx-auto mb-4" />
-            <p className="text-emerald-600">
-              {error ? 'Unable to load suppliers. Please check your connection.' : 'No suppliers found. Add some avocado suppliers!'}
-            </p>
-            {error && (
+        {/* Filters Section */}
+        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+          <div className="flex items-center gap-2 mb-5">
+            <Filter className="w-5 h-5 text-blue-600" />
+            <h2 className="text-lg font-bold text-gray-900">Search & Filters</h2>
+            {(searchQuery || selectedDistrict || selectedProvince) && (
               <button
-                onClick={loadSuppliers}
-                className="mt-4 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all"
+                onClick={clearFilters}
+                className="ml-auto text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
               >
-                Try Again
+                <XCircle className="w-4 h-4" />
+                Clear All
               </button>
             )}
           </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-emerald-100">
-              <thead className="bg-emerald-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-emerald-700 uppercase tracking-wider">
-                    Supplier Name
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-emerald-700 uppercase tracking-wider">
-                    Contact Person
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-emerald-700 uppercase tracking-wider">
-                    Category
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-emerald-700 uppercase tracking-wider">
-                    Location
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-emerald-700 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-emerald-700 uppercase tracking-wider">
-                    Rating
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-emerald-700 uppercase tracking-wider">
-                    Total Sales (RWF)
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-emerald-700 uppercase tracking-wider">
-                    Orders
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-emerald-700 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-emerald-100">
-                {filteredSuppliers.map((supplier) => (
-                  <tr key={supplier.id || Math.random()} className="hover:bg-emerald-50 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-emerald-900">{supplier.name || 'N/A'}</div>
-                      <div className="text-sm text-emerald-600">{supplier.email || ''}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-emerald-900">{supplier.contactPerson || 'N/A'}</div>
-                      <div className="text-sm text-emerald-600">{supplier.phone || ''}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-emerald-900">{supplier.category || 'N/A'}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-emerald-900">{supplier.location || 'N/A'}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ring-1 ${getStatusColor(supplier.status)}`}>
-                        {supplier.status || 'Unknown'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <Star className="h-4 w-4 text-yellow-400 fill-current mr-1" />
-                        <span className="text-sm text-emerald-900">{supplier.rating || 0}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-emerald-900">
-                        {(supplier.totalSales || 0).toLocaleString()} RWF
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-emerald-900">{supplier.totalOrders || 0}</div>
-                      <div className="text-xs text-emerald-500">
-                        On-time: {supplier.performance?.onTimeRate || 0}%
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <div className="flex space-x-2">
-                        <button
-                          onClick={() => {
-                            setSelectedSupplier(supplier);
-                            setActiveView('detail');
-                          }}
-                          className="text-emerald-600 hover:text-emerald-800 transform hover:scale-110 transition"
-                          title="View Details"
-                          aria-label="View Details"
-                        >
-                          <Eye className="h-5 w-5" />
-                        </button>
-                        <button
-                          onClick={() => {
-                            setSelectedSupplier(supplier);
-                            setModalType('edit');
-                            setShowModal(true);
-                          }}
-                          className="text-blue-600 hover:text-blue-800 transform hover:scale-110 transition"
-                          title="Edit Supplier"
-                          aria-label="Edit Supplier"
-                        >
-                          <Edit2 className="h-5 w-5" />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteSupplier(supplier.id)}
-                          className="text-red-600 hover:text-red-800 transform hover:scale-110 transition"
-                          title="Delete Supplier"
-                          aria-label="Delete Supplier"
-                        >
-                          <Trash2 className="h-5 w-5" />
-                        </button>
-                      </div>
-                    </td>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Search */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-1.5">
+                <Search className="w-4 h-4 text-blue-600" />
+                Search Shops
+              </label>
+              <div className="relative">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Name, owner, email..."
+                  className="w-full pl-11 pr-4 py-2.5 bg-slate-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                />
+                <Search className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              </div>
+            </div>
+
+            {/* Province Filter */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-1.5">
+                <Globe className="w-4 h-4 text-amber-600" />
+                Filter by Province
+              </label>
+              <Select
+                options={[...new Set(shops.map(s => s.province).filter(Boolean))].map(p => ({
+                  label: p,
+                  value: p,
+                }))}
+                isClearable
+                value={selectedProvince ? { label: selectedProvince, value: selectedProvince } : null}
+                onChange={(opt) => setSelectedProvince(opt?.value || null)}
+                placeholder="All provinces"
+                styles={customSelectStyles}
+              />
+            </div>
+
+            {/* District Filter */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-1.5">
+                <MapPin className="w-4 h-4 text-purple-600" />
+                Filter by District
+              </label>
+              <Select
+                options={[...new Set(shops.map(s => s.district).filter(Boolean))].map(d => ({
+                  label: d,
+                  value: d,
+                }))}
+                isClearable
+                value={selectedDistrict ? { label: selectedDistrict, value: selectedDistrict } : null}
+                onChange={(opt) => setSelectedDistrict(opt?.value || null)}
+                placeholder="All districts"
+                styles={customSelectStyles}
+              />
+            </div>
+          </div>
+
+          {/* Active Filters Display */}
+          {(searchQuery || selectedDistrict || selectedProvince) && (
+            <div className="mt-4 flex flex-wrap gap-2">
+              <span className="text-sm text-gray-600 font-medium">Active filters:</span>
+              {searchQuery && (
+                <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium flex items-center gap-1.5">
+                  <Search className="w-3.5 h-3.5" />
+                  {searchQuery}
+                  <button onClick={() => setSearchQuery('')} className="hover:text-blue-900">
+                    <XCircle className="w-3.5 h-3.5" />
+                  </button>
+                </span>
+              )}
+              {selectedProvince && (
+                <span className="px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-sm font-medium flex items-center gap-1.5">
+                  <Globe className="w-3.5 h-3.5" />
+                  {selectedProvince}
+                  <button onClick={() => setSelectedProvince(null)} className="hover:text-amber-900">
+                    <XCircle className="w-3.5 h-3.5" />
+                  </button>
+                </span>
+              )}
+              {selectedDistrict && (
+                <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm font-medium flex items-center gap-1.5">
+                  <MapPin className="w-3.5 h-3.5" />
+                  {selectedDistrict}
+                  <button onClick={() => setSelectedDistrict(null)} className="hover:text-purple-900">
+                    <XCircle className="w-3.5 h-3.5" />
+                  </button>
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* Results Count */}
+          <div className="mt-4 pt-4 border-t border-gray-100">
+            <p className="text-sm text-gray-600">
+              Showing <span className="font-bold text-blue-600">{filteredShops.length}</span> of{' '}
+              <span className="font-bold text-gray-900">{shops.length}</span> shops
+            </p>
+          </div>
+        </div>
+
+        {/* Shops Table */}
+        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
+          {loading ? (
+            <div className="flex flex-col items-center justify-center py-20">
+              <ClipLoader color="#3b82f6" loading={loading} size={60} />
+              <p className="mt-4 text-gray-600 font-medium">Loading shops data...</p>
+            </div>
+          ) : error ? (
+            <div className="py-16 text-center">
+              <XCircle className="w-16 h-16 mx-auto mb-4 text-red-400" />
+              <p className="text-red-600 font-semibold text-lg">{error}</p>
+              <button
+                onClick={fetchShops}
+                className="mt-4 px-6 py-2.5 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors inline-flex items-center gap-2"
+              >
+                <RefreshCw className="w-4 h-4" />
+                Try Again
+              </button>
+            </div>
+          ) : filteredShops.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gradient-to-r from-slate-50 to-blue-50 border-b-2 border-blue-100">
+                  <tr>
+                    {[
+                      { label: 'Shop Details', icon: Store },
+                      { label: 'Location', icon: MapPin },
+                      { label: 'Owner', icon: User },
+                      { label: 'Contact', icon: Mail },
+                      { label: 'Status', icon: CheckCircle2 },
+                      { label: 'Actions', icon: null }
+                    ].map((header, idx) => (
+                      <th key={idx} className="px-6 py-4 text-left">
+                        <div className="flex items-center gap-2">
+                          {header.icon && <header.icon className="w-4 h-4 text-blue-600" />}
+                          <span className="text-xs font-bold text-gray-700 uppercase tracking-wider">
+                            {header.label}
+                          </span>
+                        </div>
+                      </th>
+                    ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {filteredShops.map((shop, idx) => {
+                    const colors = [
+                      'from-blue-500 to-indigo-600',
+                      'from-emerald-500 to-teal-600',
+                      'from-amber-500 to-orange-600',
+                      'from-purple-500 to-pink-600',
+                      'from-rose-500 to-red-600'
+                    ];
+                    const colorIdx = idx % colors.length;
+                    
+                    return (
+                      <tr 
+                        key={shop.id} 
+                        className="hover:bg-slate-50 transition-all duration-200 group"
+                      >
+                        {/* Shop Details */}
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className={`w-12 h-12 bg-gradient-to-br ${colors[colorIdx]} rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-md group-hover:scale-110 transition-transform duration-200`}>
+                              {shop.shopName?.charAt(0).toUpperCase() || 'S'}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="font-bold text-gray-900 group-hover:text-blue-600 transition-colors">
+                                {shop.shopName}
+                              </p>
+                              <p className="text-sm text-gray-500 truncate max-w-xs" title={shop.description}>
+                                {shop.description || 'No description'}
+                              </p>
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* Location */}
+                        <td className="px-6 py-4">
+                          <div className="space-y-1.5">
+                            <div className="flex items-center gap-2">
+                              <span className="px-2.5 py-1 bg-amber-100 text-amber-700 rounded-lg text-xs font-semibold">
+                                {shop.province}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="px-2.5 py-1 bg-purple-100 text-purple-700 rounded-lg text-xs font-semibold">
+                                {shop.district}
+                              </span>
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* Owner */}
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-9 h-9 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-lg flex items-center justify-center">
+                              <User className="w-5 h-5 text-blue-600" />
+                            </div>
+                            <div>
+                              <p className="font-semibold text-gray-900">{shop.ownerName}</p>
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* Contact */}
+                        <td className="px-6 py-4">
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2 text-sm text-gray-600">
+                              <Mail className="w-4 h-4 text-gray-400" />
+                              <span className="truncate max-w-[180px]" title={shop.ownerEmail}>
+                                {shop.ownerEmail}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2 text-sm text-gray-600">
+                              <Phone className="w-4 h-4 text-gray-400" />
+                              <span>{shop.ownerPhone}</span>
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* Status */}
+                        <td className="px-6 py-4">
+                          <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold ${
+                            shop.canSell !== false
+                              ? 'bg-emerald-100 text-emerald-700'
+                              : 'bg-red-100 text-red-700'
+                          }`}>
+                            {shop.canSell !== false ? (
+                              <>
+                                <CheckCircle2 className="w-4 h-4" />
+                                Active
+                              </>
+                            ) : (
+                              <>
+                                <XCircle className="w-4 h-4" />
+                                Inactive
+                              </>
+                            )}
+                          </span>
+                        </td>
+
+                        {/* Actions */}
+                        <td className="px-6 py-4">
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => handleViewShop(shop)}
+                              className="p-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors group/btn"
+                              title="View Details"
+                            >
+                              <Eye className="w-4 h-4 group-hover/btn:scale-110 transition-transform" />
+                            </button>
+                            <button
+                              onClick={() => handleEditShop(shop)}
+                              className="p-2 bg-amber-100 text-amber-700 rounded-lg hover:bg-amber-200 transition-colors group/btn"
+                              title="Edit Shop"
+                            >
+                              <Edit className="w-4 h-4 group-hover/btn:scale-110 transition-transform" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteShop(shop.id)}
+                              className="p-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors group/btn"
+                              title="Delete Shop"
+                            >
+                              <Trash2 className="w-4 h-4 group-hover/btn:scale-110 transition-transform" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="py-20 text-center">
+              <div className="w-20 h-20 bg-gradient-to-br from-slate-100 to-slate-200 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                <Store className="w-10 h-10 text-slate-400" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">No shops found</h3>
+              <p className="text-gray-600 mb-6 max-w-md mx-auto">
+                {searchQuery || selectedDistrict || selectedProvince
+                  ? 'No shops match your current filters. Try adjusting your search criteria.'
+                  : 'Get started by adding your first shop to the system.'}
+              </p>
+              {(searchQuery || selectedDistrict || selectedProvince) && (
+                <button
+                  onClick={clearFilters}
+                  className="px-6 py-2.5 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors inline-flex items-center gap-2"
+                >
+                  <XCircle className="w-4 h-4" />
+                  Clear Filters
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* View Shop Modal */}
+        {isViewModalOpen && selectedShop && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+            <div className="bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-2xl animate-in zoom-in-95 duration-200">
+              {/* Modal Header */}
+              <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-8 py-6 flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
+                    <Eye className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-bold text-white">Shop Details</h2>
+                    <p className="text-blue-100 text-sm">Complete shop information</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setIsViewModalOpen(false)}
+                  className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center text-white hover:bg-white/30 transition-colors"
+                >
+                  <XCircle className="w-6 h-6" />
+                </button>
+              </div>
+
+              {/* Modal Content */}
+              <div className="p-8">
+                <div className="grid md:grid-cols-2 gap-6">
+                  {[
+                    { label: 'Shop Name', value: selectedShop.shopName, icon: Store, color: 'blue' },
+                    { label: 'Province', value: selectedShop.province, icon: Globe, color: 'amber' },
+                    { label: 'District', value: selectedShop.district, icon: MapPin, color: 'purple' },
+                    { label: 'Owner Name', value: selectedShop.ownerName, icon: User, color: 'emerald' },
+                    { label: 'Owner Email', value: selectedShop.ownerEmail, icon: Mail, color: 'blue' },
+                    { label: 'Owner Phone', value: selectedShop.ownerPhone, icon: Phone, color: 'indigo' },
+                  ].map((item, idx) => (
+                    <div key={idx} className={`bg-gradient-to-br from-${item.color}-50 to-${item.color}-100 rounded-xl p-5 border border-${item.color}-200`}>
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className={`w-10 h-10 bg-gradient-to-br from-${item.color}-500 to-${item.color}-600 rounded-lg flex items-center justify-center shadow-lg`}>
+                          <item.icon className="w-5 h-5 text-white" />
+                        </div>
+                        <span className="text-sm font-bold text-gray-600 uppercase tracking-wide">{item.label}</span>
+                      </div>
+                      <p className="text-lg font-bold text-gray-900 pl-13">{item.value}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Description */}
+                {selectedShop.description && (
+                  <div className="mt-6 bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl p-5 border border-slate-200">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Building2 className="w-5 h-5 text-slate-600" />
+                      <span className="text-sm font-bold text-gray-600 uppercase tracking-wide">Description</span>
+                    </div>
+                    <p className="text-gray-700 leading-relaxed">{selectedShop.description}</p>
+                  </div>
+                )}
+
+                {/* Created Date */}
+                {selectedShop.createdAt && (
+                  <div className="mt-6 text-center text-sm text-gray-500">
+                    Created on {new Date(selectedShop.createdAt).toLocaleDateString('en-US', { 
+                      year: 'numeric', 
+                      month: 'long', 
+                      day: 'numeric' 
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Modal Footer */}
+              <div className="px-8 py-6 bg-slate-50 border-t border-gray-200 flex justify-end gap-3">
+                <button
+                  onClick={() => setIsViewModalOpen(false)}
+                  className="px-6 py-2.5 bg-white text-gray-700 rounded-xl font-semibold hover:bg-gray-100 transition-colors border border-gray-200"
+                >
+                  Close
+                </button>
+                <button
+                  onClick={() => {
+                    setIsViewModalOpen(false);
+                    handleEditShop(selectedShop);
+                  }}
+                  className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-semibold hover:from-blue-700 hover:to-indigo-700 transition-all shadow-lg flex items-center gap-2"
+                >
+                  <Edit className="w-4 h-4" />
+                  Edit Shop
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Edit Shop Modal */}
+        {isEditModalOpen && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+            <div className="bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-2xl animate-in zoom-in-95 duration-200">
+              {/* Modal Header */}
+              <div className="bg-gradient-to-r from-amber-500 to-orange-600 px-8 py-6 flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
+                    <Edit className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-bold text-white">Edit Shop</h2>
+                    <p className="text-orange-100 text-sm">Update shop information</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setIsEditModalOpen(false)}
+                  className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center text-white hover:bg-white/30 transition-colors"
+                >
+                  <XCircle className="w-6 h-6" />
+                </button>
+              </div>
+
+              {/* Form Content */}
+              <div className="p-8">
+                <div className="grid md:grid-cols-2 gap-6">
+                  {/* Shop Name */}
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-bold text-gray-700 mb-2 flex items-center gap-1.5">
+                      <Store className="w-4 h-4 text-blue-600" />
+                      Shop Name *
+                    </label>
+                    <input
+                      type="text"
+                      value={editFormData.shopName}
+                      onChange={(e) => handleEditFormChange('shopName', e.target.value)}
+                      className="w-full px-4 py-3 bg-slate-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all"
+                      placeholder="Enter shop name"
+                    />
+                  </div>
+
+                  {/* Province */}
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-2 flex items-center gap-1.5">
+                      <Globe className="w-4 h-4 text-amber-600" />
+                      Province *
+                    </label>
+                    <select
+                      value={editFormData.province}
+                      onChange={(e) => handleEditFormChange('province', e.target.value)}
+                      className="w-full px-4 py-3 bg-slate-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all"
+                    >
+                      <option value="">Select province</option>
+                      {provinces.map((p) => (
+                        <option key={p} value={p}>{p}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* District */}
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-2 flex items-center gap-1.5">
+                      <MapPin className="w-4 h-4 text-purple-600" />
+                      District *
+                    </label>
+                    <select
+                      value={editFormData.district}
+                      onChange={(e) => handleEditFormChange('district', e.target.value)}
+                      disabled={!editFormData.province}
+                      className="w-full px-4 py-3 bg-slate-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <option value="">Select district</option>
+                      {editFormData.province &&
+                        districts[editFormData.province]?.map((d) => (
+                          <option key={d} value={d}>{d}</option>
+                        ))}
+                    </select>
+                  </div>
+
+                  {/* Owner Name */}
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-2 flex items-center gap-1.5">
+                      <User className="w-4 h-4 text-emerald-600" />
+                      Owner Name *
+                    </label>
+                    <input
+                      type="text"
+                      value={editFormData.ownerName}
+                      onChange={(e) => handleEditFormChange('ownerName', e.target.value)}
+                      className="w-full px-4 py-3 bg-slate-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all"
+                      placeholder="Enter owner name"
+                    />
+                  </div>
+
+                  {/* Owner Email */}
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-2 flex items-center gap-1.5">
+                      <Mail className="w-4 h-4 text-blue-600" />
+                      Owner Email *
+                    </label>
+                    <input
+                      type="email"
+                      value={editFormData.ownerEmail}
+                      onChange={(e) => handleEditFormChange('ownerEmail', e.target.value)}
+                      className="w-full px-4 py-3 bg-slate-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all"
+                      placeholder="owner@example.com"
+                    />
+                  </div>
+
+                  {/* Owner Phone */}
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-bold text-gray-700 mb-2 flex items-center gap-1.5">
+                      <Phone className="w-4 h-4 text-indigo-600" />
+                      Owner Phone
+                    </label>
+                    <input
+                      type="tel"
+                      value={editFormData.ownerPhone}
+                      onChange={(e) => handleEditFormChange('ownerPhone', e.target.value)}
+                      className="w-full px-4 py-3 bg-slate-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all"
+                      placeholder="+250 XXX XXX XXX"
+                    />
+                  </div>
+
+                  {/* Description */}
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-bold text-gray-700 mb-2 flex items-center gap-1.5">
+                      <Building2 className="w-4 h-4 text-slate-600" />
+                      Description
+                    </label>
+                    <textarea
+                      value={editFormData.description}
+                      onChange={(e) => handleEditFormChange('description', e.target.value)}
+                      rows={4}
+                      className="w-full px-4 py-3 bg-slate-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all resize-vertical"
+                      placeholder="Enter shop description (optional)"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="px-8 py-6 bg-slate-50 border-t border-gray-200 flex justify-end gap-3">
+                <button
+                  onClick={() => setIsEditModalOpen(false)}
+                  className="px-6 py-2.5 bg-white text-gray-700 rounded-xl font-semibold hover:bg-gray-100 transition-colors border border-gray-200"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleUpdateShop}
+                  disabled={loading}
+                  className="px-6 py-2.5 bg-gradient-to-r from-amber-500 to-orange-600 text-white rounded-xl font-semibold hover:from-amber-600 hover:to-orange-700 transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  {loading ? (
+                    <>
+                      <ClipLoader color="#fff" size={16} />
+                      Updating...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="w-4 h-4" />
+                      Update Shop
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>
     </div>
   );
-
-  const SupplierDetailView = () => {
-    if (!selectedSupplier) return null;
-
-    return (
-      <div className="space-y-6 p-4 bg-gradient-to-b from-green-50 to-emerald-50 min-h-screen">
-        {/* Header */}
-        <div className="bg-white rounded-xl shadow-lg p-6 ring-1 ring-emerald-100">
-          <div className="flex justify-between items-center mb-4">
-            <div className="flex items-center">
-              <button 
-                onClick={() => setActiveView('list')}
-                className="mr-4 text-emerald-600 hover:text-emerald-800 font-medium"
-              >
-                ← Back to Suppliers
-              </button>
-              <h2 className="text-2xl font-bold text-emerald-800">{selectedSupplier.name}</h2>
-            </div>
-            <div className="flex space-x-2">
-              <button 
-                onClick={() => {
-                  setModalType('edit');
-                  setShowModal(true);
-                }}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center transition-all"
-              >
-                <Edit2 className="h-4 w-4 mr-2" />
-                Edit Supplier
-              </button>
-              <button className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg flex items-center transition-all">
-                <MessageCircle className="h-4 w-4 mr-2" />
-                Contact
-              </button>
-            </div>
-          </div>
-
-          {/* Performance Metrics */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="bg-blue-50 p-4 rounded-lg ring-1 ring-blue-200">
-              <div className="text-blue-600 text-sm font-medium">Total Revenue</div>
-              <div className="text-2xl font-bold text-blue-900">{(selectedSupplier.totalSales || 0).toLocaleString()} RWF</div>
-            </div>
-            <div className="bg-green-50 p-4 rounded-lg ring-1 ring-green-200">
-              <div className="text-green-600 text-sm font-medium">On-Time Rate</div>
-              <div className="text-2xl font-bold text-green-900">{selectedSupplier.performance?.onTimeRate || 0}%</div>
-            </div>
-            <div className="bg-yellow-50 p-4 rounded-lg ring-1 ring-yellow-200">
-              <div className="text-yellow-600 text-sm font-medium">Avg Delivery</div>
-              <div className="text-2xl font-bold text-yellow-900">{selectedSupplier.performance?.avgDeliveryTime || 0} days</div>
-            </div>
-            <div className="bg-purple-50 p-4 rounded-lg ring-1 ring-purple-200">
-              <div className="text-purple-600 text-sm font-medium">Total Orders</div>
-              <div className="text-2xl font-bold text-purple-900">{selectedSupplier.totalOrders}</div>
-            </div>
-          </div>
-        </div>
-
-        {/* Detailed Information */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-white rounded-xl shadow-lg p-6 ring-1 ring-emerald-100">
-            <h3 className="text-lg font-semibold mb-4 text-emerald-800">Contact Information</h3>
-            <div className="space-y-3">
-              <div>
-                <label className="text-sm font-medium text-emerald-700">Contact Person</label>
-                <p className="text-emerald-900">{selectedSupplier.contactPerson || 'N/A'}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-emerald-700">Email</label>
-                <p className="text-emerald-900">{selectedSupplier.email || 'N/A'}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-emerald-700">Phone</label>
-                <p className="text-emerald-900">{selectedSupplier.phone || 'N/A'}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-emerald-700">Location</label>
-                <p className="text-emerald-900">{selectedSupplier.location || 'N/A'}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-lg p-6 ring-1 ring-emerald-100">
-            <h3 className="text-lg font-semibold mb-4 text-emerald-800">Business Details</h3>
-            <div className="space-y-3">
-              <div>
-                <label className="text-sm font-medium text-emerald-700">Category</label>
-                <p className="text-emerald-900">{selectedSupplier.category || 'N/A'}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-emerald-700">Specialization</label>
-                <p className="text-emerald-900">{selectedSupplier.specialization || 'N/A'}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-emerald-700">Payment Terms</label>
-                <p className="text-emerald-900">{selectedSupplier.paymentTerms || 'N/A'}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-emerald-700">Delivery Time</label>
-                <p className="text-emerald-900">{selectedSupplier.deliveryTime || 'N/A'}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  const SupplierModal = () => {
-    const [formData, setFormData] = useState({
-      name: selectedSupplier?.name || '',
-      contactPerson: selectedSupplier?.contactPerson || '',
-      email: selectedSupplier?.email || '',
-      phone: selectedSupplier?.phone || '',
-      category: selectedSupplier?.category || '',
-      location: selectedSupplier?.location || '',
-      specialization: selectedSupplier?.specialization || '',
-      status: selectedSupplier?.status || 'Active',
-      deliveryTime: selectedSupplier?.deliveryTime || '',
-      paymentTerms: selectedSupplier?.paymentTerms || '',
-      rating: selectedSupplier?.rating || 5
-    });
-
-    const handleSubmit = (e) => {
-      e.preventDefault();
-      if (modalType === 'add') {
-        handleAddSupplier(formData);
-      } else {
-        handleEditSupplier(formData);
-      }
-    };
-
-    if (!showModal) return null;
-
-    return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-        <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl ring-1 ring-emerald-200">
-          <div className="bg-emerald-600 text-white p-6 rounded-t-xl">
-            <h2 className="text-xl font-bold">
-              {modalType === 'add' ? 'Add New Supplier' : 'Edit Supplier'}
-            </h2>
-          </div>
-          
-          <form onSubmit={handleSubmit} className="p-6 space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-emerald-700 mb-1">
-                  Company Name *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.name}
-                  onChange={(e) => setFormData({...formData, name: e.target.value})}
-                  className="w-full px-3 py-2 border border-emerald-300 rounded-lg focus:ring-2 focus:ring-emerald-500 transition-all"
-                  placeholder="Enter company name"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-emerald-700 mb-1">
-                  Contact Person *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.contactPerson}
-                  onChange={(e) => setFormData({...formData, contactPerson: e.target.value})}
-                  className="w-full px-3 py-2 border border-emerald-300 rounded-lg focus:ring-2 focus:ring-emerald-500 transition-all"
-                  placeholder="Enter contact person name"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-emerald-700 mb-1">
-                  Email *
-                </label>
-                <input
-                  type="email"
-                  required
-                  value={formData.email}
-                  onChange={(e) => setFormData({...formData, email: e.target.value})}
-                  className="w-full px-3 py-2 border border-emerald-300 rounded-lg focus:ring-2 focus:ring-emerald-500 transition-all"
-                  placeholder="Enter email address"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-emerald-700 mb-1">
-                  Phone *
-                </label>
-                <input
-                  type="tel"
-                  required
-                  value={formData.phone}
-                  onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                  className="w-full px-3 py-2 border border-emerald-300 rounded-lg focus:ring-2 focus:ring-emerald-500 transition-all"
-                  placeholder="+250-xxx-xxx-xxx"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-emerald-700 mb-1">
-                  Category *
-                </label>
-                <select
-                  required
-                  value={formData.category}
-                  onChange={(e) => setFormData({...formData, category: e.target.value})}
-                  className="w-full px-3 py-2 border border-emerald-300 rounded-lg focus:ring-2 focus:ring-emerald-500 transition-all"
-                >
-                  <option value="">Select Category</option>
-                  {categories.map(category => (
-                    <option key={category} value={category}>{category}</option>
-                  ))}
-                </select>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-emerald-700 mb-1">
-                  Location *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.location}
-                  onChange={(e) => setFormData({...formData, location: e.target.value})}
-                  className="w-full px-3 py-2 border border-emerald-300 rounded-lg focus:ring-2 focus:ring-emerald-500 transition-all"
-                  placeholder="City, Province"
-                />
-              </div>
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-emerald-700 mb-1">
-                Specialization *
-              </label>
-              <textarea
-                required
-                value={formData.specialization}
-                onChange={(e) => setFormData({...formData, specialization: e.target.value})}
-                className="w-full px-3 py-2 border border-emerald-300 rounded-lg focus:ring-2 focus:ring-emerald-500 transition-all"
-                rows={3}
-                placeholder="Describe what products/services this supplier provides"
-              />
-            </div>
-            
-            <div className="flex justify-end space-x-4 pt-4 border-t">
-              <button
-                type="button"
-                onClick={() => { setShowModal(false); setSelectedSupplier(null); }}
-                className="px-6 py-2 border border-emerald-300 rounded-lg text-emerald-700 hover:bg-emerald-50 transition-all"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="px-6 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all transform hover:scale-105"
-                disabled={!formData.name || !formData.contactPerson || !formData.email}
-              >
-                {modalType === 'add' ? 'Add Supplier' : 'Save Changes'}
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    );
-  };
-
-  return (
-    <div className="min-h-screen">
-      {activeView === 'list' && <SupplierListView />}
-      {activeView === 'detail' && <SupplierDetailView />}
-      {showModal && <SupplierModal />}
-    </div>
-  );
-};
-
-export default ShopSuppliers;
+}

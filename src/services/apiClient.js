@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Create axios instance with base configuration
 const apiClient = axios.create({
-  baseURL: 'https://dash-api-hnyp.onrender.com/api',
+  baseURL: '/api', // Use relative URL - Vite proxy will forward to the backend
   headers: {
     'Content-Type': 'application/json',
   },
