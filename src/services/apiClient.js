@@ -1,8 +1,12 @@
 import axios from 'axios';
 
 // Create axios instance with base configuration
+// In production: use full backend URL
+// In development: use relative URL (Vite proxy will forward to the backend)
 const apiClient = axios.create({
-  baseURL: '/api', // Use relative URL - Vite proxy will forward to the backend
+  baseURL: import.meta.env.PROD 
+    ? 'https://dash-api-hnyp.onrender.com/api' 
+    : '/api',
   headers: {
     'Content-Type': 'application/json',
   },
@@ -31,9 +35,11 @@ apiClient.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    console.log(`🔵 API Request: ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`);
     return config;
   },
   (error) => {
+    console.error('❌ Request error:', error);
     return Promise.reject(error);
   }
 );
@@ -41,6 +47,7 @@ apiClient.interceptors.request.use(
 // Response interceptor to handle errors and token refresh
 apiClient.interceptors.response.use(
   (response) => {
+    console.log(`✅ API Response: ${response.status}`, response.data);
     // If response has success: false, reject with error message
     if (response.data && response.data.success === false) {
       return Promise.reject(new Error(response.data.message || 'API request failed'));
@@ -48,6 +55,13 @@ apiClient.interceptors.response.use(
     return response;
   },
   async (error) => {
+    console.error('❌ API Error:', {
+      message: error.message,
+      status: error.response?.status,
+      data: error.response?.data,
+      url: error.config?.url
+    });
+
     const originalRequest = error.config;
     
     // Handle network errors
