@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Store, MapPin, User, Phone, Mail } from 'lucide-react';
+import { createShop } from '../../services/shopService';
 
-export default function AddShopForm({ onClose }) {
+export default function AddShopForm({ onClose, onSuccess }) {
   const [formData, setFormData] = useState({
     shopName: '',
     description: '',
@@ -11,6 +12,8 @@ export default function AddShopForm({ onClose }) {
     ownerEmail: '',
     ownerPhone: ''
   });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   const provinces = [
     'Kigali',
@@ -36,30 +39,83 @@ export default function AddShopForm({ onClose }) {
     }));
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    // Validation
     if (!formData.shopName || !formData.description || !formData.province || !formData.district || !formData.ownerName || !formData.ownerEmail || !formData.ownerPhone) {
-      alert('Please fill in all fields');
+      setError('Please fill in all required fields');
       return;
     }
-    console.log('Shop Data:', formData);
-    alert(`Shop "${formData.shopName}" added successfully!`);
-    setFormData({
-      shopName: '',
-      description: '',
-      province: '',
-      district: '',
-      ownerName: '',
-      ownerEmail: '',
-      ownerPhone: ''
-    });
-    // Close modal after successful submission
-    if (onClose) {
-      onClose();
+
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.ownerEmail)) {
+      setError('Please enter a valid email address');
+      return;
+    }
+
+    // Phone validation (10-15 digits)
+    const phoneRegex = /^[\d+\s()-]{10,15}$/;
+    if (!phoneRegex.test(formData.ownerPhone.replace(/\s/g, ''))) {
+      setError('Please enter a valid phone number (10-15 digits)');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    console.log('Submitting shop data:', formData);
+
+    try {
+      const response = await createShop(formData);
+      console.log('Create shop response:', response);
+      
+      if (response.success) {
+        alert(`Shop "${formData.shopName}" created successfully!`);
+        
+        // Reset form
+        setFormData({
+          shopName: '',
+          description: '',
+          province: '',
+          district: '',
+          ownerName: '',
+          ownerEmail: '',
+          ownerPhone: ''
+        });
+
+        // Call success callback to refresh shop list
+        if (onSuccess) {
+          onSuccess(response.data);
+        }
+
+        // Close modal
+        if (onClose) {
+          onClose();
+        }
+      } else {
+        const errorMsg = response.message || 'Failed to create shop';
+        setError(errorMsg);
+        alert(`Error: ${errorMsg}`);
+      }
+    } catch (error) {
+      console.error('Error creating shop:', error);
+      console.error('Error response:', error.response);
+      const errorMessage = error.response?.data?.message || error.response?.data?.errors?.[0]?.msg || 'Failed to create shop. Please try again.';
+      setError(errorMessage);
+      alert(`Error: ${errorMessage}`);
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <div className="space-y-6">
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+          <p className="text-sm font-medium">{error}</p>
+        </div>
+      )}
+
       <div>
         <label htmlFor="shopName" className="block text-sm font-semibold text-gray-700 mb-2">
           Shop Name
@@ -183,9 +239,10 @@ export default function AddShopForm({ onClose }) {
 
     <button
       onClick={handleSubmit}
-      className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-6 rounded-lg transition duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+      disabled={loading}
+      className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-6 rounded-lg transition duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
     >
-      Add Shop
+      {loading ? 'Creating Shop...' : 'Add Shop'}
     </button>
   </div>
   );
