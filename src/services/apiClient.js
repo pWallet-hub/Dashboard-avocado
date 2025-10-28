@@ -1,15 +1,29 @@
 import axios from 'axios';
 
+// Determine the base URL based on environment
+const getBaseURL = () => {
+  // Check if environment variable is set
+  const envBaseURL = import.meta.env.VITE_API_BASE_URL;
+  
+  // In production, use the environment variable or fallback to the default backend URL
+  if (import.meta.env.PROD) {
+    return envBaseURL || 'https://dash-api-hnyp.onrender.com/api';
+  }
+  
+  // In development, use the Vite proxy
+  return '/api';
+};
+
+console.log('🌍 Environment:', import.meta.env.MODE);
+console.log('🔗 API Base URL:', getBaseURL());
+
 // Create axios instance with base configuration
-// In production: use full backend URL
-// In development: use relative URL (Vite proxy will forward to the backend)
 const apiClient = axios.create({
-  baseURL: import.meta.env.PROD 
-    ? 'https://dash-api-hnyp.onrender.com/api' 
-    : '/api',
+  baseURL: getBaseURL(),
   headers: {
     'Content-Type': 'application/json',
   },
+  timeout: 30000, // 30 seconds timeout
 });
 
 // Track if we're already refreshing token to prevent multiple refresh requests
@@ -145,7 +159,14 @@ apiClient.interceptors.response.use(
     }
     
     if (error.response?.status === 404) {
-      return Promise.reject(new Error('Resource not found.'));
+      const endpoint = error.config?.url || 'endpoint';
+      console.error('🚨 404 Not Found:', {
+        endpoint,
+        baseURL: error.config?.baseURL,
+        fullURL: `${error.config?.baseURL}${endpoint}`,
+        method: error.config?.method
+      });
+      return Promise.reject(new Error(`Resource not found: ${endpoint}. Please check if the API endpoint is correct.`));
     }
     
     if (error.response?.status === 500) {
