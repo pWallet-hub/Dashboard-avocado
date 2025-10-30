@@ -606,7 +606,7 @@
 .section-title {
   font-size: 1.5rem;
   font-weight: 700;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -615,11 +615,13 @@
   border-bottom: 3px solid transparent;
   background-image: 
     linear-gradient(white, white),
-    linear-gradient(90deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+    linear-gradient(90deg, #11998e 0%, #38ef7d 50%, #a8e063 100%);
   background-origin: border-box;
   background-clip: padding-box, border-box;
   border-image-slice: 0 0 1 0;
   position: relative;
+  letter-spacing: -0.02em;
+  animation: slideInLeft 0.6s ease-out;
 }
 
 .section-title::after {
@@ -627,16 +629,16 @@
   position: absolute;
   bottom: -3px;
   left: 0;
-  width: 80px;
+  width: 100px;
   height: 3px;
-  background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(90deg, #11998e 0%, #38ef7d 100%);
   border-radius: 3px;
-  animation: expand 2s ease-in-out infinite;
+  animation: expandWidth 2s ease-in-out infinite;
 }
 
-@keyframes expand {
-  0%, 100% { width: 80px; }
-  50% { width: 120px; }
+@keyframes expandWidth {
+  0%, 100% { width: 100px; }
+  50% { width: 150px; }
 }
 
 .requests-list {
@@ -1230,179 +1232,13 @@
   margin-bottom: 2.5rem;
 }
 
-/* ==================== Responsive Design ==================== */
-@media (max-width: 968px) {
-  .admin-container {
-    padding: 1.5rem;
-  }
-
-  .admin-header {
-    flex-direction: column;
-    gap: 1.25rem;
-    text-align: center;
-  }
-
-  .profile-grid, .stats-grid, .service-breakdown {
-    grid-template-columns: 1fr;
-  }
-
-  .action-buttons {
-    flex-direction: column;
-    width: 100%;
-  }
-
-  .action-button, .settings-button {
-    width: 100%;
-    justify-content: center;
-  }
-}
-
-@media (max-width: 768px) {
-  .modal-content {
-    margin: 1rem;
-    max-width: calc(100% - 2rem);
-    padding: 2rem;
-  }
-
-  .card-title1 {
-    font-size: 1.5rem;
-  }
-
-  .stat-value {
-    font-size: 1.75rem;
-  }
-
-  .total-value {
-    font-size: 3rem;
-  }
-
-  .request-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 1rem;
-  }
-
-  .request-type-badge {
-    font-size: 0.75rem;
-    padding: 0.5rem 1rem;
-  }
-
-  .request-details-grid {
-    grid-template-columns: 1fr;
-    gap: 1rem;
-  }
-
-  .farmer-name {
-    font-size: 1.125rem;
-  }
-
-  .settings-buttons {
-    flex-direction: column;
-  }
-
-  .settings-button {
-    width: 100%;
-  }
-}
-
-@media (max-width: 480px) {
-  .admin-container {
-    padding: 1rem;
-  }
-
-  .admin-title {
-    font-size: 1.75rem;
-  }
-
-  .request-card.modern {
-    border-radius: 1rem;
-  }
-
-  .request-header {
-    padding: 1rem 1.25rem;
-  }
-
-  .request-body {
-    padding: 1.25rem;
-  }
-
-  .section-title {
-    font-size: 1.25rem;
-  }
-
-  .profile-card, .settings-card, .activity-card {
-    padding: 1.5rem;
-  }
-}
-
-/* ==================== Animation for Stagger Effect ==================== */
-.request-card.modern {
-  animation: cardSlideIn 0.5s ease-out backwards;
-}
-
-.request-card.modern:nth-child(1) { animation-delay: 0.1s; }
-.request-card.modern:nth-child(2) { animation-delay: 0.2s; }
-.request-card.modern:nth-child(3) { animation-delay: 0.3s; }
-.request-card.modern:nth-child(4) { animation-delay: 0.4s; }
-.request-card.modern:nth-child(5) { animation-delay: 0.5s; }
-
-@keyframes cardSlideIn {
-  from {
-    opacity: 0;
-    transform: translateY(30px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* ==================== Loading Spinner in Button ==================== */
-.spinner {
-  width: 1rem;
-  height: 1rem;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  border-top: 2px solid white;
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-
-/* ==================== Accessibility ==================== */
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-  }
-}
-
-/* ==================== Print Styles ==================== */
-@media print {
-  .admin-logout,
-  .edit-button,
-  .action-buttons {
-    display: none;
-  }
-
-  .admin-container {
-    background: white;
-  }
-
-  .profile-card, .settings-card, .activity-card {
-    box-shadow: none;
-    border: 1px solid #e5e7eb;
-  }
-}
-
 /* ==================== Harvest Requests Section ==================== */
 .harvest-requests {
   background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(10px);
-  padding: 2.5rem;
-  border-radius: 1.5rem;
-  margin-bottom: 2.5rem;
+  padding: 1.5rem;
+  border-radius: 1.25rem;
+  margin-bottom: 2rem;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
   border: 2px solid rgba(102, 126, 234, 0.1);
   position: relative;
@@ -1433,68 +1269,13 @@
   border-color: rgba(102, 126, 234, 0.3);
 }
 
-.section-title {
-  font-size: 1.75rem;
-  font-weight: 700;
-  background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  margin-bottom: 2rem;
-  padding-bottom: 1rem;
-  border-bottom: 3px solid transparent;
-  background-image: 
-    linear-gradient(white, white),
-    linear-gradient(90deg, #11998e 0%, #38ef7d 50%, #a8e063 100%);
-  background-origin: border-box;
-  background-clip: padding-box, border-box;
-  border-image-slice: 0 0 1 0;
-  position: relative;
-  letter-spacing: -0.02em;
-  animation: slideInLeft 0.6s ease-out;
-}
-
-@keyframes slideInLeft {
-  from {
-    opacity: 0;
-    transform: translateX(-30px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-.section-title::after {
-  content: '';
-  position: absolute;
-  bottom: -3px;
-  left: 0;
-  width: 100px;
-  height: 3px;
-  background: linear-gradient(90deg, #11998e 0%, #38ef7d 100%);
-  border-radius: 3px;
-  animation: expandWidth 2s ease-in-out infinite;
-}
-
-@keyframes expandWidth {
-  0%, 100% { width: 100px; }
-  50% { width: 150px; }
-}
-
-.requests-list {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
-
 /* ==================== Request Card ==================== */
 .request-card {
   background: rgba(255, 255, 255, 0.98);
   backdrop-filter: blur(10px);
   border: 2px solid rgba(17, 153, 142, 0.1);
   padding: 0;
-  border-radius: 1.5rem;
+  border-radius: 1rem;
   display: flex;
   justify-content: space-between;
   align-items: stretch;
@@ -1565,9 +1346,9 @@
 .request-details {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-  padding: 2rem;
-  padding-left: 2.5rem;
+  gap: 0.5rem;
+  padding: 1.25rem;
+  padding-left: 1.5rem;
   flex: 1;
   position: relative;
 }
@@ -1575,8 +1356,8 @@
 .request-title {
   font-weight: 700;
   color: #111827;
-  font-size: 1.375rem;
-  margin: 0 0 0.5rem 0;
+  font-size: 1.125rem;
+  margin: 0 0 0.375rem 0;
   letter-spacing: -0.015em;
   position: relative;
   display: inline-block;
@@ -1600,14 +1381,14 @@
 }
 
 .request-info {
-  font-size: 0.938rem;
+  font-size: 0.813rem;
   color: #4b5563;
   margin: 0;
-  padding: 0.5rem 0;
+  padding: 0.375rem 0;
   display: flex;
   align-items: center;
   position: relative;
-  padding-left: 1.75rem;
+  padding-left: 1.25rem;
   font-weight: 500;
   transition: all 0.3s ease;
 }
@@ -1618,8 +1399,8 @@
   left: 0;
   top: 50%;
   transform: translateY(-50%);
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
   background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
   border-radius: 50%;
   box-shadow: 0 2px 6px rgba(17, 153, 142, 0.3);
@@ -1633,7 +1414,7 @@
 
 .request-card:hover .request-info {
   color: #1f2937;
-  padding-left: 2rem;
+  padding-left: 1.5rem;
 }
 
 .request-info strong {
@@ -1645,12 +1426,12 @@
 /* Make specific info stand out */
 .request-info:first-of-type {
   font-family: 'Monaco', 'Courier New', monospace;
-  font-size: 0.875rem;
+  font-size: 0.75rem;
   color: #667eea;
   background: rgba(102, 126, 234, 0.08);
-  padding: 0.5rem 1rem;
-  padding-left: 2rem;
-  border-radius: 8px;
+  padding: 0.375rem 0.75rem;
+  padding-left: 1.25rem;
+  border-radius: 6px;
   font-weight: 600;
   border-left: 3px solid #667eea;
 }
@@ -1665,12 +1446,12 @@
   flex-direction: column;
   align-items: flex-end;
   justify-content: space-between;
-  gap: 1rem;
-  padding: 2rem;
-  padding-right: 2.5rem;
+  gap: 0.625rem;
+  padding: 1.25rem;
+  padding-right: 1.5rem;
   background: linear-gradient(135deg, rgba(249, 250, 251, 0.5) 0%, rgba(255, 255, 255, 0.5) 100%);
   border-left: 2px solid rgba(17, 153, 142, 0.1);
-  min-width: 180px;
+  min-width: 150px;
   transition: all 0.3s ease;
 }
 
@@ -1681,9 +1462,9 @@
 
 /* ==================== Status Badge ==================== */
 .status-badge {
-  padding: 0.625rem 1.5rem;
+  padding: 0.5rem 1.125rem;
   border-radius: 50px;
-  font-size: 0.813rem;
+  font-size: 0.75rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.1em;
@@ -1760,11 +1541,11 @@
 
 /* ==================== Request Priority ==================== */
 .request-priority {
-  font-size: 0.875rem;
+  font-size: 0.75rem;
   font-weight: 700;
   color: #4b5563;
   margin: 0;
-  padding: 0.625rem 1.25rem;
+  padding: 0.5rem 1rem;
   background: linear-gradient(135deg, rgba(249, 250, 251, 0.8) 0%, rgba(255, 255, 255, 0.8) 100%);
   border-radius: 50px;
   border: 2px solid rgba(102, 126, 234, 0.15);
@@ -1772,7 +1553,7 @@
   letter-spacing: 0.05em;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.375rem;
   transition: all 0.3s ease;
   position: relative;
   overflow: hidden;
@@ -1780,7 +1561,7 @@
 
 .request-priority::before {
   content: '⚡';
-  font-size: 0.875rem;
+  font-size: 0.75rem;
   animation: pulse 2s ease-in-out infinite;
 }
 
@@ -1827,6 +1608,32 @@
 }
 
 /* ==================== Responsive Design ==================== */
+@media (max-width: 968px) {
+  .admin-container {
+    padding: 1.5rem;
+  }
+
+  .admin-header {
+    flex-direction: column;
+    gap: 1.25rem;
+    text-align: center;
+  }
+
+  .profile-grid, .stats-grid, .service-breakdown {
+    grid-template-columns: 1fr;
+  }
+
+  .action-buttons {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .action-button, .settings-button {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
 @media (max-width: 1024px) {
   .request-card {
     flex-direction: column;
@@ -1844,6 +1651,52 @@
 }
 
 @media (max-width: 768px) {
+  .modal-content {
+    margin: 1rem;
+    max-width: calc(100% - 2rem);
+    padding: 2rem;
+  }
+
+  .card-title1 {
+    font-size: 1.5rem;
+  }
+
+  .stat-value {
+    font-size: 1.75rem;
+  }
+
+  .total-value {
+    font-size: 3rem;
+  }
+
+  .request-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .request-type-badge {
+    font-size: 0.75rem;
+    padding: 0.5rem 1rem;
+  }
+
+  .request-details-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .farmer-name {
+    font-size: 1.125rem;
+  }
+
+  .settings-buttons {
+    flex-direction: column;
+  }
+
+  .settings-button {
+    width: 100%;
+  }
+
   .harvest-requests {
     padding: 1.5rem;
   }
@@ -1878,13 +1731,37 @@
 }
 
 @media (max-width: 480px) {
-  .harvest-requests {
-    padding: 1.25rem;
+  .admin-container {
+    padding: 1rem;
+  }
+
+  .admin-title {
+    font-size: 1.75rem;
+  }
+
+  .request-card.modern {
     border-radius: 1rem;
+  }
+
+  .request-header {
+    padding: 1rem 1.25rem;
+  }
+
+  .request-body {
+    padding: 1.25rem;
   }
 
   .section-title {
     font-size: 1.25rem;
+  }
+
+  .profile-card, .settings-card, .activity-card {
+    padding: 1.5rem;
+  }
+
+  .harvest-requests {
+    padding: 1.25rem;
+    border-radius: 1rem;
   }
 
   .request-details {
@@ -1919,28 +1796,37 @@
   }
 }
 
-/* ==================== Print Styles ==================== */
-@media print {
-  .harvest-requests {
-    box-shadow: none;
-    border: 1px solid #e5e7eb;
-    page-break-inside: avoid;
-  }
+/* ==================== Animation for Stagger Effect ==================== */
+.request-card.modern {
+  animation: cardSlideIn 0.5s ease-out backwards;
+}
 
-  .request-card {
-    box-shadow: none;
-    border: 1px solid #e5e7eb;
-    page-break-inside: avoid;
-  }
+.request-card.modern:nth-child(1) { animation-delay: 0.1s; }
+.request-card.modern:nth-child(2) { animation-delay: 0.2s; }
+.request-card.modern:nth-child(3) { animation-delay: 0.3s; }
+.request-card.modern:nth-child(4) { animation-delay: 0.4s; }
+.request-card.modern:nth-child(5) { animation-delay: 0.5s; }
 
-  .request-card::before,
-  .request-card::after {
-    display: none;
-  }
+/* ==================== Loading Spinner in Button ==================== */
+.spinner {
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top: 2px solid white;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
 }
 
 /* ==================== Accessibility ==================== */
 @media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
   .request-card,
   .status-badge,
   .request-priority,
@@ -1965,6 +1851,41 @@
 .request-priority:focus {
   outline: 3px solid rgba(102, 126, 234, 0.4);
   outline-offset: 2px;
+}
+
+/* ==================== Print Styles ==================== */
+@media print {
+  .admin-logout,
+  .edit-button,
+  .action-buttons {
+    display: none;
+  }
+
+  .admin-container {
+    background: white;
+  }
+
+  .profile-card, .settings-card, .activity-card {
+    box-shadow: none;
+    border: 1px solid #e5e7eb;
+  }
+
+  .harvest-requests {
+    box-shadow: none;
+    border: 1px solid #e5e7eb;
+    page-break-inside: avoid;
+  }
+
+  .request-card {
+    box-shadow: none;
+    border: 1px solid #e5e7eb;
+    page-break-inside: avoid;
+  }
+
+  .request-card::before,
+  .request-card::after {
+    display: none;
+  }
 }
 
 /* ==================== Loading State ==================== */
