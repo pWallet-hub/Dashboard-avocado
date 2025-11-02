@@ -945,8 +945,9 @@ export default function ServiceRequests() {
           </div>
         </div>
 
-        {/* Requests Table */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+       
+       Requests Table
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
           {loading ? (
             <div className="text-center py-20">
               <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-slate-200 border-t-emerald-500 mb-4"></div>
@@ -955,39 +956,43 @@ export default function ServiceRequests() {
           ) : filteredRequests.length > 0 ? (
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gradient-to-r from-slate-50 to-slate-100 border-b-2 border-slate-200">
+                <thead className="bg-white border-b border-slate-200">
                   <tr>
-                    {['Request #', 'Farmer', 'Service Type', 'Status', 'Submitted', 'Actions'].map(h => (
-                      <th key={h} className="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">
-                        {h}
-                      </th>
-                    ))}
+                    <th className="px-6 py-4 text-left">
+                      <input type="checkbox" className="w-4 h-4 rounded border-slate-300" />
+                    </th>
+                    <th className="px-6 py-4 text-left text-sm font-medium text-slate-600">Farmer Name</th>
+                    <th className="px-6 py-4 text-left text-sm font-medium text-slate-600">Email</th>
+                    <th className="px-6 py-4 text-left text-sm font-medium text-slate-600">Telephone</th>
+                    <th className="px-6 py-4 text-left text-sm font-medium text-slate-600">Request ID</th>
+                    <th className="px-6 py-4 text-left text-sm font-medium text-slate-600">Service Type</th>
+                    <th className="px-6 py-4 text-left text-sm font-medium text-slate-600">Status</th>
+                    <th className="px-6 py-4 text-left text-sm font-medium text-slate-600">Submitted Date</th>
+                    <th className="px-6 py-4 text-left text-sm font-medium text-slate-600">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {filteredRequests.map((request) => (
                     <tr key={request.id} className="hover:bg-slate-50 transition-colors duration-150">
                       <td className="px-6 py-4">
-                        <span className="text-xs font-mono bg-slate-100 text-slate-700 px-2.5 py-1 rounded-lg font-semibold">
+                        <input type="checkbox" className="w-4 h-4 rounded border-slate-300" />
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="text-sm text-slate-900 font-medium">{request.farmerName || 'N/A'}</span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="text-sm text-slate-700">{request.farmerEmail || 'N/A'}</span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="text-sm text-slate-700">{request.farmerPhone || 'N/A'}</span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="text-sm text-slate-700 font-mono">
                           {request.service_type === 'property_evaluation' ? 'Property Eval' : (request.requestNumber || request.id)}
                         </span>
                       </td>
                       <td className="px-6 py-4">
-                        <div>
-                          <div className="text-sm font-semibold text-slate-900 flex items-center">
-                            <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center text-white font-bold text-xs mr-2.5">
-                              {(request.farmerName || 'U').charAt(0).toUpperCase()}
-                            </div>
-                            {request.farmerName || 'N/A'}
-                          </div>
-                          <div className="text-xs text-slate-500 mt-0.5 flex items-center ml-10.5">
-                            <Phone className="w-3 h-3 mr-1" />
-                            {request.farmerPhone || 'N/A'}
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="inline-flex items-center px-3 py-1 rounded-lg text-xs font-semibold bg-violet-100 text-violet-800 border border-violet-200">
+                        <span className="text-sm text-slate-700">
                           {request.service_type === 'property_evaluation' ? 'Property Evaluation' :
                            request.service_type === 'harvest' ? 'Harvesting Day' :
                            request.service_type === 'pest_management' ? 'Pest Management' :
@@ -995,16 +1000,14 @@ export default function ServiceRequests() {
                         </span>
                       </td>
                       <td className="px-6 py-4">
-                        <span className={`inline-flex items-center px-3 py-1 rounded-lg text-xs font-semibold border ${getStatusColor(request.status)}`}>
-                          {getStatusIcon(request.status)}
-                          <span className="ml-1.5 capitalize">{request.status}</span>
+                        <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium ${getStatusColor(request.status)}`}>
+                          <span className="capitalize">{request.status}</span>
                         </span>
                       </td>
                       <td className="px-6 py-4">
-                        <div className="text-sm text-slate-700 flex items-center">
-                          <Calendar className="w-3.5 h-3.5 mr-1.5 text-slate-400" />
+                        <span className="text-sm text-slate-700">
                           {formatDate(request.submittedAt)}
-                        </div>
+                        </span>
                       </td>
                       <td className="px-6 py-4">
                         <button
@@ -1012,11 +1015,12 @@ export default function ServiceRequests() {
                             setSelectedRequest(request);
                             setShowModal(true);
                           }}
-                          className="inline-flex items-center text-emerald-600 hover:text-emerald-800 font-semibold text-sm hover:bg-emerald-50 px-3 py-1.5 rounded-lg transition-all duration-200"
+                          className="text-slate-400 hover:text-slate-600 transition-colors"
                           disabled={actionLoading[request.id]}
                         >
-                          <Eye className="w-4 h-4 mr-1.5" />
-                          View Details
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                          </svg>
                         </button>
                       </td>
                     </tr>
@@ -1034,6 +1038,7 @@ export default function ServiceRequests() {
             </div>
           )}
         </div>
+          
       </div>
 
       {showModal && selectedRequest && (
