@@ -395,11 +395,11 @@ const ShopProducts = () => {
                   Category <span className="text-red-500">*</span>
                 </label>
                 <select
-                  required
+                  required={!isViewMode}
                   value={formData.category || ''}
                   onChange={(e) => setFormData({...formData, category: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                  disabled={loading}
+                  className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-transparent ${isViewMode ? 'bg-gray-50' : ''}`}
+                  disabled={loading || isViewMode}
                 >
                   <option value="">Select Category</option>
                   {categories.map(category => (
@@ -434,9 +434,10 @@ const ShopProducts = () => {
                   type="text"
                   value={formData.sku || ''}
                   onChange={(e) => setFormData({...formData, sku: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-transparent ${isViewMode ? 'bg-gray-50' : ''}`}
                   placeholder="Auto-generated if empty"
-                  disabled={loading}
+                  disabled={loading || isViewMode}
+                  readOnly={isViewMode}
                 />
               </div>
 
@@ -447,9 +448,10 @@ const ShopProducts = () => {
                   maxLength={1000}
                   value={formData.description || ''}
                   onChange={(e) => setFormData({...formData, description: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-transparent ${isViewMode ? 'bg-gray-50' : ''}`}
                   placeholder="Detailed product description..."
-                  disabled={loading}
+                  disabled={loading || isViewMode}
+                  readOnly={isViewMode}
                 />
                 <p className="text-xs text-gray-500 mt-1">
                   {formData.description?.length || 0}/1000 characters
@@ -463,9 +465,10 @@ const ShopProducts = () => {
                   maxLength={100}
                   value={formData.brand || ''}
                   onChange={(e) => setFormData({...formData, brand: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-transparent ${isViewMode ? 'bg-gray-50' : ''}`}
                   placeholder="e.g., AgroFlow"
-                  disabled={loading}
+                  disabled={loading || isViewMode}
+                  readOnly={isViewMode}
                 />
               </div>
             </div>
@@ -480,12 +483,13 @@ const ShopProducts = () => {
                 <input
                   type="number"
                   min="0"
-                  required
+                  required={!isViewMode}
                   value={formData.quantity || ''}
                   onChange={(e) => setFormData({...formData, quantity: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-transparent ${isViewMode ? 'bg-gray-50' : ''}`}
                   placeholder="0"
-                  disabled={loading}
+                  disabled={loading || isViewMode}
+                  readOnly={isViewMode}
                 />
               </div>
 
@@ -494,11 +498,11 @@ const ShopProducts = () => {
                   Unit <span className="text-red-500">*</span>
                 </label>
                 <select
-                  required
+                  required={!isViewMode}
                   value={formData.unit || 'kg'}
                   onChange={(e) => setFormData({...formData, unit: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                  disabled={loading}
+                  className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-transparent ${isViewMode ? 'bg-gray-50' : ''}`}
+                  disabled={loading || isViewMode}
                 >
                   {units.map(unit => (
                     <option key={unit} value={unit}>{unit}</option>
@@ -512,12 +516,13 @@ const ShopProducts = () => {
                 </label>
                 <input
                   type="text"
-                  required
+                  required={!isViewMode}
                   value={formData.supplier_id || ''}
                   onChange={(e) => setFormData({...formData, supplier_id: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-transparent ${isViewMode ? 'bg-gray-50' : ''}`}
                   placeholder="e.g., SUP123456"
-                  disabled={loading}
+                  disabled={loading || isViewMode}
+                  readOnly={isViewMode}
                 />
               </div>
 
@@ -526,8 +531,8 @@ const ShopProducts = () => {
                 <select
                   value={formData.status || 'available'}
                   onChange={(e) => setFormData({...formData, status: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                  disabled={loading}
+                  className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-transparent ${isViewMode ? 'bg-gray-50' : ''}`}
+                  disabled={loading || isViewMode}
                 >
                   {statuses.map(status => (
                     <option key={status} value={status}>
@@ -544,8 +549,9 @@ const ShopProducts = () => {
                   value={formData.harvest_date || ''}
                   max={new Date().toISOString().split('T')[0]}
                   onChange={(e) => setFormData({...formData, harvest_date: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                  disabled={loading}
+                  className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-transparent ${isViewMode ? 'bg-gray-50' : ''}`}
+                  disabled={loading || isViewMode}
+                  readOnly={isViewMode}
                 />
               </div>
 
@@ -556,8 +562,22 @@ const ShopProducts = () => {
                   value={formData.expiry_date || ''}
                   min={new Date().toISOString().split('T')[0]}
                   onChange={(e) => setFormData({...formData, expiry_date: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                  disabled={loading}
+                  className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-transparent ${isViewMode ? 'bg-gray-50' : ''}`}
+                  disabled={loading || isViewMode}
+                  readOnly={isViewMode}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Image URL</label>
+                <input
+                  type="url"
+                  value={formData.images && formData.images.length > 0 ? formData.images[0] : ''}
+                  onChange={(e) => setFormData({...formData, images: e.target.value ? [e.target.value] : []})}
+                  className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-transparent ${isViewMode ? 'bg-gray-50' : ''}`}
+                  placeholder="https://example.com/images/product.jpg"
+                  disabled={loading || isViewMode}
+                  readOnly={isViewMode}
                 />
               </div>
             </div>

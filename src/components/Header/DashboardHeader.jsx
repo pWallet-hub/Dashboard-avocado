@@ -6,27 +6,27 @@ export default function DashboardHeader() {
   const navigationItems = [
     { 
       icon: "📊", 
-      label: " Book Your IPM Day", 
+      label: "Book your IPM Day", 
       route: "/dashboard/farmer/PestManagement" 
     },
     { 
       icon: "🛠️", 
-      label: "Book Your Harvesting Day", 
+      label: "Book your Harvesting Day", 
       route: "/dashboard/farmer/HarvestingDay" 
     },
     { 
       icon: "🏪", 
-      label: " Farm Input Shop", 
+      label: "Book your Farm Shop", 
       route: "/dashboard/farmer/Market" 
     },
     { 
       icon: "👤", 
-      label: "Book Your Farm Property Valuation", 
+      label: "Book your Property Valuation", 
       route: "/dashboard/farmer/PropertyEvaluation" 
     },
     { 
       icon: "📋", 
-      label: "My Service Requests", 
+      label: "My Requests", 
       route: "/dashboard/farmer/my-service-requests" 
     },
   ];
@@ -36,22 +36,27 @@ export default function DashboardHeader() {
   };
 
   return (
-    <header className="bg-white shadow-sm border-b">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <nav className="flex justify-center space-x-8 py-4">
+    <header className="bg-white shadow-sm border-b border-gray-200" style={{ padding: '8px 0' }}>
+      <div className="max-w-7xl mx-auto px-4">
+        <nav className="flex justify-center items-center gap-3">
           {navigationItems.map((item, index) => (
             <Link
               key={index}
               to={item.route}
-              className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-300 ${
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-md transition-all duration-200 ${
                 isActive(item.route)
-                  ? 'text-white shadow-md'
-                  : 'text-gray-600 hover:text-blue-600 hover:bg-blue-50'
+                  ? 'shadow-sm'
+                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
               }`}
-              style={isActive(item.route) ? { backgroundColor: '#1F310A' } : {}}
+              style={isActive(item.route) ? { 
+                backgroundColor: '#1F310A',
+                color: 'white'
+              } : {}}
             >
-              <span className="text-sm">{item.icon}</span>
-              <span className="font-medium text-sm">{item.label}</span>
+              <span style={{ fontSize: '0.875rem' }}>{item.icon}</span>
+              <span className="font-medium" style={{ fontSize: '0.8125rem', whiteSpace: 'nowrap' }}>
+                {item.label}
+              </span>
             </Link>
           ))}
         </nav>
