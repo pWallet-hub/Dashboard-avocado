@@ -199,14 +199,16 @@ export async function createProduct(productData) {
       throw new Error("Product unit is required");
     }
     
-    if (!['kg', 'g', 'lb', 'oz', 'ton', 'liter', 'ml', 'gallon', 'piece', 'dozen', 'box', 'bag', 'bottle', 'can', 'packet'].includes(productData.unit)) {
+    if (!['kg', 'g', 'lb', 'oz', 'ton', 'liter', 'ml', 'gallon', 'piece', 'dozen', 'box', 'bag', 'bottle', 'can', 'packet', 'pack'].includes(productData.unit)) {
       throw new Error('Invalid unit');
     }
     
-    if (!productData.supplier_id) {
-      throw new Error('Supplier ID is required');
-    }
+    // Supplier ID is optional for now
+    // if (!productData.supplier_id) {
+    //   throw new Error('Supplier ID is required');
+    // }
     
+    console.log('📦 Sending product data to API:', JSON.stringify(productData, null, 2));
     const response = await apiClient.post('/products', productData);
     console.log('✅ Product created successfully:', response.data);
     

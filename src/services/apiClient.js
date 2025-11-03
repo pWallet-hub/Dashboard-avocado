@@ -170,7 +170,15 @@ apiClient.interceptors.response.use(
     }
     
     if (error.response?.status === 500) {
-      return Promise.reject(new Error('Server error. Please try again later.'));
+      console.error('🚨 500 Server Error:', {
+        endpoint: error.config?.url,
+        method: error.config?.method,
+        requestData: error.config?.data,
+        responseData: error.response?.data,
+        fullError: error.response
+      });
+      const errorMessage = error.response?.data?.message || error.response?.data?.error || 'Server error. Please try again later.';
+      return Promise.reject(new Error(errorMessage));
     }
     
     // Extract error message from response if available

@@ -4,7 +4,8 @@ import {
   Search, Eye, Edit2, Plus, BarChart3, Download,
   ArrowUpRight, ArrowDownRight, Package, Clock, Star, Filter
 } from 'lucide-react';
-import { syncAllFarmerData, getShopOrders, getShopCustomers, getShopInventory, getMarketTransactions } from '../../services/marketStorageService';
+import { listOrders } from '../../services/orderService';
+import { getAllProducts } from '../../services/productsService';
 
 const ShopSales = () => {
   const [salesData, setSalesData] = useState([]);
@@ -20,47 +21,59 @@ const ShopSales = () => {
     loadSalesData();
   }, [dateRange]);
 
-  const loadSalesData = () => {
+  const loadSalesData = async () => {
     setLoading(true);
     setError(null);
     try {
-      syncAllFarmerData();
-      const orders = getShopOrders() || [];
-      const customers = getShopCustomers() || [];
-      const inventory = getShopInventory() || [];
-      const transactions = getMarketTransactions() || [];
+      // Fetch orders from the real API
+      const ordersResponse = await listOrders({ limit: 100 });
+      const orders = ordersResponse.data || [];
       
+      // Fetch products to calculate costs
+      const productsResponse = await getAllProducts({ limit: 1000 });
+      const products = productsResponse.data || [];
+      
+      // Map orders to sales data
       const sales = orders.map(order => {
-        const customer = customers.find(c => c.id === order.customerId);
-        const relatedTransaction = transactions.find(t => t.farmerId === order.supplierId);
         return {
-          ...order,
-          customerName: customer?.name || order.customerName || (order.customerId === 'internal' ? 'Internal Stock Purchase' : 'Unknown Customer'),
-          customerEmail: customer?.email || order.customerEmail || '',
-          customerPhone: customer?.phone || order.customerPhone || '',
-          profit: calculateProfit(order, inventory),
-          sourceType: order.sourceType || 'regular',
-          farmerSupplier: relatedTransaction ? relatedTransaction.farmerName : null
+          id: order.id || order._id,
+          orderNumber: order.order_number || `ORD-${order.id}`,
+          customerName: order.customer_name || 'Unknown Customer',
+          customerEmail: order.customer_email || '',
+          customerPhone: order.customer_phone || '',
+          totalAmount: order.total_amount || 0,
+          status: order.status || 'pending',
+          paymentStatus: order.payment_status || 'unpaid',
+          items: order.items || [],
+          createdAt: order.created_at || new Date().toISOString(),
+          profit: calculateProfit(order, products),
         };
       });
+      
       setSalesData(sales);
     } catch (error) {
       console.error('Error loading sales data:', error);
       setError('Failed to load sales data. Please try again.');
+      setSalesData([]); // Set empty array on error
     } finally {
       setLoading(false);
     }
   };
 
-  const calculateProfit = (order, inventory) => {
+  const calculateProfit = (order, products) => {
     let totalCost = 0;
-    order.items?.forEach(item => {
-      const product = inventory.find(p => p.id === item.productId);
-      if (product) {
-        totalCost += (product.costPrice || product.price * 0.6) * item.quantity;
-      }
-    });
-    return order.totalAmount - totalCost;
+    if (order.items && Array.isArray(order.items)) {
+      order.items.forEach(item => {
+        const product = products.find(p => (p.id || p._id) === item.product_id);
+        if (product) {
+          // Assume cost price is 60% of selling price if not available
+          const costPrice = product.cost_price || (product.price * 0.6);
+          totalCost += costPrice * (item.quantity || 0);
+        }
+      });
+    }
+    const totalRevenue = order.total_amount || 0;
+    return totalRevenue - totalCost;
   };
 
   const getSalesMetrics = () => {
