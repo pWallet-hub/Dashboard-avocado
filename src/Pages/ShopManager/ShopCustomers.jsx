@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { 
   Users, Plus, Search, Eye, Edit, Trash2, Download, Upload, Phone, Mail, MapPin, 
   Calendar, DollarSign, ShoppingCart, TrendingUp, MessageCircle, CheckCircle, X, 
@@ -16,7 +16,30 @@ const CustomerManagement = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
   const [sortBy, setSortBy] = useState('name');
-  const [formData, setFormData] = useState({});
+  const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    type: 'individual',
+    status: 'new',
+    company: '',
+    address: {
+      street: '',
+      city: '',
+      state: '',
+      zipCode: '',
+      country: 'Rwanda'
+    },
+    preferences: {
+      organic: false,
+      local: false,
+      deliveryMethod: 'delivery',
+      communicationMethod: 'email'
+    },
+    tags: [],
+    notes: ''
+  });
   const [isLoading, setIsLoading] = useState(false);
 
   const [customers, setCustomers] = useState([
@@ -361,39 +384,68 @@ const CustomerManagement = () => {
     }
   ]);
 
-  useEffect(() => {
-    console.log('activeView:', activeView);
-    console.log('selectedCustomer:', selectedCustomer);
-    console.log('showModal:', showModal);
-    if (modalType === 'edit' && selectedCustomer) {
-      setFormData(selectedCustomer);
-    } else if (modalType === 'add') {
-      setFormData({
-        firstName: '',
-        lastName: '',
-        email: '',
-        phone: '',
-        type: 'individual',
-        status: 'new',
-        company: '',
-        address: {
-          street: '',
-          city: '',
-          state: '',
-          zipCode: '',
-          country: 'Rwanda'
-        },
-        preferences: {
-          organic: false,
-          local: false,
-          deliveryMethod: 'delivery',
-          communicationMethod: 'email'
-        },
-        tags: [],
-        notes: ''
-      });
-    }
-  }, [modalType, selectedCustomer, showModal]);
+  // Initialize formData when adding a new customer
+  const handleAddClick = useCallback(() => {
+    console.log('🟢 handleAddClick called');
+    const initialData = {
+      firstName: '',
+      lastName: '',
+      email: '',
+      phone: '',
+      type: 'individual',
+      status: 'new',
+      company: '',
+      address: {
+        street: '',
+        city: '',
+        state: '',
+        zipCode: '',
+        country: 'Rwanda'
+      },
+      preferences: {
+        organic: false,
+        local: false,
+        deliveryMethod: 'delivery',
+        communicationMethod: 'email'
+      },
+      tags: [],
+      notes: ''
+    };
+    console.log('🟢 Setting formData:', initialData);
+    setFormData(initialData);
+    setModalType('add');
+    setShowModal(true);
+  }, []);
+
+  // Initialize formData when editing a customer
+  const handleEditClick = useCallback((customer) => {
+    console.log('🟡 handleEditClick called with customer:', customer);
+    setFormData({...customer});
+    setSelectedCustomer(customer);
+    setModalType('edit');
+    setShowModal(true);
+  }, []);
+
+  // Handle input changes
+  const handleInputChange = useCallback((field, value) => {
+    console.log(`📝 Input change: ${field} = ${value}`);
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  }, []);
+
+  // Handle nested input changes (for address and preferences)
+  const handleNestedInputChange = useCallback((parent, field, value) => {
+    console.log(`📝 Nested input change: ${parent}.${field} = ${value}`);
+    setFormData(prev => ({
+      ...prev,
+      [parent]: {
+        ...prev[parent],
+        [field]: value
+      }
+    }));
+  }, []);
 
   const filteredCustomers = useMemo(() => {
     return customers
@@ -499,7 +551,7 @@ const CustomerManagement = () => {
     }
   };
 
-  const CustomerModal = () => (
+  const CustomerModal = useMemo(() => (
     <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 animate-fadeIn">
       <div className="bg-white rounded-2xl w-full max-w-4xl sm:h-[90vh] overflow-y-auto shadow-2xl transform transition-all animate-slideUp">
         <div className="p-6 border-b border-emerald-100 bg-gradient-to-r from-emerald-50 to-lime-50">
@@ -528,8 +580,8 @@ const CustomerManagement = () => {
                   <input
                     type="text"
                     required
-                    value={formData.firstName || ''}
-                    onChange={(e) => setFormData({...formData, firstName: e.target.value})}
+                    value={formData.firstName}
+                    onChange={(e) => handleInputChange('firstName', e.target.value)}
                     className="w-full px-3 py-2 border border-emerald-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-300"
                     aria-required="true"
                   />
@@ -539,8 +591,8 @@ const CustomerManagement = () => {
                   <input
                     type="text"
                     required
-                    value={formData.lastName || ''}
-                    onChange={(e) => setFormData({...formData, lastName: e.target.value})}
+                    value={formData.lastName}
+                    onChange={(e) => handleInputChange('lastName', e.target.value)}
                     className="w-full px-3 py-2 border border-emerald-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-300"
                     aria-required="true"
                   />
@@ -552,8 +604,8 @@ const CustomerManagement = () => {
                 <input
                   type="email"
                   required
-                  value={formData.email || ''}
-                  onChange={(e) => setFormData({...formData, email: e.target.value})}
+                  value={formData.email}
+                  onChange={(e) => handleInputChange('email', e.target.value)}
                   className="w-full px-3 py-2 border border-emerald-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-300"
                   aria-required="true"
                 />
@@ -563,8 +615,8 @@ const CustomerManagement = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-1 font-poppins">Phone</label>
                 <input
                   type="tel"
-                  value={formData.phone || ''}
-                  onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                  value={formData.phone}
+                  onChange={(e) => handleInputChange('phone', e.target.value)}
                   className="w-full px-3 py-2 border border-emerald-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-300"
                 />
               </div>
@@ -573,8 +625,8 @@ const CustomerManagement = () => {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1 font-poppins">Customer Type</label>
                   <select
-                    value={formData.type || 'individual'}
-                    onChange={(e) => setFormData({...formData, type: e.target.value})}
+                    value={formData.type}
+                    onChange={(e) => handleInputChange('type', e.target.value)}
                     className="w-full px-3 py-2 border border-emerald-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-300"
                   >
                     <option value="individual">Individual</option>
@@ -584,8 +636,8 @@ const CustomerManagement = () => {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1 font-poppins">Status</label>
                   <select
-                    value={formData.status || 'new'}
-                    onChange={(e) => setFormData({...formData, status: e.target.value})}
+                    value={formData.status}
+                    onChange={(e) => handleInputChange('status', e.target.value)}
                     className="w-full px-3 py-2 border border-emerald-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-300"
                   >
                     <option value="new">New</option>
@@ -601,8 +653,8 @@ const CustomerManagement = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-1 font-poppins">Company Name</label>
                   <input
                     type="text"
-                    value={formData.company || ''}
-                    onChange={(e) => setFormData({...formData, company: e.target.value})}
+                    value={formData.company}
+                    onChange={(e) => handleInputChange('company', e.target.value)}
                     className="w-full px-3 py-2 border border-emerald-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-300"
                   />
                 </div>
@@ -617,10 +669,7 @@ const CustomerManagement = () => {
                 <input
                   type="text"
                   value={formData.address?.street || ''}
-                  onChange={(e) => setFormData({
-                    ...formData, 
-                    address: {...(formData.address || {}), street: e.target.value}
-                  })}
+                  onChange={(e) => handleNestedInputChange('address', 'street', e.target.value)}
                   className="w-full px-3 py-2 border border-emerald-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-300"
                 />
               </div>
@@ -631,10 +680,7 @@ const CustomerManagement = () => {
                   <input
                     type="text"
                     value={formData.address?.city || ''}
-                    onChange={(e) => setFormData({
-                      ...formData, 
-                      address: {...(formData.address || {}), city: e.target.value}
-                    })}
+                    onChange={(e) => handleNestedInputChange('address', 'city', e.target.value)}
                     className="w-full px-3 py-2 border border-emerald-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-300"
                   />
                 </div>
@@ -643,10 +689,7 @@ const CustomerManagement = () => {
                   <input
                     type="text"
                     value={formData.address?.state || ''}
-                    onChange={(e) => setFormData({
-                      ...formData, 
-                      address: {...(formData.address || {}), state: e.target.value}
-                    })}
+                    onChange={(e) => handleNestedInputChange('address', 'state', e.target.value)}
                     className="w-full px-3 py-2 border border-emerald-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-300"
                   />
                 </div>
@@ -658,10 +701,7 @@ const CustomerManagement = () => {
                   <input
                     type="text"
                     value={formData.address?.zipCode || ''}
-                    onChange={(e) => setFormData({
-                      ...formData, 
-                      address: {...(formData.address || {}), zipCode: e.target.value}
-                    })}
+                    onChange={(e) => handleNestedInputChange('address', 'zipCode', e.target.value)}
                     className="w-full px-3 py-2 border border-emerald-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-300"
                   />
                 </div>
@@ -669,10 +709,7 @@ const CustomerManagement = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-1 font-poppins">Country</label>
                   <select
                     value={formData.address?.country || 'Rwanda'}
-                    onChange={(e) => setFormData({
-                      ...formData, 
-                      address: {...(formData.address || {}), country: e.target.value}
-                    })}
+                    onChange={(e) => handleNestedInputChange('address', 'country', e.target.value)}
                     className="w-full px-3 py-2 border border-emerald-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-300"
                   >
                     <option value="Rwanda">Rwanda</option>
@@ -691,10 +728,7 @@ const CustomerManagement = () => {
                       <input
                         type="checkbox"
                         checked={formData.preferences?.organic || false}
-                        onChange={(e) => setFormData({
-                          ...formData, 
-                          preferences: {...(formData.preferences || {}), organic: e.target.checked}
-                        })}
+                        onChange={(e) => handleNestedInputChange('preferences', 'organic', e.target.checked)}
                         className="mr-2 accent-emerald-500 h-5 w-5"
                       />
                       <span className="text-sm font-poppins">Prefers Organic Avocados</span>
@@ -703,10 +737,7 @@ const CustomerManagement = () => {
                       <input
                         type="checkbox"
                         checked={formData.preferences?.local || false}
-                        onChange={(e) => setFormData({
-                          ...formData, 
-                          preferences: {...(formData.preferences || {}), local: e.target.checked}
-                        })}
+                        onChange={(e) => handleNestedInputChange('preferences', 'local', e.target.checked)}
                         className="mr-2 accent-emerald-500 h-5 w-5"
                       />
                       <span className="text-sm font-poppins">Prefers Local Avocados</span>
@@ -718,10 +749,7 @@ const CustomerManagement = () => {
                       <label className="block text-sm font-medium text-gray-700 mb-1 font-poppins">Delivery Method</label>
                       <select
                         value={formData.preferences?.deliveryMethod || 'delivery'}
-                        onChange={(e) => setFormData({
-                          ...formData, 
-                          preferences: {...(formData.preferences || {}), deliveryMethod: e.target.value}
-                        })}
+                        onChange={(e) => handleNestedInputChange('preferences', 'deliveryMethod', e.target.value)}
                         className="w-full px-3 py-2 border border-emerald-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-300"
                       >
                         <option value="delivery">Delivery</option>
@@ -733,10 +761,7 @@ const CustomerManagement = () => {
                       <label className="block text-sm font-medium text-gray-700 mb-1 font-poppins">Communication</label>
                       <select
                         value={formData.preferences?.communicationMethod || 'email'}
-                        onChange={(e) => setFormData({
-                          ...formData, 
-                          preferences: {...(formData.preferences || {}), communicationMethod: e.target.value}
-                        })}
+                        onChange={(e) => handleNestedInputChange('preferences', 'communicationMethod', e.target.value)}
                         className="w-full px-3 py-2 border border-emerald-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-300"
                       >
                         <option value="email">Email</option>
@@ -753,8 +778,8 @@ const CustomerManagement = () => {
               <label className="block text-sm font-medium text-gray-700 mb-1 font-poppins">Notes</label>
               <textarea
                 rows={4}
-                value={formData.notes || ''}
-                onChange={(e) => setFormData({...formData, notes: e.target.value})}
+                value={formData.notes}
+                onChange={(e) => handleInputChange('notes', e.target.value)}
                 className="w-full px-3 py-2 border border-emerald-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-300"
                 placeholder="Any additional notes about this avocado customer..."
               />
@@ -794,7 +819,7 @@ const CustomerManagement = () => {
         </form>
       </div>
     </div>
-  );
+  ), [modalType, formData, isLoading, handleInputChange, handleNestedInputChange]);
 
   const CustomerDetailView = () => {
     if (!selectedCustomer) {
@@ -818,10 +843,7 @@ const CustomerManagement = () => {
             </div>
             <div className="space-x-2">
               <button
-                onClick={() => {
-                  setModalType('edit');
-                  setShowModal(true);
-                }}
+                onClick={() => handleEditClick(selectedCustomer)}
                 className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all duration-300 shadow-md hover:shadow-lg font-poppins relative group"
                 aria-label="Edit customer"
               >
@@ -972,10 +994,7 @@ const CustomerManagement = () => {
           </h2>
           <div className="flex flex-wrap gap-2">
             <button 
-              onClick={() => {
-                setModalType('add');
-                setShowModal(true);
-              }}
+              onClick={handleAddClick}
               className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg flex items-center transition-all duration-300 shadow-md hover:shadow-lg font-poppins relative group"
               aria-label="Add new customer"
             >
@@ -1123,11 +1142,7 @@ const CustomerManagement = () => {
                       </span>
                     </button>
                     <button
-                      onClick={() => {
-                        setSelectedCustomer(customer);
-                        setModalType('edit');
-                        setShowModal(true);
-                      }}
+                      onClick={() => handleEditClick(customer)}
                       className="text-emerald-600 hover:text-emerald-800 mr-4 transition-colors relative group"
                       aria-label="Edit customer"
                     >
@@ -1158,7 +1173,7 @@ const CustomerManagement = () => {
 
   return (
     <div className="w-full h-screen overflow-hidden bg-gradient-to-b from-lime-50 to-emerald-50">
-      {showModal && <CustomerModal />}
+      {showModal && CustomerModal}
       {activeView === 'list' ? <CustomerListView /> : <CustomerDetailView />}
     </div>
   );

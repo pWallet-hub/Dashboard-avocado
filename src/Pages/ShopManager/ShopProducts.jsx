@@ -50,6 +50,10 @@ const ShopProducts = () => {
     pages: 0 
   });
 
+  // Get user role
+  const userRole = localStorage.getItem('role');
+  const isAdmin = userRole === 'admin';
+
   const categories = ['irrigation', 'harvesting', 'containers', 'pest-management'];
   const units = ['kg', 'g', 'lb', 'oz', 'ton', 'liter', 'ml', 'gallon', 'piece', 'dozen', 'box', 'bag', 'bottle', 'can', 'packet'];
   const statuses = ['available', 'out_of_stock', 'discontinued'];
@@ -102,6 +106,9 @@ const ShopProducts = () => {
 
   useEffect(() => {
     if (modalType === 'edit' && selectedProduct) {
+      console.log('📝 Loading product for edit:', selectedProduct);
+      console.log('💰 Product price:', selectedProduct.price);
+      
       setFormData({
         name: selectedProduct.name || '',
         category: selectedProduct.category || '',
@@ -250,6 +257,19 @@ const ShopProducts = () => {
   };
 
   const handleDelete = async (productId) => {
+    if (!productId) {
+      setError('Product ID is missing. Cannot delete product.');
+      return;
+    }
+
+    // Check user role - DELETE requires Admin role
+    const userRole = localStorage.getItem('role');
+    if (userRole !== 'admin') {
+      setError('❌ Delete Failed: Only Admin users can delete products. Your current role is: ' + (userRole || 'unknown'));
+      clearMessages();
+      return;
+    }
+
     if (!window.confirm('Are you sure you want to delete this product? This action cannot be undone.')) {
       return;
     }
@@ -259,20 +279,50 @@ const ShopProducts = () => {
     setSuccessMessage('');
 
     try {
-      await deleteProduct(productId);
-      setProducts(products.filter(p => p.id !== productId));
+      console.log('🗑️ Attempting to delete product with ID:', productId);
       
-      if (selectedProduct && selectedProduct.id === productId) {
+      const result = await deleteProduct(productId);
+      console.log('✅ Delete result:', result);
+      
+      // Update local state - remove the deleted product
+      setProducts(prevProducts => prevProducts.filter(p => {
+        const pid = p.id || p._id;
+        return pid !== productId;
+      }));
+      
+      if (selectedProduct && (selectedProduct.id === productId || selectedProduct._id === productId)) {
         setActiveView('list');
         setSelectedProduct(null);
       }
       
       setSuccessMessage('Product deleted successfully!');
       clearMessages();
+      
+      // Reload products to ensure sync with backend
       await loadProducts();
     } catch (error) {
-      console.error('Error deleting product:', error);
-      setError(error.message || 'Failed to delete product');
+      console.error('❌ Error deleting product:', error);
+      console.error('Error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      });
+      
+      let errorMessage = 'Failed to delete product. ';
+      
+      if (error.response?.status === 403 || error.message?.includes('Access denied')) {
+        errorMessage = '❌ Permission Denied: Only Admin users can delete products. Please contact an administrator.';
+      } else if (error.response?.status === 404) {
+        errorMessage += 'Product not found.';
+      } else if (error.response?.status === 401) {
+        errorMessage += 'Please log in again.';
+      } else if (error.message) {
+        errorMessage += error.message;
+      } else {
+        errorMessage += 'Please try again.';
+      }
+      
+      setError(errorMessage);
       clearMessages();
     } finally {
       setLoading(false);
@@ -288,13 +338,16 @@ const ShopProducts = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const ProductModal = () => (
+  const ProductModal = () => {
+    const isViewMode = modalType === 'view';
+    
+    return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto">
       <div className="bg-white rounded-lg w-full max-w-4xl my-8">
         <div className="p-6 border-b sticky top-0 bg-white z-10 rounded-t-lg">
           <div className="flex justify-between items-center">
             <h3 className="text-xl font-bold">
-              {modalType === 'add' ? 'Add New Product' : 'Edit Product'}
+              {modalType === 'add' ? 'Add New Product' : modalType === 'view' ? 'View Product Details' : 'Edit Product'}
             </h3>
             <button 
               onClick={() => setShowModal(false)}
@@ -317,14 +370,15 @@ const ShopProducts = () => {
                 </label>
                 <input
                   type="text"
-                  required
+                  required={!isViewMode}
                   minLength={2}
                   maxLength={200}
                   value={formData.name || ''}
                   onChange={(e) => setFormData({...formData, name: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-transparent ${isViewMode ? 'bg-gray-50' : ''}`}
                   placeholder="e.g., Drip Irrigation System"
-                  disabled={loading}
+                  disabled={loading || isViewMode}
+                  readOnly={isViewMode}
                 />
               </div>
 
@@ -346,6 +400,24 @@ const ShopProducts = () => {
                     </option>
                   ))}
                 </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Price (RWF) <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  required={!isViewMode}
+                  value={formData.price || ''}
+                  onChange={(e) => setFormData({...formData, price: e.target.value})}
+                  className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-transparent ${isViewMode ? 'bg-gray-50' : ''}`}
+                  placeholder="Enter price in RWF"
+                  disabled={loading || isViewMode}
+                  readOnly={isViewMode}
+                />
               </div>
 
               <div>
@@ -391,25 +463,8 @@ const ShopProducts = () => {
             </div>
 
             <div className="space-y-4">
-              <h4 className="text-lg font-semibold text-gray-800">Pricing & Inventory</h4>
+              <h4 className="text-lg font-semibold text-gray-800">Inventory & Details</h4>
               
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Price (RWF) <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  required
-                  value={formData.price || ''}
-                  onChange={(e) => setFormData({...formData, price: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                  placeholder="0.00"
-                  disabled={loading}
-                />
-              </div>
-
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Quantity <span className="text-red-500">*</span>
@@ -513,27 +568,98 @@ const ShopProducts = () => {
               className="px-6 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition"
               disabled={loading}
             >
-              Cancel
+              {isViewMode ? 'Close' : 'Cancel'}
             </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center disabled:opacity-50 disabled:cursor-not-allowed transition"
-            >
-              <Save className="h-4 w-4 mr-2" />
-              {loading ? 'Saving...' : (modalType === 'add' ? 'Add Product' : 'Save Changes')}
-            </button>
+            {!isViewMode && (
+              <button
+                type="submit"
+                disabled={loading}
+                className="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center disabled:opacity-50 disabled:cursor-not-allowed transition"
+              >
+                <Save className="h-4 w-4 mr-2" />
+                {loading ? 'Saving...' : (modalType === 'add' ? 'Add Product' : 'Save Changes')}
+              </button>
+            )}
           </div>
         </form>
       </div>
     </div>
-  );
+    );
+  };
+
+  // Calculate statistics
+  const stats = {
+    totalProducts: products.length,
+    totalRevenue: products.reduce((sum, product) => sum + (parseFloat(product.price) || 0), 0),
+    availableProducts: products.filter(p => p.status === 'available').length,
+    outOfStock: products.filter(p => p.status === 'out_of_stock').length,
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       {showModal && <ProductModal />}
       
       <div className="space-y-6">
+        {/* Statistics Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Total Value Card */}
+          <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl p-6 border border-blue-200 shadow-sm hover:shadow-md transition-all duration-300 group">
+            <div className="flex items-center justify-between mb-4">
+              <TrendingUp className="w-5 h-5 text-blue-700 opacity-50" />
+            </div>
+            <p className="text-sm font-semibold text-blue-600 mb-1">Total Value</p>
+            <p className="text-3xl font-bold text-blue-700">
+              {stats.totalRevenue.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} RWF
+            </p>
+            <p className="text-xs text-blue-500 mt-2">Current inventory worth</p>
+          </div>
+
+          {/* Total Products Card */}
+          <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl p-6 border border-blue-200 shadow-sm hover:shadow-md transition-all duration-300 group">
+            <div className="flex items-center justify-between mb-4">
+              <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-cyan-700 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
+                <Package2 className="w-6 h-6 text-white" />
+              </div>
+              <ShoppingCart className="w-5 h-5 text-blue-700 opacity-50" />
+            </div>
+            <p className="text-sm font-semibold text-gray-600 mb-1">Total Products</p>
+            <p className="text-3xl font-bold bg-gradient-to-br from-blue-600 to-cyan-700 bg-clip-text text-transparent">
+              {stats.totalProducts}
+            </p>
+            <p className="text-xs text-gray-500 mt-2">All products in inventory</p>
+          </div>
+
+          {/* Available Products Card */}
+          <div className="bg-gradient-to-br from-teal-50 to-green-50 rounded-xl p-6 border border-teal-200 shadow-sm hover:shadow-md transition-all duration-300 group">
+            <div className="flex items-center justify-between mb-4">
+              <div className="w-12 h-12 bg-gradient-to-br from-teal-600 to-green-700 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
+                <CheckCircle className="w-6 h-6 text-white" />
+              </div>
+              <Leaf className="w-5 h-5 text-teal-700 opacity-50" />
+            </div>
+            <p className="text-sm font-semibold text-gray-600 mb-1">Available</p>
+            <p className="text-3xl font-bold bg-gradient-to-br from-teal-600 to-green-700 bg-clip-text text-transparent">
+              {stats.availableProducts}
+            </p>
+            <p className="text-xs text-gray-500 mt-2">Ready to sell</p>
+          </div>
+
+          {/* Out of Stock Card */}
+          <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl p-6 border border-amber-200 shadow-sm hover:shadow-md transition-all duration-300 group">
+            <div className="flex items-center justify-between mb-4">
+              <div className="w-12 h-12 bg-gradient-to-br from-amber-600 to-orange-700 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
+                <AlertTriangle className="w-6 h-6 text-white" />
+              </div>
+              <Clock className="w-5 h-5 text-amber-700 opacity-50" />
+            </div>
+            <p className="text-sm font-semibold text-gray-600 mb-1">Out of Stock</p>
+            <p className="text-3xl font-bold bg-gradient-to-br from-amber-600 to-orange-700 bg-clip-text text-transparent">
+              {stats.outOfStock}
+            </p>
+            <p className="text-xs text-gray-500 mt-2">Needs restocking</p>
+          </div>
+        </div>
+
         <div className="bg-white rounded-lg shadow-md p-6">
           <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6">
             <h2 className="text-2xl font-bold text-gray-800 flex items-center mb-4 lg:mb-0">
@@ -726,6 +852,18 @@ const ShopProducts = () => {
                           <button 
                             onClick={() => {
                               setSelectedProduct(product);
+                              setModalType('view');
+                              setShowModal(true);
+                            }}
+                            className="text-green-600 hover:text-green-900 transition"
+                            title="View Product Details"
+                            disabled={loading}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </button>
+                          <button 
+                            onClick={() => {
+                              setSelectedProduct(product);
                               setModalType('edit');
                               setShowModal(true);
                             }}
@@ -735,14 +873,25 @@ const ShopProducts = () => {
                           >
                             <Edit className="h-4 w-4" />
                           </button>
-                          <button 
-                            onClick={() => handleDelete(product.id)}
-                            className="text-red-600 hover:text-red-900 transition" 
-                            title="Delete Product"
-                            disabled={loading}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
+                          {isAdmin && (
+                            <button 
+                              onClick={() => handleDelete(product.id || product._id)}
+                              className="text-red-600 hover:text-red-900 transition" 
+                              title="Delete Product (Admin Only)"
+                              disabled={loading}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          )}
+                          {!isAdmin && (
+                            <button 
+                              className="text-gray-400 cursor-not-allowed" 
+                              title="Delete requires Admin role"
+                              disabled
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>

@@ -269,156 +269,37 @@ export default function ShopProfile() {
           />
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Personal Information */}
-          <div className="lg:col-span-2">
-            <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
-              <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center">
-                <User className="w-5 h-5 mr-2 text-blue-600" aria-hidden="true" />
-                Personal Information
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <InfoField 
-                  label="Full Name" 
-                  value={isEditing ? editedProfile.full_name : shopProfile.full_name} 
-                  icon={User} 
-                  isEditing={isEditing}
-                  onChange={(value) => handleProfileChange('full_name', value)}
-                />
-                <InfoField 
-                  label="Email Address" 
-                  value={shopProfile.email} 
-                  icon={Mail} 
-                  isEditing={false}
-                />
-                <InfoField 
-                  label="Phone Number" 
-                  value={isEditing ? editedProfile.phone : shopProfile.phone} 
-                  icon={Phone} 
-                  isEditing={isEditing}
-                  onChange={(value) => handleProfileChange('phone', value)}
-                  type="tel"
-                />
-                <InfoField 
-                  label="Business License" 
-                  value={shopProfileData.license_number} 
-                  icon={Award} 
-                  isEditing={isEditing}
-                  onChange={(value) => handleProfileNestedChange('profile', 'license_number', value)}
-                />
-              </div>
-            </div>
-
-            {/* Shop Information */}
-            <div className="bg-white rounded-xl shadow-lg p-6">
-              <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center">
-                <Store className="w-5 h-5 mr-2 text-blue-600" aria-hidden="true" />
-                Shop Information
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <InfoField 
-                  label="Shop Name" 
-                  value={shopProfileData.shop_name} 
-                  icon={Store} 
-                  isEditing={isEditing}
-                  onChange={(value) => handleProfileNestedChange('profile', 'shop_name', value)}
-                />
-                <InfoField 
-                  label="Shop Type" 
-                  value={shopProfileData.shop_type} 
-                  icon={Store} 
-                  isEditing={isEditing}
-                  onChange={(value) => handleProfileNestedChange('profile', 'shop_type', value)}
-                />
-                <InfoField 
-                  label="Province" 
-                  value={shopProfileData.province} 
-                  icon={MapPin} 
-                  isEditing={isEditing}
-                  onChange={(value) => handleProfileNestedChange('profile', 'province', value)}
-                />
-                <InfoField 
-                  label="City" 
-                  value={shopProfileData.city} 
-                  icon={MapPin} 
-                  isEditing={isEditing}
-                  onChange={(value) => handleProfileNestedChange('profile', 'city', value)}
-                />
-                <div className="md:col-span-2">
-                  <InfoField 
-                    label="Full Address" 
-                    value={shopProfileData.address} 
-                    icon={MapPin} 
-                    isEditing={isEditing}
-                    onChange={(value) => handleProfileNestedChange('profile', 'address', value)}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Business Information */}
-          <div className="space-y-6">
-            <div className="bg-white rounded-xl shadow-lg p-6">
-              <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center">
-                <Award className="w-5 h-5 mr-2 text-blue-600" aria-hidden="true" />
-                Business Details
-              </h3>
-              <div className="space-y-4">
-                <InfoField
-                  label="Years in Business"
-                  value={shopProfileData.years_in_business}
-                  icon={Calendar}
-                  isEditing={isEditing}
-                  onChange={(value) => handleProfileNestedChange('profile', 'years_in_business', value)}
-                  type="number"
-                />
-                <InfoField 
-                  label="Employee Count" 
-                  value={shopProfileData.employee_count} 
-                  icon={Users} 
-                  isEditing={isEditing}
-                  onChange={(value) => handleProfileNestedChange('profile', 'employee_count', value)}
-                  type="number"
-                />
-                <InfoField 
-                  label="Website" 
-                  value={shopProfileData.website} 
-                  icon={Store} 
-                  isEditing={isEditing}
-                  onChange={(value) => handleProfileNestedChange('profile', 'website', value)}
-                  type="url"
-                />
-                <InfoField
-                  label="Member Since"
-                  value={shopProfile.created_at ? new Date(shopProfile.created_at).toLocaleDateString() : 'N/A'}
-                  icon={Calendar}
-                  isEditing={false}
-                />
-              </div>
-            </div>
-
-            {/* Status */}
-            <div className="bg-white rounded-xl shadow-lg p-6">
-              <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center">
-                <Award className="w-5 h-5 mr-2 text-blue-600" aria-hidden="true" />
-                Account Status
-              </h3>
-              <div className="space-y-4">
-                <div className="p-4 bg-gray-50 rounded-lg">
-                  <p className="text-sm text-gray-600 mb-1">Account Status</p>
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                    {shopProfile.status || 'Active'}
-                  </span>
-                </div>
-                <div className="p-4 bg-gray-50 rounded-lg">
-                  <p className="text-sm text-gray-600 mb-1">Verification Status</p>
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                    {shopProfileData.verification_status || 'Pending'}
-                  </span>
-                </div>
-              </div>
-            </div>
+        {/* Personal Information Cards */}
+        <div className="mb-8">
+          <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center">
+            <User className="w-5 h-5 mr-2 text-blue-600" aria-hidden="true" />
+            Personal Information
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <ProfileCard
+              icon={User}
+              title="Full Name"
+              value={shopProfile.full_name}
+              subtitle={null}
+            />
+            <ProfileCard
+              icon={Mail}
+              title="Email Address"
+              value={shopProfile.email}
+              subtitle={null}
+            />
+            <ProfileCard
+              icon={Phone}
+              title="Phone Number"
+              value={shopProfile.phone}
+              subtitle={null}
+            />
+            <ProfileCard
+              icon={Award}
+              title="Business License"
+              value={shopProfileData.license_number}
+              subtitle={null}
+            />
           </div>
         </div>
       </div>
