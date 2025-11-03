@@ -5,6 +5,8 @@ import './Market.css';
 import DashboardHeader from "../../components/Header/DashboardHeader";
 import { Link } from 'react-router-dom';
 import product from '../../assets/image/product.jpg';
+import products from '../../assets/image/balance scale.jpg';
+
 import { getAllProducts } from '../../services/productsService';
 
 export default function Market() {
@@ -50,7 +52,7 @@ export default function Market() {
             id: 2,
             name: 'Professional Harvesting Kit',
             price: 89.99,
-            image: product,
+            image: products,
             category: 'harvesting',
             description: 'All-in-one harvesting tools for efficient farming'
           },
@@ -58,7 +60,7 @@ export default function Market() {
             id: 3,
             name: 'Organic Pest Control Set',
             price: 34.99,
-            image: product,
+            image: products,
             category: 'pest-management',
             description: 'Eco-friendly pest management solutions'
           }
