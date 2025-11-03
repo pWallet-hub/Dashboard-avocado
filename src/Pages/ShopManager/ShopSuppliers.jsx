@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'react';
 import { ClipLoader } from 'react-spinners';
 import Select from 'react-select';
-import { 
-  getAllShops, 
-  updateShop, 
-  deleteShop, 
-  exportShopsToExcel 
+import {
+  getAllShops,
+  updateShop,
+  deleteShop,
+  exportShopsToExcel
 } from '../../services/shopService';
-import { 
-  Store, MapPin, User, Phone, Mail, Edit, Trash2, Download, 
+import {
+  Store, MapPin, User, Phone, Mail, Edit, Trash2, Download,
   Search, Eye, Building2, MapPinned, TrendingUp, CheckCircle2,
   XCircle, Filter, RefreshCw, Users, Globe
 } from 'lucide-react';
@@ -17,11 +17,11 @@ const customSelectStyles = {
   control: (base, state) => ({
     ...base,
     borderRadius: '0.75rem',
-    borderColor: state.isFocused ? '#3b82f6' : '#e2e8f0',
+    borderColor: state.isFocused ? '#0f4c3a' : '#d1d5db',
     padding: '0.25rem',
-    boxShadow: state.isFocused ? '0 0 0 3px rgba(59, 130, 246, 0.1)' : 'none',
-    '&:hover': { borderColor: '#cbd5e1' },
-    backgroundColor: '#f8fafc',
+    boxShadow: state.isFocused ? '0 0 0 3px rgba(15, 76, 58, 0.1)' : 'none',
+    '&:hover': { borderColor: '#9ca3af' },
+    backgroundColor: '#f9fdfb',
     transition: 'all 0.2s',
   }),
   menu: (base) => ({
@@ -29,14 +29,14 @@ const customSelectStyles = {
     borderRadius: '0.75rem',
     overflow: 'hidden',
     boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)',
-    border: '1px solid #e2e8f0',
+    border: '1px solid #d1d5db',
   }),
   option: (base, { isFocused, isSelected }) => ({
     ...base,
-    backgroundColor: isSelected ? '#3b82f6' : isFocused ? '#eff6ff' : '#fff',
-    color: isSelected ? '#fff' : '#0f172a',
+    backgroundColor: isSelected ? '#0f4c3a' : isFocused ? '#ecfdf5' : '#fff',
+    color: isSelected ? '#fff' : '#1f2937',
     fontWeight: isSelected ? 600 : 400,
-    '&:active': { backgroundColor: '#dbeafe' },
+    '&:active': { backgroundColor: '#d1fae5' },
   }),
 };
 
@@ -84,16 +84,34 @@ export default function ShopSuppliers() {
     setLoading(true);
     setError(null);
     try {
+      console.log('Starting to fetch shops...');
       const response = await getAllShops();
-      if (response.success) {
-        setShops(Array.isArray(response.data) ? response.data : []);
+      console.log('Response received:', response);
+      if (response.success && response.data) {
+        const shopsData = Array.isArray(response.data) ? response.data : [];
+        console.log(`Successfully loaded ${shopsData.length} shops`);
+        setShops(shopsData);
+        if (shopsData.length === 0) {
+          setError('No shops found. Create your first shop to get started!');
+        }
       } else {
         setShops([]);
-        setError('Failed to load shops.');
+        setError(response.message || 'Failed to load shops.');
       }
     } catch (error) {
+      console.error('Error in fetchShops:', error);
       setShops([]);
-      setError('Failed to load shops. Please try again later.');
+      if (error.message?.includes('timeout') || error.message?.includes('starting up')) {
+        setError('The server is waking up (this can take 30-60 seconds on first request). Please click Retry.');
+      } else if (error.message?.includes('Network error')) {
+        setError('Network error. Please check your internet connection and try again.');
+      } else if (error.response?.status === 401) {
+        setError('Session expired. Please log in again.');
+      } else if (error.response?.status === 403) {
+        setError('Access denied. You do not have permission to view shops.');
+      } else {
+        setError(error.message || 'Failed to load shops. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -128,7 +146,6 @@ export default function ShopSuppliers() {
 
   const handleUpdateShop = async () => {
     if (!selectedShop) return;
-
     setLoading(true);
     try {
       const response = await updateShop(selectedShop.id, editFormData);
@@ -146,7 +163,6 @@ export default function ShopSuppliers() {
 
   const handleDeleteShop = async (shopId) => {
     if (!window.confirm('Are you sure you want to delete this shop?')) return;
-
     try {
       const response = await deleteShop(shopId);
       if (response.success) {
@@ -175,11 +191,10 @@ export default function ShopSuppliers() {
   const filteredShops = shops.filter((shop) => {
     const matchesDistrict = !selectedDistrict || shop.district === selectedDistrict;
     const matchesProvince = !selectedProvince || shop.province === selectedProvince;
-    const matchesSearch = !searchQuery || 
+    const matchesSearch = !searchQuery ||
       shop.shopName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       shop.ownerName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       shop.ownerEmail?.toLowerCase().includes(searchQuery.toLowerCase());
-    
     return matchesDistrict && matchesProvince && matchesSearch;
   });
 
@@ -191,47 +206,19 @@ export default function ShopSuppliers() {
   };
 
   const statCards = [
-    { 
-      label: 'Total Shops', 
-      value: stats.total, 
-      icon: Store, 
-      gradient: 'from-blue-500 to-indigo-600',
-      bg: 'from-blue-50 to-indigo-50',
-      iconColor: 'text-blue-600'
-    },
-    { 
-      label: 'Active Shops', 
-      value: stats.active, 
-      icon: CheckCircle2, 
-      gradient: 'from-emerald-500 to-teal-600',
-      bg: 'from-emerald-50 to-teal-50',
-      iconColor: 'text-emerald-600'
-    },
-    { 
-      label: 'Provinces', 
-      value: stats.provinces, 
-      icon: Globe, 
-      gradient: 'from-amber-500 to-orange-600',
-      bg: 'from-amber-50 to-orange-50',
-      iconColor: 'text-amber-600'
-    },
-    { 
-      label: 'Districts', 
-      value: stats.districts, 
-      icon: MapPinned, 
-      gradient: 'from-purple-500 to-pink-600',
-      bg: 'from-purple-50 to-pink-50',
-      iconColor: 'text-purple-600'
-    },
+    { label: 'Total Shops', value: stats.total, icon: Store, gradient: 'from-green-600 to-emerald-700', bg: 'from-green-50 to-emerald-50', iconColor: 'text-green-700' },
+    { label: 'Active Shops', value: stats.active, icon: CheckCircle2, gradient: 'from-teal-600 to-cyan-700', bg: 'from-teal-50 to-cyan-50', iconColor: 'text-teal-700' },
+    { label: 'Provinces', value: stats.provinces, icon: Globe, gradient: 'from-amber-600 to-orange-700', bg: 'from-amber-50 to-orange-50', iconColor: 'text-amber-700' },
+    { label: 'Districts', value: stats.districts, icon: MapPinned, gradient: 'from-purple-600 to-pink-700', bg: 'from-purple-50 to-pink-50', iconColor: 'text-purple-700' },
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 py-8 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gradient-to-br from-green-50 via-teal-50 to-emerald-50 py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto space-y-6">
-        
+
         {/* Header Section */}
         <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
-          <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-8 py-6">
+          <div className="bg-gradient-to-r from-green-600 to-emerald-700 px-8 py-6">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div className="flex items-center gap-4">
                 <div className="w-14 h-14 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
@@ -241,7 +228,7 @@ export default function ShopSuppliers() {
                   <h1 className="text-3xl font-bold text-white flex items-center gap-3">
                     Shop Management Dashboard
                   </h1>
-                  <p className="text-blue-100 mt-1">Manage and monitor all shop operations</p>
+                  <p className="text-green-100 mt-1">Manage and monitor all shop operations</p>
                 </div>
               </div>
               <div className="flex gap-3">
@@ -254,7 +241,7 @@ export default function ShopSuppliers() {
                 </button>
                 <button
                   onClick={exportToExcel}
-                  className="flex items-center gap-2 px-5 py-2.5 bg-white text-blue-600 rounded-xl font-semibold hover:bg-blue-50 transition-all duration-200 shadow-lg"
+                  className="flex items-center gap-2 px-5 py-2.5 bg-white text-green-700 rounded-xl font-semibold hover:bg-green-50 transition-all duration-200 shadow-lg"
                 >
                   <Download className="w-5 h-5" />
                   Export Excel
@@ -290,24 +277,24 @@ export default function ShopSuppliers() {
         {/* Filters Section */}
         <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
           <div className="flex items-center gap-2 mb-5">
-            <Filter className="w-5 h-5 text-blue-600" />
+            <Filter className="w-5 h-5 text-green-700" />
             <h2 className="text-lg font-bold text-gray-900">Search & Filters</h2>
             {(searchQuery || selectedDistrict || selectedProvince) && (
               <button
                 onClick={clearFilters}
-                className="ml-auto text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
+                className="ml-auto text-sm text-green-700 hover:text-green-800 font-medium flex items-center gap-1"
               >
                 <XCircle className="w-4 h-4" />
                 Clear All
               </button>
             )}
           </div>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* Search */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-1.5">
-                <Search className="w-4 h-4 text-blue-600" />
+                <Search className="w-4 h-4 text-green-700" />
                 Search Shops
               </label>
               <div className="relative">
@@ -316,7 +303,7 @@ export default function ShopSuppliers() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Name, owner, email..."
-                  className="w-full pl-11 pr-4 py-2.5 bg-slate-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                  className="w-full pl-11 pr-4 py-2.5 bg-green-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all"
                 />
                 <Search className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
               </div>
@@ -325,7 +312,7 @@ export default function ShopSuppliers() {
             {/* Province Filter */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-1.5">
-                <Globe className="w-4 h-4 text-amber-600" />
+                <Globe className="w-4 h-4 text-amber-700" />
                 Filter by Province
               </label>
               <Select
@@ -344,7 +331,7 @@ export default function ShopSuppliers() {
             {/* District Filter */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-1.5">
-                <MapPin className="w-4 h-4 text-purple-600" />
+                <MapPin className="w-4 h-4 text-purple-700" />
                 Filter by District
               </label>
               <Select
@@ -366,16 +353,16 @@ export default function ShopSuppliers() {
             <div className="mt-4 flex flex-wrap gap-2">
               <span className="text-sm text-gray-600 font-medium">Active filters:</span>
               {searchQuery && (
-                <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium flex items-center gap-1.5">
+                <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium flex items-center gap-1.5">
                   <Search className="w-3.5 h-3.5" />
                   {searchQuery}
-                  <button onClick={() => setSearchQuery('')} className="hover:text-blue-900">
+                  <button onClick={() => setSearchQuery('')} className="hover:text-green-900">
                     <XCircle className="w-3.5 h-3.5" />
                   </button>
                 </span>
               )}
               {selectedProvince && (
-                <span className="px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-sm font-medium flex items-center gap-1.5">
+                <span className="px-3 py-1 bg-amber-100 text-amber-800 rounded-full text-sm font-medium flex items-center gap-1.5">
                   <Globe className="w-3.5 h-3.5" />
                   {selectedProvince}
                   <button onClick={() => setSelectedProvince(null)} className="hover:text-amber-900">
@@ -384,7 +371,7 @@ export default function ShopSuppliers() {
                 </span>
               )}
               {selectedDistrict && (
-                <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm font-medium flex items-center gap-1.5">
+                <span className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm font-medium flex items-center gap-1.5">
                   <MapPin className="w-3.5 h-3.5" />
                   {selectedDistrict}
                   <button onClick={() => setSelectedDistrict(null)} className="hover:text-purple-900">
@@ -398,7 +385,7 @@ export default function ShopSuppliers() {
           {/* Results Count */}
           <div className="mt-4 pt-4 border-t border-gray-100">
             <p className="text-sm text-gray-600">
-              Showing <span className="font-bold text-blue-600">{filteredShops.length}</span> of{' '}
+              Showing <span className="font-bold text-green-700">{filteredShops.length}</span> of{' '}
               <span className="font-bold text-gray-900">{shops.length}</span> shops
             </p>
           </div>
@@ -408,25 +395,31 @@ export default function ShopSuppliers() {
         <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
           {loading ? (
             <div className="flex flex-col items-center justify-center py-20">
-              <ClipLoader color="#3b82f6" loading={loading} size={60} />
+              <ClipLoader color="#0f4c3a" loading={loading} size={60} />
               <p className="mt-4 text-gray-600 font-medium">Loading shops data...</p>
+              <p className="mt-2 text-sm text-gray-500">First load may take 30-60 seconds while server wakes up</p>
             </div>
           ) : error ? (
             <div className="py-16 text-center">
               <XCircle className="w-16 h-16 mx-auto mb-4 text-red-400" />
-              <p className="text-red-600 font-semibold text-lg">{error}</p>
+              <p className="text-red-600 font-semibold text-lg mb-2">{error}</p>
+              {error.includes('waking up') && (
+                <p className="text-sm text-gray-600 mb-4 max-w-md mx-auto">
+                  Tip: Free-tier backends sleep after inactivity. The next request will be faster!
+                </p>
+              )}
               <button
                 onClick={fetchShops}
-                className="mt-4 px-6 py-2.5 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors inline-flex items-center gap-2"
+                className="mt-4 px-6 py-2.5 bg-green-700 text-white rounded-xl font-semibold hover:bg-green-800 transition-colors inline-flex items-center gap-2"
               >
                 <RefreshCw className="w-4 h-4" />
-                Try Again
+                Retry Now
               </button>
             </div>
           ) : filteredShops.length > 0 ? (
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gradient-to-r from-slate-50 to-blue-50 border-b-2 border-blue-100">
+                <thead className="bg-gradient-to-r from-green-50 to-emerald-50 border-b-2 border-green-100">
                   <tr>
                     {[
                       { label: 'Shop Details', icon: Store },
@@ -438,7 +431,7 @@ export default function ShopSuppliers() {
                     ].map((header, idx) => (
                       <th key={idx} className="px-6 py-4 text-left">
                         <div className="flex items-center gap-2">
-                          {header.icon && <header.icon className="w-4 h-4 text-blue-600" />}
+                          {header.icon && <header.icon className="w-4 h-4 text-green-700" />}
                           <span className="text-xs font-bold text-gray-700 uppercase tracking-wider">
                             {header.label}
                           </span>
@@ -450,19 +443,16 @@ export default function ShopSuppliers() {
                 <tbody className="divide-y divide-gray-100">
                   {filteredShops.map((shop, idx) => {
                     const colors = [
-                      'from-blue-500 to-indigo-600',
-                      'from-emerald-500 to-teal-600',
-                      'from-amber-500 to-orange-600',
-                      'from-purple-500 to-pink-600',
-                      'from-rose-500 to-red-600'
+                      'from-green-600 to-emerald-700',
+                      'from-teal-600 to-cyan-700',
+                      'from-amber-600 to-orange-700',
+                      'from-purple-600 to-pink-700',
+                      'from-rose-600 to-red-700'
                     ];
                     const colorIdx = idx % colors.length;
-                    
+
                     return (
-                      <tr 
-                        key={shop.id} 
-                        className="hover:bg-slate-50 transition-all duration-200 group"
-                      >
+                      <tr key={shop.id} className="hover:bg-green-50 transition-all duration-200 group">
                         {/* Shop Details */}
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
@@ -470,7 +460,7 @@ export default function ShopSuppliers() {
                               {shop.shopName?.charAt(0).toUpperCase() || 'S'}
                             </div>
                             <div className="min-w-0">
-                              <p className="font-bold text-gray-900 group-hover:text-blue-600 transition-colors">
+                              <p className="font-bold text-gray-900 group-hover:text-green-700 transition-colors">
                                 {shop.shopName}
                               </p>
                               <p className="text-sm text-gray-500 truncate max-w-xs" title={shop.description}>
@@ -484,12 +474,12 @@ export default function ShopSuppliers() {
                         <td className="px-6 py-4">
                           <div className="space-y-1.5">
                             <div className="flex items-center gap-2">
-                              <span className="px-2.5 py-1 bg-amber-100 text-amber-700 rounded-lg text-xs font-semibold">
+                              <span className="px-2.5 py-1 bg-amber-100 text-amber-800 rounded-lg text-xs font-semibold">
                                 {shop.province}
                               </span>
                             </div>
                             <div className="flex items-center gap-2">
-                              <span className="px-2.5 py-1 bg-purple-100 text-purple-700 rounded-lg text-xs font-semibold">
+                              <span className="px-2.5 py-1 bg-purple-100 text-purple-800 rounded-lg text-xs font-semibold">
                                 {shop.district}
                               </span>
                             </div>
@@ -499,8 +489,8 @@ export default function ShopSuppliers() {
                         {/* Owner */}
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-2.5">
-                            <div className="w-9 h-9 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-lg flex items-center justify-center">
-                              <User className="w-5 h-5 text-blue-600" />
+                            <div className="w-9 h-9 bg-gradient-to-br from-green-100 to-emerald-100 rounded-lg flex items-center justify-center">
+                              <User className="w-5 h-5 text-green-700" />
                             </div>
                             <div>
                               <p className="font-semibold text-gray-900">{shop.ownerName}</p>
@@ -528,8 +518,8 @@ export default function ShopSuppliers() {
                         <td className="px-6 py-4">
                           <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold ${
                             shop.canSell !== false
-                              ? 'bg-emerald-100 text-emerald-700'
-                              : 'bg-red-100 text-red-700'
+                              ? 'bg-emerald-100 text-emerald-800'
+                              : 'bg-red-100 text-red-800'
                           }`}>
                             {shop.canSell !== false ? (
                               <>
@@ -550,21 +540,21 @@ export default function ShopSuppliers() {
                           <div className="flex gap-2">
                             <button
                               onClick={() => handleViewShop(shop)}
-                              className="p-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors group/btn"
+                              className="p-2 bg-green-100 text-green-800 rounded-lg hover:bg-green-200 transition-colors group/btn"
                               title="View Details"
                             >
                               <Eye className="w-4 h-4 group-hover/btn:scale-110 transition-transform" />
                             </button>
                             <button
                               onClick={() => handleEditShop(shop)}
-                              className="p-2 bg-amber-100 text-amber-700 rounded-lg hover:bg-amber-200 transition-colors group/btn"
+                              className="p-2 bg-amber-100 text-amber-800 rounded-lg hover:bg-amber-200 transition-colors group/btn"
                               title="Edit Shop"
                             >
                               <Edit className="w-4 h-4 group-hover/btn:scale-110 transition-transform" />
                             </button>
                             <button
                               onClick={() => handleDeleteShop(shop.id)}
-                              className="p-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors group/btn"
+                              className="p-2 bg-red-100 text-red-800 rounded-lg hover:bg-red-200 transition-colors group/btn"
                               title="Delete Shop"
                             >
                               <Trash2 className="w-4 h-4 group-hover/btn:scale-110 transition-transform" />
@@ -579,8 +569,8 @@ export default function ShopSuppliers() {
             </div>
           ) : (
             <div className="py-20 text-center">
-              <div className="w-20 h-20 bg-gradient-to-br from-slate-100 to-slate-200 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                <Store className="w-10 h-10 text-slate-400" />
+              <div className="w-20 h-20 bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                <Store className="w-10 h-10 text-green-600" />
               </div>
               <h3 className="text-xl font-bold text-gray-900 mb-2">No shops found</h3>
               <p className="text-gray-600 mb-6 max-w-md mx-auto">
@@ -591,7 +581,7 @@ export default function ShopSuppliers() {
               {(searchQuery || selectedDistrict || selectedProvince) && (
                 <button
                   onClick={clearFilters}
-                  className="px-6 py-2.5 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors inline-flex items-center gap-2"
+                  className="px-6 py-2.5 bg-green-700 text-white rounded-xl font-semibold hover:bg-green-800 transition-colors inline-flex items-center gap-2"
                 >
                   <XCircle className="w-4 h-4" />
                   Clear Filters
@@ -601,19 +591,19 @@ export default function ShopSuppliers() {
           )}
         </div>
 
-        {/* View Shop Modal */}
+              {/* ────────────────────────  VIEW SHOP MODAL  ──────────────────────── */}
         {isViewModalOpen && selectedShop && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
             <div className="bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-2xl animate-in zoom-in-95 duration-200">
-              {/* Modal Header */}
-              <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-8 py-6 flex items-center justify-between">
+              {/* Header */}
+              <div className="bg-gradient-to-r from-green-600 to-emerald-700 px-8 py-6 flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
                     <Eye className="w-6 h-6 text-white" />
                   </div>
                   <div>
                     <h2 className="text-2xl font-bold text-white">Shop Details</h2>
-                    <p className="text-blue-100 text-sm">Complete shop information</p>
+                    <p className="text-green-100 text-sm">Complete shop information</p>
                   </div>
                 </div>
                 <button
@@ -624,54 +614,97 @@ export default function ShopSuppliers() {
                 </button>
               </div>
 
-              {/* Modal Content */}
+              {/* Form-style content */}
               <div className="p-8">
                 <div className="grid md:grid-cols-2 gap-6">
-                  {[
-                    { label: 'Shop Name', value: selectedShop.shopName, icon: Store, color: 'blue' },
-                    { label: 'Province', value: selectedShop.province, icon: Globe, color: 'amber' },
-                    { label: 'District', value: selectedShop.district, icon: MapPin, color: 'purple' },
-                    { label: 'Owner Name', value: selectedShop.ownerName, icon: User, color: 'emerald' },
-                    { label: 'Owner Email', value: selectedShop.ownerEmail, icon: Mail, color: 'blue' },
-                    { label: 'Owner Phone', value: selectedShop.ownerPhone, icon: Phone, color: 'indigo' },
-                  ].map((item, idx) => (
-                    <div key={idx} className={`bg-gradient-to-br from-${item.color}-50 to-${item.color}-100 rounded-xl p-5 border border-${item.color}-200`}>
-                      <div className="flex items-center gap-3 mb-3">
-                        <div className={`w-10 h-10 bg-gradient-to-br from-${item.color}-500 to-${item.color}-600 rounded-lg flex items-center justify-center shadow-lg`}>
-                          <item.icon className="w-5 h-5 text-white" />
-                        </div>
-                        <span className="text-sm font-bold text-gray-600 uppercase tracking-wide">{item.label}</span>
+                  {/* Shop Name */}
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                      Shop Name
+                    </label>
+                    <div className="px-4 py-3 bg-white border border-gray-300 rounded-lg text-base">
+                      {selectedShop.shopName}
+                    </div>
+                  </div>
+
+                  {/* Province */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                      Province
+                    </label>
+                    <div className="px-4 py-3 bg-white border border-gray-300 rounded-lg text-base">
+                      {selectedShop.province}
+                    </div>
+                  </div>
+
+                  {/* District */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                      District
+                    </label>
+                    <div className="px-4 py-3 bg-white border border-gray-300 rounded-lg text-base">
+                      {selectedShop.district}
+                    </div>
+                  </div>
+
+                  {/* Owner Name */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                      Owner Name
+                    </label>
+                    <div className="px-4 py-3 bg-white border border-gray-300 rounded-lg text-base">
+                      {selectedShop.ownerName}
+                    </div>
+                  </div>
+
+                  {/* Owner Email */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                      Owner Email
+                    </label>
+                    <div className="px-4 py-3 bg-white border border-gray-300 rounded-lg text-base">
+                      {selectedShop.ownerEmail}
+                    </div>
+                  </div>
+
+                  {/* Owner Phone */}
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                      Owner Phone
+                    </label>
+                    <div className="px-4 py-3 bg-white border border-gray-300 rounded-lg text-base">
+                      {selectedShop.ownerPhone}
+                    </div>
+                  </div>
+
+                  {/* Description */}
+                  {selectedShop.description && (
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                        Description
+                      </label>
+                      <div className="px-4 py-3 bg-white border border-gray-300 rounded-lg text-base">
+                        {selectedShop.description}
                       </div>
-                      <p className="text-lg font-bold text-gray-900 pl-13">{item.value}</p>
                     </div>
-                  ))}
+                  )}
+
+                  {/* Created Date */}
+                  {selectedShop.createdAt && (
+                    <div className="md:col-span-2 text-center text-sm text-gray-500 mt-4">
+                      Created on{' '}
+                      {new Date(selectedShop.createdAt).toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
+                      })}
+                    </div>
+                  )}
                 </div>
-
-                {/* Description */}
-                {selectedShop.description && (
-                  <div className="mt-6 bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl p-5 border border-slate-200">
-                    <div className="flex items-center gap-2 mb-3">
-                      <Building2 className="w-5 h-5 text-slate-600" />
-                      <span className="text-sm font-bold text-gray-600 uppercase tracking-wide">Description</span>
-                    </div>
-                    <p className="text-gray-700 leading-relaxed">{selectedShop.description}</p>
-                  </div>
-                )}
-
-                {/* Created Date */}
-                {selectedShop.createdAt && (
-                  <div className="mt-6 text-center text-sm text-gray-500">
-                    Created on {new Date(selectedShop.createdAt).toLocaleDateString('en-US', { 
-                      year: 'numeric', 
-                      month: 'long', 
-                      day: 'numeric' 
-                    })}
-                  </div>
-                )}
               </div>
 
-              {/* Modal Footer */}
-              <div className="px-8 py-6 bg-slate-50 border-t border-gray-200 flex justify-end gap-3">
+              {/* Footer */}
+              <div className="px-8 py-6 bg-green-50 border-t border-gray-200 flex justify-end gap-3">
                 <button
                   onClick={() => setIsViewModalOpen(false)}
                   className="px-6 py-2.5 bg-white text-gray-700 rounded-xl font-semibold hover:bg-gray-100 transition-colors border border-gray-200"
@@ -683,7 +716,7 @@ export default function ShopSuppliers() {
                     setIsViewModalOpen(false);
                     handleEditShop(selectedShop);
                   }}
-                  className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-semibold hover:from-blue-700 hover:to-indigo-700 transition-all shadow-lg flex items-center gap-2"
+                  className="px-6 py-2.5 bg-gradient-to-r from-green-600 to-emerald-700 text-white rounded-xl font-semibold hover:from-green-700 hover:to-emerald-800 transition-all shadow-lg flex items-center gap-2"
                 >
                   <Edit className="w-4 h-4" />
                   Edit Shop
@@ -691,21 +724,19 @@ export default function ShopSuppliers() {
               </div>
             </div>
           </div>
-        )}
-
-        {/* Edit Shop Modal */}
+        )}        {/* EDIT SHOP MODAL – Fully consistent green theme */}
         {isEditModalOpen && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
             <div className="bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-2xl animate-in zoom-in-95 duration-200">
-              {/* Modal Header */}
-              <div className="bg-gradient-to-r from-amber-500 to-orange-600 px-8 py-6 flex items-center justify-between">
+              {/* Header – Green (same as View) */}
+              <div className="bg-gradient-to-r from-green-600 to-emerald-700 px-8 py-6 flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
                     <Edit className="w-6 h-6 text-white" />
                   </div>
                   <div>
                     <h2 className="text-2xl font-bold text-white">Edit Shop</h2>
-                    <p className="text-orange-100 text-sm">Update shop information</p>
+                    <p className="text-green-100 text-sm">Update shop information</p>
                   </div>
                 </div>
                 <button
@@ -716,34 +747,32 @@ export default function ShopSuppliers() {
                 </button>
               </div>
 
-              {/* Form Content */}
+              {/* Form */}
               <div className="p-8">
                 <div className="grid md:grid-cols-2 gap-6">
                   {/* Shop Name */}
                   <div className="md:col-span-2">
-                    <label className="block text-sm font-bold text-gray-700 mb-2 flex items-center gap-1.5">
-                      <Store className="w-4 h-4 text-blue-600" />
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
                       Shop Name *
                     </label>
                     <input
                       type="text"
                       value={editFormData.shopName}
                       onChange={(e) => handleEditFormChange('shopName', e.target.value)}
-                      className="w-full px-4 py-3 bg-slate-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all"
+                      className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all"
                       placeholder="Enter shop name"
                     />
                   </div>
 
                   {/* Province */}
                   <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-2 flex items-center gap-1.5">
-                      <Globe className="w-4 h-4 text-amber-600" />
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
                       Province *
                     </label>
                     <select
                       value={editFormData.province}
                       onChange={(e) => handleEditFormChange('province', e.target.value)}
-                      className="w-full px-4 py-3 bg-slate-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all"
+                      className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all"
                     >
                       <option value="">Select province</option>
                       {provinces.map((p) => (
@@ -754,15 +783,14 @@ export default function ShopSuppliers() {
 
                   {/* District */}
                   <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-2 flex items-center gap-1.5">
-                      <MapPin className="w-4 h-4 text-purple-600" />
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
                       District *
                     </label>
                     <select
                       value={editFormData.district}
                       onChange={(e) => handleEditFormChange('district', e.target.value)}
                       disabled={!editFormData.province}
-                      className="w-full px-4 py-3 bg-slate-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <option value="">Select district</option>
                       {editFormData.province &&
@@ -774,68 +802,64 @@ export default function ShopSuppliers() {
 
                   {/* Owner Name */}
                   <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-2 flex items-center gap-1.5">
-                      <User className="w-4 h-4 text-emerald-600" />
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
                       Owner Name *
                     </label>
                     <input
                       type="text"
                       value={editFormData.ownerName}
                       onChange={(e) => handleEditFormChange('ownerName', e.target.value)}
-                      className="w-full px-4 py-3 bg-slate-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all"
+                      className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all"
                       placeholder="Enter owner name"
                     />
                   </div>
 
                   {/* Owner Email */}
                   <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-2 flex items-center gap-1.5">
-                      <Mail className="w-4 h-4 text-blue-600" />
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
                       Owner Email *
                     </label>
                     <input
                       type="email"
                       value={editFormData.ownerEmail}
                       onChange={(e) => handleEditFormChange('ownerEmail', e.target.value)}
-                      className="w-full px-4 py-3 bg-slate-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all"
+                      className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all"
                       placeholder="owner@example.com"
                     />
                   </div>
 
                   {/* Owner Phone */}
                   <div className="md:col-span-2">
-                    <label className="block text-sm font-bold text-gray-700 mb-2 flex items-center gap-1.5">
-                      <Phone className="w-4 h-4 text-indigo-600" />
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
                       Owner Phone
                     </label>
                     <input
                       type="tel"
                       value={editFormData.ownerPhone}
                       onChange={(e) => handleEditFormChange('ownerPhone', e.target.value)}
-                      className="w-full px-4 py-3 bg-slate-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all"
+                      className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all"
                       placeholder="+250 XXX XXX XXX"
                     />
                   </div>
 
                   {/* Description */}
                   <div className="md:col-span-2">
-                    <label className="block text-sm font-bold text-gray-700 mb-2 flex items-center gap-1.5">
-                      <Building2 className="w-4 h-4 text-slate-600" />
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
                       Description
                     </label>
                     <textarea
                       value={editFormData.description}
                       onChange={(e) => handleEditFormChange('description', e.target.value)}
                       rows={4}
-                      className="w-full px-4 py-3 bg-slate-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all resize-vertical"
+                      className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all resize-vertical"
                       placeholder="Enter shop description (optional)"
                     />
                   </div>
                 </div>
               </div>
 
-              {/* Modal Footer */}
-              <div className="px-8 py-6 bg-slate-50 border-t border-gray-200 flex justify-end gap-3">
+              {/* Footer – Shared green color */}
+              <div className="px-8 py-6 bg-green-50 border-t border-gray-200 flex justify-end gap-3">
                 <button
                   onClick={() => setIsEditModalOpen(false)}
                   className="px-6 py-2.5 bg-white text-gray-700 rounded-xl font-semibold hover:bg-gray-100 transition-colors border border-gray-200"
@@ -845,7 +869,7 @@ export default function ShopSuppliers() {
                 <button
                   onClick={handleUpdateShop}
                   disabled={loading}
-                  className="px-6 py-2.5 bg-gradient-to-r from-amber-500 to-orange-600 text-white rounded-xl font-semibold hover:from-amber-600 hover:to-orange-700 transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  className="px-6 py-2.5 bg-purple-600 text-white rounded-xl font-semibold hover:bg-purple-700 transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                 >
                   {loading ? (
                     <>

@@ -364,31 +364,6 @@ const RwandaAvocadoManager = () => {
           </div>
         </div>
       </div>
-
-      {/* Quick Actions */}
-      <div className="bg-white rounded-xl shadow-lg p-8 hover:shadow-xl transition-shadow duration-300">
-        <h3 className="text-xl font-bold mb-6 text-gray-800">Quick Actions</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-          {[
-            { label: 'Manage Stock', icon: Package, gradient: 'from-green-500 to-green-600', section: 'inventory' },
-            { label: 'New Order', icon: ShoppingCart, gradient: 'from-blue-500 to-blue-600', section: 'orders' },
-            { label: 'Customers', icon: Users, gradient: 'from-purple-500 to-purple-600', section: 'customers' },
-            { label: 'Avocado Farms', icon: Sprout, gradient: 'from-emerald-500 to-emerald-600', section: 'farms' }
-          ].map((action, index) => {
-            const Icon = action.icon;
-            return (
-              <button 
-                key={index}
-                onClick={() => setActiveSection(action.section)}
-                className={`group p-6 bg-gradient-to-br ${action.gradient} rounded-xl text-white hover:shadow-xl transform hover:-translate-y-2 transition-all duration-300 cursor-pointer`}
-              >
-                <Icon className="h-8 w-8 mb-3 group-hover:scale-110 transition-transform duration-300 mx-auto" />
-                <span className="text-sm font-semibold block">{action.label}</span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
     </div>
   );
 
@@ -826,60 +801,27 @@ const RwandaAvocadoManager = () => {
     </div>
   );
 
+  // Function to render the active section
   const renderContent = () => {
     switch (activeSection) {
-      case 'inventory': return <InventorySection />;
-      case 'orders': return <OrdersSection />;
-      case 'customers': return <CustomersSection />;
-      case 'farms': return <FarmsSection />;
-      case 'analytics': return <AnalyticsSection />;
-      default: return <DashboardSection />;
+      case 'dashboard':
+        return <DashboardSection />;
+      case 'inventory':
+        return <InventorySection />;
+      case 'orders':
+        return <OrdersSection />;
+      case 'customers':
+        return <CustomersSection />;
+      case 'farms':
+        return <FarmsSection />;
+      default:
+        return <DashboardSection />;
     }
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-green-50 to-emerald-50">
-      {/* Navigation Bar */}
-      <nav className="bg-white shadow-lg border-b border-gray-200 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16">
-            <div className="flex items-center">
-              <div className="flex-shrink-0 flex items-center">
-                <div className="bg-gradient-to-r from-green-500 to-green-600 rounded-lg p-2 mr-3">
-                  <Apple className="h-8 w-8 text-white" />
-                </div>
-                <span className="text-xl font-bold text-gray-800">Rwanda Avocado Hub</span>
-              </div>
-            </div>
-            <div className="flex items-center space-x-4">
-              {[
-                { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
-                { id: 'inventory', label: 'Inventory', icon: Package },
-                { id: 'orders', label: 'Orders', icon: ShoppingCart },
-                { id: 'customers', label: 'Customers', icon: Users },
-                { id: 'farms', label: 'Farms', icon: Sprout },
-                { id: 'analytics', label: 'Analytics', icon: TrendingUp }
-              ].map((item) => {
-                const Icon = item.icon;
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => setActiveSection(item.id)}
-                    className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                      activeSection === item.id
-                        ? 'bg-gradient-to-r from-green-500 to-green-600 text-white shadow-md'
-                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                    }`}
-                  >
-                    <Icon className="h-4 w-4 mr-2" />
-                    {item.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      </nav>
+     
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">

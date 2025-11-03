@@ -297,33 +297,7 @@ const Users = () => {
 
   return (
     <div className="modern-users-container">
-      {/* Top Header */}
-      <div className="modern-top-header">
-        <div className="logo-section">
-          <h1 className="logo-text">Growers Management</h1>
-        </div>
-        <div className="top-header-right">
-          <div className="search-icon-wrapper">
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-              <path d="M9 17A8 8 0 1 0 9 1a8 8 0 0 0 0 16zM19 19l-4.35-4.35" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          </div>
-          <div className="notification-icon-wrapper">
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-              <path d="M15 6.66667C15 5.34058 14.4732 4.06881 13.5355 3.13113C12.5979 2.19345 11.3261 1.66667 10 1.66667C8.67392 1.66667 7.40215 2.19345 6.46447 3.13113C5.52678 4.06881 5 5.34058 5 6.66667C5 12.5 2.5 14.1667 2.5 14.1667H17.5C17.5 14.1667 15 12.5 15 6.66667Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M11.4417 17.5C11.2952 17.7526 11.0849 17.9622 10.8319 18.1079C10.5789 18.2537 10.292 18.3304 10 18.3304C9.70802 18.3304 9.42111 18.2537 9.16813 18.1079C8.91515 17.9622 8.70484 17.7526 8.55833 17.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-            <span className="notification-badge">1</span>
-          </div>
-          <div className="user-profile-dropdown">
-            <div className="user-avatar-small">{userInitials}</div>
-            <span className="user-name-small">{userDisplayName}</span>
-            <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-              <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          </div>
-        </div>
-      </div>
+     
 
       <div className="modern-content-wrapper">
         <div className="modern-main-content">
