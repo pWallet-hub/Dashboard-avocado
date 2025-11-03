@@ -47,7 +47,7 @@ export default function ShopView() {
   const [productFormData, setProductFormData] = useState({
     name: '', category: '', description: '', price: 0, quantity: 0,
     unit: 'piece', supplier_id: '', status: 'available', sku: '',
-    brand: '', images: [], specifications: {}
+    brand: '', images: [], specifications: {}, harvest_date: '', expiry_date: ''
   });
 
   useEffect(() => {
@@ -113,6 +113,7 @@ export default function ShopView() {
   const handleCreateProduct = async () => {
     try {
       setLoading(true);
+      console.log('📝 Creating product with data:', productFormData);
       await createProduct(productFormData);
       const response = await getAllProducts({ page: currentPage, limit: itemsPerPage });
       setProducts(response.data || []);
@@ -176,7 +177,7 @@ export default function ShopView() {
     setProductFormData({
       name: '', category: '', description: '', price: 0, quantity: 0,
       unit: 'piece', supplier_id: '', status: 'available', sku: '',
-      brand: '', images: [], specifications: {}
+      brand: '', images: [], specifications: {}, harvest_date: '', expiry_date: ''
     });
     setIsModalOpen(true);
   };
@@ -188,6 +189,7 @@ export default function ShopView() {
       name: product.name || '', category: product.category || '',
       description: product.description || '', price: product.price || 0,
       quantity: product.quantity || 0, unit: product.unit || 'piece',
+      harvest_date: product.harvest_date || '', expiry_date: product.expiry_date || '',
       supplier_id: product.supplier_id || '', status: product.status || 'available',
       sku: product.sku || '', brand: product.brand || '',
       images: product.images || [], specifications: product.specifications || {}
@@ -1274,6 +1276,338 @@ export default function ShopView() {
                 >
                   Close
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Product Modal (Add/Edit/View) */}
+        {isModalOpen && (
+          <div style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center',
+            justifyContent: 'center', zIndex: 1000, padding: '1rem'
+          }}>
+            <div style={{
+              background: 'white', borderRadius: '1rem', width: '100%', maxWidth: '700px',
+              maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 4px 24px rgba(0,0,0,0.25)',
+              padding: '2rem', border: '1px solid #e2e8f0'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                <h2 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#0f172a' }}>
+                  {modalMode === 'create' ? 'Add New Product' : modalMode === 'edit' ? 'Edit Product' : 'Product Details'}
+                </h2>
+                <button
+                  onClick={closeModal}
+                  style={{
+                    padding: '0.5rem', background: 'transparent', border: 'none',
+                    color: '#64748b', cursor: 'pointer', transition: 'all 0.2s'
+                  }}
+                  onMouseOver={(e) => e.target.style.color = '#ef4444'}
+                  onMouseOut={(e) => e.target.style.color = '#64748b'}
+                >
+                  <svg style={{ width: '1.5rem', height: '1.5rem' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem' }}>
+                {/* Product Name */}
+                <div style={{ gridColumn: '1 / -1' }}>
+                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#475569', marginBottom: '0.5rem' }}>
+                    Product Name *
+                  </label>
+                  <input
+                    type="text"
+                    value={productFormData.name}
+                    onChange={(e) => setProductFormData({ ...productFormData, name: e.target.value })}
+                    disabled={modalMode === 'view'}
+                    placeholder="Enter product name"
+                    style={{
+                      width: '100%', padding: '0.625rem', background: modalMode === 'view' ? '#f8fafc' : 'white',
+                      border: '1px solid #e2e8f0', borderRadius: '0.75rem', color: '#0f172a',
+                      outline: 'none', transition: 'all 0.2s'
+                    }}
+                  />
+                </div>
+
+                {/* Category */}
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#475569', marginBottom: '0.5rem' }}>
+                    Category *
+                  </label>
+                  <select
+                    value={productFormData.category}
+                    onChange={(e) => setProductFormData({ ...productFormData, category: e.target.value })}
+                    disabled={modalMode === 'view'}
+                    style={{
+                      width: '100%', padding: '0.625rem', background: modalMode === 'view' ? '#f8fafc' : 'white',
+                      border: '1px solid #e2e8f0', borderRadius: '0.75rem', color: '#0f172a',
+                      outline: 'none', transition: 'all 0.2s'
+                    }}
+                  >
+                    <option value="">Select category</option>
+                    <option value="pest-management">Pest Management</option>
+                    <option value="containers">Containers</option>
+                    <option value="harvesting">Harvesting</option>
+                    <option value="irrigation">Irrigation</option>
+                  </select>
+                </div>
+
+                {/* Brand */}
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#475569', marginBottom: '0.5rem' }}>
+                    Brand
+                  </label>
+                  <input
+                    type="text"
+                    value={productFormData.brand}
+                    onChange={(e) => setProductFormData({ ...productFormData, brand: e.target.value })}
+                    disabled={modalMode === 'view'}
+                    placeholder="Enter brand name"
+                    style={{
+                      width: '100%', padding: '0.625rem', background: modalMode === 'view' ? '#f8fafc' : 'white',
+                      border: '1px solid #e2e8f0', borderRadius: '0.75rem', color: '#0f172a',
+                      outline: 'none', transition: 'all 0.2s'
+                    }}
+                  />
+                </div>
+
+                {/* Price */}
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#475569', marginBottom: '0.5rem' }}>
+                    Price (RWF) *
+                  </label>
+                  <input
+                    type="number"
+                    value={productFormData.price}
+                    onChange={(e) => setProductFormData({ ...productFormData, price: parseFloat(e.target.value) || 0 })}
+                    disabled={modalMode === 'view'}
+                    placeholder="0.00"
+                    min="0"
+                    step="0.01"
+                    style={{
+                      width: '100%', padding: '0.625rem', background: modalMode === 'view' ? '#f8fafc' : 'white',
+                      border: '1px solid #e2e8f0', borderRadius: '0.75rem', color: '#0f172a',
+                      outline: 'none', transition: 'all 0.2s'
+                    }}
+                  />
+                </div>
+
+                {/* Quantity */}
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#475569', marginBottom: '0.5rem' }}>
+                    Quantity *
+                  </label>
+                  <input
+                    type="number"
+                    value={productFormData.quantity}
+                    onChange={(e) => setProductFormData({ ...productFormData, quantity: parseInt(e.target.value) || 0 })}
+                    disabled={modalMode === 'view'}
+                    placeholder="0"
+                    min="0"
+                    style={{
+                      width: '100%', padding: '0.625rem', background: modalMode === 'view' ? '#f8fafc' : 'white',
+                      border: '1px solid #e2e8f0', borderRadius: '0.75rem', color: '#0f172a',
+                      outline: 'none', transition: 'all 0.2s'
+                    }}
+                  />
+                </div>
+
+                {/* Unit */}
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#475569', marginBottom: '0.5rem' }}>
+                    Unit *
+                  </label>
+                  <select
+                    value={productFormData.unit}
+                    onChange={(e) => setProductFormData({ ...productFormData, unit: e.target.value })}
+                    disabled={modalMode === 'view'}
+                    style={{
+                      width: '100%', padding: '0.625rem', background: modalMode === 'view' ? '#f8fafc' : 'white',
+                      border: '1px solid #e2e8f0', borderRadius: '0.75rem', color: '#0f172a',
+                      outline: 'none', transition: 'all 0.2s'
+                    }}
+                  >
+                    <option value="piece">Piece</option>
+                    <option value="kg">Kilogram (kg)</option>
+                    <option value="g">Gram (g)</option>
+                    <option value="liter">Liter</option>
+                    <option value="ml">Milliliter (ml)</option>
+                    <option value="box">Box</option>
+                    <option value="pack">Pack</option>
+                  </select>
+                </div>
+
+                {/* SKU */}
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#475569', marginBottom: '0.5rem' }}>
+                    SKU
+                  </label>
+                  <input
+                    type="text"
+                    value={productFormData.sku}
+                    onChange={(e) => setProductFormData({ ...productFormData, sku: e.target.value })}
+                    disabled={modalMode === 'view'}
+                    placeholder="Product SKU"
+                    style={{
+                      width: '100%', padding: '0.625rem', background: modalMode === 'view' ? '#f8fafc' : 'white',
+                      border: '1px solid #e2e8f0', borderRadius: '0.75rem', color: '#0f172a',
+                      outline: 'none', transition: 'all 0.2s'
+                    }}
+                  />
+                </div>
+
+                {/* Supplier ID */}
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#475569', marginBottom: '0.5rem' }}>
+                    Supplier ID
+                  </label>
+                  <input
+                    type="text"
+                    value={productFormData.supplier_id}
+                    onChange={(e) => setProductFormData({ ...productFormData, supplier_id: e.target.value })}
+                    disabled={modalMode === 'view'}
+                    placeholder="SUP123456"
+                    style={{
+                      width: '100%', padding: '0.625rem', background: modalMode === 'view' ? '#f8fafc' : 'white',
+                      border: '1px solid #e2e8f0', borderRadius: '0.75rem', color: '#0f172a',
+                      outline: 'none', transition: 'all 0.2s'
+                    }}
+                  />
+                </div>
+
+                {/* Harvest Date */}
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#475569', marginBottom: '0.5rem' }}>
+                    Harvest Date
+                  </label>
+                  <input
+                    type="date"
+                    value={productFormData.harvest_date ? new Date(productFormData.harvest_date).toISOString().split('T')[0] : ''}
+                    onChange={(e) => setProductFormData({ ...productFormData, harvest_date: e.target.value ? new Date(e.target.value).toISOString() : '' })}
+                    disabled={modalMode === 'view'}
+                    style={{
+                      width: '100%', padding: '0.625rem', background: modalMode === 'view' ? '#f8fafc' : 'white',
+                      border: '1px solid #e2e8f0', borderRadius: '0.75rem', color: '#0f172a',
+                      outline: 'none', transition: 'all 0.2s'
+                    }}
+                  />
+                </div>
+
+                {/* Expiry Date */}
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#475569', marginBottom: '0.5rem' }}>
+                    Expiry Date
+                  </label>
+                  <input
+                    type="date"
+                    value={productFormData.expiry_date ? new Date(productFormData.expiry_date).toISOString().split('T')[0] : ''}
+                    onChange={(e) => setProductFormData({ ...productFormData, expiry_date: e.target.value ? new Date(e.target.value).toISOString() : '' })}
+                    disabled={modalMode === 'view'}
+                    style={{
+                      width: '100%', padding: '0.625rem', background: modalMode === 'view' ? '#f8fafc' : 'white',
+                      border: '1px solid #e2e8f0', borderRadius: '0.75rem', color: '#0f172a',
+                      outline: 'none', transition: 'all 0.2s'
+                    }}
+                  />
+                </div>
+
+                {/* Status */}
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#475569', marginBottom: '0.5rem' }}>
+                    Status *
+                  </label>
+                  <select
+                    value={productFormData.status}
+                    onChange={(e) => setProductFormData({ ...productFormData, status: e.target.value })}
+                    disabled={modalMode === 'view'}
+                    style={{
+                      width: '100%', padding: '0.625rem', background: modalMode === 'view' ? '#f8fafc' : 'white',
+                      border: '1px solid #e2e8f0', borderRadius: '0.75rem', color: '#0f172a',
+                      outline: 'none', transition: 'all 0.2s'
+                    }}
+                  >
+                    <option value="available">Available</option>
+                    <option value="out_of_stock">Out of Stock</option>
+                    <option value="discontinued">Discontinued</option>
+                  </select>
+                </div>
+
+                {/* Description */}
+                <div style={{ gridColumn: '1 / -1' }}>
+                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#475569', marginBottom: '0.5rem' }}>
+                    Description
+                  </label>
+                  <textarea
+                    value={productFormData.description}
+                    onChange={(e) => setProductFormData({ ...productFormData, description: e.target.value })}
+                    disabled={modalMode === 'view'}
+                    placeholder="Enter product description"
+                    rows="3"
+                    style={{
+                      width: '100%', padding: '0.625rem', background: modalMode === 'view' ? '#f8fafc' : 'white',
+                      border: '1px solid #e2e8f0', borderRadius: '0.75rem', color: '#0f172a',
+                      outline: 'none', transition: 'all 0.2s', resize: 'vertical'
+                    }}
+                  />
+                </div>
+
+                {/* Image URL */}
+                <div style={{ gridColumn: '1 / -1' }}>
+                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#475569', marginBottom: '0.5rem' }}>
+                    Image URL
+                  </label>
+                  <input
+                    type="url"
+                    value={productFormData.images && productFormData.images.length > 0 ? productFormData.images[0] : ''}
+                    onChange={(e) => setProductFormData({ ...productFormData, images: e.target.value ? [e.target.value] : [] })}
+                    disabled={modalMode === 'view'}
+                    placeholder="https://example.com/images/product.jpg"
+                    style={{
+                      width: '100%', padding: '0.625rem', background: modalMode === 'view' ? '#f8fafc' : 'white',
+                      border: '1px solid #e2e8f0', borderRadius: '0.75rem', color: '#0f172a',
+                      outline: 'none', transition: 'all 0.2s'
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem', justifyContent: 'flex-end' }}>
+                <button
+                  onClick={closeModal}
+                  style={{
+                    padding: '0.625rem 1.25rem', background: 'white', border: '2px solid #e2e8f0',
+                    color: '#475569', borderRadius: '0.75rem', fontWeight: 600,
+                    cursor: 'pointer', transition: 'all 0.2s'
+                  }}
+                >
+                  Cancel
+                </button>
+                {modalMode !== 'view' && (
+                  <button
+                    onClick={modalMode === 'create' ? handleCreateProduct : handleUpdateProduct}
+                    disabled={loading}
+                    style={{
+                      padding: '0.625rem 1.25rem',
+                      background: loading ? '#cbd5e1' : 'linear-gradient(135deg, #3b82f6 0%, #6366f1 100%)',
+                      color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 600,
+                      cursor: loading ? 'not-allowed' : 'pointer', transition: 'all 0.2s',
+                      display: 'flex', alignItems: 'center', gap: '0.5rem'
+                    }}
+                  >
+                    {loading ? (
+                      <>
+                        <ClipLoader size={16} color="white" />
+                        {modalMode === 'create' ? 'Creating...' : 'Updating...'}
+                      </>
+                    ) : (
+                      modalMode === 'create' ? 'Create Product' : 'Update Product'
+                    )}
+                  </button>
+                )}
               </div>
             </div>
           </div>
