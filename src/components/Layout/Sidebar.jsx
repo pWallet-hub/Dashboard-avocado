@@ -17,7 +17,11 @@ import {
   Package,
   TrendingUp,
   Truck,
-  Store
+  Store,
+  Calendar,
+  Bug,
+  MapPin,
+  Wrench
 } from 'lucide-react';
 import asr from '../../assets/image/pwallet-logo-new.png';
 import './Sidebar.css';
@@ -126,8 +130,11 @@ const Sidebar = ({ role: propRole }) => {
   ];
 
   const farmerLinks = [
-    { to: "/dashboard/farmer/market", icon: ShoppingCart, text: "Market" },
-    { to: "/dashboard/farmer/service", icon: Settings, text: "Service" },
+    { to: "/dashboard/farmer/market", icon: ShoppingCart, text: "Farm input Shop" },
+    { to: "/dashboard/farmer/service", icon: Wrench, text: "Service" },
+    { to: "/dashboard/farmer/HarvestingDay", icon: Calendar, text: "Book your HD" },
+    { to: "/dashboard/farmer/PestManagement", icon: Bug, text: "Book your IPM Day" },
+    { to: "/dashboard/farmer/PropertyEvaluation", icon: MapPin, text: "Book your PE Day" },
     { to: "/dashboard/farmer/my-service-requests", icon: ClipboardList, text: "My Requests" },
     { to: "/dashboard/farmer/profile", icon: User, text: "Profile" },
   ];
@@ -166,16 +173,16 @@ const Sidebar = ({ role: propRole }) => {
   const getSidebarTitle = () => {
     switch (currentRole) {
       case 'admin':
-        return 'AS-Rwanda Admin';
+        return 'ASR Admin';
       case 'agent':
-        return 'AS-Rwanda Agent';
+        return 'ASR Agent';
       case 'farmer':
-        return 'AS-Rwanda Farmer';
+        return 'ASR Farmer';
       case 'shop-manager':
       case 'shop_manager':
-        return 'AS-Rwanda Shop';
+        return 'ASR Shop';
       default:
-        return 'AS-Rwanda';
+        return 'ASR';
     }
   };
 
@@ -219,11 +226,11 @@ const Sidebar = ({ role: propRole }) => {
       >
         {/* Header */}
         <div className="sidebar-header">
-          <img
+          {/* <img
             src={asr}
             alt="Logo"
             className="topbar-logo"
-          />
+          /> */}
           <h2 className={`sidebar-header-title ${isCollapsed ? 'hidden hidden-on-collapse' : ''}`}>
             {getSidebarTitle()}
           </h2>

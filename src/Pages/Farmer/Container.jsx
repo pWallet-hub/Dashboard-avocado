@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ShoppingCart, X, CheckCircle, Loader2, Package, Heart, Minus, Plus, Trash2, Smartphone, Filter } from 'lucide-react';
+import { ShoppingCart, X, CheckCircle, Loader2, Package, Heart, Minus, Plus, Trash2, Smartphone, Filter, Eye } from 'lucide-react';
 
 // Mock service for demonstration - replace with your actual service
 const getContainerProducts = async ({ page, limit, status }) => {
@@ -127,6 +127,118 @@ const CartService = {
   },
 };
 
+function ProductDetailsModal({ product, onClose, addToCart, addingToCart, justAdded, toggleLike, likedProducts }) {
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden max-h-[90vh] overflow-y-auto">
+        <div className="relative">
+          <button 
+            onClick={onClose}
+            className="absolute top-4 right-4 z-10 p-2 bg-white/90 hover:bg-white rounded-full shadow-lg transition"
+          >
+            <X className="w-5 h-5" />
+          </button>
+          <div className="relative h-80 overflow-hidden bg-gradient-to-br from-green-50 to-lime-50">
+            <img 
+              src={product.image} 
+              alt={product.name} 
+              className="w-full h-full object-cover" 
+            />
+            <button 
+              onClick={() => toggleLike(product.id)}
+              className={`absolute top-4 left-4 p-2.5 rounded-full shadow-lg backdrop-blur-sm transition-all duration-300 ${
+                likedProducts.has(product.id) 
+                  ? 'bg-red-500 text-white' 
+                  : 'bg-white/90 text-gray-600 hover:bg-white'
+              }`}
+            >
+              <Heart className={`w-5 h-5 ${likedProducts.has(product.id) ? 'fill-current' : ''}`} />
+            </button>
+            {!product.inStock && (
+              <div className="absolute bottom-4 left-4 bg-red-500 text-white px-4 py-2 rounded-full text-sm font-semibold shadow">
+                Out of Stock
+              </div>
+            )}
+            {product.originalPrice && (
+              <div className="absolute bottom-4 right-4 bg-green-600 text-white px-4 py-2 rounded-full text-sm font-bold shadow">
+                SALE
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="p-6">
+          <h2 className="text-2xl font-bold text-gray-900 mb-3">{product.name}</h2>
+          <p className="text-gray-600 mb-4">{product.description}</p>
+          
+          <div className="mb-6 flex items-center gap-3">
+            <div className="flex items-baseline gap-2">
+              <span className="text-4xl font-extrabold text-green-700">
+                {product.price.toLocaleString()} RWF
+              </span>
+              {product.originalPrice && (
+                <span className="text-xl text-gray-400 line-through">
+                  {product.originalPrice.toLocaleString()} RWF
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+            <div className="flex items-center gap-2 text-gray-700">
+              <Package className="w-5 h-5 text-green-600" />
+              <span className="font-medium">Capacity: {product.capacity}</span>
+            </div>
+          </div>
+
+          <div className="mb-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-3">Features:</h3>
+            <ul className="space-y-2">
+              {product.features.map((feature, index) => (
+                <li key={index} className="flex items-start gap-3 text-gray-700">
+                  <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                  <span>{feature}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <button
+            onClick={() => addToCart(product)}
+            disabled={!product.inStock || addingToCart === product.id || justAdded === product.id}
+            className={`w-full py-4 rounded-xl font-bold text-white shadow-lg transition-all duration-300 flex items-center justify-center gap-2 ${
+              !product.inStock 
+                ? 'bg-gray-300 cursor-not-allowed' 
+                : justAdded === product.id
+                ? 'bg-green-600 shadow-green-200'
+                : addingToCart === product.id
+                ? 'bg-green-500'
+                : 'bg-gradient-to-r from-green-600 to-emerald-700 hover:from-green-700 hover:to-emerald-800 shadow-green-300 hover:shadow-xl hover:scale-105'
+            }`}
+          >
+            {addingToCart === product.id ? (
+              <>
+                <Loader2 className="w-5 h-5 animate-spin" />
+                <span>Adding...</span>
+              </>
+            ) : justAdded === product.id ? (
+              <>
+                <CheckCircle className="w-5 h-5" />
+                <span>Added to Cart!</span>
+              </>
+            ) : (
+              <>
+                <ShoppingCart className="w-5 h-5" />
+                <span>{product.inStock ? 'Add to Cart' : 'Out of Stock'}</span>
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function CartSidebar({ isCartOpen, setIsCartOpen, cartItems, cartCount, updateCartQuantity, removeFromCart, handleCheckout }) {
   const cartSummary = CartService.getCartSummary();
   return (
@@ -240,6 +352,7 @@ export default function ContainerProducts() {
   const [error, setError] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [pagination, setPagination] = useState({});
+  const [selectedProduct, setSelectedProduct] = useState(null);
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -443,10 +556,10 @@ export default function ContainerProducts() {
                 <p className="text-gray-500">No container products found.</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                 {filteredProducts.map((product) => (
-                  <div key={product.id} className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm hover:shadow-2xl transition-all duration-300 flex flex-col">
-                    <div className="relative h-64 overflow-hidden bg-gradient-to-br from-green-50 to-lime-50">
+                  <div key={product.id} className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 flex flex-col">
+                    <div className="relative h-36 overflow-hidden bg-gradient-to-br from-green-50 to-lime-50">
                       <img 
                         src={product.image} 
                         alt={product.name} 
@@ -454,91 +567,81 @@ export default function ContainerProducts() {
                       />
                       <button 
                         onClick={() => toggleLike(product.id)}
-                        className={`absolute top-3 right-3 p-2.5 rounded-full shadow-lg backdrop-blur-sm transition-all duration-300 ${
+                        className={`absolute top-2 right-2 p-1.5 rounded-full shadow-lg backdrop-blur-sm transition-all duration-300 ${
                           likedProducts.has(product.id) 
                             ? 'bg-red-500 text-white' 
                             : 'bg-white/90 text-gray-600 hover:bg-white'
                         }`}
-                        aria-label="Like product"
                       >
-                        <Heart className={`w-5 h-5 ${likedProducts.has(product.id) ? 'fill-current' : ''}`} />
+                        <Heart className={`w-3.5 h-3.5 ${likedProducts.has(product.id) ? 'fill-current' : ''}`} />
                       </button>
                       {!product.inStock && (
-                        <div className="absolute top-3 left-3 bg-red-500 text-white px-3 py-1.5 rounded-full text-xs font-semibold shadow">
-                          Out of Stock
+                        <div className="absolute top-2 left-2 bg-red-500 text-white px-2 py-0.5 rounded-full text-xs font-semibold shadow">
+                          Out
                         </div>
                       )}
                       {product.originalPrice && (
-                        <div className="absolute bottom-3 left-3 bg-green-600 text-white px-3 py-1.5 rounded-full text-xs font-bold shadow">
+                        <div className="absolute bottom-2 left-2 bg-green-600 text-white px-2 py-0.5 rounded-full text-xs font-bold shadow">
                           SALE
                         </div>
                       )}
                     </div>
 
-                    <div className="p-6 flex flex-col flex-grow">
-                      <h3 className="text-xl font-bold text-gray-900 mb-2 line-clamp-2 min-h-[56px]">{product.name}</h3>
-                      <p className="text-sm text-gray-600 mb-4 line-clamp-2 flex-grow">{product.description}</p>
+                    <div className="p-3 flex flex-col flex-grow">
+                      <h3 className="text-sm font-semibold text-gray-900 mb-1 line-clamp-2 min-h-[40px]">{product.name}</h3>
                       
-                      <div className="mb-4 flex items-center gap-2">
-                        <div className="flex items-baseline gap-2">
-                          <span className="text-3xl font-extrabold text-green-700">
-                            {product.price.toLocaleString()} RWF
-                          </span>
-                          {product.originalPrice && (
-                            <span className="text-lg text-gray-400 line-through">
-                              {product.originalPrice.toLocaleString()} RWF
-                            </span>
+                      <div className="mb-2 flex items-baseline gap-1">
+                        <span className="text-lg font-bold text-green-700">
+                          {product.price.toLocaleString()}
+                        </span>
+                        <span className="text-xs text-gray-600">RWF</span>
+                      </div>
+
+                      <div className="mb-2 flex items-center gap-1 text-xs text-gray-600">
+                        <Package className="w-3 h-3 text-green-600" />
+                        <span className="truncate">{product.capacity}</span>
+                      </div>
+
+                      <div className="mt-auto space-y-1.5">
+                        <button
+                          onClick={() => setSelectedProduct(product)}
+                          className="w-full py-2 rounded-lg font-medium text-green-700 text-xs border border-green-600 hover:bg-green-50 transition-all duration-300 flex items-center justify-center gap-1.5"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                          <span>View Details</span>
+                        </button>
+
+                        <button
+                          onClick={() => addToCart(product)}
+                          disabled={!product.inStock || addingToCart === product.id || justAdded === product.id}
+                          className={`w-full py-2 rounded-lg font-medium text-white text-xs shadow transition-all duration-300 flex items-center justify-center gap-1.5 ${
+                            !product.inStock 
+                              ? 'bg-gray-300 cursor-not-allowed' 
+                              : justAdded === product.id
+                              ? 'bg-green-600'
+                              : addingToCart === product.id
+                              ? 'bg-green-500'
+                              : 'bg-gradient-to-r from-green-600 to-emerald-700 hover:from-green-700 hover:to-emerald-800 hover:scale-105'
+                          }`}
+                        >
+                          {addingToCart === product.id ? (
+                            <>
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              <span>Adding...</span>
+                            </>
+                          ) : justAdded === product.id ? (
+                            <>
+                              <CheckCircle className="w-3.5 h-3.5" />
+                              <span>Added!</span>
+                            </>
+                          ) : (
+                            <>
+                              <ShoppingCart className="w-3.5 h-3.5" />
+                              <span>{product.inStock ? 'Add' : 'Out'}</span>
+                            </>
                           )}
-                        </div>
+                        </button>
                       </div>
-
-                      <div className="mb-4 flex items-center gap-2 text-sm text-gray-600">
-                        <Package className="w-4 h-4 text-green-600" />
-                        <span className="font-medium">{product.capacity}</span>
-                      </div>
-
-                      <div className="mb-4">
-                        <h4 className="text-sm font-semibold text-gray-700 mb-2">Features:</h4>
-                        <ul className="space-y-1">
-                          {product.features.slice(0, 3).map((feature, index) => (
-                            <li key={index} className="flex items-start gap-2 text-xs text-gray-600">
-                              <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0 mt-0.5" />
-                              <span>{feature}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-
-                      <button
-                        onClick={() => addToCart(product)}
-                        disabled={!product.inStock || addingToCart === product.id || justAdded === product.id}
-                        className={`w-full py-3.5 rounded-xl font-bold text-white text-sm shadow-lg transition-all duration-300 flex items-center justify-center gap-2 ${
-                          !product.inStock 
-                            ? 'bg-gray-300 cursor-not-allowed' 
-                            : justAdded === product.id
-                            ? 'bg-green-600 shadow-green-200'
-                            : addingToCart === product.id
-                            ? 'bg-green-500'
-                            : 'bg-gradient-to-r from-green-600 to-emerald-700 hover:from-green-700 hover:to-emerald-800 shadow-green-300 hover:shadow-xl hover:scale-105'
-                        }`}
-                      >
-                        {addingToCart === product.id ? (
-                          <>
-                            <Loader2 className="w-5 h-5 animate-spin" />
-                            <span>Adding...</span>
-                          </>
-                        ) : justAdded === product.id ? (
-                          <>
-                            <CheckCircle className="w-5 h-5" />
-                            <span>Added to Cart!</span>
-                          </>
-                        ) : (
-                          <>
-                            <ShoppingCart className="w-5 h-5" />
-                            <span>{product.inStock ? 'Add to Cart' : 'Out of Stock'}</span>
-                          </>
-                        )}
-                      </button>
                     </div>
                   </div>
                 ))}
@@ -547,6 +650,18 @@ export default function ContainerProducts() {
           </div>
         </div>
       </div>
+
+      {selectedProduct && (
+        <ProductDetailsModal
+          product={selectedProduct}
+          onClose={() => setSelectedProduct(null)}
+          addToCart={addToCart}
+          addingToCart={addingToCart}
+          justAdded={justAdded}
+          toggleLike={toggleLike}
+          likedProducts={likedProducts}
+        />
+      )}
 
       <CartSidebar
         isCartOpen={isCartOpen}
