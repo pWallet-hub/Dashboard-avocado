@@ -1,429 +1,721 @@
-import { useState } from 'react';
-import { 
-  ArrowLeft, 
-  Search, 
-  Filter, 
-  Grid, 
-  List, 
-  Star, 
-  Eye, 
-  Heart, 
-  Package, 
-  Truck, 
-  Shield, 
-  Award,
-  TrendingUp,
-  Users,
-  Globe,
-  CheckCircle,
-  ArrowRight,
-  Download,
-  Share2,
-  Settings
-} from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ShoppingCart, X, CheckCircle, Loader2, Package, Heart, Minus, Plus, Trash2, Smartphone, Filter } from 'lucide-react';
 
-export default function ProfessionalContainerPage() {
-  const [viewMode, setViewMode] = useState('grid');
-  const [selectedCategory, setSelectedCategory] = useState('all');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [likedItems, setLikedItems] = useState(new Set());
-
-  // Mock data for containers/products
-  const containers = [
-    {
-      id: 1,
-      title: 'Premium Storage Solutions',
-      category: 'storage',
-      image: 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=400&h=300&fit=crop',
-      description: 'Industrial-grade storage containers with advanced security features and climate control systems.',
-      metrics: { capacity: '500 units', efficiency: '99.8%', rating: 4.9 },
-      price: 'From $2,999',
-      status: 'available',
-      features: ['Climate Control', 'Security Lock', 'Modular Design', 'Smart Monitoring']
-    },
-    {
-      id: 2,
-      title: 'Logistics Hub Container',
-      category: 'logistics',
-      image: 'https://images.unsplash.com/photo-1566576912321-d58ddd7a6088?w=400&h=300&fit=crop',
-      description: 'Streamlined logistics management with real-time tracking and automated inventory systems.',
-      metrics: { capacity: '1000 units', efficiency: '98.5%', rating: 4.8 },
-      price: 'From $4,599',
-      status: 'available',
-      features: ['Real-time Tracking', 'Automated Sorting', 'API Integration', 'Multi-platform Support']
-    },
-    {
-      id: 3,
-      title: 'Data Processing Center',
-      category: 'technology',
-      image: 'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=400&h=300&fit=crop',
-      description: 'High-performance computing containers with advanced cooling and redundant power systems.',
-      metrics: { capacity: '50 TB', efficiency: '99.9%', rating: 4.9 },
-      price: 'From $8,999',
-      status: 'premium',
-      features: ['High Performance', 'Redundant Systems', 'Advanced Cooling', '24/7 Monitoring']
-    },
-    {
-      id: 4,
-      title: 'Manufacturing Unit',
-      category: 'manufacturing',
-      image: 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=400&h=300&fit=crop',
-      description: 'Portable manufacturing solutions with precision machinery and quality control systems.',
-      metrics: { capacity: '200 units/day', efficiency: '97.2%', rating: 4.7 },
-      price: 'From $12,499',
-      status: 'available',
-      features: ['Precision Machinery', 'Quality Control', 'Flexible Setup', 'Remote Operation']
-    },
-    {
-      id: 5,
-      title: 'Research Laboratory',
-      category: 'research',
-      image: 'https://images.unsplash.com/photo-1582719471384-894fbb16e074?w=400&h=300&fit=crop',
-      description: 'State-of-the-art research facilities with specialized equipment and safety protocols.',
-      metrics: { capacity: '50 projects', efficiency: '99.1%', rating: 4.8 },
-      price: 'From $15,999',
-      status: 'premium',
-      features: ['Specialized Equipment', 'Safety Protocols', 'Clean Environment', 'Data Security']
-    },
-    {
-      id: 6,
-      title: 'Mobile Office Suite',
-      category: 'office',
-      image: 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=400&h=300&fit=crop',
-      description: 'Professional office containers with modern amenities and collaborative workspaces.',
-      metrics: { capacity: '25 workstations', efficiency: '96.8%', rating: 4.6 },
-      price: 'From $6,999',
-      status: 'available',
-      features: ['Modern Amenities', 'Collaborative Space', 'High-speed Internet', 'Ergonomic Design']
+// Mock service for demonstration - replace with your actual service
+const getContainerProducts = async ({ page, limit, status }) => {
+  // Simulated API call
+  return {
+    data: [
+      {
+        id: 1,
+        name: "Premium Plastic Avocado Container - 50kg",
+        description: "Heavy-duty plastic container perfect for storing and transporting avocados",
+        price: 45000,
+        originalPrice: 50000,
+        images: ["https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=500"],
+        quantity: 50,
+        unit: "pieces",
+        status: "available",
+        category: "plastic"
+      },
+      {
+        id: 2,
+        name: "Wooden Crate for Avocados - Large",
+        description: "Traditional wooden crate with excellent ventilation",
+        price: 35000,
+        images: ["https://images.unsplash.com/photo-1615671524827-c1fe3973b648?w=500"],
+        quantity: 30,
+        unit: "pieces",
+        status: "available",
+        category: "wooden"
+      },
+      {
+        id: 3,
+        name: "Stackable Storage Box - 25kg",
+        description: "Space-saving stackable design for efficient storage",
+        price: 28000,
+        originalPrice: 32000,
+        images: ["https://images.unsplash.com/photo-1566576721346-d4a3b4eaeb55?w=500"],
+        quantity: 100,
+        unit: "pieces",
+        status: "available",
+        category: "storage"
+      },
+      {
+        id: 4,
+        name: "Transport Container - Industrial",
+        description: "Heavy-duty transport container for bulk shipping",
+        price: 120000,
+        images: ["https://images.unsplash.com/photo-1494412651409-8963ce7935a7?w=500"],
+        quantity: 0,
+        unit: "pieces",
+        status: "out_of_stock",
+        category: "transport"
+      },
+      {
+        id: 5,
+        name: "Ventilated Plastic Crate - 30kg",
+        description: "Breathable design keeps avocados fresh longer",
+        price: 38000,
+        images: ["https://images.unsplash.com/photo-1615671524870-1e14c4c2e42e?w=500"],
+        quantity: 75,
+        unit: "pieces",
+        status: "available",
+        category: "plastic"
+      },
+      {
+        id: 6,
+        name: "Premium Wooden Box Set",
+        description: "Set of 5 premium wooden boxes for farm storage",
+        price: 150000,
+        originalPrice: 180000,
+        images: ["https://images.unsplash.com/photo-1581783898377-1c85bf937427?w=500"],
+        quantity: 20,
+        unit: "sets",
+        status: "available",
+        category: "wooden"
+      }
+    ],
+    pagination: {
+      currentPage: page,
+      totalPages: 1,
+      totalItems: 6
     }
-  ];
+  };
+};
 
-  const categories = [
-    { id: 'all', name: 'All Categories', icon: Grid },
-    { id: 'storage', name: 'Storage', icon: Package },
-    { id: 'logistics', name: 'Logistics', icon: Truck },
-    { id: 'technology', name: 'Technology', icon: Globe },
-    { id: 'manufacturing', name: 'Manufacturing', icon: Settings },
-    { id: 'research', name: 'Research', icon: Award },
-    { id: 'office', name: 'Office', icon: Users }
-  ];
-
-  const filteredContainers = containers.filter(container => {
-    const matchesCategory = selectedCategory === 'all' || container.category === selectedCategory;
-    const matchesSearch = container.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         container.description.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesCategory && matchesSearch;
-  });
-
-  const toggleLike = (id) => {
-    const newLiked = new Set(likedItems);
-    if (newLiked.has(id)) {
-      newLiked.delete(id);
+const CartService = {
+  cart: [],
+  addToCart: (product) => {
+    const existingItem = CartService.cart.find((item) => item.id === product.id);
+    if (existingItem) {
+      existingItem.quantity += 1;
     } else {
-      newLiked.add(id);
+      CartService.cart.push({ ...product, quantity: 1 });
     }
-    setLikedItems(newLiked);
-  };
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'premium': return 'bg-gradient-to-r from-yellow-500 to-orange-500';
-      case 'available': return 'bg-gradient-to-r from-green-500 to-yellow-500';
-      default: return 'bg-gradient-to-r from-gray-500 to-gray-600';
+  },
+  getCartItems: () => CartService.cart,
+  getCartCount: () => CartService.cart.reduce((count, item) => count + item.quantity, 0),
+  updateCartQuantity: (productId, quantity) => {
+    const item = CartService.cart.find((item) => item.id === productId);
+    if (item) {
+      if (quantity <= 0) {
+        CartService.cart = CartService.cart.filter((item) => item.id !== productId);
+      } else {
+        item.quantity = quantity;
+      }
     }
-  };
+  },
+  removeFromCart: (productId) => {
+    CartService.cart = CartService.cart.filter((item) => item.id !== productId);
+  },
+  getCartSummary: () => {
+    const subtotal = CartService.cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    const totalDiscount = CartService.cart.reduce(
+      (sum, item) => sum + (item.originalPrice ? (item.originalPrice - item.price) * item.quantity : 0),
+      0
+    );
+    return {
+      isEmpty: CartService.cart.length === 0,
+      subtotal,
+      totalDiscount,
+      total: subtotal - totalDiscount,
+    };
+  },
+  clearCart: () => {
+    CartService.cart = [];
+  },
+};
 
+function CartSidebar({ isCartOpen, setIsCartOpen, cartItems, cartCount, updateCartQuantity, removeFromCart, handleCheckout }) {
+  const cartSummary = CartService.getCartSummary();
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
-      {/* Header Section */}
-      <div className="bg-white shadow-sm border-b border-gray-100 sticky top-0 z-40 backdrop-blur-sm bg-white/90">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <button className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-all duration-200 group">
-              <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
-              <span className="font-medium">Back to Dashboard</span>
+    <div className={`fixed inset-0 z-50 overflow-hidden transition-all duration-300 ${isCartOpen ? 'visible' : 'invisible'}`}>
+      <div className={`absolute inset-0 bg-black transition-opacity duration-300 ${isCartOpen ? 'bg-opacity-50' : 'bg-opacity-0'}`} onClick={() => setIsCartOpen(false)}></div>
+      <div className={`absolute right-0 top-0 h-full w-full max-w-md bg-white shadow-xl transform transition-transform duration-300 ${isCartOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+        <div className="flex h-full flex-col">
+          <div className="flex items-center justify-between border-b border-gray-200 p-3">
+            <div className="flex items-center space-x-2">
+              <ShoppingCart className="h-5 w-5 text-green-600" />
+              <h2 className="text-base font-semibold text-gray-900">Shopping Cart</h2>
+              <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">{cartCount}</span>
+            </div>
+            <button onClick={() => setIsCartOpen(false)} className="rounded-full p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600">
+              <X className="h-4 w-4" />
             </button>
-            
-            <div className="flex items-center space-x-4">
-              <button className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-full transition-all duration-200">
-                <Share2 className="w-5 h-5" />
-              </button>
-              <button className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-full transition-all duration-200">
-                <Download className="w-5 h-5" />
-              </button>
-            </div>
           </div>
-        </div>
-      </div>
-
-      {/* Hero Section */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="text-center mb-12 animate-fadeIn">
-          <h1 className="text-5xl md:text-6xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-orange-600 via-green-800 to-yellow-600 mb-6" style={{backgroundImage: 'linear-gradient(to right, #ea580c, #1F310A, #d97706)'}}>
-            Professional Containers
-          </h1>
-          <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
-            Discover our comprehensive collection of professional-grade container solutions designed for 
-            maximum efficiency, scalability, and performance across various industries.
-          </p>
-        </div>
-
-        {/* Stats Section */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
-          <div className="bg-white rounded-2xl p-6 text-center shadow-sm border border-gray-100 hover:shadow-lg transition-all duration-300 hover:-translate-y-2 animate-slideInUp">
-            <div className="w-12 h-12 mx-auto mb-4 bg-orange-100 rounded-full flex items-center justify-center">
-              <TrendingUp className="w-6 h-6 text-orange-600" />
-            </div>
-            <h3 className="text-3xl font-bold text-gray-900 mb-2">500+</h3>
-            <p className="text-gray-600">Active Containers</p>
-          </div>
-          
-          <div className="bg-white rounded-2xl p-6 text-center shadow-sm border border-gray-100 hover:shadow-lg transition-all duration-300 hover:-translate-y-2 animate-slideInUp" style={{animationDelay: '0.1s'}}>
-            <div className="w-12 h-12 mx-auto mb-4 bg-green-100 rounded-full flex items-center justify-center">
-              <Shield className="w-6 h-6" style={{color: '#1F310A'}} />
-            </div>
-            <h3 className="text-3xl font-bold text-gray-900 mb-2">99.9%</h3>
-            <p className="text-gray-600">Uptime Guarantee</p>
-          </div>
-          
-          <div className="bg-white rounded-2xl p-6 text-center shadow-sm border border-gray-100 hover:shadow-lg transition-all duration-300 hover:-translate-y-2 animate-slideInUp" style={{animationDelay: '0.2s'}}>
-            <div className="w-12 h-12 mx-auto mb-4 bg-yellow-100 rounded-full flex items-center justify-center">
-              <Users className="w-6 h-6 text-yellow-600" />
-            </div>
-            <h3 className="text-3xl font-bold text-gray-900 mb-2">10K+</h3>
-            <p className="text-gray-600">Satisfied Clients</p>
-          </div>
-          
-          <div className="bg-white rounded-2xl p-6 text-center shadow-sm border border-gray-100 hover:shadow-lg transition-all duration-300 hover:-translate-y-2 animate-slideInUp" style={{animationDelay: '0.3s'}}>
-            <div className="w-12 h-12 mx-auto mb-4 bg-orange-100 rounded-full flex items-center justify-center">
-              <Award className="w-6 h-6 text-orange-600" />
-            </div>
-            <h3 className="text-3xl font-bold text-gray-900 mb-2">24/7</h3>
-            <p className="text-gray-600">Support Available</p>
-          </div>
-        </div>
-
-        {/* Controls Section */}
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 mb-8 animate-fadeIn">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
-            <div className="flex flex-wrap items-center gap-4">
-              <div className="flex items-center space-x-2">
-                <Filter className="w-5 h-5 text-gray-400" />
-                <h2 className="text-xl font-semibold text-gray-900">Filter & Search</h2>
+          <div className="flex-1 overflow-y-auto p-3">
+            {cartSummary.isEmpty ? (
+              <div className="flex h-full flex-col items-center justify-center text-center">
+                <ShoppingCart className="h-12 w-12 text-gray-300 mb-3" />
+                <h3 className="text-base font-medium text-gray-900 mb-1">Your cart is empty</h3>
+                <p className="text-sm text-gray-500">Add some containers!</p>
               </div>
-              
-              <div className="flex items-center space-x-2">
-                {categories.map((category) => {
-                  const Icon = category.icon;
-                  return (
-                    <button
-                      key={category.id}
-                      onClick={() => setSelectedCategory(category.id)}
-                      className={`flex items-center space-x-2 px-4 py-2 rounded-full transition-all duration-200 ${
-                        selectedCategory === category.id
-                          ? 'bg-orange-100 text-orange-700 ring-2 ring-orange-200' 
-                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                      }`}
-                      style={selectedCategory === category.id ? {backgroundColor: '#fef3c7', color: '#1F310A'} : {}}
-                    >
-                      <Icon className="w-4 h-4" />
-                      <span className="text-sm font-medium">{category.name}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-            
-            <div className="flex items-center space-x-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                <input
-                  type="text"
-                  placeholder="Search containers..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 pr-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200"
-                  style={{'--tw-ring-color': '#1F310A'}}
-                />
-              </div>
-              
-              <div className="flex items-center space-x-2 border border-gray-200 rounded-xl p-1">
-                <button
-                  onClick={() => setViewMode('grid')}
-                  className={`p-2 rounded-lg transition-all duration-200 ${
-                    viewMode === 'grid' ? 'bg-orange-100 text-orange-700' : 'text-gray-600 hover:bg-gray-100'
-                  }`}
-                  style={viewMode === 'grid' ? {backgroundColor: '#fef3c7', color: '#1F310A'} : {}}
-                >
-                  <Grid className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => setViewMode('list')}
-                  className={`p-2 rounded-lg transition-all duration-200 ${
-                    viewMode === 'list' ? 'bg-orange-100 text-orange-700' : 'text-gray-600 hover:bg-gray-100'
-                  }`}
-                  style={viewMode === 'list' ? {backgroundColor: '#fef3c7', color: '#1F310A'} : {}}
-                >
-                  <List className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Containers Grid/List */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden animate-fadeIn">
-          <div className="p-8">
-            {filteredContainers.length > 0 ? (
-              <div className={viewMode === 'grid' ? 'grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-8' : 'space-y-6'}>
-                {filteredContainers.map((container, index) => (
-                  <div
-                    key={container.id}
-                    className={`group bg-gradient-to-br from-white to-gray-50 rounded-2xl overflow-hidden shadow-sm hover:shadow-2xl transition-all duration-500 border border-gray-100 hover:border-orange-200 transform hover:-translate-y-2 animate-slideInUp ${
-                      viewMode === 'list' ? 'flex items-center space-x-6' : ''
-                    }`}
-                    style={{animationDelay: `${index * 0.1}s`, '--hover-border-color': '#1F310A'}}
-                  >
-                    <div className={`relative overflow-hidden ${viewMode === 'list' ? 'w-48 h-32 flex-shrink-0' : ''}`}>
-                      <img
-                        src={container.image}
-                        alt={container.title}
-                        className={`object-cover group-hover:scale-110 transition-transform duration-500 ${
-                          viewMode === 'list' ? 'w-full h-full' : 'w-full h-64'
-                        }`}
-                      />
-                      
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                      
-                      <div className={`absolute ${viewMode === 'list' ? 'top-2 left-2' : 'top-4 left-4'} ${getStatusColor(container.status)} text-white px-3 py-1 rounded-full text-sm font-semibold`}>
-                        {container.status === 'premium' ? 'Premium' : 'Available'}
+            ) : (
+              <div className="space-y-3">
+                {cartItems.map((item) => (
+                  <div key={item.id} className="flex items-center space-x-3 rounded-lg border border-gray-200 p-3">
+                    <img 
+                      src={item.image} 
+                      alt={item.name} 
+                      className="h-14 w-14 rounded-lg object-cover" 
+                      onError={(e) => {
+                        e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTUwIiBoZWlnaHQ9IjE1MCIgdmlld0JveD0iMCAwIDE1MCAxNTAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxNTAiIGhlaWdodD0iMTUwIiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik03NSA0NUw5MCA2MEw3NSA3NUw2MCA2MEw3NSA0NVoiIGZpbGw9IiM5Q0EzQUYiLz4KPC9zdmc+';
+                      }}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-sm font-medium text-gray-900 truncate">{item.name}</h3>
+                      <div className="flex items-center space-x-2 mt-0.5">
+                        <span className="text-base font-bold text-green-600">{item.price.toLocaleString()} RWF</span>
                       </div>
-                      
-                      <div className={`absolute ${viewMode === 'list' ? 'top-2 right-2' : 'top-4 right-4'} space-y-2`}>
-                        <button
-                          onClick={() => toggleLike(container.id)}
-                          className={`p-2 rounded-full transition-all duration-300 transform hover:scale-110 ${
-                            likedItems.has(container.id)
-                              ? 'bg-red-100 text-red-600 scale-110'
-                              : 'bg-white/80 text-gray-600 hover:bg-white'
-                          }`}
-                        >
-                          <Heart className={`w-4 h-4 ${likedItems.has(container.id) ? 'fill-current animate-pulse' : ''}`} />
-                        </button>
-                        
-                        <button className="p-2 rounded-full bg-white/80 text-gray-600 hover:bg-white transition-all duration-300 transform hover:scale-110">
-                          <Eye className="w-4 h-4" />
-                        </button>
-                      </div>
+                      <p className="text-xs text-gray-500 mt-0.5">{item.capacity || `${item.quantity} ${item.unit}`}</p>
                     </div>
-                    
-                    <div className={`p-6 ${viewMode === 'list' ? 'flex-1' : ''}`}>
-                      <div className="flex items-center justify-between mb-3">
-                        <h3 className="text-xl font-bold text-gray-900 group-hover:text-orange-600 transition-colors" style={{'--hover-color': '#1F310A'}}>
-                          {container.title}
-                        </h3>
-                        <div className="flex items-center space-x-1">
-                          <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                          <span className="text-sm text-gray-600">{container.metrics.rating}</span>
-                        </div>
+                    <div className="flex flex-col items-end space-y-1.5">
+                      <div className="flex items-center space-x-1.5">
+                        <button onClick={() => updateCartQuantity(item.id, item.quantity - 1)} className="rounded-full p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600">
+                          <Minus className="h-3.5 w-3.5" />
+                        </button>
+                        <span className="w-7 text-center text-sm font-medium">{item.quantity}</span>
+                        <button onClick={() => updateCartQuantity(item.id, item.quantity + 1)} className="rounded-full p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600">
+                          <Plus className="h-3.5 w-3.5" />
+                        </button>
                       </div>
-                      
-                      <p className="text-gray-600 mb-4 line-clamp-2">{container.description}</p>
-                      
-                      <div className="grid grid-cols-3 gap-4 mb-4">
-                        <div className="text-center">
-                          <p className="text-lg font-semibold text-orange-600">{container.metrics.capacity}</p>
-                          <p className="text-xs text-gray-500">Capacity</p>
-                        </div>
-                        <div className="text-center">
-                          <p className="text-lg font-semibold" style={{color: '#1F310A'}}>{container.metrics.efficiency}</p>
-                          <p className="text-xs text-gray-500">Efficiency</p>
-                        </div>
-                        <div className="text-center">
-                          <p className="text-lg font-semibold text-yellow-600">{container.price}</p>
-                          <p className="text-xs text-gray-500">Pricing</p>
-                        </div>
-                      </div>
-                      
-                      <div className="space-y-2 mb-4">
-                        {container.features.slice(0, 3).map((feature, i) => (
-                          <div key={i} className="flex items-center space-x-2 opacity-0 animate-slideInLeft" style={{animationDelay: `${i * 0.1}s`, animationFillMode: 'forwards'}}>
-                            <CheckCircle className="w-4 h-4" style={{color: '#1F310A'}} />
-                            <span className="text-gray-700 text-sm">{feature}</span>
-                          </div>
-                        ))}
-                      </div>
-                      
-                      <button 
-                        className="w-full text-white py-3 px-4 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl group"
-                        style={{
-                          background: 'linear-gradient(to right, #ea580c, #1F310A)',
-                        }}
-                        onMouseEnter={(e) => {
-                          e.target.style.background = 'linear-gradient(to right, #dc2626, #1F310A)';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.target.style.background = 'linear-gradient(to right, #ea580c, #1F310A)';
-                        }}
-                      >
-                        <span className="flex items-center justify-center space-x-2">
-                          <span>Explore Details</span>
-                          <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                        </span>
+                      <button onClick={() => removeFromCart(item.id)} className="rounded-full p-1 text-red-400 hover:bg-red-50 hover:text-red-600">
+                        <Trash2 className="h-3.5 w-3.5" />
                       </button>
                     </div>
                   </div>
                 ))}
               </div>
-            ) : (
-              <div className="text-center py-16 animate-fadeIn">
-                <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
-                  <Package className="w-8 h-8 text-gray-400" />
+            )}
+          </div>
+          {!cartSummary.isEmpty && (
+            <div className="border-t border-gray-200 p-3 space-y-3">
+              <div className="space-y-1.5">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Subtotal</span>
+                  <span className="font-medium">{cartSummary.subtotal.toLocaleString()} RWF</span>
                 </div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">No containers found</h3>
-                <p className="text-gray-600">Try adjusting your search or filter criteria</p>
+                {cartSummary.totalDiscount > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Discount</span>
+                    <span className="font-medium text-green-600">-{cartSummary.totalDiscount.toLocaleString()} RWF</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-base font-bold border-t border-gray-200 pt-1.5">
+                  <span>Total</span>
+                  <span className="text-green-600">{cartSummary.total.toLocaleString()} RWF</span>
+                </div>
+              </div>
+              <button onClick={handleCheckout} className="w-full flex items-center justify-center space-x-2 rounded-lg py-2.5 px-4 text-white font-semibold transition-all duration-300 hover:scale-105 shadow-lg hover:shadow-xl" style={{ background: 'linear-gradient(to right, #1F310A, #0f5132)' }}>
+                <ShoppingCart className="w-4 h-4" />
+                <span>Checkout</span>
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function ContainerProducts() {
+  const [isCartOpen, setIsCartOpen] = useState(false);
+  const [cartItems, setCartItems] = useState(CartService.getCartItems());
+  const [cartCount, setCartCount] = useState(CartService.getCartCount());
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentPhone, setPhoneNumber] = useState('');
+  const [mobileProvider, setMobileProvider] = useState('');
+  const [paymentStep, setPaymentStep] = useState('provider');
+  const [paymentProcessing, setPaymentProcessing] = useState(false);
+  const [paymentSuccess, setPaymentSuccess] = useState(false);
+  const [paymentError, setPaymentError] = useState('');
+  const [pendingOrder, setPendingOrder] = useState(null);
+  const [filterType, setFilterType] = useState('all');
+  const [likedProducts, setLikedProducts] = useState(new Set());
+  const [justAdded, setJustAdded] = useState(null);
+  const [addingToCart, setAddingToCart] = useState(null);
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pagination, setPagination] = useState({});
+
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        const response = await getContainerProducts({
+          page: currentPage,
+          limit: 20,
+          status: 'available'
+        });
+        
+        let productsData = [];
+        
+        if (response.data && Array.isArray(response.data)) {
+          productsData = response.data;
+        } else if (Array.isArray(response)) {
+          productsData = response;
+        }
+        
+        const transformedProducts = productsData.map(product => ({
+          id: String(product.id),
+          name: product.name || 'Unknown Product',
+          description: product.description || 'No description available',
+          price: Number(product.price) || 0,
+          originalPrice: product.originalPrice ? Number(product.originalPrice) : null,
+          image: (product.images && product.images.length > 0) 
+            ? product.images[0] 
+            : product.image_url || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTUwIiBoZWlnaHQ9IjE1MCIgdmlld0JveD0iMCAwIDE1MCAxNTAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxNTAiIGhlaWdodD0iMTUwIiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik03NSA0NUw5MCA2MEw3NSA3NUw2MCA2MEw3NSA0NVoiIGZpbGw9IiM5Q0EzQUYiLz4KPC9zdmc+',
+          capacity: `${product.quantity || 0} ${product.unit || 'piece'}`,
+          inStock: product.status === 'available' && (product.quantity || 0) > 0,
+          features: [
+            product.description || 'High-quality storage container',
+            'Suitable for avocado farms',
+            'Durable and efficient',
+            'Easy to use'
+          ],
+          unit: product.unit || 'piece',
+          quantity: Number(product.quantity) || 0,
+          supplier_id: product.supplier_id || product.supplierId || 'unknown',
+          category: product.category || 'containers'
+        }));
+        
+        setProducts(transformedProducts);
+        setPagination(response.pagination || {});
+        
+        if (transformedProducts.length === 0) {
+          setError('No container products found.');
+        }
+        
+      } catch (err) {
+        console.error('Error fetching container products:', err);
+        setError(`Failed to load products: ${err.message}`);
+        
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProducts();
+  }, [currentPage]);
+
+  const filteredProducts = filterType === 'all' 
+    ? products 
+    : products.filter((product) => product.category && product.category.toLowerCase().includes(filterType.toLowerCase()));
+
+  const addToCart = (product) => {
+    setAddingToCart(product.id);
+    setTimeout(() => {
+      CartService.addToCart(product);
+      setCartItems(CartService.getCartItems());
+      setCartCount(CartService.getCartCount());
+      setJustAdded(product.id);
+      setAddingToCart(null);
+      setTimeout(() => setJustAdded(null), 2000);
+    }, 500);
+  };
+
+  const updateCartQuantity = (productId, quantity) => {
+    CartService.updateCartQuantity(productId, quantity);
+    setCartItems(CartService.getCartItems());
+    setCartCount(CartService.getCartCount());
+  };
+
+  const removeFromCart = (productId) => {
+    CartService.removeFromCart(productId);
+    setCartItems(CartService.getCartItems());
+    setCartCount(CartService.getCartCount());
+  };
+
+  const toggleLike = (productId) => {
+    setLikedProducts((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(productId)) {
+        newSet.delete(productId);
+      } else {
+        newSet.add(productId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleCheckout = () => {
+    const cartSummary = CartService.getCartSummary();
+    setPendingOrder({
+      id: `ORDER-${Date.now()}`,
+      items: cartItems,
+      totalAmount: cartSummary.total,
+    });
+    setIsCartOpen(false);
+    setShowPaymentModal(true);
+  };
+
+  const handleProviderSelect = (provider) => {
+    setMobileProvider(provider);
+    setPaymentStep('phone');
+  };
+
+  const handlePhoneSubmit = () => {
+    if (/^07[0-9]{8}$/.test(paymentPhone)) {
+      setPaymentStep('confirm');
+      setPaymentError('');
+    } else {
+      setPaymentError('Please enter a valid Rwandan phone number (e.g., 078xxxxxxxx)');
+    }
+  };
+
+  const handlePaymentComplete = async () => {
+    setPaymentProcessing(true);
+    setPaymentError('');
+    setTimeout(() => {
+      setPaymentProcessing(false);
+      setPaymentSuccess(true);
+      CartService.clearCart();
+      setCartItems([]);
+      setCartCount(0);
+    }, 2000);
+  };
+
+  const closePaymentModal = () => {
+    setShowPaymentModal(false);
+    setPendingOrder(null);
+    setMobileProvider('');
+    setPhoneNumber('');
+    setPaymentStep('provider');
+    setPaymentSuccess(false);
+    setPaymentError('');
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-green-50 via-lime-50 to-emerald-100">
+      <div className="bg-green-900 text-white py-3 px-4 flex items-center justify-between shadow-md">
+        <div className="flex items-center space-x-2">
+          <img src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c" alt="Avocado Society of Rwanda" className="h-8 w-8 rounded-full bg-white p-0.5" />
+          <span className="text-xl font-bold tracking-tight">Containers Shop</span>
+        </div>
+        <button onClick={() => setIsCartOpen(true)} className="relative flex items-center space-x-2 rounded-lg bg-green-700 px-3 py-1.5 text-white font-semibold shadow hover:bg-green-800 transition-all">
+          <ShoppingCart className="w-4 h-4" />
+          <span className="text-sm">Cart</span>
+          {cartCount > 0 && (
+            <span className="absolute -top-1.5 -right-1.5 bg-white text-green-700 rounded-full px-1.5 py-0.5 text-xs font-bold shadow">{cartCount}</span>
+          )}
+        </button>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-4 py-4">
+        <div className="bg-white rounded-xl p-4 shadow-lg border border-green-200 mb-4">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-3 md:space-y-0">
+            <div className="flex items-center space-x-2">
+              <Filter className="w-4 h-4 text-gray-400" />
+              <h2 className="text-lg font-semibold text-gray-900">Available Containers</h2>
+            </div>
+            <select
+              className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              value={filterType}
+              onChange={(e) => setFilterType(e.target.value)}
+            >
+              <option value="all">All Categories</option>
+              <option value="plastic">Plastic Containers</option>
+              <option value="wooden">Wooden Crates</option>
+              <option value="storage">Storage Boxes</option>
+              <option value="transport">Transport Containers</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl shadow-xl border border-green-200 overflow-hidden">
+          <div className="p-4">
+            {loading ? (
+              <div className="flex items-center justify-center py-20">
+                <Loader2 className="w-12 h-12 animate-spin text-green-600" />
+              </div>
+            ) : error ? (
+              <div className="text-center py-20 text-red-600">
+                <p>{error}</p>
+              </div>
+            ) : filteredProducts.length === 0 ? (
+              <div className="text-center py-20">
+                <Package className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+                <p className="text-gray-500">No container products found.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredProducts.map((product) => (
+                  <div key={product.id} className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm hover:shadow-2xl transition-all duration-300 flex flex-col">
+                    <div className="relative h-64 overflow-hidden bg-gradient-to-br from-green-50 to-lime-50">
+                      <img 
+                        src={product.image} 
+                        alt={product.name} 
+                        className="w-full h-full object-cover transition-transform duration-500 hover:scale-110" 
+                      />
+                      <button 
+                        onClick={() => toggleLike(product.id)}
+                        className={`absolute top-3 right-3 p-2.5 rounded-full shadow-lg backdrop-blur-sm transition-all duration-300 ${
+                          likedProducts.has(product.id) 
+                            ? 'bg-red-500 text-white' 
+                            : 'bg-white/90 text-gray-600 hover:bg-white'
+                        }`}
+                        aria-label="Like product"
+                      >
+                        <Heart className={`w-5 h-5 ${likedProducts.has(product.id) ? 'fill-current' : ''}`} />
+                      </button>
+                      {!product.inStock && (
+                        <div className="absolute top-3 left-3 bg-red-500 text-white px-3 py-1.5 rounded-full text-xs font-semibold shadow">
+                          Out of Stock
+                        </div>
+                      )}
+                      {product.originalPrice && (
+                        <div className="absolute bottom-3 left-3 bg-green-600 text-white px-3 py-1.5 rounded-full text-xs font-bold shadow">
+                          SALE
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="p-6 flex flex-col flex-grow">
+                      <h3 className="text-xl font-bold text-gray-900 mb-2 line-clamp-2 min-h-[56px]">{product.name}</h3>
+                      <p className="text-sm text-gray-600 mb-4 line-clamp-2 flex-grow">{product.description}</p>
+                      
+                      <div className="mb-4 flex items-center gap-2">
+                        <div className="flex items-baseline gap-2">
+                          <span className="text-3xl font-extrabold text-green-700">
+                            {product.price.toLocaleString()} RWF
+                          </span>
+                          {product.originalPrice && (
+                            <span className="text-lg text-gray-400 line-through">
+                              {product.originalPrice.toLocaleString()} RWF
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="mb-4 flex items-center gap-2 text-sm text-gray-600">
+                        <Package className="w-4 h-4 text-green-600" />
+                        <span className="font-medium">{product.capacity}</span>
+                      </div>
+
+                      <div className="mb-4">
+                        <h4 className="text-sm font-semibold text-gray-700 mb-2">Features:</h4>
+                        <ul className="space-y-1">
+                          {product.features.slice(0, 3).map((feature, index) => (
+                            <li key={index} className="flex items-start gap-2 text-xs text-gray-600">
+                              <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0 mt-0.5" />
+                              <span>{feature}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+
+                      <button
+                        onClick={() => addToCart(product)}
+                        disabled={!product.inStock || addingToCart === product.id || justAdded === product.id}
+                        className={`w-full py-3.5 rounded-xl font-bold text-white text-sm shadow-lg transition-all duration-300 flex items-center justify-center gap-2 ${
+                          !product.inStock 
+                            ? 'bg-gray-300 cursor-not-allowed' 
+                            : justAdded === product.id
+                            ? 'bg-green-600 shadow-green-200'
+                            : addingToCart === product.id
+                            ? 'bg-green-500'
+                            : 'bg-gradient-to-r from-green-600 to-emerald-700 hover:from-green-700 hover:to-emerald-800 shadow-green-300 hover:shadow-xl hover:scale-105'
+                        }`}
+                      >
+                        {addingToCart === product.id ? (
+                          <>
+                            <Loader2 className="w-5 h-5 animate-spin" />
+                            <span>Adding...</span>
+                          </>
+                        ) : justAdded === product.id ? (
+                          <>
+                            <CheckCircle className="w-5 h-5" />
+                            <span>Added to Cart!</span>
+                          </>
+                        ) : (
+                          <>
+                            <ShoppingCart className="w-5 h-5" />
+                            <span>{product.inStock ? 'Add to Cart' : 'Out of Stock'}</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </div>
         </div>
       </div>
 
-      {/* Custom CSS for animations */}
-      <style jsx>{`
-        @keyframes fadeIn {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-        
-        @keyframes slideInUp {
-          from { transform: translateY(30px); opacity: 0; }
-          to { transform: translateY(0); opacity: 1; }
-        }
-        
-        @keyframes slideInLeft {
-          from { transform: translateX(-20px); opacity: 0; }
-          to { transform: translateX(0); opacity: 1; }
-        }
-        
-        .animate-fadeIn {
-          animation: fadeIn 0.6s ease-out;
-        }
-        
-        .animate-slideInUp {
-          animation: slideInUp 0.8s ease-out;
-        }
-        
-        .animate-slideInLeft {
-          animation: slideInLeft 0.6s ease-out;
-        }
-        
-        .line-clamp-2 {
-          display: -webkit-box;
-          -webkit-line-clamp: 2;
-          -webkit-box-orient: vertical;
-          overflow: hidden;
-        }
-      `}</style>
+      <CartSidebar
+        isCartOpen={isCartOpen}
+        setIsCartOpen={setIsCartOpen}
+        cartItems={cartItems}
+        cartCount={cartCount}
+        updateCartQuantity={updateCartQuantity}
+        removeFromCart={removeFromCart}
+        handleCheckout={handleCheckout}
+      />
+
+      {showPaymentModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden">
+            <div className="bg-gradient-to-r from-green-600 to-emerald-700 p-6 text-white relative">
+              <button 
+                onClick={closePaymentModal}
+                className="absolute top-4 right-4 p-2 hover:bg-white/20 rounded-full transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+              <h2 className="text-2xl font-bold mb-2">Payment</h2>
+              <p className="text-green-100 text-sm">Complete your order</p>
+            </div>
+
+            <div className="p-6">
+              {paymentSuccess ? (
+                <div className="text-center py-8">
+                  <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <CheckCircle className="w-12 h-12 text-green-600" />
+                  </div>
+                  <h3 className="text-2xl font-bold text-gray-900 mb-2">Payment Successful!</h3>
+                  <p className="text-gray-600 mb-6">Your order has been placed successfully.</p>
+                  <button 
+                    onClick={closePaymentModal}
+                    className="bg-gradient-to-r from-green-600 to-emerald-700 text-white px-8 py-3 rounded-xl font-semibold hover:from-green-700 hover:to-emerald-800 transition"
+                  >
+                    Done
+                  </button>
+                </div>
+              ) : (
+                <>
+                  {pendingOrder && (
+                    <div className="mb-6 p-4 bg-gray-50 rounded-xl">
+                      <p className="text-sm text-gray-600 mb-2">Order Total</p>
+                      <p className="text-3xl font-bold text-gray-900">{pendingOrder.totalAmount.toLocaleString()} RWF</p>
+                    </div>
+                  )}
+
+                  {paymentStep === 'provider' && (
+                    <div className="space-y-4">
+                      <h3 className="text-lg font-bold text-gray-900 mb-4">Select Payment Method</h3>
+                      <button
+                        onClick={() => handleProviderSelect('MTN')}
+                        className="w-full p-4 border-2 border-gray-200 rounded-xl hover:border-green-500 hover:bg-green-50 transition flex items-center gap-4 group"
+                      >
+                        <div className="w-12 h-12 bg-yellow-400 rounded-full flex items-center justify-center font-bold text-lg">
+                          M
+                        </div>
+                        <div className="text-left flex-grow">
+                          <p className="font-bold text-gray-900">MTN Mobile Money</p>
+                          <p className="text-sm text-gray-600">Pay with MTN MoMo</p>
+                        </div>
+                        <div className="text-green-600 opacity-0 group-hover:opacity-100 transition">→</div>
+                      </button>
+
+                      <button
+                        onClick={() => handleProviderSelect('Airtel')}
+                        className="w-full p-4 border-2 border-gray-200 rounded-xl hover:border-green-500 hover:bg-green-50 transition flex items-center gap-4 group"
+                      >
+                        <div className="w-12 h-12 bg-red-500 rounded-full flex items-center justify-center font-bold text-white text-lg">
+                          A
+                        </div>
+                        <div className="text-left flex-grow">
+                          <p className="font-bold text-gray-900">Airtel Money</p>
+                          <p className="text-sm text-gray-600">Pay with Airtel Money</p>
+                        </div>
+                        <div className="text-green-600 opacity-0 group-hover:opacity-100 transition">→</div>
+                      </button>
+                    </div>
+                  )}
+
+                  {paymentStep === 'phone' && (
+                    <div className="space-y-4">
+                      <button 
+                        onClick={() => setPaymentStep('provider')}
+                        className="text-green-600 hover:text-green-700 font-medium text-sm flex items-center gap-1 mb-4"
+                      >
+                        ← Back
+                      </button>
+                      <h3 className="text-lg font-bold text-gray-900 mb-4">Enter Phone Number</h3>
+                      <div className="mb-4">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          {mobileProvider} Phone Number
+                        </label>
+                        <div className="relative">
+                          <Smartphone className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                          <input
+                            type="tel"
+                            value={paymentPhone}
+                            onChange={(e) => setPhoneNumber(e.target.value)}
+                            placeholder="078XXXXXXXX"
+                            className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:border-green-500 focus:outline-none text-lg"
+                          />
+                        </div>
+                        {paymentError && (
+                          <p className="text-red-600 text-sm mt-2">{paymentError}</p>
+                        )}
+                      </div>
+                      <button
+                        onClick={handlePhoneSubmit}
+                        className="w-full bg-gradient-to-r from-green-600 to-emerald-700 text-white py-3 rounded-xl font-semibold hover:from-green-700 hover:to-emerald-800 transition"
+                      >
+                        Continue
+                      </button>
+                    </div>
+                  )}
+
+                  {paymentStep === 'confirm' && (
+                    <div className="space-y-4">
+                      <button 
+                        onClick={() => setPaymentStep('phone')}
+                        className="text-green-600 hover:text-green-700 font-medium text-sm flex items-center gap-1 mb-4"
+                      >
+                        ← Back
+                      </button>
+                      <h3 className="text-lg font-bold text-gray-900 mb-4">Confirm Payment</h3>
+                      <div className="bg-gray-50 rounded-xl p-4 space-y-3 mb-6">
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Payment Method</span>
+                          <span className="font-semibold text-gray-900">{mobileProvider} Mobile Money</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Phone Number</span>
+                          <span className="font-semibold text-gray-900">{paymentPhone}</span>
+                        </div>
+                        <div className="h-px bg-gray-200 my-2"></div>
+                        <div className="flex justify-between items-baseline">
+                          <span className="text-gray-600">Total Amount</span>
+                          <span className="text-2xl font-bold text-green-600">{pendingOrder?.totalAmount.toLocaleString()} RWF</span>
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={handlePaymentComplete}
+                        disabled={paymentProcessing}
+                        className="w-full bg-gradient-to-r from-green-600 to-emerald-700 text-white py-4 rounded-xl font-bold text-lg hover:from-green-700 hover:to-emerald-800 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                      >
+                        {paymentProcessing ? (
+                          <>
+                            <Loader2 className="w-6 h-6 animate-spin" />
+                            <span>Processing...</span>
+                          </>
+                        ) : (
+                          <span>Confirm Payment</span>
+                        )}
+                      </button>
+
+                      <p className="text-xs text-center text-gray-500 mt-4">
+                        You will receive a prompt on your phone to complete the payment.
+                      </p>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
