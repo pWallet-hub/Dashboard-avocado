@@ -7,7 +7,7 @@ export default function DashboardHeader() {
   const navigationItems = [
     { 
       icon: "🏪", 
-      label: "Farm Input Shop", 
+      label: "Farm Market", 
       route: "/dashboard/farmer/market" 
     },
     { 

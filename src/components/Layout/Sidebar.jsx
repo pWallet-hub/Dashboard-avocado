@@ -130,11 +130,12 @@ const Sidebar = ({ role: propRole }) => {
   ];
 
   const farmerLinks = [
-    { to: "/dashboard/farmer/market", icon: ShoppingCart, text: "Farm input Shop" },
-    { to: "/dashboard/farmer/service", icon: Wrench, text: "Service" },
+    
+    // { to: "/dashboard/farmer/service", icon: Wrench, text: "Service" },
     { to: "/dashboard/farmer/HarvestingDay", icon: Calendar, text: "Book your HD" },
     { to: "/dashboard/farmer/PestManagement", icon: Bug, text: "Book your IPM Day" },
     { to: "/dashboard/farmer/PropertyEvaluation", icon: MapPin, text: "Book your PE Day" },
+    { to: "/dashboard/farmer/market", icon: ShoppingCart, text: "Farm Market" },
     { to: "/dashboard/farmer/my-service-requests", icon: ClipboardList, text: "My Requests" },
     { to: "/dashboard/farmer/profile", icon: User, text: "Profile" },
   ];
