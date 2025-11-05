@@ -1,495 +1,522 @@
 # Agent Information API Documentation
 
-## Overview
-The Agent Information API provides endpoints for managing agent profiles in the Dashboard Avocado Backend system. Agents can create, retrieve, and update their profile information including location, specialization, certifications, and performance metrics.
+Complete guide for managing agent profiles with territory management system.
 
-## Base URL
+## Table of Contents
+- [Overview](#overview)
+- [Authentication](#authentication)
+- [Endpoints](#endpoints)
+  - [Get Agent Profile](#get-agent-profile)
+  - [Create Agent Profile](#create-agent-profile)
+  - [Update Agent Profile](#update-agent-profile)
+  - [Update Performance Metrics](#update-performance-metrics)
+  - [Admin: Create Agent Profile](#admin-create-agent-profile)
+  - [Admin: Get Agent Profile](#admin-get-agent-profile)
+- [Data Models](#data-models)
+- [Territory Management](#territory-management)
+- [Examples](#examples)
+- [Error Handling](#error-handling)
+
+---
+
+## Overview
+
+The Agent Information API provides complete CRUD operations for managing agricultural extension agent profiles with advanced territory management capabilities.
+
+### Key Features
+- ✅ Multi-sector territory assignment (1-10 sectors per agent)
+- ✅ Primary sector designation
+- ✅ Automatic territory coverage calculation
+- ✅ Performance statistics tracking
+- ✅ Auto-incrementing agent IDs (AGT000001 format)
+- ✅ Role-based access control (Agent & Admin)
+
+### Base URL
 ```
-http://localhost:5000/api/agent-information
+/api/agent-information
 ```
+
+---
 
 ## Authentication
-All endpoints require JWT authentication. Include the JWT token in the Authorization header:
-```
-Authorization: Bearer YOUR_JWT_TOKEN
+
+All endpoints require JWT authentication via Bearer token.
+
+**Header:**
+```http
+Authorization: Bearer <your_jwt_token>
 ```
 
-## Role Requirements
-- **Role**: `agent`
-- Only users with the `agent` role can access these endpoints
-- Attempting to access with other roles will result in a 403 Forbidden error
+**Roles:**
+- `agent` - Can view and update their own profile
+- `admin` - Full access to all agent profiles
 
 ---
 
 ## Endpoints
 
-### 1. Get Agent Profile
-Retrieve the current authenticated agent's profile information.
+### Get Agent Profile
 
-**Endpoint**: `GET /api/agent-information`
+Retrieve the authenticated agent's complete profile with territory information.
 
-**Authentication**: Required
+**Endpoint:** `GET /api/agent-information`
 
-**Headers**:
-```json
-{
-  "Authorization": "Bearer YOUR_JWT_TOKEN"
-}
+**Access:** Private (Agents and Admins)
+
+**Request Headers:**
+```http
+Authorization: Bearer <jwt_token>
 ```
 
-**Request Body**: None
-
-**Success Response** (200 OK):
+**Success Response (200 OK):**
 ```json
 {
   "success": true,
   "message": "Profile retrieved successfully",
   "data": {
     "user_info": {
-      "id": "673a1b2c3d4e5f6789abcdef",
-      "full_name": "John Doe",
-      "email": "john.doe@example.com",
-      "phone": "+250788123456",
+      "id": "68c7f1428b4e787b3dc49467",
+      "full_name": "Pacific Ishimwe",
+      "email": "pacific1@gmail.com",
+      "phone": "0788937972",
       "role": "agent",
       "status": "active",
-      "created_at": "2023-01-15T08:30:00Z",
-      "updated_at": "2024-11-05T10:45:00Z"
+      "created_at": "2025-09-15T10:58:10.428Z",
+      "updated_at": "2025-11-05T14:25:30.152Z"
     },
     "agent_profile": {
       "agentId": "AGT000001",
       "province": "Eastern Province",
-      "district": "Gatsibo",
-      "sector": "Kiramuruzi",
-      "cell": "Karangazi",
-      "village": "Rukomo",
+      "territory": [
+        {
+          "district": "Gatsibo",
+          "sector": "Kiramuruzi",
+          "isPrimary": true,
+          "assignedDate": "2025-09-15T10:58:10.428Z"
+        },
+        {
+          "district": "Gatsibo",
+          "sector": "Kabarore",
+          "isPrimary": false,
+          "assignedDate": "2025-11-05T14:25:30.152Z"
+        },
+        {
+          "district": "Kayonza",
+          "sector": "Gahini",
+          "isPrimary": false,
+          "assignedDate": "2025-11-05T14:25:30.152Z"
+        }
+      ],
+      "territoryCoverage": {
+        "totalDistricts": 2,
+        "totalSectors": 3,
+        "districts": ["Gatsibo", "Kayonza"]
+      },
       "specialization": "Avocado Farming Expert",
       "experience": "5 years",
       "certification": "Agricultural Extension Certificate - Level 3",
-      "farmersAssisted": 150,
-      "totalTransactions": 350,
-      "performance": "85%",
+      "statistics": {
+        "farmersAssisted": 150,
+        "totalTransactions": 350,
+        "performance": "85%",
+        "activeFarmers": 142,
+        "territoryUtilization": "78%"
+      },
       "profileImage": "https://example.com/profile.jpg"
     }
   },
   "meta": {
-    "timestamp": "2024-11-05T10:45:00Z",
+    "timestamp": "2025-11-05T14:25:30.152Z",
     "version": "1.0.0"
   }
 }
 ```
 
-**Error Responses**:
-
-- **401 Unauthorized**: Missing or invalid JWT token
-```json
-{
-  "success": false,
-  "message": "User ID not found in token",
-  "meta": {
-    "timestamp": "2024-11-05T10:45:00Z",
-    "version": "1.0.0"
-  }
-}
-```
-
-- **403 Forbidden**: User is not an agent
-```json
-{
-  "success": false,
-  "message": "Access denied. This endpoint is for agents only",
-  "meta": {
-    "timestamp": "2024-11-05T10:45:00Z",
-    "version": "1.0.0"
-  }
-}
-```
-
-- **404 Not Found**: User not found
-```json
-{
-  "success": false,
-  "message": "User not found",
-  "meta": {
-    "timestamp": "2024-11-05T10:45:00Z",
-    "version": "1.0.0"
-  }
-}
-```
-
-**cURL Example**:
-```bash
-curl -X GET http://localhost:5000/api/agent-information \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN"
-```
+**Error Responses:**
+- `401 Unauthorized` - Invalid or missing token
+- `403 Forbidden` - User is not an agent
+- `404 Not Found` - User not found
+- `500 Internal Server Error` - Server error
 
 ---
 
-### 2. Create Agent Profile
-Create a new agent profile for the authenticated agent (first-time setup).
+### Create Agent Profile
 
-**Endpoint**: `POST /api/agent-information/create`
+Create a new agent profile (self-registration).
 
-**Authentication**: Required
+**Endpoint:** `POST /api/agent-information/create`
 
-**Headers**:
-```json
-{
-  "Authorization": "Bearer YOUR_JWT_TOKEN",
-  "Content-Type": "application/json"
-}
+**Access:** Private (Agents only)
+
+**Request Headers:**
+```http
+Authorization: Bearer <jwt_token>
+Content-Type: application/json
 ```
 
-**Request Body**:
+**Request Body:**
 ```json
 {
   "province": "Eastern Province",
-  "district": "Gatsibo",
-  "sector": "Kiramuruzi",
-  "cell": "Karangazi",
-  "village": "Rukomo",
+  "territory": [
+    {
+      "district": "Gatsibo",
+      "sector": "Kiramuruzi",
+      "isPrimary": true,
+      "assignedDate": "2025-09-15T10:58:10.428Z"
+    }
+  ],
   "specialization": "Avocado Farming Expert",
   "experience": "5 years",
   "certification": "Agricultural Extension Certificate - Level 3",
-  "farmersAssisted": 150,
-  "totalTransactions": 350,
-  "performance": "85%",
   "profileImage": "https://example.com/profile.jpg"
 }
 ```
 
-**Field Descriptions**:
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| province | string | Optional | Agent's operational province |
-| district | string | Optional | Agent's operational district |
-| sector | string | Optional | Agent's operational sector |
-| cell | string | Optional | Agent's operational cell |
-| village | string | Optional | Agent's operational village |
-| specialization | string | Optional | Agent's area of expertise |
-| experience | string | Optional | Years of experience (e.g., "5 years") |
-| certification | string | Optional | Professional certifications |
-| farmersAssisted | number | Optional | Number of farmers helped (default: 0) |
-| totalTransactions | number | Optional | Total transactions completed (default: 0) |
-| performance | string | Optional | Performance percentage (e.g., "85%") |
-| profileImage | string | Optional | URL to profile image |
-
-**Success Response** (201 Created):
+**Success Response (201 Created):**
 ```json
 {
   "success": true,
   "message": "Profile created successfully",
   "data": {
-    "user_info": {
-      "id": "673a1b2c3d4e5f6789abcdef",
-      "full_name": "John Doe",
-      "email": "john.doe@example.com",
-      "phone": "+250788123456",
-      "role": "agent",
-      "status": "active",
-      "created_at": "2023-01-15T08:30:00Z",
-      "updated_at": "2024-11-05T10:45:00Z"
-    },
+    "user_info": { /* user info */ },
     "agent_profile": {
-      "agentId": "AGT000001",
+      "agentId": "AGT000002",
       "province": "Eastern Province",
-      "district": "Gatsibo",
-      "sector": "Kiramuruzi",
-      "cell": "Karangazi",
-      "village": "Rukomo",
+      "territory": [
+        {
+          "district": "Gatsibo",
+          "sector": "Kiramuruzi",
+          "isPrimary": true,
+          "assignedDate": "2025-09-15T10:58:10.428Z"
+        }
+      ],
+      "territoryCoverage": {
+        "totalDistricts": 1,
+        "totalSectors": 1,
+        "districts": ["Gatsibo"]
+      },
       "specialization": "Avocado Farming Expert",
       "experience": "5 years",
       "certification": "Agricultural Extension Certificate - Level 3",
-      "farmersAssisted": 150,
-      "totalTransactions": 350,
-      "performance": "85%",
+      "statistics": {
+        "farmersAssisted": 0,
+        "totalTransactions": 0,
+        "performance": "0%",
+        "activeFarmers": 0,
+        "territoryUtilization": "0%"
+      },
       "profileImage": "https://example.com/profile.jpg"
     }
-  },
-  "meta": {
-    "timestamp": "2024-11-05T10:45:00Z",
-    "version": "1.0.0"
   }
 }
 ```
 
-**Error Responses**:
+**Validation Rules:**
+- `territory` must be an array with 1-10 sectors
+- At least one sector must have `isPrimary: true`
+- `province` is required
+- `district` and `sector` are required for each territory entry
 
-- **400 Bad Request**: Profile already exists
-```json
-{
-  "success": false,
-  "message": "Agent profile already exists",
-  "meta": {
-    "timestamp": "2024-11-05T10:45:00Z",
-    "version": "1.0.0"
-  }
-}
-```
-
-- **401 Unauthorized**: Missing or invalid JWT token
-- **403 Forbidden**: User is not an agent
-- **404 Not Found**: User not found
-
-**Notes**:
-- The `agentId` is auto-generated in the format `AGT000001`, `AGT000002`, etc.
-- All fields in the request body are optional
-- Once created, use the UPDATE endpoint to modify the profile
-
-**cURL Example**:
-```bash
-curl -X POST http://localhost:5000/api/agent-information/create \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "province": "Eastern Province",
-    "district": "Gatsibo",
-    "sector": "Kiramuruzi",
-    "cell": "Karangazi",
-    "village": "Rukomo",
-    "specialization": "Avocado Farming Expert",
-    "experience": "5 years",
-    "certification": "Agricultural Extension Certificate - Level 3",
-    "farmersAssisted": 150,
-    "totalTransactions": 350,
-    "performance": "85%",
-    "profileImage": "https://example.com/profile.jpg"
-  }'
-```
+**Error Responses:**
+- `400 Bad Request` - Profile already exists or validation failed
+- `401 Unauthorized` - Invalid token
+- `403 Forbidden` - User is not an agent
+- `500 Internal Server Error` - Server error
 
 ---
 
-### 3. Update Agent Profile
-Update the authenticated agent's profile information.
+### Update Agent Profile
 
-**Endpoint**: `PUT /api/agent-information`
+Update the authenticated agent's profile, including territory changes.
 
-**Authentication**: Required
+**Endpoint:** `PUT /api/agent-information`
 
-**Headers**:
+**Access:** Private (Agents only)
+
+**Request Headers:**
+```http
+Authorization: Bearer <jwt_token>
+Content-Type: application/json
+```
+
+**Request Body:**
 ```json
 {
-  "Authorization": "Bearer YOUR_JWT_TOKEN",
-  "Content-Type": "application/json"
+  "name": "Pacific Ishimwe Updated",
+  "phone": "0788937973",
+  "agent_profile": {
+    "province": "Eastern Province",
+    "territory": [
+      {
+        "district": "Gatsibo",
+        "sector": "Kiramuruzi",
+        "isPrimary": true,
+        "assignedDate": "2025-09-15T10:58:10.428Z"
+      },
+      {
+        "district": "Gatsibo",
+        "sector": "Kabarore",
+        "isPrimary": false,
+        "assignedDate": "2025-11-05T14:25:30.152Z"
+      },
+      {
+        "district": "Kayonza",
+        "sector": "Gahini",
+        "isPrimary": false,
+        "assignedDate": "2025-11-05T14:25:30.152Z"
+      }
+    ],
+    "specialization": "Senior Avocado Farming Expert",
+    "experience": "6 years",
+    "certification": "Agricultural Extension Certificate - Level 4"
+  }
 }
 ```
 
-**Request Body** (All fields are optional):
-```json
-{
-  "full_name": "John Updated Doe",
-  "phone": "+250788999888",
-  "email": "john.updated@example.com",
-  "province": "Western Province",
-  "district": "Rubavu",
-  "sector": "Gisenyi",
-  "cell": "Umuganda",
-  "village": "Nyundo",
-  "specialization": "Senior Avocado Farming Consultant",
-  "experience": "7 years",
-  "certification": "Advanced Agricultural Extension Certificate - Level 4",
-  "farmersAssisted": 200,
-  "totalTransactions": 450,
-  "performance": "92%",
-  "profileImage": "https://example.com/new-profile.jpg"
-}
-```
-
-**Minimal Update Example**:
-```json
-{
-  "specialization": "Avocado Quality Control Specialist",
-  "experience": "6 years"
-}
-```
-
-**Field Descriptions**:
-| Field | Type | Description |
-|-------|------|-------------|
-| full_name | string | Update user's full name |
-| phone | string | Update user's phone number |
-| email | string | Update user's email address |
-| province | string | Update operational province |
-| district | string | Update operational district |
-| sector | string | Update operational sector |
-| cell | string | Update operational cell |
-| village | string | Update operational village |
-| specialization | string | Update area of expertise |
-| experience | string | Update years of experience |
-| certification | string | Update professional certifications |
-| farmersAssisted | number | Update number of farmers helped |
-| totalTransactions | number | Update total transactions completed |
-| performance | string | Update performance percentage |
-| profileImage | string | Update profile image URL |
-
-**Success Response** (200 OK):
+**Success Response (200 OK):**
 ```json
 {
   "success": true,
   "message": "Profile updated successfully",
   "data": {
     "user_info": {
-      "id": "673a1b2c3d4e5f6789abcdef",
-      "full_name": "John Updated Doe",
-      "email": "john.updated@example.com",
-      "phone": "+250788999888",
-      "role": "agent",
-      "status": "active",
-      "created_at": "2023-01-15T08:30:00Z",
-      "updated_at": "2024-11-05T11:00:00Z"
+      "id": "68c7f1428b4e787b3dc49467",
+      "full_name": "Pacific Ishimwe Updated",
+      "phone": "0788937973",
+      /* ... other fields ... */
     },
     "agent_profile": {
       "agentId": "AGT000001",
-      "province": "Western Province",
-      "district": "Rubavu",
-      "sector": "Gisenyi",
-      "cell": "Umuganda",
-      "village": "Nyundo",
-      "specialization": "Senior Avocado Farming Consultant",
-      "experience": "7 years",
-      "certification": "Advanced Agricultural Extension Certificate - Level 4",
-      "farmersAssisted": 200,
-      "totalTransactions": 450,
-      "performance": "92%",
-      "profileImage": "https://example.com/new-profile.jpg"
+      "province": "Eastern Province",
+      "territory": [
+        {
+          "district": "Gatsibo",
+          "sector": "Kiramuruzi",
+          "isPrimary": true,
+          "assignedDate": "2025-09-15T10:58:10.428Z"
+        },
+        {
+          "district": "Gatsibo",
+          "sector": "Kabarore",
+          "isPrimary": false,
+          "assignedDate": "2025-11-05T14:25:30.152Z"
+        },
+        {
+          "district": "Kayonza",
+          "sector": "Gahini",
+          "isPrimary": false,
+          "assignedDate": "2025-11-05T14:25:30.152Z"
+        }
+      ],
+      "territoryCoverage": {
+        "totalDistricts": 2,
+        "totalSectors": 3,
+        "districts": ["Gatsibo", "Kayonza"]
+      },
+      "specialization": "Senior Avocado Farming Expert",
+      "experience": "6 years",
+      "certification": "Agricultural Extension Certificate - Level 4",
+      "statistics": { /* unchanged */ }
     }
-  },
-  "meta": {
-    "timestamp": "2024-11-05T11:00:00Z",
-    "version": "1.0.0"
   }
 }
 ```
 
-**Error Responses**:
-- **401 Unauthorized**: Missing or invalid JWT token
-- **403 Forbidden**: User is not an agent
-- **404 Not Found**: User not found
+**Validation Rules:**
+- Territory array must contain 1-10 sectors
+- At least one sector must be primary
+- Cannot update agentId (auto-generated)
 
-**Notes**:
-- All fields are optional - only send the fields you want to update
-- The `agentId` cannot be changed (it's auto-generated and permanent)
-- User basic information (full_name, phone, email) updates the User model
-- Other fields update the AgentProfile model
-- If no profile exists, it will be created automatically (upsert)
-
-**cURL Example**:
-```bash
-curl -X PUT http://localhost:5000/api/agent-information \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "specialization": "Senior Avocado Farming Consultant",
-    "experience": "7 years",
-    "performance": "92%"
-  }'
-```
+**Error Responses:**
+- `400 Bad Request` - Validation failed or invalid territory
+- `404 Not Found` - Profile not found
+- `500 Internal Server Error` - Server error
 
 ---
 
-### 4. Update Performance Metrics
-Quick update for agent performance metrics only.
+### Update Performance Metrics
 
-**Endpoint**: `PUT /api/agent-information/performance`
+Update agent's performance statistics.
 
-**Authentication**: Required
+**Endpoint:** `PUT /api/agent-information/performance`
 
-**Headers**:
+**Access:** Private (Agents only)
+
+**Request Headers:**
+```http
+Authorization: Bearer <jwt_token>
+Content-Type: application/json
+```
+
+**Request Body:**
 ```json
 {
-  "Authorization": "Bearer YOUR_JWT_TOKEN",
-  "Content-Type": "application/json"
+  "statistics": {
+    "farmersAssisted": 175,
+    "totalTransactions": 425,
+    "performance": "90%",
+    "activeFarmers": 165,
+    "territoryUtilization": "82%"
+  }
 }
 ```
 
-**Request Body** (At least one field required):
-```json
-{
-  "farmersAssisted": 180,
-  "totalTransactions": 400,
-  "performance": "88%"
-}
-```
-
-**Field Descriptions**:
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| farmersAssisted | number | Optional | Number of farmers helped |
-| totalTransactions | number | Optional | Total transactions completed |
-| performance | string | Optional | Performance percentage |
-
-**Success Response** (200 OK):
+**Success Response (200 OK):**
 ```json
 {
   "success": true,
   "message": "Performance metrics updated successfully",
   "data": {
+    "user_info": { /* user info */ },
+    "agent_profile": {
+      "agentId": "AGT000001",
+      /* ... other fields ... */
+      "statistics": {
+        "farmersAssisted": 175,
+        "totalTransactions": 425,
+        "performance": "90%",
+        "activeFarmers": 165,
+        "territoryUtilization": "82%"
+      }
+    }
+  }
+}
+```
+
+**Error Responses:**
+- `400 Bad Request` - Invalid statistics data
+- `404 Not Found` - Profile not found
+- `500 Internal Server Error` - Server error
+
+---
+
+### Admin: Create Agent Profile
+
+Create agent profile for any user (admin only).
+
+**Endpoint:** `POST /api/agent-information/admin/create`
+
+**Access:** Private (Admin only)
+
+**Request Headers:**
+```http
+Authorization: Bearer <admin_jwt_token>
+Content-Type: application/json
+```
+
+**Request Body:**
+```json
+{
+  "userId": "68c7f1428b4e787b3dc49467",
+  "agent_profile": {
+    "province": "Eastern Province",
+    "territory": [
+      {
+        "district": "Gatsibo",
+        "sector": "Kiramuruzi",
+        "isPrimary": true,
+        "assignedDate": "2025-09-15T10:58:10.428Z"
+      },
+      {
+        "district": "Gatsibo",
+        "sector": "Kabarore",
+        "isPrimary": false,
+        "assignedDate": "2025-11-05T14:25:30.152Z"
+      }
+    ],
+    "specialization": "Avocado Farming Expert",
+    "experience": "5 years",
+    "certification": "Agricultural Extension Certificate - Level 3",
+    "statistics": {
+      "farmersAssisted": 50,
+      "totalTransactions": 120,
+      "performance": "75%",
+      "activeFarmers": 45,
+      "territoryUtilization": "65%"
+    }
+  }
+}
+```
+
+**Success Response (201 Created):**
+```json
+{
+  "success": true,
+  "message": "Profile created successfully",
+  "data": {
+    "user_info": { /* target user info */ },
+    "agent_profile": {
+      "agentId": "AGT000003",
+      "province": "Eastern Province",
+      "territory": [ /* as submitted */ ],
+      "territoryCoverage": {
+        "totalDistricts": 1,
+        "totalSectors": 2,
+        "districts": ["Gatsibo"]
+      },
+      "statistics": { /* as submitted */ }
+    }
+  }
+}
+```
+
+**Error Responses:**
+- `400 Bad Request` - User not found, not an agent, or profile exists
+- `401 Unauthorized` - Invalid token
+- `403 Forbidden` - User is not admin
+- `500 Internal Server Error` - Server error
+
+---
+
+### Admin: Get Agent Profile
+
+Retrieve any agent's profile by user ID (admin only).
+
+**Endpoint:** `GET /api/agent-information/admin/:userId`
+
+**Access:** Private (Admin only)
+
+**Request Headers:**
+```http
+Authorization: Bearer <admin_jwt_token>
+```
+
+**URL Parameters:**
+- `userId` (required) - The MongoDB ObjectId of the user
+
+**Success Response (200 OK):**
+```json
+{
+  "success": true,
+  "message": "Profile retrieved successfully",
+  "data": {
     "user_info": {
-      "id": "673a1b2c3d4e5f6789abcdef",
-      "full_name": "John Doe",
-      "email": "john.doe@example.com",
-      "phone": "+250788123456",
+      "id": "68c7f1428b4e787b3dc49467",
+      "full_name": "Pacific Ishimwe",
+      "email": "pacific1@gmail.com",
+      "phone": "0788937972",
       "role": "agent",
       "status": "active",
-      "created_at": "2023-01-15T08:30:00Z",
-      "updated_at": "2024-11-05T10:45:00Z"
+      "created_at": "2025-09-15T10:58:10.428Z",
+      "updated_at": "2025-11-05T14:25:30.152Z"
     },
     "agent_profile": {
       "agentId": "AGT000001",
       "province": "Eastern Province",
-      "district": "Gatsibo",
-      "sector": "Kiramuruzi",
-      "cell": "Karangazi",
-      "village": "Rukomo",
-      "specialization": "Avocado Farming Expert",
-      "experience": "5 years",
-      "certification": "Agricultural Extension Certificate - Level 3",
-      "farmersAssisted": 180,
-      "totalTransactions": 400,
-      "performance": "88%",
-      "profileImage": "https://example.com/profile.jpg"
+      "territory": [ /* full territory array */ ],
+      "territoryCoverage": { /* coverage stats */ },
+      "statistics": { /* full statistics */ }
     }
-  },
-  "meta": {
-    "timestamp": "2024-11-05T11:15:00Z",
-    "version": "1.0.0"
   }
 }
 ```
 
-**Error Responses**:
-
-- **400 Bad Request**: No valid performance data provided
-```json
-{
-  "success": false,
-  "message": "No valid performance data provided",
-  "meta": {
-    "timestamp": "2024-11-05T10:45:00Z",
-    "version": "1.0.0"
-  }
-}
-```
-
-- **401 Unauthorized**: Missing or invalid JWT token
-- **403 Forbidden**: User is not an agent
-- **404 Not Found**: User not found
-
-**Notes**:
-- This is a convenience endpoint for updating only performance-related fields
-- At least one field must be provided in the request body
-- Use this when you only need to update metrics without changing other profile data
-
-**cURL Example**:
-```bash
-curl -X PUT http://localhost:5000/api/agent-information/performance \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "farmersAssisted": 180,
-    "totalTransactions": 400,
-    "performance": "88%"
-  }'
-```
+**Error Responses:**
+- `400 Bad Request` - User is not an agent
+- `403 Forbidden` - User is not admin
+- `404 Not Found` - User not found
+- `500 Internal Server Error` - Server error
 
 ---
 
@@ -500,11 +527,11 @@ curl -X PUT http://localhost:5000/api/agent-information/performance \
 {
   id: string;              // MongoDB ObjectId
   full_name: string;       // Agent's full name
-  email: string;           // Agent's email address
-  phone?: string;          // Agent's phone number (optional)
-  role: string;            // Always "agent" for this endpoint
-  status: string;          // Account status (e.g., "active", "inactive")
-  created_at: Date;        // Account creation timestamp
+  email: string;           // Email address
+  phone: string;           // Phone number
+  role: "agent";           // User role
+  status: string;          // Account status (active/inactive)
+  created_at: Date;        // Account creation date
   updated_at: Date;        // Last update timestamp
 }
 ```
@@ -512,243 +539,368 @@ curl -X PUT http://localhost:5000/api/agent-information/performance \
 ### Agent Profile Object
 ```typescript
 {
-  agentId: string;              // Auto-generated unique ID (AGT000001, AGT000002, etc.)
-  province?: string;            // Operational province
-  district?: string;            // Operational district
-  sector?: string;              // Operational sector
-  cell?: string;                // Operational cell
-  village?: string;             // Operational village
-  specialization?: string;      // Area of expertise
-  experience?: string;          // Years of experience
-  certification?: string;       // Professional certifications
-  farmersAssisted?: number;     // Number of farmers helped (default: 0)
-  totalTransactions?: number;   // Total transactions (default: 0)
-  performance?: string;         // Performance percentage
-  profileImage?: string;        // Profile image URL
+  agentId: string;                    // Auto-generated (AGT000001, AGT000002...)
+  province: string;                   // Province name
+  territory: Territory[];             // Array of assigned sectors (1-10)
+  territoryCoverage: TerritoryCoverage; // Auto-calculated coverage
+  specialization?: string;            // Area of expertise
+  experience?: string;                // Years of experience
+  certification?: string;             // Professional certification
+  statistics: Statistics;             // Performance metrics
+  profileImage?: string;              // Profile image URL
+}
+```
+
+### Territory Object
+```typescript
+{
+  district: string;        // District name
+  sector: string;          // Sector name
+  isPrimary: boolean;      // Primary sector flag
+  assignedDate: Date;      // Assignment date
+}
+```
+
+### Territory Coverage Object
+```typescript
+{
+  totalDistricts: number;  // Number of unique districts
+  totalSectors: number;    // Total number of sectors
+  districts: string[];     // Array of district names
+}
+```
+
+### Statistics Object
+```typescript
+{
+  farmersAssisted: number;        // Total farmers helped
+  totalTransactions: number;      // Total transactions completed
+  performance: string;            // Performance rating (e.g., "85%")
+  activeFarmers: number;          // Currently active farmers
+  territoryUtilization: string;   // Territory coverage (e.g., "78%")
 }
 ```
 
 ---
 
-## Common Response Structure
+## Territory Management
 
-### Success Response
+### Territory Rules
+
+1. **Minimum Requirement**: At least 1 sector must be assigned
+2. **Maximum Limit**: Maximum of 10 sectors per agent
+3. **Primary Sector**: At least one sector must be marked as primary (`isPrimary: true`)
+4. **Multiple Districts**: Agents can cover sectors across multiple districts
+
+### Territory Coverage Calculation
+
+Territory coverage is automatically calculated based on the territory array:
+
+```javascript
+territoryCoverage = {
+  totalDistricts: uniqueDistrictCount,
+  totalSectors: territory.length,
+  districts: [uniqueDistrictNames]
+}
+```
+
+### Adding Territory Sectors
+
+To add new sectors to an agent's territory, include all existing sectors plus new ones in the update request:
+
 ```json
 {
-  "success": true,
-  "message": "Descriptive success message",
-  "data": {
-    // Response data
-  },
-  "meta": {
-    "timestamp": "2024-11-05T10:45:00Z",
-    "version": "1.0.0"
+  "agent_profile": {
+    "territory": [
+      // Existing sectors
+      {
+        "district": "Gatsibo",
+        "sector": "Kiramuruzi",
+        "isPrimary": true,
+        "assignedDate": "2025-09-15T10:58:10.428Z"
+      },
+      // New sector
+      {
+        "district": "Kayonza",
+        "sector": "Gahini",
+        "isPrimary": false,
+        "assignedDate": "2025-11-05T14:25:30.152Z"
+      }
+    ]
   }
 }
 ```
 
-### Error Response
+### Removing Territory Sectors
+
+To remove sectors, send an update with only the sectors you want to keep:
+
 ```json
 {
-  "success": false,
-  "message": "Descriptive error message",
-  "meta": {
-    "timestamp": "2024-11-05T10:45:00Z",
-    "version": "1.0.0"
+  "agent_profile": {
+    "territory": [
+      {
+        "district": "Gatsibo",
+        "sector": "Kiramuruzi",
+        "isPrimary": true,
+        "assignedDate": "2025-09-15T10:58:10.428Z"
+      }
+    ]
+  }
+}
+```
+
+### Changing Primary Sector
+
+Update the `isPrimary` flag on the desired sector:
+
+```json
+{
+  "agent_profile": {
+    "territory": [
+      {
+        "district": "Gatsibo",
+        "sector": "Kiramuruzi",
+        "isPrimary": false,  // Changed from true
+        "assignedDate": "2025-09-15T10:58:10.428Z"
+      },
+      {
+        "district": "Kayonza",
+        "sector": "Gahini",
+        "isPrimary": true,   // New primary sector
+        "assignedDate": "2025-11-05T14:25:30.152Z"
+      }
+    ]
   }
 }
 ```
 
 ---
 
-## HTTP Status Codes
+## Examples
 
-| Status Code | Description |
-|-------------|-------------|
-| 200 OK | Request successful (GET, PUT) |
-| 201 Created | Resource created successfully (POST) |
-| 400 Bad Request | Invalid request data or duplicate resource |
-| 401 Unauthorized | Missing or invalid authentication token |
-| 403 Forbidden | Insufficient permissions (not an agent) |
-| 404 Not Found | Resource not found |
-| 500 Internal Server Error | Server error |
+### Example 1: Agent Creates Profile
 
----
-
-## Authentication Flow
-
-1. **Login** to get JWT token:
-   ```
-   POST /api/auth/login
-   ```
-
-2. **Use token** in subsequent requests:
-   ```
-   Authorization: Bearer YOUR_JWT_TOKEN
-   ```
-
-3. **Token contains**:
-   - User ID
-   - Role (must be "agent")
-   - Expiration time
-
----
-
-## Agent ID Format
-
-Agent IDs are auto-generated with the following format:
-- **Prefix**: `AGT`
-- **Number**: 6 digits, zero-padded
-- **Examples**: `AGT000001`, `AGT000002`, `AGT000123`, `AGT999999`
-
-The ID is automatically incremented based on the last created agent.
-
----
-
-## Usage Examples
-
-### Complete Workflow
-
-#### 1. Login as Agent
+**Request:**
 ```bash
-curl -X POST http://localhost:5000/api/auth/login \
+curl -X POST http://localhost:3000/api/agent-information/create \
+  -H "Authorization: Bearer <agent_token>" \
   -H "Content-Type: application/json" \
   -d '{
-    "email": "agent@example.com",
-    "password": "password123"
+    "province": "Eastern Province",
+    "territory": [
+      {
+        "district": "Gatsibo",
+        "sector": "Kiramuruzi",
+        "isPrimary": true
+      }
+    ],
+    "specialization": "Avocado Farming",
+    "experience": "5 years"
   }'
 ```
 
-Response:
+**Response:**
 ```json
 {
   "success": true,
+  "message": "Profile created successfully",
   "data": {
-    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-    "user": {
-      "id": "673a1b2c3d4e5f6789abcdef",
-      "role": "agent"
+    "agent_profile": {
+      "agentId": "AGT000001",
+      "province": "Eastern Province",
+      "territory": [...],
+      "territoryCoverage": {
+        "totalDistricts": 1,
+        "totalSectors": 1,
+        "districts": ["Gatsibo"]
+      }
     }
   }
 }
 ```
 
-#### 2. Create Profile (First Time)
+### Example 2: Agent Updates Territory
+
+**Request:**
 ```bash
-curl -X POST http://localhost:5000/api/agent-information/create \
-  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." \
+curl -X PUT http://localhost:3000/api/agent-information \
+  -H "Authorization: Bearer <agent_token>" \
   -H "Content-Type: application/json" \
   -d '{
-    "province": "Eastern Province",
-    "district": "Gatsibo",
-    "specialization": "Avocado Farming Expert"
+    "agent_profile": {
+      "territory": [
+        {
+          "district": "Gatsibo",
+          "sector": "Kiramuruzi",
+          "isPrimary": true,
+          "assignedDate": "2025-09-15T10:58:10.428Z"
+        },
+        {
+          "district": "Gatsibo",
+          "sector": "Kabarore",
+          "isPrimary": false,
+          "assignedDate": "2025-11-05T14:25:30.152Z"
+        }
+      ]
+    }
   }'
 ```
 
-#### 3. Get Current Profile
-```bash
-curl -X GET http://localhost:5000/api/agent-information \
-  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-```
+### Example 3: Admin Creates Agent Profile
 
-#### 4. Update Profile
+**Request:**
 ```bash
-curl -X PUT http://localhost:5000/api/agent-information \
-  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." \
+curl -X POST http://localhost:3000/api/agent-information/admin/create \
+  -H "Authorization: Bearer <admin_token>" \
   -H "Content-Type: application/json" \
   -d '{
-    "experience": "6 years",
-    "certification": "Advanced Level Certificate"
+    "userId": "68c7f1428b4e787b3dc49467",
+    "agent_profile": {
+      "province": "Eastern Province",
+      "territory": [
+        {
+          "district": "Gatsibo",
+          "sector": "Kiramuruzi",
+          "isPrimary": true
+        }
+      ],
+      "statistics": {
+        "farmersAssisted": 100,
+        "totalTransactions": 250,
+        "performance": "80%",
+        "activeFarmers": 85,
+        "territoryUtilization": "70%"
+      }
+    }
   }'
 ```
 
-#### 5. Update Performance Metrics
+### Example 4: Update Performance Metrics
+
+**Request:**
 ```bash
-curl -X PUT http://localhost:5000/api/agent-information/performance \
-  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." \
+curl -X PUT http://localhost:3000/api/agent-information/performance \
+  -H "Authorization: Bearer <agent_token>" \
   -H "Content-Type: application/json" \
   -d '{
-    "farmersAssisted": 200,
-    "performance": "90%"
+    "statistics": {
+      "farmersAssisted": 200,
+      "totalTransactions": 500,
+      "performance": "92%",
+      "activeFarmers": 180,
+      "territoryUtilization": "85%"
+    }
   }'
 ```
-
----
-
-## Testing Endpoints
-
-### Using Postman
-
-1. **Set Base URL**: `http://localhost:5000`
-2. **Set Authorization**:
-   - Type: Bearer Token
-   - Token: Your JWT token from login
-3. **Set Headers**:
-   - Content-Type: application/json
-
-### Using Thunder Client (VS Code)
-
-1. Create new request
-2. Select method (GET, POST, PUT)
-3. Enter URL
-4. Add Authorization header with Bearer token
-5. Add request body (for POST/PUT)
-6. Send request
 
 ---
 
 ## Error Handling
 
-### Common Errors
+### Common Error Responses
 
-**Profile Already Exists**:
-- Occurs when trying to create a profile that already exists
-- Solution: Use PUT endpoint to update instead
+#### 400 Bad Request
+```json
+{
+  "success": false,
+  "message": "Territory must be a non-empty array",
+  "error": "Validation failed"
+}
+```
 
-**Invalid Token**:
-- Occurs when JWT token is missing, expired, or invalid
-- Solution: Login again to get a new token
+#### 401 Unauthorized
+```json
+{
+  "success": false,
+  "message": "Invalid or expired token",
+  "error": "Authentication failed"
+}
+```
 
-**Wrong Role**:
-- Occurs when non-agent users try to access agent endpoints
-- Solution: Ensure the user has the "agent" role
+#### 403 Forbidden
+```json
+{
+  "success": false,
+  "message": "Access denied. This endpoint is for agents only",
+  "error": "Authorization failed"
+}
+```
 
-**Profile Not Found**:
-- Occurs when accessing a profile that doesn't exist
-- Solution: Create profile first using POST /create endpoint
+#### 404 Not Found
+```json
+{
+  "success": false,
+  "message": "User not found",
+  "error": "Resource not found"
+}
+```
+
+#### 500 Internal Server Error
+```json
+{
+  "success": false,
+  "message": "Failed to create agent profile",
+  "error": "Internal server error"
+}
+```
+
+### Validation Errors
+
+**Territory Validation:**
+- Empty territory array
+- More than 10 sectors
+- No primary sector designated
+- Missing required fields (district, sector)
+
+**Profile Validation:**
+- Profile already exists
+- User is not an agent
+- Invalid statistics values
 
 ---
 
 ## Best Practices
 
-1. **Always validate token expiration** before making requests
-2. **Store JWT token securely** (not in localStorage for production)
-3. **Use HTTPS in production** to encrypt data in transit
-4. **Handle errors gracefully** with proper error messages
-5. **Update only necessary fields** to minimize data transfer
-6. **Use the /performance endpoint** for frequent metric updates
-7. **Keep profile images optimized** (recommended max 2MB)
+### 1. Territory Assignment
+- Always designate one primary sector
+- Add new sectors incrementally
+- Keep territory size manageable (5-7 sectors recommended)
 
----
+### 2. Performance Tracking
+- Update statistics regularly (weekly/monthly)
+- Keep metrics realistic and verifiable
+- Use percentage format for performance and utilization
 
-## Support
+### 3. Profile Updates
+- Update profile information when circumstances change
+- Keep contact information current
+- Update certifications when acquired
 
-For issues or questions:
-- **API Version**: 1.0.0
-- **Last Updated**: November 5, 2025
-- **Server**: http://localhost:5000
-- **Environment**: Development
+### 4. Admin Operations
+- Use admin endpoints for bulk operations
+- Verify user roles before creating profiles
+- Monitor territory distribution across agents
 
 ---
 
 ## Changelog
 
 ### Version 1.0.0 (November 5, 2025)
-- Initial release
-- GET /api/agent-information - Retrieve agent profile
-- POST /api/agent-information/create - Create agent profile
-- PUT /api/agent-information - Update agent profile
-- PUT /api/agent-information/performance - Update performance metrics
-- Auto-generated agent IDs (AGT000001 format)
-- JWT authentication required
-- Role-based access control (agents only)
+- ✅ Full territory management system
+- ✅ Multi-sector support (1-10 sectors)
+- ✅ Automatic territory coverage calculation
+- ✅ Performance statistics tracking
+- ✅ Auto-incrementing agent IDs
+- ✅ Admin and agent role separation
+- ✅ Complete CRUD operations
+- ✅ Comprehensive validation
+
+---
+
+## Support
+
+For issues, questions, or feature requests, please contact the development team or create an issue in the project repository.
+
+**API Version:** 1.0.0  
+**Last Updated:** November 5, 2025

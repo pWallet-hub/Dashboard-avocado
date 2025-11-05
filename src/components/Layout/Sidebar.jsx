@@ -123,7 +123,7 @@ const Sidebar = ({ role: propRole }) => {
 
   const agentLinks = [
     { to: "/dashboard/agent/profile", icon: User, text: "Profile" },
-    { to: "/dashboard/agent/FarmerList", icon: Users, text: "Farmer" },
+    { to: "/dashboard/agent/FarmerList", icon: Users, text: "My Farmers" },
     { to: "/dashboard/agent/HarvestingPlan", icon: Calendar, text: "Schedule Harvesting Plan" },
     { to: "/dashboard/agent/IPMRoutine", icon: Bug, text: "Schedule IPM Routine" },
     { to: "/dashboard/agent/Shop", icon: ShoppingBag, text: "My Shop" },

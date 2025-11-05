@@ -142,7 +142,8 @@ export async function listFarmers(options = {}) {
   if (options.search) params.search = options.search;
   
   const response = await apiClient.get('/users/farmers', { params });
-  return extractData(response);
+  // Return the full response.data to preserve meta.pagination
+  return response.data;
 }
 
 // UPDATED: Get all agents with better error handling
