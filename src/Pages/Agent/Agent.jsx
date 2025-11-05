@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
-import { User, Mail, Phone, MapPin, Calendar, Activity, Award, BarChart3, Briefcase, LogOut, Edit3, Save, X } from 'lucide-react';
-import { getProfile, updateProfile } from '../../services/authService';
+import React, { useEffect, useState } from 'react';
+import { User, Mail, Phone, MapPin, Calendar, Activity, Award, BarChart3, Briefcase, LogOut, Edit3, Save, X, AlertCircle } from 'lucide-react';
+import { getAgentInformation, updateAgentInformation } from '../../services/agent-information';
 
 // Sub-component for Profile Section in AgentMembershipCard
 const ProfileSection = ({ name, specialization, profileImage, status, agentId }) => (
@@ -172,10 +172,42 @@ export default function AgentProfile() {
       setError(null);
 
       try {
-        const profileData = await getProfile();
-        setAgentProfile(profileData);
-        setEditedProfile(profileData);
+        const response = await getAgentInformation();
+        
+        // Extract user_info and agent_profile from response
+        const { user_info, agent_profile } = response;
+        
+        // Combine user_info and agent_profile with defaults
+        const enhancedProfile = {
+          id: user_info.id,
+          full_name: user_info.full_name,
+          email: user_info.email,
+          phone: user_info.phone || '',
+          role: user_info.role,
+          status: user_info.status || 'active',
+          created_at: user_info.created_at,
+          updated_at: user_info.updated_at,
+          profile: {
+            agentId: agent_profile?.agentId || user_info.id || 'N/A',
+            province: agent_profile?.province || '',
+            district: agent_profile?.district || '',
+            sector: agent_profile?.sector || '',
+            cell: agent_profile?.cell || '',
+            village: agent_profile?.village || '',
+            specialization: agent_profile?.specialization || 'Agricultural Specialist',
+            experience: agent_profile?.experience || 'N/A',
+            certification: agent_profile?.certification || 'N/A',
+            farmersAssisted: agent_profile?.farmersAssisted || 0,
+            totalTransactions: agent_profile?.totalTransactions || 0,
+            performance: agent_profile?.performance || '0%',
+            profileImage: agent_profile?.profileImage || null
+          }
+        };
+        
+        setAgentProfile(enhancedProfile);
+        setEditedProfile(enhancedProfile);
       } catch (err) {
+        console.error('Error fetching agent profile:', err);
         setError(err.message || 'An error occurred while fetching the profile');
       } finally {
         setLoading(false);
@@ -184,6 +216,10 @@ export default function AgentProfile() {
 
     fetchAgentProfile();
   }, []);
+
+  const handleRetry = () => {
+    window.location.reload();
+  };
 
   const handleEditProfile = () => {
     setEditedProfile({ ...agentProfile });
@@ -195,21 +231,76 @@ export default function AgentProfile() {
     setError(null);
     
     try {
-      // Prepare update data
+      // Prepare update data for agent information API
       const updateData = {
+        // User basic info
         full_name: editedProfile.full_name,
-        phone: editedProfile.phone
+        phone: editedProfile.phone,
+        email: editedProfile.email,
+        
+        // Agent profile fields
+        province: editedProfile.profile?.province || '',
+        district: editedProfile.profile?.district || '',
+        sector: editedProfile.profile?.sector || '',
+        cell: editedProfile.profile?.cell || '',
+        village: editedProfile.profile?.village || '',
+        specialization: editedProfile.profile?.specialization || '',
+        experience: editedProfile.profile?.experience || '',
+        certification: editedProfile.profile?.certification || '',
+        farmersAssisted: parseInt(editedProfile.profile?.farmersAssisted) || 0,
+        totalTransactions: parseInt(editedProfile.profile?.totalTransactions) || 0,
+        performance: editedProfile.profile?.performance || '0%',
+        profileImage: editedProfile.profile?.profileImage || ''
       };
       
-      // Add profile data if it exists
-      if (editedProfile.profile) {
-        updateData.profile = editedProfile.profile;
-      }
+      // Call the agent information update API
+      const response = await updateAgentInformation(updateData);
       
-      const updatedProfile = await updateProfile(updateData);
+      // Extract updated data
+      const { user_info, agent_profile } = response;
+      
+      // Reconstruct the enhanced profile
+      const updatedProfile = {
+        id: user_info.id,
+        full_name: user_info.full_name,
+        email: user_info.email,
+        phone: user_info.phone,
+        role: user_info.role,
+        status: user_info.status,
+        created_at: user_info.created_at,
+        updated_at: user_info.updated_at,
+        profile: {
+          agentId: agent_profile.agentId,
+          province: agent_profile.province,
+          district: agent_profile.district,
+          sector: agent_profile.sector,
+          cell: agent_profile.cell,
+          village: agent_profile.village,
+          specialization: agent_profile.specialization,
+          experience: agent_profile.experience,
+          certification: agent_profile.certification,
+          farmersAssisted: agent_profile.farmersAssisted,
+          totalTransactions: agent_profile.totalTransactions,
+          performance: agent_profile.performance,
+          profileImage: agent_profile.profileImage
+        }
+      };
+      
+      // Sync with localStorage
+      const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+      const updatedUser = {
+        ...currentUser,
+        full_name: user_info.full_name,
+        phone: user_info.phone,
+        email: user_info.email,
+        profile: agent_profile
+      };
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+      
       setAgentProfile(updatedProfile);
       setIsEditing(false);
     } catch (err) {
+      console.error('Error updating profile:', err);
       setError(err.message || 'Failed to update profile');
     } finally {
       setLoading(false);
@@ -295,9 +386,21 @@ export default function AgentProfile() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-md">
-          <p className="text-red-700">{error}</p>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-md w-full">
+          <div className="flex items-start">
+            <AlertCircle className="w-6 h-6 text-red-600 mr-3 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <h3 className="text-lg font-semibold text-red-800 mb-2">Error Loading Profile</h3>
+              <p className="text-red-700 mb-4">{error}</p>
+              <button
+                onClick={handleRetry}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors duration-200"
+              >
+                Retry
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -317,8 +420,8 @@ export default function AgentProfile() {
                 <User className="w-6 h-6 text-[#1F310A]" aria-hidden="true" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-white">Agent Profile</h1>
-                <p className="text-green-200 text-sm">Agricultural Extension Agent</p>
+                <h1 className="text-xl font-bold text-white">VBAs Profile</h1>
+                <p className="text-green-200 text-sm">Agricultural Extension VBAs</p>
               </div>
             </div>
             <button
@@ -458,27 +561,43 @@ export default function AgentProfile() {
                 <MapPin className="w-5 h-5 mr-2 text-[#1F310A]" aria-hidden="true" />
                 Location Information
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                 <InfoField 
                   label="Province" 
-                  value={agentProfileData.province} 
+                  value={isEditing ? editedProfile.profile?.province : agentProfileData.province} 
                   icon={MapPin} 
                   isEditing={isEditing}
                   onChange={(value) => handleProfileNestedChange('profile', 'province', value)}
                 />
                 <InfoField 
                   label="District" 
-                  value={agentProfileData.district} 
+                  value={isEditing ? editedProfile.profile?.district : agentProfileData.district} 
                   icon={MapPin} 
                   isEditing={isEditing}
                   onChange={(value) => handleProfileNestedChange('profile', 'district', value)}
                 />
                 <InfoField 
                   label="Sector" 
-                  value={agentProfileData.sector} 
+                  value={isEditing ? editedProfile.profile?.sector : agentProfileData.sector} 
                   icon={MapPin} 
                   isEditing={isEditing}
                   onChange={(value) => handleProfileNestedChange('profile', 'sector', value)}
+                />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <InfoField 
+                  label="Cell" 
+                  value={isEditing ? editedProfile.profile?.cell : agentProfileData.cell} 
+                  icon={MapPin} 
+                  isEditing={isEditing}
+                  onChange={(value) => handleProfileNestedChange('profile', 'cell', value)}
+                />
+                <InfoField 
+                  label="Village" 
+                  value={isEditing ? editedProfile.profile?.village : agentProfileData.village} 
+                  icon={MapPin} 
+                  isEditing={isEditing}
+                  onChange={(value) => handleProfileNestedChange('profile', 'village', value)}
                 />
               </div>
             </div>
@@ -494,21 +613,21 @@ export default function AgentProfile() {
               <div className="space-y-4">
                 <InfoField
                   label="Specialization"
-                  value={agentProfileData.specialization}
+                  value={isEditing ? editedProfile.profile?.specialization : agentProfileData.specialization}
                   icon={Briefcase}
                   isEditing={isEditing}
                   onChange={(value) => handleProfileNestedChange('profile', 'specialization', value)}
                 />
                 <InfoField 
                   label="Experience" 
-                  value={agentProfileData.experience} 
+                  value={isEditing ? editedProfile.profile?.experience : agentProfileData.experience} 
                   icon={Calendar} 
                   isEditing={isEditing}
                   onChange={(value) => handleProfileNestedChange('profile', 'experience', value)}
                 />
                 <InfoField 
                   label="Certification" 
-                  value={agentProfileData.certification} 
+                  value={isEditing ? editedProfile.profile?.certification : agentProfileData.certification} 
                   icon={Award} 
                   isEditing={isEditing}
                   onChange={(value) => handleProfileNestedChange('profile', 'certification', value)}
@@ -526,28 +645,37 @@ export default function AgentProfile() {
             <div className="bg-white rounded-xl shadow-lg p-6">
               <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center">
                 <Activity className="w-5 h-5 mr-2 text-[#1F310A]" aria-hidden="true" />
-                Recent Activity
+                Performance Metrics
               </h3>
               <div className="space-y-4">
+                <InfoField
+                  label="Farmers Assisted"
+                  value={isEditing ? editedProfile.profile?.farmersAssisted : agentProfileData.farmersAssisted}
+                  icon={User}
+                  isEditing={isEditing}
+                  onChange={(value) => handleProfileNestedChange('profile', 'farmersAssisted', value)}
+                  type="number"
+                />
+                <InfoField
+                  label="Total Transactions"
+                  value={isEditing ? editedProfile.profile?.totalTransactions : agentProfileData.totalTransactions}
+                  icon={BarChart3}
+                  isEditing={isEditing}
+                  onChange={(value) => handleProfileNestedChange('profile', 'totalTransactions', value)}
+                  type="number"
+                />
+                <InfoField
+                  label="Performance Score"
+                  value={isEditing ? editedProfile.profile?.performance : agentProfileData.performance}
+                  icon={Award}
+                  isEditing={isEditing}
+                  onChange={(value) => handleProfileNestedChange('profile', 'performance', value)}
+                />
                 <div className="p-4 bg-gray-50 rounded-lg">
                   <p className="text-sm text-gray-600 mb-1">Status</p>
                   <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                     {agentProfile.status || 'Active'}
                   </span>
-                </div>
-                <div className="p-4 bg-gray-50 rounded-lg">
-                  <p className="text-sm text-gray-600 mb-1">Performance</p>
-                  <div className="flex items-center">
-                    <div className="flex-1 bg-gray-200 rounded-full h-2 mr-3">
-                      <div
-                        className="h-2 rounded-full bg-[#1F310A]"
-                        style={{ width: agentProfileData.performance || '0%' }}
-                      ></div>
-                    </div>
-                    <span className="text-sm font-medium text-gray-800">
-                      {agentProfileData.performance || 'N/A'}
-                    </span>
-                  </div>
                 </div>
               </div>
             </div>

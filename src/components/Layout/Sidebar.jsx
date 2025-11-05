@@ -112,7 +112,7 @@ const Sidebar = ({ role: propRole }) => {
   );
 
   const adminLinks = [
-    { to: "/dashboard/admin", icon: User, text: "Profile" },
+    { to: "/dashboard/admin/profile", icon: User, text: "Profile" },
     { to: "/dashboard/admin/users", icon: Users, text: "Manage Growers" },
     { to: "/dashboard/admin/agents", icon: UserCheck, text: "Manage Agents" },
     { to: "/dashboard/admin/reports", icon: FileText, text: "Manage Account" },
@@ -122,9 +122,10 @@ const Sidebar = ({ role: propRole }) => {
   ];
 
   const agentLinks = [
-    { to: "/dashboard/agent", icon: User, text: "Profile" },
+    { to: "/dashboard/agent/profile", icon: User, text: "Profile" },
     { to: "/dashboard/agent/FarmerList", icon: Users, text: "Farmer" },
-    { to: "/dashboard/agent/PendingService", icon: Settings, text: "Service" },
+    { to: "/dashboard/agent/HarvestingPlan", icon: Calendar, text: "Schedule Harvesting Plan" },
+    { to: "/dashboard/agent/IPMRoutine", icon: Bug, text: "Schedule IPM Routine" },
     { to: "/dashboard/agent/Shop", icon: ShoppingBag, text: "My Shop" },
     { to: "/dashboard/agent/Report", icon: FileText, text: "Reports" },
   ];
@@ -132,9 +133,9 @@ const Sidebar = ({ role: propRole }) => {
   const farmerLinks = [
     
     // { to: "/dashboard/farmer/service", icon: Wrench, text: "Service" },
-    { to: "/dashboard/farmer/HarvestingDay", icon: Calendar, text: "Book your HD" },
-    { to: "/dashboard/farmer/PestManagement", icon: Bug, text: "Book your IPM Day" },
-    { to: "/dashboard/farmer/PropertyEvaluation", icon: MapPin, text: "Book your PE Day" },
+    { to: "/dashboard/farmer/HarvestingDay", icon: Calendar, text: "Book your Harvesting Day" },
+    { to: "/dashboard/farmer/PestManagement", icon: Bug, text: "Book your Integrated Pest Management Day" },
+    { to: "/dashboard/farmer/PropertyEvaluation", icon: MapPin, text: "Book your Propery Evaluation Day" },
     { to: "/dashboard/farmer/market", icon: ShoppingCart, text: "Farm Market" },
     { to: "/dashboard/farmer/my-service-requests", icon: ClipboardList, text: "My Requests" },
     { to: "/dashboard/farmer/profile", icon: User, text: "Profile" },
@@ -171,12 +172,28 @@ const Sidebar = ({ role: propRole }) => {
     }
   };
 
+  const getHomeRoute = () => {
+    switch (currentRole) {
+      case 'admin':
+        return '/dashboard/admin';
+      case 'agent':
+        return '/dashboard/agent';
+      case 'farmer':
+        return '/dashboard/farmer';
+      case 'shop-manager':
+      case 'shop_manager':
+        return '/dashboard/shop-manager';
+      default:
+        return '/dashboard/farmer'; // Default fallback
+    }
+  };
+
   const getSidebarTitle = () => {
     switch (currentRole) {
       case 'admin':
-        return 'ASR Admin';
+        return 'ASR Administrator';
       case 'agent':
-        return 'ASR Agent';
+        return 'ASR VBAs';
       case 'farmer':
         return 'ASR Farmer';
       case 'shop-manager':
@@ -268,9 +285,9 @@ const Sidebar = ({ role: propRole }) => {
         <nav className="flex-1 overflow-y-auto">
           <ul className="p-4 space-y-2">
             <NavItem 
-              to="/dashboard" 
+              to={getHomeRoute()} 
               icon={Home}
-              isActive={location.pathname === '/dashboard'}
+              isActive={location.pathname === getHomeRoute()}
             >
               Home
             </NavItem>

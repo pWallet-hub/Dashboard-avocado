@@ -157,7 +157,7 @@ export default function Market() {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentPhone, setPhoneNumber] = useState('');
   const [mobileProvider, setMobileProvider] = useState('');
-  const [paymentStep, setPaymentStep] = useState('provider');
+  const [paymentStep, setPaymentStep] = useState('details'); // Start with details step
   const [paymentProcessing, setPaymentProcessing] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
   const [paymentError, setPaymentError] = useState('');
@@ -260,9 +260,36 @@ export default function Market() {
     setPendingOrder(null);
     setMobileProvider('');
     setPhoneNumber('');
-    setPaymentStep('provider');
+    setPaymentStep('details'); // Reset to details step
     setPaymentSuccess(false);
     setPaymentError('');
+  };
+
+  const handleBackButton = () => {
+    if (paymentStep === 'provider') {
+      setPaymentStep('details');
+    } else if (paymentStep === 'phone') {
+      setPaymentStep('provider');
+    } else if (paymentStep === 'confirm') {
+      setPaymentStep('phone');
+    } else {
+      closePaymentModal();
+    }
+  };
+
+  const handleBackToCart = () => {
+    setShowPaymentModal(false);
+    setIsCartOpen(true);
+    setPaymentStep('details');
+  };
+
+  const handleCancelOrder = () => {
+    // Clear the cart
+    CartService.clearCart();
+    setCartItems([]);
+    setCartCount(0);
+    // Close the modal
+    closePaymentModal();
   };
 
   return (
@@ -390,19 +417,39 @@ export default function Market() {
 
       {showPaymentModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden">
-            <div className="bg-gradient-to-r from-green-600 to-emerald-700 p-6 text-white relative">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="bg-gradient-to-r from-green-600 to-emerald-700 p-4 text-white relative flex-shrink-0">
+              {/* Back Button - Show on all steps except details and success */}
+              {!paymentSuccess && paymentStep !== 'details' && (
+                <button 
+                  onClick={handleBackButton}
+                  className="absolute top-3 left-3 p-1.5 hover:bg-white/20 rounded-full transition flex items-center gap-1"
+                >
+                  <span className="text-lg">←</span>
+                </button>
+              )}
+              
+              {/* Close Button */}
               <button 
                 onClick={closePaymentModal}
-                className="absolute top-4 right-4 p-2 hover:bg-white/20 rounded-full transition"
+                className="absolute top-3 right-3 p-1.5 hover:bg-white/20 rounded-full transition"
               >
                 <X className="w-5 h-5" />
               </button>
-              <h2 className="text-2xl font-bold mb-2">Payment</h2>
-              <p className="text-green-100 text-sm">Complete your order</p>
+              
+              <h2 className="text-xl font-bold mb-1">
+                {paymentStep === 'details' ? 'Checkout' : 
+                 paymentStep === 'provider' ? 'Payment Method' :
+                 paymentStep === 'phone' ? 'Phone Number' :
+                 paymentStep === 'confirm' ? 'Confirm Payment' : 'Payment'}
+              </h2>
+              <p className="text-green-100 text-xs">
+                {paymentStep === 'details' ? 'Review your order' :
+                 paymentSuccess ? 'Transaction completed' : 'Complete your order'}
+              </p>
             </div>
 
-            <div className="p-6">
+            <div className="p-4 overflow-y-auto flex-grow">
               {paymentSuccess ? (
                 <div className="text-center py-8">
                   <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -419,16 +466,95 @@ export default function Market() {
                 </div>
               ) : (
                 <>
-                  {pendingOrder && (
-                    <div className="mb-6 p-4 bg-gray-50 rounded-xl">
-                      <p className="text-sm text-gray-600 mb-2">Order Total</p>
-                      <p className="text-3xl font-bold text-gray-900">{pendingOrder.totalAmount.toLocaleString()} RWF</p>
+                  {/* Checkout Details Step */}
+                  {paymentStep === 'details' && pendingOrder && (
+                    <div className="space-y-3">
+                      <h3 className="text-base font-bold text-gray-900 mb-2">Order Summary</h3>
+                      
+                      {/* Cart Items List */}
+                      <div className="max-h-[35vh] overflow-y-auto space-y-2 mb-3 pr-1">
+                        {pendingOrder.items.map((item) => (
+                          <div key={item.id} className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg">
+                            {item.image && (
+                              <img 
+                                src={item.image} 
+                                alt={item.name}
+                                className="w-12 h-12 object-cover rounded-lg flex-shrink-0"
+                              />
+                            )}
+                            <div className="flex-grow min-w-0">
+                              <p className="font-semibold text-gray-900 text-xs truncate">{item.name}</p>
+                              <p className="text-xs text-gray-600">
+                                {item.price.toLocaleString()} × {item.quantity}
+                              </p>
+                            </div>
+                            <p className="font-bold text-gray-900 text-sm flex-shrink-0">
+                              {(item.price * item.quantity).toLocaleString()}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Order Summary */}
+                      <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg p-3 space-y-1.5 border border-green-100">
+                        <div className="flex justify-between text-xs">
+                          <span className="text-gray-600">Subtotal</span>
+                          <span className="font-semibold text-gray-900">
+                            {CartService.getCartSummary().subtotal.toLocaleString()} RWF
+                          </span>
+                        </div>
+                        <div className="flex justify-between text-xs">
+                          <span className="text-gray-600">Tax (18%)</span>
+                          <span className="font-semibold text-gray-900">
+                            {CartService.getCartSummary().tax.toLocaleString()} RWF
+                          </span>
+                        </div>
+                        <div className="h-px bg-green-200 my-1"></div>
+                        <div className="flex justify-between items-baseline">
+                          <span className="text-gray-700 font-medium text-sm">Total</span>
+                          <span className="text-xl font-bold text-green-600">
+                            {pendingOrder.totalAmount.toLocaleString()} RWF
+                          </span>
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={() => setPaymentStep('provider')}
+                        className="w-full bg-gradient-to-r from-green-600 to-emerald-700 text-white py-2.5 rounded-lg font-semibold hover:from-green-700 hover:to-emerald-800 transition text-sm shadow-md"
+                      >
+                        Proceed to Payment
+                      </button>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <button
+                          onClick={handleBackToCart}
+                          className="border-2 border-green-600 text-green-600 py-2.5 rounded-lg font-semibold hover:bg-green-50 transition flex items-center justify-center gap-1.5 text-sm"
+                        >
+                          <span>←</span>
+                          <span>Edit Cart</span>
+                        </button>
+
+                        <button
+                          onClick={handleCancelOrder}
+                          className="border-2 border-red-500 text-red-600 py-2.5 rounded-lg font-semibold hover:bg-red-50 transition text-sm"
+                        >
+                          Cancel Order
+                        </button>
+                      </div>
                     </div>
                   )}
 
                   {paymentStep === 'provider' && (
                     <div className="space-y-4">
                       <h3 className="text-lg font-bold text-gray-900 mb-4">Select Payment Method</h3>
+                      
+                      {pendingOrder && (
+                        <div className="mb-4 p-3 bg-gray-50 rounded-lg text-center">
+                          <p className="text-sm text-gray-600">Total to Pay</p>
+                          <p className="text-2xl font-bold text-gray-900">{pendingOrder.totalAmount.toLocaleString()} RWF</p>
+                        </div>
+                      )}
+                      
                       <button
                         onClick={() => handleProviderSelect('MTN')}
                         className="w-full p-4 border-2 border-gray-200 rounded-xl hover:border-green-500 hover:bg-green-50 transition flex items-center gap-4 group"
@@ -461,12 +587,6 @@ export default function Market() {
 
                   {paymentStep === 'phone' && (
                     <div className="space-y-4">
-                      <button 
-                        onClick={() => setPaymentStep('provider')}
-                        className="text-green-600 hover:text-green-700 font-medium text-sm flex items-center gap-1 mb-4"
-                      >
-                        ← Back
-                      </button>
                       <h3 className="text-lg font-bold text-gray-900 mb-4">Enter Phone Number</h3>
                       <div className="mb-4">
                         <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -497,12 +617,6 @@ export default function Market() {
 
                   {paymentStep === 'confirm' && (
                     <div className="space-y-4">
-                      <button 
-                        onClick={() => setPaymentStep('phone')}
-                        className="text-green-600 hover:text-green-700 font-medium text-sm flex items-center gap-1 mb-4"
-                      >
-                        ← Back
-                      </button>
                       <h3 className="text-lg font-bold text-gray-900 mb-4">Confirm Payment</h3>
                       <div className="bg-gray-50 rounded-xl p-4 space-y-3 mb-6">
                         <div className="flex justify-between">
