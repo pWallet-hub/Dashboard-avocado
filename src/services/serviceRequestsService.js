@@ -1266,3 +1266,83 @@ export async function getAllServiceRequests(options = {}) {
   };
 }
 
+// HARVESTING PLAN REQUEST FUNCTIONS
+// =============================================================================
+
+// Create harvesting plan request
+export async function createHarvestingPlanRequest(planData) {
+  // Validate required fields
+  if (!planData || typeof planData !== 'object') {
+    throw new Error("Harvesting plan data is required");
+  }
+  
+  if (!planData.plannedHarvestDate) {
+    throw new Error("Planned harvest date is required");
+  }
+  
+  if (!planData.estimatedYield) {
+    throw new Error("Estimated yield is required");
+  }
+  
+  if (!planData.farmSize) {
+    throw new Error("Farm size is required");
+  }
+  
+  if (!planData.laborRequirement) {
+    throw new Error("Labor requirement is required");
+  }
+  
+  if (!planData.marketTarget) {
+    throw new Error("Market target is required");
+  }
+  
+  if (!planData.location) {
+    throw new Error("Location is required");
+  }
+  
+  const response = await apiClient.post('/service-requests/harvesting-plan', planData);
+  return extractData(response);
+}
+
+// IPM ROUTINE REQUEST FUNCTIONS
+// =============================================================================
+
+// Create IPM routine request
+export async function createIPMRoutineRequest(ipmData) {
+  // Validate required fields
+  if (!ipmData || typeof ipmData !== 'object') {
+    throw new Error("IPM routine data is required");
+  }
+  
+  if (!ipmData.scheduledDate) {
+    throw new Error("Scheduled date is required");
+  }
+  
+  if (!ipmData.farmSize) {
+    throw new Error("Farm size is required");
+  }
+  
+  if (!ipmData.pestType || ipmData.pestType.length === 0) {
+    throw new Error("At least one pest type is required");
+  }
+  
+  if (!ipmData.ipmMethod || ipmData.ipmMethod.length === 0) {
+    throw new Error("At least one IPM method is required");
+  }
+  
+  if (!ipmData.laborRequired) {
+    throw new Error("Labor requirement is required");
+  }
+  
+  if (!ipmData.targetArea) {
+    throw new Error("Target area is required");
+  }
+  
+  if (!ipmData.location) {
+    throw new Error("Location is required");
+  }
+  
+  const response = await apiClient.post('/service-requests/ipm-routine', ipmData);
+  return extractData(response);
+}
+

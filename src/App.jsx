@@ -22,7 +22,8 @@ import PropertyEvaluation from './Pages/Farmer/PropertyEvaluation'
 import Product from './Pages/Farmer/Product'
 import MyServiceRequests from './Pages/Farmer/MyServiceRequests'
 import FarmerList from './Pages/Agent/FarmerList'
-import PendingService from './Pages/Agent/PendingService'
+import HarvestingPlan from './Pages/Agent/HarvestingPlan'
+import IPMRoutine from './Pages/Agent/IPMRoutine'
 import Report from './Pages/Agent/Report'
 import Shop from './Pages/Agent/Shop'
 import Agents from './Pages/Admin/Agents'
@@ -69,7 +70,8 @@ function App() {
           {/* Agent Routes */}
           <Route path="agent" element={<RoleBasedRoute allowedRoles={['agent']}><Agent /></RoleBasedRoute>} />
           <Route path='agent/FarmerList' element={<RoleBasedRoute allowedRoles={['agent']}><FarmerList/></RoleBasedRoute>}/>
-          <Route path='agent/PendingService' element={<RoleBasedRoute allowedRoles={['agent']}><PendingService/></RoleBasedRoute>}/>
+          <Route path='agent/HarvestingPlan' element={<RoleBasedRoute allowedRoles={['agent']}><HarvestingPlan/></RoleBasedRoute>}/>
+          <Route path='agent/IPMRoutine' element={<RoleBasedRoute allowedRoles={['agent']}><IPMRoutine/></RoleBasedRoute>}/>
           <Route path='agent/Report' element={<RoleBasedRoute allowedRoles={['agent']}><Report/></RoleBasedRoute>}/>
           <Route path='agent/Shop' element={<RoleBasedRoute allowedRoles={['agent']}><Shop/></RoleBasedRoute>}/>
           

@@ -1,10 +1,14 @@
 import { useEffect, useState } from 'react';
-import { User, Phone, Mail, MapPin, TreePine, Calendar, Search, Filter, Download, Plus, Eye, X } from 'lucide-react';
+import { User, Phone, Mail, MapPin, TreePine, Calendar, Search, Filter, Download, Plus, Eye, X, AlertCircle } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import { listFarmers, createFarmer } from '../../services/usersService';
+import { getAgentInformation } from '../../services/agent-information';
 
 
 export default function FarmerList() {
   const [farmers, setFarmers] = useState([]);
+  const [allFarmers, setAllFarmers] = useState([]); // Store all farmers from API
+  const [agentTerritories, setAgentTerritories] = useState([]); // Store agent's territories
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [selectedFarmer, setSelectedFarmer] = useState(null);
@@ -12,13 +16,25 @@ export default function FarmerList() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterBy, setFilterBy] = useState('all');
+  const [pagination, setPagination] = useState({
+    currentPage: 1,
+    totalPages: 1,
+    totalItems: 0,
+    itemsPerPage: 10
+  });
   const [newFarmer, setNewFarmer] = useState({
     full_name: '',
     email: '',
-    telephone: '',
+    phone: '',
+    age: '',
+    gender: 'Male',
+    marital_status: 'Single',
+    education_level: 'Secondary',
     province: '',
     district: '',
     sector: '',
+    cell: '',
+    village: '',
     farm_province: '',
     farm_district: '',
     farm_sector: '',
@@ -30,7 +46,8 @@ export default function FarmerList() {
     mixed_percentage: '',
     farm_size: '',
     tree_count: '',
-    assistance: []
+    upi_number: '',
+    assistance: ''
   });
 
   // Mock data for demonstration
@@ -103,14 +120,72 @@ export default function FarmerList() {
     }
   ];
 
+  // Fetch agent's territory information on mount
   useEffect(() => {
-    const fetchFarmers = () => {
+    const fetchAgentTerritory = async () => {
+      try {
+        const agentData = await getAgentInformation();
+        
+        // Extract territories from agent profile
+        if (agentData?.agent_profile?.territory && Array.isArray(agentData.agent_profile.territory)) {
+          setAgentTerritories(agentData.agent_profile.territory);
+          console.log('Agent territories loaded:', agentData.agent_profile.territory);
+        } else {
+          console.warn('No territories found for agent');
+          setAgentTerritories([]);
+        }
+      } catch (err) {
+        console.error('Error fetching agent territory:', err);
+        // If we can't fetch agent territory, show all farmers (fallback)
+        setAgentTerritories([]);
+      }
+    };
+
+    fetchAgentTerritory();
+  }, []);
+
+  useEffect(() => {
+    const fetchFarmers = async () => {
       setLoading(true);
       setError(null);
       try {
-        setFarmers(mockFarmers);
-      } catch (e) {
-        console.debug('Local demo farmers load failed:', e);
+        const options = {
+          page: pagination.currentPage,
+          limit: pagination.itemsPerPage,
+          search: searchTerm || undefined,
+          status: filterBy !== 'all' ? filterBy : undefined
+        };
+        
+        const response = await listFarmers(options);
+        
+        if (response.data && Array.isArray(response.data)) {
+          // Store all farmers from API
+          setAllFarmers(response.data);
+          
+          // Filter farmers based on agent's territory
+          const filteredByTerritory = filterFarmersByTerritory(response.data, agentTerritories);
+          setFarmers(filteredByTerritory);
+          
+          console.log('Total farmers from API:', response.data.length);
+          console.log('Farmers in agent territory:', filteredByTerritory.length);
+        } else {
+          setAllFarmers([]);
+          setFarmers([]);
+        }
+        
+        // Handle pagination from meta.pagination
+        if (response.meta?.pagination) {
+          setPagination({
+            currentPage: response.meta.pagination.page,
+            totalPages: response.meta.pagination.totalPages,
+            totalItems: response.meta.pagination.total,
+            itemsPerPage: response.meta.pagination.limit
+          });
+        }
+      } catch (err) {
+        console.error('Error fetching farmers:', err);
+        setError(err.message || 'Failed to load farmers');
+        setAllFarmers([]);
         setFarmers([]);
       } finally {
         setLoading(false);
@@ -118,7 +193,34 @@ export default function FarmerList() {
     };
 
     fetchFarmers();
-  }, []);
+  }, [pagination.currentPage, pagination.itemsPerPage, searchTerm, filterBy, agentTerritories]);
+
+  // Filter farmers based on agent's territory (district and sector match)
+  const filterFarmersByTerritory = (farmersList, territories) => {
+    // If no territories defined, show all farmers (for admin or when territory not loaded)
+    if (!territories || territories.length === 0) {
+      return farmersList;
+    }
+
+    return farmersList.filter(farmer => {
+      // Check if farmer's location matches any of the agent's territories
+      const farmerDistrict = farmer.profile?.district;
+      const farmerSector = farmer.profile?.sector;
+
+      // Skip farmers without location data
+      if (!farmerDistrict || !farmerSector) {
+        return false;
+      }
+
+      // Check if farmer's district and sector match any agent territory
+      return territories.some(territory => {
+        const districtMatch = territory.district?.toLowerCase() === farmerDistrict.toLowerCase();
+        const sectorMatch = territory.sector?.toLowerCase() === farmerSector.toLowerCase();
+        
+        return districtMatch && sectorMatch;
+      });
+    });
+  };
 
   // Remove Airtable preview effect as services are no longer available
 
@@ -208,10 +310,16 @@ export default function FarmerList() {
     setNewFarmer({
       full_name: '',
       email: '',
-      telephone: '',
+      phone: '',
+      age: '',
+      gender: 'Male',
+      marital_status: 'Single',
+      education_level: 'Secondary',
       province: '',
       district: '',
       sector: '',
+      cell: '',
+      village: '',
       farm_province: '',
       farm_district: '',
       farm_sector: '',
@@ -223,7 +331,8 @@ export default function FarmerList() {
       mixed_percentage: '',
       farm_size: '',
       tree_count: '',
-      assistance: []
+      upi_number: '',
+      assistance: ''
     });
   };
 
@@ -235,51 +344,104 @@ export default function FarmerList() {
     }));
   };
 
-  const handleAssistanceChange = (assistance) => {
-    setNewFarmer(prev => ({
-      ...prev,
-      assistance: prev.assistance.includes(assistance)
-        ? prev.assistance.filter(a => a !== assistance)
-        : [...prev.assistance, assistance]
-    }));
-  };
-
-  const generateUPI = () => {
-    const lastId = Math.max(...farmers.map(f => f.id), 0);
-    return `UPI${String(lastId + 1).padStart(6, '0')}`;
-  };
-
-  const addFarmer = () => {
-    if (!newFarmer.full_name || !newFarmer.email || !newFarmer.telephone) {
-      alert('Please fill in all required fields (Name, Email, Phone)');
+  const addFarmer = async () => {
+    if (!newFarmer.full_name || !newFarmer.email || !newFarmer.gender) {
+      alert('Please fill in all required fields (Name, Email, Gender)');
       return;
     }
 
-    const farmer = {
-      id: farmers.length + 1,
-      ...newFarmer,
-      upi_number: generateUPI(),
-      farm_age: parseInt(newFarmer.farm_age) || 0,
-      tree_count: parseInt(newFarmer.tree_count) || 0
-    };
+    setLoading(true);
+    setError(null);
 
-    const updated = [...farmers, farmer];
-    setFarmers(updated);
-    lsSet('demo:farmers_detailed', updated);
-    closeAddModal();
-    alert('Farmer added successfully!');
+    try {
+      // Prepare farmer data for API
+      const farmerData = {
+        full_name: newFarmer.full_name,
+        email: newFarmer.email,
+        phone: newFarmer.phone || undefined,
+        age: newFarmer.age ? parseInt(newFarmer.age) : undefined,
+        gender: newFarmer.gender,
+        marital_status: newFarmer.marital_status || undefined,
+        education_level: newFarmer.education_level || undefined,
+        province: newFarmer.province || undefined,
+        district: newFarmer.district || undefined,
+        sector: newFarmer.sector || undefined,
+        cell: newFarmer.cell || undefined,
+        village: newFarmer.village || undefined,
+        farm_province: newFarmer.farm_province || undefined,
+        farm_district: newFarmer.farm_district || undefined,
+        farm_sector: newFarmer.farm_sector || undefined,
+        farm_cell: newFarmer.farm_cell || undefined,
+        farm_village: newFarmer.farm_village || undefined,
+        farm_age: newFarmer.farm_age ? parseInt(newFarmer.farm_age) : undefined,
+        planted: newFarmer.planted || undefined,
+        avocado_type: newFarmer.avocado_type || undefined,
+        mixed_percentage: newFarmer.mixed_percentage ? parseInt(newFarmer.mixed_percentage) : undefined,
+        farm_size: newFarmer.farm_size ? parseFloat(newFarmer.farm_size) : undefined,
+        tree_count: newFarmer.tree_count ? parseInt(newFarmer.tree_count) : undefined,
+        upi_number: newFarmer.upi_number || undefined,
+        assistance: newFarmer.assistance || undefined
+      };
+
+      // Remove undefined values
+      Object.keys(farmerData).forEach(key => 
+        farmerData[key] === undefined && delete farmerData[key]
+      );
+
+      const response = await createFarmer(farmerData);
+      
+      if (response.data) {
+        alert(`Farmer created successfully! Default password: ${response.data.default_password || 'FarmerPass123!'}`);
+        closeAddModal();
+        
+        // Refresh the farmers list
+        const refreshOptions = {
+          page: pagination.currentPage,
+          limit: pagination.itemsPerPage,
+          search: searchTerm || undefined,
+          status: filterBy !== 'all' ? filterBy : undefined
+        };
+        const refreshResponse = await listFarmers(refreshOptions);
+        if (refreshResponse.data) {
+          setAllFarmers(refreshResponse.data);
+          const filteredByTerritory = filterFarmersByTerritory(refreshResponse.data, agentTerritories);
+          setFarmers(filteredByTerritory);
+        }
+        if (refreshResponse.meta?.pagination) {
+          setPagination({
+            currentPage: refreshResponse.meta.pagination.page,
+            totalPages: refreshResponse.meta.pagination.totalPages,
+            totalItems: refreshResponse.meta.pagination.total,
+            itemsPerPage: refreshResponse.meta.pagination.limit
+          });
+        }
+      }
+    } catch (err) {
+      console.error('Error adding farmer:', err);
+      const errorMessage = err.response?.data?.message || err.message || 'Failed to add farmer';
+      setError(errorMessage);
+      alert(`Error: ${errorMessage}`);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const filteredFarmers = farmers.filter(farmer => {
-    const matchesSearch = farmer.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         farmer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         farmer.telephone.includes(searchTerm);
-    
-    if (filterBy === 'all') return matchesSearch;
-    return matchesSearch && farmer.province.toLowerCase() === filterBy.toLowerCase();
-  });
+  // Since filtering is done server-side, just use farmers directly
+  const filteredFarmers = farmers;
 
-  const provinces = [...new Set(farmers.map(f => f.province))];
+  const handlePageChange = (newPage) => {
+    setPagination(prev => ({ ...prev, currentPage: newPage }));
+  };
+
+  const handleSearchChange = (e) => {
+    setSearchTerm(e.target.value);
+    setPagination(prev => ({ ...prev, currentPage: 1 })); // Reset to first page on search
+  };
+
+  const handleFilterChange = (e) => {
+    setFilterBy(e.target.value);
+    setPagination(prev => ({ ...prev, currentPage: 1 })); // Reset to first page on filter
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-green-50 to-emerald-50">
@@ -317,13 +479,50 @@ export default function FarmerList() {
           </div>
         </div>
 
+        {/* Territory Filter Info */}
+        {agentTerritories.length > 0 && (
+          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-xl">
+            <div className="flex items-start gap-3">
+              <MapPin className="w-5 h-5 text-blue-600 mt-0.5" />
+              <div className="flex-1">
+                <h3 className="text-sm font-semibold text-blue-900 mb-2">
+                  Showing farmers in your assigned territories
+                </h3>
+                <div className="flex flex-wrap gap-2">
+                  {agentTerritories.map((territory, index) => (
+                    <span
+                      key={index}
+                      className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-full"
+                    >
+                      {territory.district} - {territory.sector}
+                      {territory.isPrimary && (
+                        <span className="ml-1 px-1.5 py-0.5 bg-blue-600 text-white rounded-full text-[10px]">
+                          Primary
+                        </span>
+                      )}
+                    </span>
+                  ))}
+                </div>
+                <p className="text-xs text-blue-700 mt-2">
+                  {farmers.length} of {allFarmers.length} total farmers match your territory
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Enhanced Stats Cards */}
         <div className="grid grid-cols-1 gap-6 mb-8 sm:grid-cols-2 lg:grid-cols-4">
           <div className="p-6 bg-white rounded-2xl shadow-lg border border-gray-100 hover:shadow-xl transition-shadow duration-300">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-500">Total Farmers</p>
+                <p className="text-sm font-medium text-gray-500">
+                  {agentTerritories.length > 0 ? 'Farmers in Territory' : 'Total Farmers'}
+                </p>
                 <p className="text-3xl font-bold text-gray-800">{farmers.length}</p>
+                {agentTerritories.length > 0 && allFarmers.length > farmers.length && (
+                  <p className="text-xs text-gray-500 mt-1">of {allFarmers.length} total</p>
+                )}
               </div>
               <div className="p-3 rounded-full" style={{ backgroundColor: '#1F310A20' }}>
                 <User className="w-8 h-8" style={{ color: '#1F310A' }} />
@@ -335,7 +534,9 @@ export default function FarmerList() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-500">Total Trees</p>
-                <p className="text-3xl font-bold text-gray-800">{farmers.reduce((sum, f) => sum + f.tree_count, 0)}</p>
+                <p className="text-3xl font-bold text-gray-800">
+                  {farmers.reduce((sum, f) => sum + (f.profile?.farm_details?.tree_count || 0), 0)}
+                </p>
               </div>
               <div className="p-3 bg-green-100 rounded-full">
                 <TreePine className="w-8 h-8 text-green-600" />
@@ -346,8 +547,8 @@ export default function FarmerList() {
           <div className="p-6 bg-white rounded-2xl shadow-lg border border-gray-100 hover:shadow-xl transition-shadow duration-300">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-500">Provinces</p>
-                <p className="text-3xl font-bold text-gray-800">{provinces.length}</p>
+                <p className="text-sm font-medium text-gray-500">Current Page</p>
+                <p className="text-3xl font-bold text-gray-800">{pagination.currentPage}/{pagination.totalPages}</p>
               </div>
               <div className="p-3 bg-purple-100 rounded-full">
                 <MapPin className="w-8 h-8 text-purple-600" />
@@ -359,7 +560,11 @@ export default function FarmerList() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-500">Farm Area</p>
-                <p className="text-3xl font-bold text-gray-800">{farmers.length > 0 ? (farmers.reduce((sum, f) => sum + parseFloat(f.farm_size.split(' ')[0]), 0)).toFixed(1) : '0'}ha</p>
+                <p className="text-3xl font-bold text-gray-800">
+                  {farmers.length > 0 
+                    ? (farmers.reduce((sum, f) => sum + (parseFloat(f.profile?.farm_details?.farm_size) || 0), 0)).toFixed(1)
+                    : '0'}ha
+                </p>
               </div>
               <div className="p-3 bg-orange-100 rounded-full">
                 <Calendar className="w-8 h-8 text-orange-600" />
@@ -375,9 +580,9 @@ export default function FarmerList() {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
               <input
                 type="text"
-                placeholder="Search farmers..."
+                placeholder="Search farmers by name or email..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={handleSearchChange}
                 className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:border-transparent transition-all duration-200"
                 style={{ '--tw-ring-color': '#1F310A' }}
                 onFocus={(e) => e.target.style.borderColor = '#1F310A'}
@@ -388,15 +593,14 @@ export default function FarmerList() {
               <Filter className="text-gray-400" size={20} />
               <select
                 value={filterBy}
-                onChange={(e) => setFilterBy(e.target.value)}
+                onChange={handleFilterChange}
                 className="px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:border-transparent transition-all duration-200"
                 style={{ '--tw-ring-color': '#1F310A' }}
                 onFocus={(e) => e.target.style.borderColor = '#1F310A'}
               >
-                <option value="all">All Provinces</option>
-                {provinces.map(province => (
-                  <option key={province} value={province}>{province}</option>
-                ))}
+                <option value="all">All Status</option>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
               </select>
             </div>
           </div>
@@ -452,7 +656,7 @@ export default function FarmerList() {
                           </div>
                           <div className="ml-4">
                             <div className="text-sm font-semibold text-gray-900">{farmer.full_name}</div>
-                            <div className="text-sm text-gray-500">ID: {farmer.upi_number}</div>
+                            <div className="text-sm text-gray-500">ID: {farmer.profile?.farm_details?.upi_number || farmer.id}</div>
                           </div>
                         </div>
                       </td>
@@ -464,20 +668,24 @@ export default function FarmerList() {
                           </div>
                           <div className="flex items-center text-sm text-gray-900">
                             <Phone className="w-4 h-4 mr-2 text-gray-400" />
-                            {farmer.telephone}
+                            {farmer.phone || 'N/A'}
                           </div>
                         </div>
                       </td>
                       <td className="px-6 py-4">
                         <div className="space-y-1">
-                          <div className="text-sm font-medium text-gray-900">{farmer.province}</div>
-                          <div className="text-sm text-gray-500">{farmer.district}, {farmer.sector}</div>
+                          <div className="text-sm font-medium text-gray-900">{farmer.profile?.province || 'N/A'}</div>
+                          <div className="text-sm text-gray-500">{farmer.profile?.district || 'N/A'}, {farmer.profile?.sector || 'N/A'}</div>
                         </div>
                       </td>
                       <td className="px-6 py-4">
                         <div className="space-y-1">
-                          <div className="text-sm font-medium text-gray-900">{farmer.farm_size}</div>
-                          <div className="text-sm text-gray-500">{farmer.tree_count} trees • {farmer.avocado_type}</div>
+                          <div className="text-sm font-medium text-gray-900">
+                            {farmer.profile?.farm_details?.farm_size ? `${farmer.profile.farm_details.farm_size} ha` : 'N/A'}
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            {farmer.profile?.farm_details?.tree_count || 0} trees • {farmer.profile?.farm_details?.avocado_type || 'N/A'}
+                          </div>
                         </div>
                       </td>
                       <td className="px-6 py-4">
@@ -502,9 +710,62 @@ export default function FarmerList() {
                   <User className="w-8 h-8 text-gray-400" />
                 </div>
                 <p className="text-gray-600">No farmers found matching your criteria.</p>
+                <p className="text-sm text-gray-500 mt-2">
+                  {searchTerm || filterBy !== 'all' 
+                    ? 'Try adjusting your search or filter criteria.' 
+                    : 'No farmers have been added yet. Click "Add New Farmer" to create one.'}
+                </p>
               </div>
             )}
           </div>
+
+          {/* Pagination */}
+          {pagination.totalPages > 1 && (
+            <div className="mt-6 flex items-center justify-between border-t border-gray-200 pt-4">
+              <div className="text-sm text-gray-700">
+                Showing <span className="font-medium">{((pagination.currentPage - 1) * pagination.itemsPerPage) + 1}</span> to{' '}
+                <span className="font-medium">
+                  {Math.min(pagination.currentPage * pagination.itemsPerPage, pagination.totalItems)}
+                </span> of{' '}
+                <span className="font-medium">{pagination.totalItems}</span> farmers
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => handlePageChange(pagination.currentPage - 1)}
+                  disabled={pagination.currentPage === 1}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Previous
+                </button>
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: pagination.totalPages }, (_, i) => i + 1).map((page) => (
+                    <button
+                      key={page}
+                      onClick={() => handlePageChange(page)}
+                      className={`px-3 py-2 text-sm font-medium rounded-lg ${
+                        page === pagination.currentPage
+                          ? 'text-white'
+                          : 'text-gray-700 hover:bg-gray-50'
+                      }`}
+                      style={{
+                        background: page === pagination.currentPage ? '#1F310A' : 'white',
+                        border: '1px solid #e5e7eb'
+                      }}
+                    >
+                      {page}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  onClick={() => handlePageChange(pagination.currentPage + 1)}
+                  disabled={pagination.currentPage === pagination.totalPages}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -546,11 +807,27 @@ export default function FarmerList() {
                       </div>
                       <div className="flex justify-between">
                         <span className="font-medium text-gray-600">Phone:</span>
-                        <span className="text-gray-900">{selectedFarmer.telephone}</span>
+                        <span className="text-gray-900">{selectedFarmer.phone || 'N/A'}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="font-medium text-gray-600">UPI Number:</span>
-                        <span className="text-gray-900">{selectedFarmer.upi_number}</span>
+                        <span className="text-gray-900">{selectedFarmer.profile?.farm_details?.upi_number || selectedFarmer.id}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="font-medium text-gray-600">Age:</span>
+                        <span className="text-gray-900">{selectedFarmer.profile?.age || 'N/A'}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="font-medium text-gray-600">Gender:</span>
+                        <span className="text-gray-900">{selectedFarmer.profile?.gender || 'N/A'}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="font-medium text-gray-600">Status:</span>
+                        <span className={`px-2 py-1 rounded-full text-xs font-bold ${
+                          selectedFarmer.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                        }`}>
+                          {selectedFarmer.status || 'N/A'}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -564,15 +841,23 @@ export default function FarmerList() {
                     <div className="space-y-3 bg-gray-50 p-4 rounded-xl">
                       <div className="flex justify-between">
                         <span className="font-medium text-gray-600">Province:</span>
-                        <span className="text-gray-900">{selectedFarmer.province}</span>
+                        <span className="text-gray-900">{selectedFarmer.profile?.province || 'N/A'}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="font-medium text-gray-600">District:</span>
-                        <span className="text-gray-900">{selectedFarmer.district}</span>
+                        <span className="text-gray-900">{selectedFarmer.profile?.district || 'N/A'}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="font-medium text-gray-600">Sector:</span>
-                        <span className="text-gray-900">{selectedFarmer.sector}</span>
+                        <span className="text-gray-900">{selectedFarmer.profile?.sector || 'N/A'}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="font-medium text-gray-600">Cell:</span>
+                        <span className="text-gray-900">{selectedFarmer.profile?.cell || 'N/A'}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="font-medium text-gray-600">Village:</span>
+                        <span className="text-gray-900">{selectedFarmer.profile?.village || 'N/A'}</span>
                       </div>
                     </div>
                   </div>
@@ -588,27 +873,27 @@ export default function FarmerList() {
                     <div className="space-y-3 bg-gray-50 p-4 rounded-xl">
                       <div className="flex justify-between">
                         <span className="font-medium text-gray-600">Farm Size:</span>
-                        <span className="text-gray-900">{selectedFarmer.farm_size}</span>
+                        <span className="text-gray-900">{selectedFarmer.profile?.farm_details?.farm_size ? `${selectedFarmer.profile.farm_details.farm_size} ha` : 'N/A'}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="font-medium text-gray-600">Tree Count:</span>
-                        <span className="text-gray-900">{selectedFarmer.tree_count}</span>
+                        <span className="text-gray-900">{selectedFarmer.profile?.farm_details?.tree_count || 'N/A'}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="font-medium text-gray-600">Avocado Type:</span>
-                        <span className="text-gray-900">{selectedFarmer.avocado_type}</span>
+                        <span className="text-gray-900">{selectedFarmer.profile?.farm_details?.avocado_type || 'N/A'}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="font-medium text-gray-600">Mixed %:</span>
-                        <span className="text-gray-900">{selectedFarmer.mixed_percentage}</span>
+                        <span className="text-gray-900">{selectedFarmer.profile?.farm_details?.mixed_percentage ? `${selectedFarmer.profile.farm_details.mixed_percentage}%` : 'N/A'}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="font-medium text-gray-600">Farm Age:</span>
-                        <span className="text-gray-900">{selectedFarmer.farm_age} years</span>
+                        <span className="text-gray-900">{selectedFarmer.profile?.farm_details?.farm_age ? `${selectedFarmer.profile.farm_details.farm_age} years` : 'N/A'}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="font-medium text-gray-600">Planted:</span>
-                        <span className="text-gray-900">{selectedFarmer.planted}</span>
+                        <span className="text-gray-900">{selectedFarmer.profile?.farm_details?.planted || 'N/A'}</span>
                       </div>
                     </div>
                   </div>
@@ -622,23 +907,23 @@ export default function FarmerList() {
                     <div className="space-y-3 bg-gray-50 p-4 rounded-xl">
                       <div className="flex justify-between">
                         <span className="font-medium text-gray-600">Province:</span>
-                        <span className="text-gray-900">{selectedFarmer.farm_province}</span>
+                        <span className="text-gray-900">{selectedFarmer.profile?.farm_details?.farm_location?.province || 'N/A'}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="font-medium text-gray-600">District:</span>
-                        <span className="text-gray-900">{selectedFarmer.farm_district}</span>
+                        <span className="text-gray-900">{selectedFarmer.profile?.farm_details?.farm_location?.district || 'N/A'}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="font-medium text-gray-600">Sector:</span>
-                        <span className="text-gray-900">{selectedFarmer.farm_sector}</span>
+                        <span className="text-gray-900">{selectedFarmer.profile?.farm_details?.farm_location?.sector || 'N/A'}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="font-medium text-gray-600">Cell:</span>
-                        <span className="text-gray-900">{selectedFarmer.farm_cell}</span>
+                        <span className="text-gray-900">{selectedFarmer.profile?.farm_details?.farm_location?.cell || 'N/A'}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="font-medium text-gray-600">Village:</span>
-                        <span className="text-gray-900">{selectedFarmer.farm_village}</span>
+                        <span className="text-gray-900">{selectedFarmer.profile?.farm_details?.farm_location?.village || 'N/A'}</span>
                       </div>
                     </div>
                   </div>
@@ -646,20 +931,19 @@ export default function FarmerList() {
               </div>
 
               {/* Assistance Section */}
-              <div className="mt-8">
-                <h3 className="text-lg font-semibold text-gray-800 mb-4">Assistance Provided</h3>
-                <div className="flex flex-wrap gap-2">
-                  {selectedFarmer.assistance.map((item, index) => (
+              {selectedFarmer.profile?.farm_details?.assistance && (
+                <div className="mt-8">
+                  <h3 className="text-lg font-semibold text-gray-800 mb-4">Assistance Provided</h3>
+                  <div className="flex flex-wrap gap-2">
                     <span
-                      key={index}
                       className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium text-white"
                       style={{ background: '#1F310A' }}
                     >
-                      {item}
+                      {selectedFarmer.profile.farm_details.assistance}
                     </span>
-                  ))}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
             {/* Modal Footer */}
