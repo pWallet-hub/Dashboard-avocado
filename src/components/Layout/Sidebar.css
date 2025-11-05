@@ -10,7 +10,7 @@
     background-color: #192D01;
     border-right: 1px solid #374151;
     transition: all 0.3s ease-in-out;
-    width: 13rem; /* Reduced from 16rem */
+    width: 15rem; /* Reduced from 16rem */
   }
   
   .sidebar-collapsed {

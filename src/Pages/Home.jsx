@@ -15,6 +15,14 @@ const Home = () => {
       setError(null);
       const token = localStorage.getItem('token');
 
+      // Check if token exists
+      if (!token) {
+        setError('No authentication token found. Please log in.');
+        setLoading(false);
+        setTimeout(() => navigate('/login'), 2000);
+        return;
+      }
+
       try {
         const response = await axios.get(
           'https://dash-api-hnyp.onrender.com/api/farmer-information',
@@ -25,22 +33,33 @@ const Home = () => {
           }
         );
 
+        // Check if response has the expected data structure
+        if (!response.data) {
+          throw new Error('No data received from server');
+        }
+
         const { user_info, farmer_profile } = response.data;
 
+        // Verify user_info exists before accessing properties
+        if (!user_info) {
+          throw new Error('User information not found in response');
+        }
+
         const profileData = {
-          id: user_info.id,
-          full_name: user_info.full_name,
-          email: user_info.email,
-          phone: user_info.phone,
+          id: user_info.id || null,
+          full_name: user_info.full_name || 'Unknown User',
+          email: user_info.email || '',
+          phone: user_info.phone || '',
           role: localStorage.getItem('role') || 'farmer',
-          created_at: user_info.created_at,
-          profile: farmer_profile,
+          created_at: user_info.created_at || new Date().toISOString(),
+          profile: farmer_profile || {},
         };
 
         setProfile(profileData);
       } catch (err) {
         setError('Failed to load profile. Please log in again.');
-        console.error(err);
+        console.error('Profile fetch error:', err);
+        console.error('Error details:', err.response?.data);
       } finally {
         setLoading(false);
       }

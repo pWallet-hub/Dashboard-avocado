@@ -5,40 +5,21 @@ import { createHarvestRequest } from '../../services/serviceRequestsService';
 
 export default function HarvestingDay() {
   const [formData, setFormData] = useState({
-    workersNeeded: "",
+    workersNeeded: 1,
     equipmentNeeded: [],
-    equipmentDropdown: "",
     transportationNeeded: "",
     harvestDateFrom: "",
     harvestDateTo: "",
-    harvestImages: [],
-    selectedSizes: [],
-    c12c14: "",
-    c16c18: "",
-    c20c24: ""
+    harvestImages: []
   });
 
   const [submitted, setSubmitted] = useState(false);
   const [errors, setErrors] = useState({});
-  const [showEquipmentOptions, setShowEquipmentOptions] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const sizeCategories = [
-    { key: 'c12c14', label: 'C12 & C14' },
-    { key: 'c16c18', label: 'C16 & C18' },
-    { key: 'c20c24', label: 'C20 & C24' }
-  ];
-
-  const sizeLabels = {
-    'c12c14': 'C12&C14',
-    'c16c18': 'C16&C18', 
-    'c20c24': 'C20&C24'
-  };
+  const [showEquipmentModal, setShowEquipmentModal] = useState(false);
 
   const equipmentOptions = [
-    "Tractors", "Harvesters", "Plows", "Seeders", "Sprayers", 
-    "Irrigation Equipment", "Hand Tools", "Transport Vehicles", 
-    "Storage Containers", "Weighing Scales", "Processing Equipment", "Other"
+    "Harvest Clipper", "Picking Poles", "plastic crates"
   ];
 
   const handleInputChange = (field, value) => {
@@ -54,21 +35,6 @@ export default function HarvestingDay() {
         [field]: ""
       }));
     }
-  };
-
-  const handleSizeSelection = (sizeKey, checked) => {
-    setFormData(prev => {
-      const currentSizes = prev.selectedSizes || [];
-      const updatedSizes = checked
-        ? [...currentSizes, sizeKey]
-        : currentSizes.filter(item => item !== sizeKey);
-      
-      return {
-        ...prev,
-        selectedSizes: updatedSizes,
-        [sizeKey]: checked ? prev[sizeKey] : ""
-      };
-    });
   };
 
   const handleDateChange = (field, value) => {
@@ -122,14 +88,8 @@ export default function HarvestingDay() {
   const validateForm = () => {
     const newErrors = {};
     
-    if (!formData.workersNeeded) {
-      newErrors.workersNeeded = "Please specify how many workers you need";
-    }
-    
-    if (!formData.equipmentDropdown) {
-      newErrors.equipmentDropdown = "Please specify if you need equipment";
-    } else if (formData.equipmentDropdown === "Yes" && !formData.equipmentNeeded.length) {
-      newErrors.equipmentNeeded = "Please select equipment needed";
+    if (!formData.workersNeeded || formData.workersNeeded < 1) {
+      newErrors.workersNeeded = "Please specify at least 1 worker";
     }
     
     if (!formData.transportationNeeded.trim()) {
@@ -142,18 +102,6 @@ export default function HarvestingDay() {
     
     if (!formData.harvestDateTo) {
       newErrors.harvestDateTo = "Please select harvest end date";
-    }
-    
-    // Validate HASS size breakdown percentages
-    const selectedSizes = formData.selectedSizes || [];
-    if (selectedSizes.length > 0) {
-      const totalPercentage = selectedSizes.reduce((total, size) => {
-        return total + parseInt(formData[size] || 0);
-      }, 0);
-      
-      if (totalPercentage > 100) {
-        newErrors.hassPercentage = "Total percentage cannot exceed 100%";
-      }
     }
     
     // Additional date validation
@@ -184,21 +132,13 @@ export default function HarvestingDay() {
     setIsSubmitting(true);
     
     try {
-      const selectedSizes = formData.selectedSizes || [];
-      
       const harvestRequestData = {
         workersNeeded: parseInt(formData.workersNeeded),
-        equipmentNeeded: formData.equipmentDropdown === "Yes" ? formData.equipmentNeeded : [],
+        equipmentNeeded: formData.equipmentNeeded,
         treesToHarvest: parseInt(formData.transportationNeeded),
         harvestDateFrom: formData.harvestDateFrom,
         harvestDateTo: formData.harvestDateTo,
-        harvestImages: formData.harvestImages.map(file => file.name), // In real app, upload files first
-        hassBreakdown: {
-          selectedSizes: selectedSizes,
-          c12c14: selectedSizes.includes('c12c14') ? formData.c12c14 : '',
-          c16c18: selectedSizes.includes('c16c18') ? formData.c16c18 : '',
-          c20c24: selectedSizes.includes('c20c24') ? formData.c20c24 : ''
-        },
+        harvestImages: formData.harvestImages.map(file => file.name),
         location: {
           province: localStorage.getItem('farmerProvince') || 'Eastern Province',
           district: localStorage.getItem('farmerDistrict') || 'Gatsibo',
@@ -210,13 +150,11 @@ export default function HarvestingDay() {
         notes: `Ready for harvest. Trees are at full maturity with good fruit quality. Request for ${formData.transportationNeeded} trees requiring ${formData.workersNeeded} workers.`
       };
 
-      // Call the API
       const response = await createHarvestRequest(harvestRequestData);
       
       console.log("Harvest request submitted successfully:", response);
       setSubmitted(true);
       
-      // Store locally as backup
       const farmerName = localStorage.getItem('farmerName') || 'John Doe';
       const farmerPhone = localStorage.getItem('farmerPhone') || '+250 123 456 789';
       const farmerEmail = localStorage.getItem('farmerEmail') || 'farmer@example.com';
@@ -246,10 +184,6 @@ export default function HarvestingDay() {
     }
   };
 
-  // Calculate derived values
-  const selectedSizes = formData.selectedSizes || [];
-  const totalPercentage = selectedSizes.reduce((total, size) => total + parseInt(formData[size] || 0), 0);
-
   if (submitted) {
     return (
       <div className="container-fullscreen">
@@ -268,14 +202,9 @@ export default function HarvestingDay() {
               <p className="summary-text">
                 <strong>Harvest Period:</strong> {formData.harvestDateFrom} to {formData.harvestDateTo}<br />
                 <strong>Workers Needed:</strong> {formData.workersNeeded}<br />
-                <strong>Equipment Required:</strong> {formData.equipmentDropdown === "Yes" ? formData.equipmentNeeded.join(", ") : "No equipment needed"}<br />
+                <strong>Equipment Required:</strong> {formData.equipmentNeeded.length > 0 ? formData.equipmentNeeded.join(", ") : "No equipment needed"}<br />
                 <strong>Trees to Harvest:</strong> {formData.transportationNeeded}<br />
-                <strong>Images Uploaded:</strong> {formData.harvestImages.length}<br />
-                <strong>HASS Size Breakdown:</strong> {
-                  selectedSizes.length > 0
-                    ? selectedSizes.map(size => `${sizeLabels[size]}: ${formData[size] || 0}%`).join(', ')
-                    : 'Not specified'
-                }
+                <strong>Images Uploaded:</strong> {formData.harvestImages.length}
               </p>
             </div>
           </div>
@@ -286,279 +215,431 @@ export default function HarvestingDay() {
 
   return (
     <div className="container-fullscreen container-font">
-      <DashboardHeader />
-      <div className="container-centered">
-        <div className="card-form">
-          <h1 className="title-form">Harvesting Day</h1>
+      <style>{`
+        @keyframes fadeIn {
+          from {
+            opacity: 0;
+          }
+          to {
+            opacity: 1;
+          }
+        }
+        @keyframes slideUp {
+          from {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}</style>
 
-          <div className="form-sections">
-            {/* First Row */}
-            <div className="grid-form">
-              <div>
-                <label className="label-input">
-                  • How Many VBAs Do Need 
-                </label>
-                <select
-                  value={formData.workersNeeded}
-                  onChange={(e) => handleInputChange("workersNeeded", e.target.value)}
-                  className={`input-field ${errors.workersNeeded ? "input-error" : "input-normal"}`}
-                >
-                  <option value="" disabled>Select number of workers...</option>
-                  {Array.from({ length: 12 }, (_, i) => i + 1).map((num) => (
-                    <option key={num} value={num}>
-                      {num} {num === 1 ? 'Worker' : 'Workers'}
-                    </option>
-                  ))}
-                </select>
-                {errors.workersNeeded && (
-                  <p className="error-text">{errors.workersNeeded}</p>
-                )}
-              </div>
+      {/* Equipment Modal */}
+      {showEquipmentModal && (
+        <div 
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            animation: 'fadeIn 0.2s ease-out'
+          }}
+          onClick={() => setShowEquipmentModal(false)}
+        >
+          <div 
+            style={{
+              backgroundColor: 'white',
+              borderRadius: '8px',
+              padding: '30px',
+              maxWidth: '500px',
+              width: '90%',
+              boxShadow: '0 10px 40px rgba(0, 0, 0, 0.2)',
+              animation: 'slideUp 0.3s ease-out'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h2 style={{ 
+                fontSize: '22px',
+                fontFamily: 'Inter, system-ui, Segoe UI, Roboto, Arial, sans-serif',
+                color: '#080a10e3',
+                margin: 0
+              }}>
+                Select Equipment
+              </h2>
+              <button
+                onClick={() => setShowEquipmentModal(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '28px',
+                  color: '#9ca3af',
+                  cursor: 'pointer',
+                  padding: '0',
+                  width: '30px',
+                  height: '30px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+              >
+                ×
+              </button>
+            </div>
 
-              <div>
-                <label className="label-input">
-                  • Do you need any specific equipment?
-                </label>
-                <select
-                  value={formData.equipmentDropdown}
-                  onChange={(e) => {
-                    handleInputChange("equipmentDropdown", e.target.value);
-                    setShowEquipmentOptions(e.target.value === "Yes");
-                    if (e.target.value === "No") {
-                      handleInputChange("equipmentNeeded", []);
-                    }
+            <div style={{ 
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '15px',
+              marginBottom: '25px'
+            }}>
+              {equipmentOptions.map((equipment) => (
+                <label 
+                  key={equipment} 
+                  style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    cursor: 'pointer',
+                    padding: '12px',
+                    backgroundColor: formData.equipmentNeeded.includes(equipment) ? '#e8f5e9' : '#f5f5f5',
+                    borderRadius: '6px',
+                    border: formData.equipmentNeeded.includes(equipment) ? '2px solid #080a10e3' : '2px solid transparent',
+                    transition: 'all 0.2s'
                   }}
-                  className={`input-field ${errors.equipmentDropdown ? "input-error" : "input-normal"}`}
                 >
-                  <option value="" disabled>Select</option>
-                  <option value="Yes">Yes</option>
-                  <option value="No">No</option>
-                </select>
-                {errors.equipmentDropdown && (
-                  <p className="error-text">{errors.equipmentDropdown}</p>
-                )}
-                
-                {showEquipmentOptions && (
-                  <div className="grid grid-cols-2 gap-3 mt-4">
-                    {equipmentOptions.map((equipment) => (
-                      <label key={equipment} className="flex items-center space-x-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={formData.equipmentNeeded.includes(equipment)}
-                          onChange={(e) => handleEquipmentChange(equipment, e.target.checked)}
-                          className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
-                        />
-                        <span className="text-sm text-gray-700">{equipment}</span>
-                      </label>
-                    ))}
-                  </div>
-                )}
-                
-                {errors.equipmentNeeded && (
-                  <p className="error-text">{errors.equipmentNeeded}</p>
-                )}
-              </div>
+                  <input
+                    type="checkbox"
+                    checked={formData.equipmentNeeded.includes(equipment)}
+                    onChange={(e) => handleEquipmentChange(equipment, e.target.checked)}
+                    style={{ 
+                      marginRight: '12px', 
+                      width: '20px', 
+                      height: '20px',
+                      cursor: 'pointer'
+                    }}
+                  />
+                  <span style={{ fontSize: '15px', color: '#1f2937' }}>{equipment}</span>
+                </label>
+              ))}
             </div>
 
-            {/* Second Row */}
-            <div className="grid-form">
-              <div>
-                <label className="label-input">
-                  • How many trees to be harvested?
-                </label>
-                <input
-                  type="number"
-                  value={formData.transportationNeeded}
-                  onChange={(e) => handleInputChange("transportationNeeded", e.target.value)}
-                  className={`input-field ${errors.transportationNeeded ? "input-error" : "input-normal"}`}
-                  placeholder="Enter number of trees..."
-                  min="1"
-                />
-                {errors.transportationNeeded && (
-                  <p className="error-text">{errors.transportationNeeded}</p>
-                )}
-              </div>
+            <button
+              onClick={() => setShowEquipmentModal(false)}
+              style={{
+                width: '100%',
+                padding: '12px',
+                backgroundColor: '#080a10e3',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '15px',
+                fontWeight: '600',
+                fontFamily: 'Inter, system-ui, Segoe UI, Roboto, Arial, sans-serif'
+              }}
+            >
+              Done ({formData.equipmentNeeded.length} selected)
+            </button>
+          </div>
+        </div>
+      )}
 
-              <div>
-                <label className="label-input">
-                  Harvest Date Range (Max 5 days)
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="text-xs text-gray-600 mb-1 block">From</label>
-                    <input
-                      type="date"
-                      value={formData.harvestDateFrom}
-                      onChange={(e) => handleDateChange("harvestDateFrom", e.target.value)}
-                      className={`input-field ${errors.harvestDateFrom ? "input-error" : "input-normal"}`}
-                    />
-                    {errors.harvestDateFrom && (
-                      <p className="error-text text-xs">{errors.harvestDateFrom}</p>
-                    )}
-                  </div>
-                  <div>
-                    <label className="text-xs text-gray-600 mb-1 block">To</label>
-                    <input
-                      type="date"
-                      value={formData.harvestDateTo}
-                      onChange={(e) => handleDateChange("harvestDateTo", e.target.value)}
-                      className={`input-field ${errors.harvestDateTo ? "input-error" : "input-normal"}`}
-                    />
-                    {errors.harvestDateTo && (
-                      <p className="error-text text-xs">{errors.harvestDateTo}</p>
-                    )}
-                  </div>
-                </div>
-                {errors.harvestDateRange && (
-                  <p className="error-text">{errors.harvestDateRange}</p>
-                )}
-              </div>
-            </div>
+      <DashboardHeader />
+      <div style={{ maxWidth: '800px', margin: '0 auto', padding: '0px' }}>
+        <div style={{ 
+          backgroundColor: '#f5f5f0', 
+          padding: '15px 16px',
+          borderRadius: '0',
+          boxShadow: 'none'
+        }}>
+          <h1 style={{ 
+            textAlign: 'center', 
+            fontSize: '28px',
+            fontFamily: 'Inter, system-ui, Segoe UI, Roboto, Arial, sans-serif',
+            color: '#080a10e3',
+            marginBottom: '15px',
+            fontWeight: 'normal',
+            letterSpacing: '0.5px'
+          }}>
+            Book Your Harvesting Day
+          </h1>
 
-            {/* HASS Size Breakdown Section */}
-            <div>
-              <label className="label-input">
-                • HASS Size Breakdown Percentage
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {/* Workers Needed */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <label style={{ 
+                fontSize: '15px',
+                color: '#080a10e3',
+                fontFamily: 'Inter, system-ui, Segoe UI, Roboto, Arial, sans-serif',
+                whiteSpace: 'nowrap',
+                minWidth: '250px'
+              }}>
+                How Many VBAs Do You Need<span style={{ color: '#c44' }}>*</span>
               </label>
-              
-              {/* Size Category Selection */}
-              <div style={{ marginTop: '10px', marginBottom: '15px' }}>
-                <p style={{ fontSize: '14px', fontWeight: '600', marginBottom: '8px', color: '#333' }}>
-                  Select size categories to include:
-                </p>
-                <div className="grid grid-cols-3 gap-3">
-                  {sizeCategories.map((size) => (
-                    <label key={size.key} className="flex items-center space-x-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={selectedSizes.includes(size.key)}
-                        onChange={(e) => handleSizeSelection(size.key, e.target.checked)}
-                        className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
-                      />
-                      <span className="text-sm text-gray-700 font-medium">{size.label}</span>
-                    </label>
+              <input
+                type="number"
+                value={formData.workersNeeded}
+                onChange={(e) => handleInputChange("workersNeeded", Math.max(1, parseInt(e.target.value) || 1))}
+                min="1"
+                style={{
+                  flex: 1,
+                  padding: '10px 12px',
+                  border: errors.workersNeeded ? '1px solid #c44' : '1px solid #b8c5b3',
+                  borderRadius: '3px',
+                  fontSize: '14px',
+                  backgroundColor: 'white',
+                  fontFamily: 'Inter, system-ui, Segoe UI, Roboto, Arial, sans-serif'
+                }}
+                placeholder="Enter number of workers..."
+              />
+            </div>
+            {errors.workersNeeded && (
+              <p style={{ color: '#c44', fontSize: '13px', marginTop: '-12px', marginLeft: '265px' }}>{errors.workersNeeded}</p>
+            )}
+
+            {/* Equipment Needed - Modal Trigger */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+              <label style={{ 
+                fontSize: '15px',
+                color: '#080a10e3',
+                fontFamily: 'Inter, system-ui, Segoe UI, Roboto, Arial, sans-serif',
+                whiteSpace: 'nowrap',
+                minWidth: '250px'
+              }}>
+                Which Equipment do You Need? 
+              </label>
+              <button
+                type="button"
+                onClick={() => setShowEquipmentModal(true)}
+                style={{
+                  flex: 1,
+                  padding: '10px 12px',
+                  border: '1px solid #b8c5b3',
+                  borderRadius: '3px',
+                  fontSize: '14px',
+                  backgroundColor: 'white',
+                  fontFamily: 'Inter, system-ui, Segoe UI, Roboto, Arial, sans-serif',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  color: formData.equipmentNeeded.length > 0 ? '#1f2937' : '#9ca3af',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
+                }}
+              >
+                <span>
+                  {formData.equipmentNeeded.length > 0 
+                    ? `${formData.equipmentNeeded.length} equipment selected` 
+                    : 'Click to select equipment...'}
+                </span>
+                <span style={{ fontSize: '18px', color: '#080a10e3' }}>▼</span>
+              </button>
+            </div>
+            {formData.equipmentNeeded.length > 0 && (
+              <div style={{ marginLeft: '265px', marginTop: '-12px' }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                  {formData.equipmentNeeded.map((equipment) => (
+                    <span 
+                      key={equipment}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '4px 10px',
+                        backgroundColor: '#080a10e3',
+                        color: 'white',
+                        borderRadius: '15px',
+                        fontSize: '12px'
+                      }}
+                    >
+                      {equipment}
+                      <button
+                        onClick={() => handleEquipmentChange(equipment, false)}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: 'white',
+                          cursor: 'pointer',
+                          padding: '0',
+                          fontSize: '16px',
+                          lineHeight: '1'
+                        }}
+                      >
+                        ×
+                      </button>
+                    </span>
                   ))}
                 </div>
               </div>
+            )}
 
-              {/* Percentage Selection Table - Only show if sizes are selected */}
-              {selectedSizes.length > 0 && (
-                <div style={{
-                  border: '2px solid #000',
-                  borderCollapse: 'collapse',
-                  width: '100%',
-                  marginTop: '10px',
-                  backgroundColor: '#f9f9f9'
-                }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                    <thead>
-                      <tr style={{ backgroundColor: '#e0e0e0' }}>
-                        <th style={{ 
-                          border: '1px solid #000', 
-                          padding: '10px', 
-                          textAlign: 'center',
-                          fontWeight: 'bold',
-                          fontSize: '16px'
-                        }} colSpan={selectedSizes.length}>
-                          HASS- SIZE BREAKDOWN PERCENTAGE
-                        </th>
-                      </tr>
-                      <tr>
-                        {selectedSizes.map((sizeKey) => (
-                          <th key={sizeKey} style={{ 
-                            border: '1px solid #000', 
-                            padding: '8px', 
-                            textAlign: 'center',
-                            fontWeight: 'bold',
-                            backgroundColor: '#f0f0f0'
-                          }}>
-                            {sizeLabels[sizeKey]}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr>
-                        {selectedSizes.map((sizeKey) => (
-                          <td key={sizeKey} style={{ 
-                            border: '1px solid #000', 
-                            padding: '0',
-                            textAlign: 'center'
-                          }}>
-                            <select
-                              value={formData[sizeKey]}
-                              onChange={(e) => handleInputChange(sizeKey, e.target.value)}
-                              style={{
-                                width: '100%',
-                                border: 'none',
-                                padding: '8px',
-                                textAlign: 'center',
-                                fontSize: '14px',
-                                backgroundColor: 'transparent'
-                              }}
-                            >
-                              <option value="">Select %</option>
-                              {Array.from({ length: 21 }, (_, i) => i * 5).map((num) => (
-                                <option key={num} value={num}>
-                                  {num}%
-                                </option>
-                              ))}
-                            </select>
-                          </td>
-                        ))}
-                      </tr>
-                    </tbody>
-                  </table>
+            {/* Trees to Harvest */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+              <label style={{ 
+                fontSize: '15px',
+                color: '#080a10e3',
+                fontFamily: 'Inter, system-ui, Segoe UI, Roboto, Arial, sans-serif',
+                whiteSpace: 'nowrap',
+                minWidth: '250px'
+              }}>
+                How many trees to be harvested?<span style={{ color: '#c44' }}>*</span>
+              </label>
+              <input
+                type="number"
+                value={formData.transportationNeeded}
+                onChange={(e) => handleInputChange("transportationNeeded", e.target.value)}
+                style={{
+                  flex: 1,
+                  padding: '10px 12px',
+                  border: errors.transportationNeeded ? '1px solid #c44' : '1px solid #b8c5b3',
+                  borderRadius: '3px',
+                  fontSize: '14px',
+                  backgroundColor: 'white',
+                  fontFamily: 'Inter, system-ui, Segoe UI, Roboto, Arial, sans-serif'
+                }}
+                placeholder="Enter number of trees..."
+                min="1"
+              />
+            </div>
+            {errors.transportationNeeded && (
+              <p style={{ color: '#c44', fontSize: '13px', marginTop: '-12px', marginLeft: '265px' }}>{errors.transportationNeeded}</p>
+            )}
+
+            {/* Harvest Date Range */}
+            <div>
+              <label style={{ 
+                display: 'block', 
+                marginBottom: '6px', 
+                fontSize: '15px',
+                color: '#080a10e3',
+                fontFamily: 'Inter, system-ui, Segoe UI, Roboto, Arial, sans-serif'
+              }}>
+                Harvest Date Range (Max 5 days)<span style={{ color: '#c44' }}>*</span>
+              </label>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ fontSize: '12px', color: '#374151', marginBottom: '4px', display: 'block' }}>From</label>
+                  <input
+                    type="date"
+                    value={formData.harvestDateFrom}
+                    onChange={(e) => handleDateChange("harvestDateFrom", e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      border: errors.harvestDateFrom ? '1px solid #c44' : '1px solid #b8c5b3',
+                      borderRadius: '3px',
+                      fontSize: '14px',
+                      backgroundColor: 'white',
+                      fontFamily: 'Inter, system-ui, Segoe UI, Roboto, Arial, sans-serif'
+                    }}
+                  />
+                  {errors.harvestDateFrom && (
+                    <p style={{ color: '#c44', fontSize: '12px', marginTop: '3px' }}>{errors.harvestDateFrom}</p>
+                  )}
                 </div>
-              )}
-              
-              {errors.hassPercentage && (
-                <p className="error-text">{errors.hassPercentage}</p>
-              )}
-              
-              {selectedSizes.length > 0 && (
-                <p style={{ fontSize: '12px', color: '#666', marginTop: '5px' }}>
-                  Total: {totalPercentage}%
-                </p>
+                <div>
+                  <label style={{ fontSize: '12px', color: '#374151', marginBottom: '4px', display: 'block' }}>To</label>
+                  <input
+                    type="date"
+                    value={formData.harvestDateTo}
+                    onChange={(e) => handleDateChange("harvestDateTo", e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      border: errors.harvestDateTo ? '1px solid #c44' : '1px solid #b8c5b3',
+                      borderRadius: '3px',
+                      fontSize: '14px',
+                      backgroundColor: 'white',
+                      fontFamily: 'Inter, system-ui, Segoe UI, Roboto, Arial, sans-serif'
+                    }}
+                  />
+                  {errors.harvestDateTo && (
+                    <p style={{ color: '#c44', fontSize: '12px', marginTop: '3px' }}>{errors.harvestDateTo}</p>
+                  )}
+                </div>
+              </div>
+              {errors.harvestDateRange && (
+                <p style={{ color: '#c44', fontSize: '13px', marginTop: '4px' }}>{errors.harvestDateRange}</p>
               )}
             </div>
 
-            {/* File Upload Section */}
+            {/* File Upload */}
             <div>
-              <label className="label-input">
-                • Please upload pictures of the crops ready for harvest
-              </label>
-              <div className="file-upload-container">
-                <div className="file-input-wrapper">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                <label style={{ 
+                  minWidth: '250px',
+                  fontSize: '15px',
+                  color: '#080a10e3',
+                  fontFamily: 'Inter, system-ui, Segoe UI, Roboto, Arial, sans-serif',
+                  whiteSpace: 'nowrap'
+                }}>
+                  Upload pictures of crops ready for harvest
+                </label>
+                <div style={{ flex: 1, display: 'flex', gap: '10px', alignItems: 'center' }}>
                   <input
                     type="file"
                     multiple
                     accept="image/*"
                     onChange={handleFileUpload}
-                    className="file-input"
+                    style={{ display: 'none' }}
                     id="file-upload"
                   />
                   <label
                     htmlFor="file-upload"
-                    className="file-upload-label"
+                    style={{
+                      flex: 1,
+                      padding: '10px 12px',
+                      border: '1px solid #b8c5b3',
+                      borderRadius: '3px',
+                      backgroundColor: 'white',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      color: '#374151',
+                      fontFamily: 'Inter, system-ui, Segoe UI, Roboto, Arial, sans-serif'
+                    }}
                   >
-                    <span className="file-upload-text">Choose a file</span>
+                    Choose files...
                   </label>
+                  <button
+                    onClick={() => document.getElementById("file-upload").click()}
+                    style={{
+                      padding: '10px 24px',
+                      backgroundColor: '#080a10e3',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '3px',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      fontFamily: 'Inter, system-ui, Segoe UI, Roboto, Arial, sans-serif'
+                    }}
+                    type="button"
+                  >
+                    Upload
+                  </button>
                 </div>
-                <button
-                  onClick={() => document.getElementById("file-upload").click()}
-                  className="button-upload"
-                  type="button"
-                >
-                  Upload
-                </button>
               </div>
               {formData.harvestImages.length > 0 && (
-                <div className="uploaded-files-container">
-                  <p className="uploaded-files-title">Uploaded files:</p>
-                  <div className="uploaded-files-list">
+                <div style={{ marginTop: '10px', marginLeft: '265px' }}>
+                  <p style={{ fontSize: '13px', color: '#080a10e3', marginBottom: '5px', fontWeight: '600' }}>
+                    Uploaded files:
+                  </p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                     {formData.harvestImages.map((file, index) => (
-                      <div key={index} className="uploaded-file-item">
+                      <div key={index} style={{ 
+                        fontSize: '12px', 
+                        color: '#374151',
+                        padding: '4px 8px',
+                        backgroundColor: '#f5f5f0',
+                        borderRadius: '2px'
+                      }}>
                         {file.name}
                       </div>
                     ))}
@@ -568,16 +649,34 @@ export default function HarvestingDay() {
             </div>
 
             {/* Submit Button */}
-            <div className="submit-button-container">
+            <div style={{ marginTop: '10px' }}>
               {errors.submit && (
-                <p className="error-text mb-4">{errors.submit}</p>
+                <p style={{ color: '#c44', fontSize: '13px', marginBottom: '10px', textAlign: 'center' }}>
+                  {errors.submit}
+                </p>
               )}
               <button
                 onClick={handleSubmit}
                 disabled={isSubmitting}
-                className="button-submit"
+                style={{
+                  width: '100%',
+                  padding: '14px',
+                  backgroundColor: isSubmitting ? 'rgba(14, 67, 8, 0.5)' : 'rgb(14, 67, 8)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '25px',
+                  cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                  fontSize: '16px',
+                  fontWeight: '600',
+                  fontFamily: 'Inter, system-ui, Segoe UI, Roboto, Arial, sans-serif',
+                  letterSpacing: '1px',
+                  textTransform: 'uppercase',
+                  transition: 'background-color 0.3s'
+                }}
+                onMouseEnter={(e) => !isSubmitting && (e.target.style.backgroundColor = 'rgb(10, 50, 6)')}
+                onMouseLeave={(e) => !isSubmitting && (e.target.style.backgroundColor = 'rgb(14, 67, 8)')}
               >
-                {isSubmitting ? 'Submitting...' : 'Save'}
+                {isSubmitting ? 'Submitting...' : 'Submit '}
               </button>
             </div>
           </div>
@@ -586,3 +685,6 @@ export default function HarvestingDay() {
     </div>
   );
 }
+
+
+
