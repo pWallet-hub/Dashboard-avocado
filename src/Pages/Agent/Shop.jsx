@@ -1,36 +1,180 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import { Plus, Search, RefreshCw, Trash2, PlusCircle, MinusCircle, Filter, X, User, Package, Tag, Edit2, Eye, CheckCircle, Clock, Package2 } from 'lucide-react';
-import { getAllProducts, createProduct, updateProduct, deleteProduct } from '../../services/productsService';
+import { ShoppingCart, X, CheckCircle, Loader2, Minus, Plus, Trash2, Filter, Search, User, Users, Heart, Package } from 'lucide-react';
+import { getAllProducts } from '../../services/productsService';
+import { listFarmers } from '../../services/usersService';
+import { getAgentInformation } from '../../services/agent-information';
+
+// Cart Service (same as HarvestingKit)
+const CartService = {
+  cart: [],
+  addToCart: (product) => {
+    const existingItem = CartService.cart.find((item) => item.id === product.id);
+    if (existingItem) {
+      existingItem.quantity += 1;
+    } else {
+      CartService.cart.push({ ...product, quantity: 1 });
+    }
+  },
+  getCartItems: () => CartService.cart,
+  getCartCount: () => CartService.cart.reduce((count, item) => count + item.quantity, 0),
+  updateCartQuantity: (productId, quantity) => {
+    const item = CartService.cart.find((item) => item.id === productId);
+    if (item) {
+      if (quantity <= 0) {
+        CartService.cart = CartService.cart.filter((item) => item.id !== productId);
+      } else {
+        item.quantity = quantity;
+      }
+    }
+  },
+  removeFromCart: (productId) => {
+    CartService.cart = CartService.cart.filter((item) => item.id !== productId);
+  },
+  getCartSummary: () => {
+    const subtotal = CartService.cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    const totalDiscount = CartService.cart.reduce(
+      (sum, item) => sum + (item.originalPrice ? (item.originalPrice - item.price) * item.quantity : 0),
+      0
+    );
+    return {
+      isEmpty: CartService.cart.length === 0,
+      subtotal,
+      totalDiscount,
+      total: subtotal - totalDiscount,
+    };
+  },
+  clearCart: () => {
+    CartService.cart = [];
+  },
+};
+
+// Cart Sidebar Component
+function CartSidebar({ isCartOpen, setIsCartOpen, cartItems, cartCount, updateCartQuantity, removeFromCart, handleCheckout }) {
+  const cartSummary = CartService.getCartSummary();
+  return (
+    <div className={`fixed inset-0 z-50 overflow-hidden transition-all duration-300 ${isCartOpen ? 'visible' : 'invisible'}`}>
+      <div className={`absolute inset-0 bg-black transition-opacity duration-300 ${isCartOpen ? 'bg-opacity-50' : 'bg-opacity-0'}`} onClick={() => setIsCartOpen(false)}></div>
+      <div className={`absolute right-0 top-0 h-full w-full max-w-md bg-white shadow-xl transform transition-transform duration-300 ${isCartOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+        <div className="flex h-full flex-col">
+          <div className="flex items-center justify-between border-b border-gray-200 p-3">
+            <div className="flex items-center space-x-2">
+              <ShoppingCart className="h-5 w-5 text-green-600" />
+              <h2 className="text-base font-semibold text-gray-900">Shopping Cart</h2>
+              <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">{cartCount}</span>
+            </div>
+            <button onClick={() => setIsCartOpen(false)} className="rounded-full p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto p-3">
+            {cartSummary.isEmpty ? (
+              <div className="flex h-full flex-col items-center justify-center text-center">
+                <ShoppingCart className="h-12 w-12 text-gray-300 mb-3" />
+                <h3 className="text-base font-medium text-gray-900 mb-1">Your cart is empty</h3>
+                <p className="text-sm text-gray-500">Add some products!</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {cartItems.map((item) => (
+                  <div key={item.id} className="flex items-center space-x-3 rounded-lg border border-gray-200 p-3">
+                    <div className="h-14 w-14 bg-gradient-to-br from-green-100 to-green-200 rounded-lg flex items-center justify-center">
+                      <Package className="h-6 w-6 text-green-700" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-sm font-medium text-gray-900 truncate">{item.name}</h3>
+                      <div className="flex items-center space-x-2 mt-0.5">
+                        <span className="text-base font-bold text-green-600">{item.price.toLocaleString()} RWF</span>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-0.5">{item.capacity || `${item.quantity} ${item.unit}`}</p>
+                    </div>
+                    <div className="flex flex-col items-end space-y-1.5">
+                      <div className="flex items-center space-x-1.5">
+                        <button onClick={() => updateCartQuantity(item.id, item.quantity - 1)} className="rounded-full p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600">
+                          <Minus className="h-3.5 w-3.5" />
+                        </button>
+                        <span className="w-7 text-center text-sm font-medium">{item.quantity}</span>
+                        <button onClick={() => updateCartQuantity(item.id, item.quantity + 1)} className="rounded-full p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600">
+                          <Plus className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                      <button onClick={() => removeFromCart(item.id)} className="rounded-full p-1 text-red-400 hover:bg-red-50 hover:text-red-600">
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          {!cartSummary.isEmpty && (
+            <div className="border-t border-gray-200 p-3 space-y-3">
+              <div className="space-y-1.5">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Subtotal</span>
+                  <span className="font-medium">{cartSummary.subtotal.toLocaleString()} RWF</span>
+                </div>
+                {cartSummary.totalDiscount > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Discount</span>
+                    <span className="font-medium text-green-600">-{cartSummary.totalDiscount.toLocaleString()} RWF</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-base font-bold border-t border-gray-200 pt-1.5">
+                  <span>Total</span>
+                  <span className="text-green-600">{cartSummary.total.toLocaleString()} RWF</span>
+                </div>
+              </div>
+              <button onClick={handleCheckout} className="w-full flex items-center justify-center space-x-2 rounded-lg py-2.5 px-4 text-white font-semibold transition-all duration-300 hover:scale-105 shadow-lg hover:shadow-xl" style={{ background: 'linear-gradient(to right, #1F310A, #0f5132)' }}>
+                <ShoppingCart className="w-4 h-4" />
+                <span>Checkout</span>
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function Shop() {
+  // Purchase mode state
+  const [purchaseMode, setPurchaseMode] = useState('self'); // 'self' or 'behalf'
+  
+  // Farmer selection state (for 'behalf' mode)
+  const [currentStep, setCurrentStep] = useState(1); // 1: Select Mode, 2: Select Farmer (if behalf), 3: Shop
+  const [farmers, setFarmers] = useState([]);
+  const [filteredFarmers, setFilteredFarmers] = useState([]);
+  const [selectedFarmer, setSelectedFarmer] = useState(null);
+  const [searchFarmerTerm, setSearchFarmerTerm] = useState('');
+  const [agentInfo, setAgentInfo] = useState(null);
+  const [agentTerritories, setAgentTerritories] = useState([]);
+  
+  // Location filters for farmers
+  const [selectedDistrict, setSelectedDistrict] = useState('');
+  const [selectedSector, setSelectedSector] = useState('');
+  const [selectedCell, setSelectedCell] = useState('');
+  
+  // Product and cart state
   const [products, setProducts] = useState([]);
-  const [newProduct, setNewProduct] = useState({ 
-    name: '', 
-    category: 'irrigation', 
-    description: '',
-    price: 0,
-    quantity: 0,
-    unit: 'piece',
-    supplier_id: '',
-    status: 'available',
-    sku: '',
-    brand: '',
-    images: []
-  });
-  const [editingProduct, setEditingProduct] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(null);
-  const [isAdding, setIsAdding] = useState(false);
-  const [isUpdating, setIsUpdating] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [sortBy, setSortBy] = useState('name');
   const [categoryFilter, setCategoryFilter] = useState('all');
-  const [stockStatusFilter, setStockStatusFilter] = useState('all');
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [currentRole, setCurrentRole] = useState('agent');
-
-  const currentAgent = { id: 1, name: 'Jean Baptiste Uwimana', region: 'Northern Province' };
+  const [isCartOpen, setIsCartOpen] = useState(false);
+  const [cartItems, setCartItems] = useState(CartService.getCartItems());
+  const [cartCount, setCartCount] = useState(CartService.getCartCount());
+  const [justAdded, setJustAdded] = useState(null);
+  const [addingToCart, setAddingToCart] = useState(null);
+  
+  // Payment state
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentPhone, setPhoneNumber] = useState('');
+  const [mobileProvider, setMobileProvider] = useState('');
+  const [paymentStep, setPaymentStep] = useState('provider');
+  const [paymentProcessing, setPaymentProcessing] = useState(false);
+  const [paymentSuccess, setPaymentSuccess] = useState(false);
+  const [paymentError, setPaymentError] = useState('');
+  const [pendingOrder, setPendingOrder] = useState(null);
 
   const categories = useMemo(() => ['all', ...new Set(products.map(p => p.category))], [products]);
 
@@ -38,998 +182,764 @@ export default function Shop() {
     return products
       .filter(product => product.name.toLowerCase().includes(searchTerm.toLowerCase()))
       .filter(product => categoryFilter === 'all' ? true : product.category === categoryFilter)
-      .filter(product => {
-        const stock = product.quantity || product.stock || 0;
-        if (stockStatusFilter === 'all') return true;
-        if (stockStatusFilter === 'inStock') return stock > 0;
-        if (stockStatusFilter === 'lowStock') return stock > 0 && stock < 10;
-        if (stockStatusFilter === 'outOfStock') return stock === 0;
-        return true;
-      })
-      .sort((a, b) => {
-        if (sortBy === 'name') return a.name.localeCompare(b.name);
-        if (sortBy === 'stock') {
-          const stockA = a.quantity || a.stock || 0;
-          const stockB = b.quantity || b.stock || 0;
-          return stockB - stockA;
-        }
-        return 0;
+      .filter(product => product.status === 'available' && (product.quantity || 0) > 0);
+  }, [products, searchTerm, categoryFilter]);
+
+  // Filter farmers by agent's territory
+  const filterFarmersByTerritory = (farmersList, territories) => {
+    if (!territories || territories.length === 0) {
+      return farmersList;
+    }
+
+    return farmersList.filter(farmer => {
+      const farmerDistrict = farmer.profile?.district;
+      const farmerSector = farmer.profile?.sector;
+
+      if (!farmerDistrict || !farmerSector) return false;
+
+      return territories.some(territory => {
+        const districtMatch = territory.district?.toLowerCase() === farmerDistrict.toLowerCase();
+        const sectorMatch = territory.sector?.toLowerCase() === farmerSector.toLowerCase();
+        return districtMatch && sectorMatch;
       });
-  }, [products, searchTerm, categoryFilter, stockStatusFilter, sortBy]);
+    });
+  };
 
-  // Debug: Log products state changes
+  // Fetch agent information
   useEffect(() => {
-    console.log('🔍 Products state updated:', products.length, 'products');
-    console.log('📋 Current products:', products);
-  }, [products]);
-
-  // Debug: Log filtered products
-  useEffect(() => {
-    console.log('🔎 Filtered products:', filteredProducts.length, 'products');
-    console.log('🎯 Filters - category:', categoryFilter, 'stock:', stockStatusFilter, 'search:', searchTerm);
-  }, [filteredProducts, categoryFilter, stockStatusFilter, searchTerm]);
-
-  useEffect(() => {
-    fetchProducts();
+    const fetchAgentInfo = async () => {
+      try {
+        const data = await getAgentInformation();
+        setAgentInfo(data);
+        
+        if (data?.agent_profile?.territory && Array.isArray(data.agent_profile.territory)) {
+          setAgentTerritories(data.agent_profile.territory);
+        } else {
+          setAgentTerritories([]);
+        }
+      } catch (error) {
+        console.error('Error fetching agent info:', error);
+        setAgentTerritories([]);
+      }
+    };
+    fetchAgentInfo();
   }, []);
 
-  // Fetch products from API
+  // Fetch farmers when in behalf mode
+  useEffect(() => {
+    if (purchaseMode === 'behalf' && currentStep === 2) {
+      const fetchFarmers = async () => {
+        setLoading(true);
+        try {
+          const response = await listFarmers({ limit: 100 });
+          const farmersList = response.data || [];
+          const territoryFilteredFarmers = filterFarmersByTerritory(farmersList, agentTerritories);
+          setFarmers(territoryFilteredFarmers);
+          setFilteredFarmers(territoryFilteredFarmers);
+        } catch (error) {
+          console.error('Error fetching farmers:', error);
+          setFarmers([]);
+          setFilteredFarmers([]);
+        } finally {
+          setLoading(false);
+        }
+      };
+      
+      if (agentInfo !== null) {
+        fetchFarmers();
+      }
+    }
+  }, [purchaseMode, currentStep, agentInfo, agentTerritories]);
+
+  // Filter farmers based on search and location
+  useEffect(() => {
+    let filtered = farmers;
+
+    if (selectedDistrict) {
+      filtered = filtered.filter(farmer => 
+        (farmer.profile?.district || farmer.district)?.toLowerCase() === selectedDistrict.toLowerCase()
+      );
+    }
+
+    if (selectedSector) {
+      filtered = filtered.filter(farmer => 
+        (farmer.profile?.sector || farmer.sector)?.toLowerCase() === selectedSector.toLowerCase()
+      );
+    }
+
+    if (selectedCell) {
+      filtered = filtered.filter(farmer => 
+        (farmer.profile?.cell || farmer.cell)?.toLowerCase() === selectedCell.toLowerCase()
+      );
+    }
+
+    if (searchFarmerTerm.trim() !== '') {
+      filtered = filtered.filter(farmer => 
+        farmer.full_name?.toLowerCase().includes(searchFarmerTerm.toLowerCase()) ||
+        farmer.email?.toLowerCase().includes(searchFarmerTerm.toLowerCase()) ||
+        farmer.phone?.includes(searchFarmerTerm)
+      );
+    }
+
+    setFilteredFarmers(filtered);
+  }, [searchFarmerTerm, selectedDistrict, selectedSector, selectedCell, farmers]);
+
+  // Get unique districts, sectors, cells
+  const getUniqueDistricts = () => {
+    const districts = farmers
+      .map(f => f.profile?.district || f.district)
+      .filter(d => d && d.trim() !== '');
+    return [...new Set(districts)].sort();
+  };
+
+  const getUniqueSectors = () => {
+    let sectors = farmers;
+    if (selectedDistrict) {
+      sectors = farmers.filter(f => 
+        (f.profile?.district || f.district)?.toLowerCase() === selectedDistrict.toLowerCase()
+      );
+    }
+    const sectorList = sectors
+      .map(f => f.profile?.sector || f.sector)
+      .filter(s => s && s.trim() !== '');
+    return [...new Set(sectorList)].sort();
+  };
+
+  const getUniqueCells = () => {
+    let cells = farmers;
+    if (selectedDistrict) {
+      cells = cells.filter(f => 
+        (f.profile?.district || f.district)?.toLowerCase() === selectedDistrict.toLowerCase()
+      );
+    }
+    if (selectedSector) {
+      cells = cells.filter(f => 
+        (f.profile?.sector || f.sector)?.toLowerCase() === selectedSector.toLowerCase()
+      );
+    }
+    const cellList = cells
+      .map(f => f.profile?.cell || f.cell)
+      .filter(c => c && c.trim() !== '');
+    return [...new Set(cellList)].sort();
+  };
+
+  // Fetch products
+  useEffect(() => {
+    if (currentStep === 3 || (currentStep === 1 && purchaseMode === 'self')) {
+      fetchProducts();
+    }
+  }, [currentStep, purchaseMode]);
+
   const fetchProducts = async () => {
-    console.log('🔄 Fetching products from API...');
     setLoading(true);
     setError(null);
     
     try {
       const response = await getAllProducts({ limit: 100, sort: '-created_at' });
-      console.log('📦 API Response:', response);
       const productsData = response.data || response || [];
-      console.log('✅ Products loaded:', productsData.length, 'products');
-      console.log('📊 Products data:', productsData);
-      setProducts(productsData);
+      
+      const transformedProducts = productsData.map(product => ({
+        id: String(product.id || product._id),
+        name: product.name || 'Unknown Product',
+        description: product.description || 'No description available',
+        price: Number(product.price) || 0,
+        originalPrice: product.originalPrice ? Number(product.originalPrice) : null,
+        image: (product.images && product.images.length > 0) 
+          ? product.images[0] 
+          : product.image_url,
+        capacity: `${product.quantity || 0} ${product.unit || 'piece'}`,
+        inStock: product.status === 'available' && (product.quantity || 0) > 0,
+        unit: product.unit || 'piece',
+        quantity: Number(product.quantity) || 0,
+        category: product.category || 'general',
+        status: product.status || 'available'
+      }));
+      
+      setProducts(transformedProducts.filter(p => p.inStock));
     } catch (err) {
-      console.error('❌ Error fetching products:', err);
+      console.error('Error fetching products:', err);
       setError(err.message || 'Failed to load products');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleAddProduct = useCallback(
-    async (e) => {
-      e.preventDefault();
-      
-      // Validation
-      if (!newProduct.name.trim()) {
-        setError('Product name is required');
-        return;
-      }
-      
-      if (!newProduct.category) {
-        setError('Product category is required');
-        return;
-      }
-      
-      if (newProduct.price < 0) {
-        setError('Price must be non-negative');
-        return;
-      }
-      
-      if (newProduct.quantity < 0) {
-        setError('Quantity must be non-negative');
-        return;
-      }
-
-      setIsAdding(true);
-      setError(null);
-
-      try {
-        // Prepare product data for API
-        const productData = {
-          name: newProduct.name.trim(),
-          category: newProduct.category,
-          description: newProduct.description.trim() || '',
-          price: parseFloat(newProduct.price) || 0,
-          quantity: parseInt(newProduct.quantity) || 0,
-          unit: newProduct.unit || 'piece',
-          supplier_id: newProduct.supplier_id || 'AGENT_DEFAULT',
-          status: newProduct.status || 'available',
-          sku: newProduct.sku || undefined,
-          brand: newProduct.brand || undefined,
-          images: newProduct.images && newProduct.images.length > 0 ? newProduct.images : undefined
-        };
-
-        const createdProduct = await createProduct(productData);
-        
-        // Add to local state
-        setProducts([createdProduct, ...products]);
-        
-        // Reset form
-        setNewProduct({ 
-          name: '', 
-          category: 'irrigation', 
-          description: '',
-          price: 0,
-          quantity: 0,
-          unit: 'piece',
-          supplier_id: '',
-          status: 'available',
-          sku: '',
-          brand: '',
-          images: []
-        });
-        
-        setShowAddForm(false);
-        setSuccess('Product added successfully!');
-        setTimeout(() => setSuccess(null), 3000);
-      } catch (err) {
-        console.error('Error adding product:', err);
-        setError(err.message || 'Failed to add product');
-      } finally {
-        setIsAdding(false);
-      }
-    },
-    [newProduct, products]
-  );
-
-  const handleUpdateStock = useCallback(
-    async (productId, newQuantity) => {
-      if (newQuantity < 0) return;
-
-      setIsUpdating(true);
-      setError(null);
-
-      try {
-        const updatedProduct = await updateProduct(productId, { quantity: parseInt(newQuantity) });
-        
-        // Update local state
-        setProducts(products.map(product => 
-          (product.id === productId || product._id === productId) 
-            ? { ...product, quantity: newQuantity, stock: newQuantity } 
-            : product
-        ));
-        
-        setSuccess('Stock updated successfully!');
-        setTimeout(() => setSuccess(null), 3000);
-      } catch (err) {
-        console.error('Error updating stock:', err);
-        setError(err.message || 'Failed to update stock');
-      } finally {
-        setIsUpdating(false);
-      }
-    },
-    [products]
-  );
-
-  const handleDeleteProduct = useCallback(
-    async (productId) => {
-      if (!window.confirm('Are you sure you want to delete this product?')) return;
-
-      setIsUpdating(true);
-      setError(null);
-
-      try {
-        await deleteProduct(productId);
-        
-        // Remove from local state
-        setProducts(products.filter(product => 
-          product.id !== productId && product._id !== productId
-        ));
-        
-        setSuccess('Product deleted successfully!');
-        setTimeout(() => setSuccess(null), 3000);
-      } catch (err) {
-        console.error('Error deleting product:', err);
-        setError(err.message || 'Failed to delete product');
-      } finally {
-        setIsUpdating(false);
-      }
-    },
-    [products]
-  );
-
-  const handleEditProduct = useCallback(
-    (product) => {
-      setEditingProduct({
-        ...product,
-        id: product.id || product._id,
-        quantity: product.quantity || product.stock || 0,
-        images: product.images || []
-      });
-    },
-    []
-  );
-
-  const handleSaveEdit = useCallback(
-    async (e) => {
-      e.preventDefault();
-      
-      if (!editingProduct) return;
-      
-      setIsUpdating(true);
-      setError(null);
-
-      try {
-        const productId = editingProduct.id || editingProduct._id;
-        const updateData = {
-          name: editingProduct.name,
-          category: editingProduct.category,
-          description: editingProduct.description || '',
-          price: parseFloat(editingProduct.price) || 0,
-          quantity: parseInt(editingProduct.quantity) || 0,
-          unit: editingProduct.unit || 'piece',
-          status: editingProduct.status || 'available',
-          brand: editingProduct.brand || '',
-          sku: editingProduct.sku || ''
-        };
-
-        const updatedProduct = await updateProduct(productId, updateData);
-        
-        // Update local state
-        setProducts(products.map(product => 
-          (product.id === productId || product._id === productId) 
-            ? { ...product, ...updatedProduct } 
-            : product
-        ));
-        
-        setEditingProduct(null);
-        setSuccess('Product updated successfully!');
-        setTimeout(() => setSuccess(null), 3000);
-      } catch (err) {
-        console.error('Error updating product:', err);
-        setError(err.message || 'Failed to update product');
-      } finally {
-        setIsUpdating(false);
-      }
-    },
-    [editingProduct, products]
-  );
-
-  const handleCancelEdit = useCallback(() => {
-    setEditingProduct(null);
-  }, []);
-
-  const getStockStatus = (stock) => {
-    if (stock === 0) return { text: 'Out of Stock', color: 'bg-red-100 text-red-800' };
-    if (stock < 10) return { text: 'Low Stock', color: 'bg-yellow-100 text-yellow-800' };
-    return { text: 'In Stock', color: 'bg-green-100 text-green-800' };
+  // Cart functions
+  const addToCart = (product) => {
+    setAddingToCart(product.id);
+    setTimeout(() => {
+      CartService.addToCart(product);
+      setCartItems(CartService.getCartItems());
+      setCartCount(CartService.getCartCount());
+      setJustAdded(product.id);
+      setAddingToCart(null);
+      setTimeout(() => setJustAdded(null), 2000);
+    }, 500);
   };
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'available': return 'bg-green-100 text-green-800 border-green-200';
-      case 'out_of_stock': return 'bg-red-100 text-red-800 border-red-200';
-      case 'discontinued': return 'bg-gray-100 text-gray-800 border-gray-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+  const updateCartQuantity = (productId, quantity) => {
+    CartService.updateCartQuantity(productId, quantity);
+    setCartItems(CartService.getCartItems());
+    setCartCount(CartService.getCartCount());
+  };
+
+  const removeFromCart = (productId) => {
+    CartService.removeFromCart(productId);
+    setCartItems(CartService.getCartItems());
+    setCartCount(CartService.getCartCount());
+  };
+
+  // Checkout and payment
+  const handleCheckout = () => {
+    const cartSummary = CartService.getCartSummary();
+    setPendingOrder({
+      id: `ORDER-${Date.now()}`,
+      items: cartItems,
+      totalAmount: cartSummary.total,
+      buyer: purchaseMode === 'self' ? 'agent' : selectedFarmer,
+    });
+    setIsCartOpen(false);
+    setShowPaymentModal(true);
+  };
+
+  const handleProviderSelect = (provider) => {
+    setMobileProvider(provider);
+    setPaymentStep('phone');
+  };
+
+  const handlePhoneSubmit = () => {
+    if (/^07[0-9]{8}$/.test(paymentPhone)) {
+      setPaymentStep('confirm');
+    } else {
+      setPaymentError('Please enter a valid Rwandan phone number (e.g., 078xxxxxxxx)');
     }
   };
 
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case 'available': return <CheckCircle className="h-4 w-4" />;
-      case 'out_of_stock': return <X className="h-4 w-4" />;
-      case 'discontinued': return <Clock className="h-4 w-4" />;
-      default: return <Clock className="h-4 w-4" />;
+  const handlePaymentComplete = async () => {
+    setPaymentProcessing(true);
+    setPaymentError('');
+    setTimeout(() => {
+      setPaymentProcessing(false);
+      setPaymentSuccess(true);
+      CartService.clearCart();
+      setCartItems([]);
+      setCartCount(0);
+    }, 2000);
+  };
+
+  const closePaymentModal = () => {
+    setShowPaymentModal(false);
+    setPaymentStep('provider');
+    setMobileProvider('');
+    setPhoneNumber('');
+    setPaymentError('');
+    setPaymentSuccess(false);
+    setPaymentProcessing(false);
+    setPendingOrder(null);
+  };
+
+  const handleModeSelection = (mode) => {
+    setPurchaseMode(mode);
+    if (mode === 'self') {
+      setCurrentStep(3); // Go directly to shop
+      setSelectedFarmer(null);
+    } else {
+      setCurrentStep(2); // Go to farmer selection
     }
   };
 
-  const formatRwf = (amount) => {
-    return `${parseFloat(amount || 0).toLocaleString('en-RW')} RWF`;
+  const handleFarmerSelection = (farmer) => {
+    setSelectedFarmer(farmer);
+    setCurrentStep(3); // Go to shop
   };
 
-  return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        {/* Header Section */}
-        <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Avocado Toolkit Management</h1>
-            <p className="mt-2 text-sm text-gray-600">Empowering Rwandan avocado farmers with essential tools</p>
+  const handleBackToMode = () => {
+    setCurrentStep(1);
+    setSelectedFarmer(null);
+    setPurchaseMode('self');
+  };
+
+  const handleBackToFarmers = () => {
+    setCurrentStep(2);
+    setSelectedFarmer(null);
+  };
+
+  // STEP 1: Purchase Mode Selection
+  if (currentStep === 1) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-green-50 to-green-100 flex items-center justify-center p-4">
+        <div className="max-w-4xl w-full">
+          <div className="text-center mb-8">
+            <h1 className="text-4xl font-bold text-gray-900 mb-2">Agent Shop</h1>
+            <p className="text-gray-600">Purchase products for yourself or on behalf of farmers</p>
           </div>
-          <div className="flex items-center gap-4">
-            <span className="text-sm font-medium text-gray-500">Total Kits: <span className="text-gray-900">{products.length}</span></span>
-            <button
-              onClick={() => setShowAddForm(true)}
-              className="inline-flex items-center px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 transition-all duration-200"
+          
+          <div className="grid md:grid-cols-2 gap-6">
+            {/* Buy for Self */}
+            <div 
+              onClick={() => handleModeSelection('self')}
+              className="bg-white rounded-2xl p-8 shadow-lg border-2 border-transparent hover:border-green-500 cursor-pointer transition-all duration-300 hover:shadow-xl"
             >
-              <Plus className="w-5 h-5 mr-2" /> Add Product
-            </button>
-          </div>
-        </div>
-
-        {/* Role Selector */}
-        <div className="mb-6">
-          <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-1">Current Role</label>
-          <select
-            id="role"
-            value={currentRole}
-            onChange={(e) => setCurrentRole(e.target.value)}
-            className="w-full sm:w-48 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 transition-all duration-200"
-          >
-            <option value="agent">Extension Agent</option>
-            <option value="manager">Shop Manager/Admin</option>
-          </select>
-        </div>
-
-        {/* Alerts */}
-        {success && (
-          <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center animate-in fade-in slide-in-from-top-2 duration-300">
-            <svg className="w-5 h-5 text-green-500 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <p className="text-sm text-green-800 flex-1">{success}</p>
-            <button onClick={() => setSuccess(null)} className="text-green-500 hover:text-green-700">
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-        )}
-        {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center animate-in fade-in slide-in-from-top-2 duration-300">
-            <svg className="w-5 h-5 text-red-500 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <p className="text-sm text-red-800 flex-1">{error}</p>
-            <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700">
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-        )}
-
-        {/* Add Product Modal */}
-        {showAddForm && (
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-300 overflow-y-auto"
-            onClick={() => setShowAddForm(false)}
-          >
-            <div
-              className="bg-white rounded-2xl max-w-lg w-full mx-4 p-6 sm:p-8 shadow-2xl border border-gray-100 animate-in zoom-in-90 duration-300 max-h-[90vh] overflow-y-auto"
-              onClick={e => e.stopPropagation()}
-            >
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-3 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full">
-                    <Plus className="h-6 w-6 text-white" />
-                  </div>
-                  <h3 className="text-xl font-bold text-gray-900">Add New Toolkit</h3>
+              <div className="flex flex-col items-center text-center">
+                <div className="w-20 h-20 bg-gradient-to-br from-green-500 to-green-600 rounded-full flex items-center justify-center mb-4">
+                  <User className="w-10 h-10 text-white" />
                 </div>
-                <button onClick={() => setShowAddForm(false)} className="text-gray-500 hover:text-gray-700 transition-colors">
-                  <X className="w-6 h-6" />
+                <h3 className="text-2xl font-bold text-gray-900 mb-2">Buy for Myself</h3>
+                <p className="text-gray-600 mb-4">Purchase products for your own use as an agent</p>
+                <button className="mt-auto px-6 py-3 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-colors">
+                  Continue
                 </button>
               </div>
-              <form onSubmit={handleAddProduct} className="space-y-6">
-                <div className="relative group">
-                  <label className="block text-sm font-semibold text-gray-800 mb-3">
-                    <div className="flex items-center">
-                      <div className="p-2 bg-green-100 rounded-lg mr-3">
-                        <Package className="w-4 h-4 text-green-600" />
-                      </div>
-                      Toolkit Name *
-                    </div>
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g., Protective Gloves"
-                    value={newProduct.name}
-                    onChange={e => setNewProduct({ ...newProduct, name: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-4 focus:ring-green-100 focus:border-green-500 transition-all duration-200 text-sm bg-white hover:border-green-400"
-                    required
-                  />
-                  <div className="absolute inset-0 rounded-xl border-2 border-transparent group-hover:border-green-200 transition-all duration-200 pointer-events-none"></div>
-                </div>
-                <div className="relative group">
-                  <label className="block text-sm font-semibold text-gray-800 mb-3">
-                    <div className="flex items-center">
-                      <div className="p-2 bg-blue-100 rounded-lg mr-3">
-                        <Tag className="w-4 h-4 text-blue-600" />
-                      </div>
-                      Category *
-                    </div>
-                  </label>
-                  <select
-                    value={newProduct.category}
-                    onChange={e => setNewProduct({ ...newProduct, category: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all duration-200 text-sm bg-white hover:border-blue-400"
-                    required
-                  >
-                    <option value="">Select Category</option>
-                    <option value="irrigation">💧 Irrigation</option>
-                    <option value="harvesting">🌾 Harvesting</option>
-                    <option value="containers">📦 Containers</option>
-                    <option value="pest-management">🐛 Pest Management</option>
-                  </select>
-                  <div className="absolute inset-0 rounded-xl border-2 border-transparent group-hover:border-blue-200 transition-all duration-200 pointer-events-none"></div>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="relative group">
-                    <label className="block text-sm font-semibold text-gray-800 mb-3">
-                      <div className="flex items-center">
-                        <div className="p-2 bg-green-100 rounded-lg mr-3">
-                          <span className="text-green-600 font-bold text-sm">$</span>
-                        </div>
-                        Price * (RWF)
-                      </div>
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      placeholder="0.00"
-                      value={newProduct.price}
-                      onChange={e => setNewProduct({ ...newProduct, price: parseFloat(e.target.value) || 0 })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-4 focus:ring-green-100 focus:border-green-500 transition-all duration-200 text-sm bg-white hover:border-green-400"
-                      required
-                    />
-                  </div>
-                  
-                  <div className="relative group">
-                    <label className="block text-sm font-semibold text-gray-800 mb-3">
-                      <div className="flex items-center">
-                        <div className="p-2 bg-orange-100 rounded-lg mr-3">
-                          <span className="text-orange-600 font-bold text-sm">#</span>
-                        </div>
-                        Quantity *
-                      </div>
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      placeholder="0"
-                      value={newProduct.quantity}
-                      onChange={e => setNewProduct({ ...newProduct, quantity: parseInt(e.target.value) || 0 })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-4 focus:ring-orange-100 focus:border-orange-500 transition-all duration-200 text-sm bg-white hover:border-orange-400"
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="relative group">
-                    <label className="block text-sm font-semibold text-gray-800 mb-3">
-                      <div className="flex items-center">
-                        <div className="p-2 bg-purple-100 rounded-lg mr-3">
-                          <span className="text-purple-600 font-bold text-sm">📏</span>
-                        </div>
-                        Unit *
-                      </div>
-                    </label>
-                    <select
-                      value={newProduct.unit}
-                      onChange={e => setNewProduct({ ...newProduct, unit: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-4 focus:ring-purple-100 focus:border-purple-500 transition-all duration-200 text-sm bg-white hover:border-purple-400"
-                      required
-                    >
-                      <option value="piece">Piece</option>
-                      <option value="kg">Kilogram (kg)</option>
-                      <option value="g">Gram (g)</option>
-                      <option value="liter">Liter</option>
-                      <option value="ml">Milliliter (ml)</option>
-                      <option value="box">Box</option>
-                      <option value="bag">Bag</option>
-                      <option value="dozen">Dozen</option>
-                      <option value="pack">Pack</option>
-                    </select>
-                  </div>
-                  
-                  <div className="relative group">
-                    <label className="block text-sm font-semibold text-gray-800 mb-3">
-                      <div className="flex items-center">
-                        <div className="p-2 bg-yellow-100 rounded-lg mr-3">
-                          <span className="text-yellow-600 font-bold text-sm">🏭</span>
-                        </div>
-                        Brand
-                      </div>
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="e.g., AgroFlow"
-                      value={newProduct.brand}
-                      onChange={e => setNewProduct({ ...newProduct, brand: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-4 focus:ring-yellow-100 focus:border-yellow-500 transition-all duration-200 text-sm bg-white hover:border-yellow-400"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="relative group">
-                    <label className="block text-sm font-semibold text-gray-800 mb-3">
-                      <div className="flex items-center">
-                        <div className="p-2 bg-indigo-100 rounded-lg mr-3">
-                          <span className="text-indigo-600 font-bold text-sm">🔖</span>
-                        </div>
-                        SKU
-                      </div>
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="Auto-generated if empty"
-                      value={newProduct.sku}
-                      onChange={e => setNewProduct({ ...newProduct, sku: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 transition-all duration-200 text-sm bg-white hover:border-indigo-400"
-                    />
-                  </div>
-                  
-                  <div className="relative group">
-                    <label className="block text-sm font-semibold text-gray-800 mb-3">
-                      <div className="flex items-center">
-                        <div className="p-2 bg-pink-100 rounded-lg mr-3">
-                          <span className="text-pink-600 font-bold text-sm">🚦</span>
-                        </div>
-                        Status
-                      </div>
-                    </label>
-                    <select
-                      value={newProduct.status}
-                      onChange={e => setNewProduct({ ...newProduct, status: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-4 focus:ring-pink-100 focus:border-pink-500 transition-all duration-200 text-sm bg-white hover:border-pink-400"
-                    >
-                      <option value="available">Available</option>
-                      <option value="out_of_stock">Out of Stock</option>
-                      <option value="discontinued">Discontinued</option>
-                    </select>
-                  </div>
-                </div>
-                <div className="relative group">
-                  <label className="block text-sm font-semibold text-gray-800 mb-3">
-                    <div className="flex items-center">
-                      <div className="p-2 bg-gray-100 rounded-lg mr-3">
-                        <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
-                        </svg>
-                      </div>
-                      Description
-                    </div>
-                  </label>
-                  <textarea
-                    placeholder="Describe the product for Rwandan avocado farming"
-                    value={newProduct.description}
-                    onChange={e => setNewProduct({ ...newProduct, description: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-4 focus:ring-gray-100 focus:border-gray-500 transition-all duration-200 text-sm bg-white hover:border-gray-400"
-                    rows="4"
-                  />
-                  <div className="absolute inset-0 rounded-xl border-2 border-transparent group-hover:border-gray-200 transition-all duration-200 pointer-events-none"></div>
-                </div>
-                <div className="flex justify-end gap-4 mt-8">
-                  <button
-                    type="button"
-                    onClick={() => setShowAddForm(false)}
-                    className="px-6 py-3 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 focus:outline-none focus:ring-4 focus:ring-gray-200 transition-all duration-200"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={isAdding}
-                    className="px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl font-medium hover:from-green-600 hover:to-emerald-700 focus:outline-none focus:ring-4 focus:ring-green-200 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
-                  >
-                    {isAdding ? (
-                      <span className="flex items-center">
-                        <svg className="animate-spin h-5 w-5 mr-2 text-white" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
-                        </svg>
-                        Adding...
-                      </span>
-                    ) : (
-                      'Add Product'
-                    )}
-                  </button>
-                </div>
-              </form>
             </div>
-          </div>
-        )}
 
-        {/* Edit Product Modal */}
-        {editingProduct && (
-          <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
-              <div className="sticky top-0 bg-white px-8 py-6 border-b border-gray-200 rounded-t-2xl flex items-center justify-between">
-                <h2 className="text-2xl font-bold text-green-800 flex items-center gap-3">
-                  <Edit2 className="w-7 h-7" />
-                  Edit Product
-                </h2>
-                <button onClick={handleCancelEdit} className="text-gray-500 hover:text-gray-700 transition-colors">
-                  <X className="w-6 h-6" />
+            {/* Buy on Behalf of Farmer */}
+            <div 
+              onClick={() => handleModeSelection('behalf')}
+              className="bg-white rounded-2xl p-8 shadow-lg border-2 border-transparent hover:border-green-500 cursor-pointer transition-all duration-300 hover:shadow-xl"
+            >
+              <div className="flex flex-col items-center text-center">
+                <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center mb-4">
+                  <Users className="w-10 h-10 text-white" />
+                </div>
+                <h3 className="text-2xl font-bold text-gray-900 mb-2">Buy for Farmer</h3>
+                <p className="text-gray-600 mb-4">Purchase products on behalf of a farmer in your territory</p>
+                <button className="mt-auto px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors">
+                  Select Farmer
                 </button>
               </div>
-              <form onSubmit={handleSaveEdit} className="p-8 space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Product Name */}
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Product Name *</label>
-                    <input
-                      type="text"
-                      required
-                      value={editingProduct.name}
-                      onChange={e => setEditingProduct({ ...editingProduct, name: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-4 focus:ring-green-100 focus:border-green-500 transition-all duration-200"
-                      placeholder="Enter product name"
-                    />
-                  </div>
-
-                  {/* Category */}
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Category *</label>
-                    <select
-                      required
-                      value={editingProduct.category}
-                      onChange={e => setEditingProduct({ ...editingProduct, category: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-4 focus:ring-green-100 focus:border-green-500 transition-all duration-200"
-                    >
-                      <option value="">Select category</option>
-                      <option value="irrigation">Irrigation</option>
-                      <option value="harvesting">Harvesting</option>
-                      <option value="containers">Containers</option>
-                      <option value="pest-management">Pest Management</option>
-                    </select>
-                  </div>
-
-                  {/* Price */}
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Price (RWF) *</label>
-                    <input
-                      type="number"
-                      required
-                      min="0"
-                      step="0.01"
-                      value={editingProduct.price}
-                      onChange={e => setEditingProduct({ ...editingProduct, price: parseFloat(e.target.value) })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-4 focus:ring-green-100 focus:border-green-500 transition-all duration-200"
-                      placeholder="Enter price"
-                    />
-                  </div>
-
-                  {/* Quantity */}
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Quantity *</label>
-                    <input
-                      type="number"
-                      required
-                      min="0"
-                      value={editingProduct.quantity}
-                      onChange={e => setEditingProduct({ ...editingProduct, quantity: parseInt(e.target.value) })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-4 focus:ring-green-100 focus:border-green-500 transition-all duration-200"
-                      placeholder="Enter quantity"
-                    />
-                  </div>
-
-                  {/* Unit */}
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Unit *</label>
-                    <select
-                      required
-                      value={editingProduct.unit}
-                      onChange={e => setEditingProduct({ ...editingProduct, unit: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-4 focus:ring-green-100 focus:border-green-500 transition-all duration-200"
-                    >
-                      <option value="">Select unit</option>
-                      <option value="piece">Piece</option>
-                      <option value="kg">Kilogram (kg)</option>
-                      <option value="g">Gram (g)</option>
-                      <option value="liter">Liter</option>
-                      <option value="ml">Milliliter (ml)</option>
-                      <option value="box">Box</option>
-                      <option value="bag">Bag</option>
-                      <option value="dozen">Dozen</option>
-                      <option value="pack">Pack</option>
-                    </select>
-                  </div>
-
-                  {/* Brand */}
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Brand</label>
-                    <input
-                      type="text"
-                      value={editingProduct.brand || ''}
-                      onChange={e => setEditingProduct({ ...editingProduct, brand: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-4 focus:ring-green-100 focus:border-green-500 transition-all duration-200"
-                      placeholder="Enter brand name"
-                    />
-                  </div>
-
-                  {/* SKU */}
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">SKU</label>
-                    <input
-                      type="text"
-                      value={editingProduct.sku || ''}
-                      onChange={e => setEditingProduct({ ...editingProduct, sku: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-4 focus:ring-green-100 focus:border-green-500 transition-all duration-200"
-                      placeholder="Auto-generated if empty"
-                    />
-                  </div>
-
-                  {/* Status */}
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Status *</label>
-                    <select
-                      required
-                      value={editingProduct.status || 'available'}
-                      onChange={e => setEditingProduct({ ...editingProduct, status: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-4 focus:ring-green-100 focus:border-green-500 transition-all duration-200"
-                    >
-                      <option value="available">Available</option>
-                      <option value="out_of_stock">Out of Stock</option>
-                      <option value="discontinued">Discontinued</option>
-                    </select>
-                  </div>
-                </div>
-
-                {/* Description */}
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Description</label>
-                  <textarea
-                    value={editingProduct.description || ''}
-                    onChange={e => setEditingProduct({ ...editingProduct, description: e.target.value })}
-                    rows="4"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-4 focus:ring-green-100 focus:border-green-500 transition-all duration-200 resize-none"
-                    placeholder="Enter product description"
-                  />
-                </div>
-
-                <div className="flex gap-4 pt-4">
-                  <button
-                    type="button"
-                    onClick={handleCancelEdit}
-                    className="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 focus:outline-none focus:ring-4 focus:ring-gray-100 font-semibold transition-all duration-200"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={isUpdating}
-                    className="flex-1 px-6 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-xl hover:from-green-700 hover:to-green-800 focus:outline-none focus:ring-4 focus:ring-green-200 font-semibold transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                  >
-                    {isUpdating ? (
-                      <span className="flex items-center gap-2">
-                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        Updating...
-                      </span>
-                    ) : (
-                      'Save Changes'
-                    )}
-                  </button>
-                </div>
-              </form>
             </div>
           </div>
-        )}
+        </div>
+      </div>
+    );
+  }
 
-        {/* Toolkit Inventory Section */}
-        <div className="mb-6">
-          <div className="mb-6 bg-white rounded-2xl shadow-md p-6 border border-gray-100">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div className="relative flex-1 max-w-md">
+  // STEP 2: Farmer Selection (only if behalf mode)
+  if (currentStep === 2 && purchaseMode === 'behalf') {
+    return (
+      <div className="min-h-screen bg-gray-50 p-4">
+        <div className="max-w-6xl mx-auto">
+          {/* Header */}
+          <div className="mb-6">
+            <button 
+              onClick={handleBackToMode}
+              className="mb-4 px-4 py-2 text-green-600 hover:text-green-700 font-medium flex items-center"
+            >
+              ← Back to Mode Selection
+            </button>
+            <h1 className="text-3xl font-bold text-gray-900">Select Farmer</h1>
+            <p className="text-gray-600 mt-1">Choose a farmer from your territory to buy products on their behalf</p>
+          </div>
+
+          {/* Search and Filters */}
+          <div className="bg-white rounded-xl shadow p-6 mb-6">
+            <div className="grid md:grid-cols-4 gap-4 mb-4">
+              <div className="md:col-span-4">
+                <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
                   <input
                     type="text"
-                    placeholder="Search toolkits..."
-                    onChange={e => setSearchTerm(e.target.value)}
-                    className="w-full pl-10 pr-3 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-4 focus:ring-green-100 focus:border-green-500 transition-all duration-200 text-sm bg-white hover:border-green-400"
+                    placeholder="Search by name, email, or phone..."
+                    value={searchFarmerTerm}
+                    onChange={(e) => setSearchFarmerTerm(e.target.value)}
+                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
                   />
                 </div>
-                <div className="flex flex-col sm:flex-row gap-4">
-                  <div className="relative">
-                    <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                    <select
-                      value={categoryFilter}
-                      onChange={e => setCategoryFilter(e.target.value)}
-                      className="pl-10 pr-8 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-4 focus:ring-green-100 focus:border-green-500 transition-all duration-200 text-sm bg-white hover:border-green-400"
-                    >
-                      {categories.map(category => (
-                        <option key={category} value={category}>
-                          {category === 'all' ? 'All Categories' : category}
-                        </option>
-                      ))}
-                    </select>
+              </div>
+
+              <select
+                value={selectedDistrict}
+                onChange={(e) => { setSelectedDistrict(e.target.value); setSelectedSector(''); setSelectedCell(''); }}
+                className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+              >
+                <option value="">All Districts</option>
+                {getUniqueDistricts().map(district => (
+                  <option key={district} value={district}>{district}</option>
+                ))}
+              </select>
+
+              <select
+                value={selectedSector}
+                onChange={(e) => { setSelectedSector(e.target.value); setSelectedCell(''); }}
+                disabled={!selectedDistrict}
+                className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 disabled:bg-gray-100"
+              >
+                <option value="">All Sectors</option>
+                {getUniqueSectors().map(sector => (
+                  <option key={sector} value={sector}>{sector}</option>
+                ))}
+              </select>
+
+              <select
+                value={selectedCell}
+                onChange={(e) => setSelectedCell(e.target.value)}
+                disabled={!selectedSector}
+                className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 disabled:bg-gray-100"
+              >
+                <option value="">All Cells</option>
+                {getUniqueCells().map(cell => (
+                  <option key={cell} value={cell}>{cell}</option>
+                ))}
+              </select>
+
+              <button
+                onClick={() => { setSelectedDistrict(''); setSelectedSector(''); setSelectedCell(''); setSearchFarmerTerm(''); }}
+                className="px-4 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                Clear Filters
+              </button>
+            </div>
+          </div>
+
+          {/* Farmers List */}
+          {loading ? (
+            <div className="bg-white rounded-xl shadow p-12 text-center">
+              <Loader2 className="w-12 h-12 mx-auto text-green-600 animate-spin mb-4" />
+              <p className="text-gray-600">Loading farmers...</p>
+            </div>
+          ) : filteredFarmers.length > 0 ? (
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredFarmers.map((farmer) => (
+                <div
+                  key={farmer.id || farmer._id}
+                  onClick={() => handleFarmerSelection(farmer)}
+                  className="bg-white rounded-xl shadow p-6 cursor-pointer hover:shadow-lg hover:border-green-500 border-2 border-transparent transition-all"
+                >
+                  <div className="flex items-start space-x-4">
+                    <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
+                      <User className="w-6 h-6 text-green-600" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold text-gray-900 truncate">{farmer.full_name || 'Unknown Farmer'}</h3>
+                      <p className="text-sm text-gray-600 truncate">{farmer.email || 'No email'}</p>
+                      <p className="text-sm text-gray-600">{farmer.phone || 'No phone'}</p>
+                      <div className="mt-2 text-xs text-gray-500">
+                        <p>{farmer.profile?.district || farmer.district || 'N/A'}, {farmer.profile?.sector || farmer.sector || 'N/A'}</p>
+                      </div>
+                    </div>
                   </div>
-                  <div className="relative">
-                    <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                    <select
-                      value={stockStatusFilter}
-                      onChange={e => setStockStatusFilter(e.target.value)}
-                      className="pl-10 pr-8 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-4 focus:ring-green-100 focus:border-green-500 transition-all duration-200 text-sm bg-white hover:border-green-400"
-                    >
-                      <option value="all">All Stock Status</option>
-                      <option value="inStock">In Stock</option>
-                      <option value="lowStock">Low Stock</option>
-                      <option value="outOfStock">Out of Stock</option>
-                    </select>
-                  </div>
-                  <select
-                    value={sortBy}
-                    onChange={e => setSortBy(e.target.value)}
-                    className="px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-4 focus:ring-green-100 focus:border-green-500 transition-all duration-200 text-sm bg-white hover:border-green-400"
-                  >
-                    <option value="name">Sort by Name</option>
-                    <option value="stock">Sort by Stock</option>
-                  </select>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="bg-white rounded-xl shadow p-12 text-center">
+              <Users className="w-12 h-12 mx-auto text-gray-400 mb-4" />
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">No Farmers Found</h3>
+              <p className="text-gray-600">Try adjusting your filters or search term</p>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // STEP 3: Shop Products
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Cart Sidebar */}
+      <CartSidebar
+        isCartOpen={isCartOpen}
+        setIsCartOpen={setIsCartOpen}
+        cartItems={cartItems}
+        cartCount={cartCount}
+        updateCartQuantity={updateCartQuantity}
+        removeFromCart={removeFromCart}
+        handleCheckout={handleCheckout}
+      />
+
+      {/* Payment Modal (same as HarvestingKit) */}
+      {showPaymentModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl max-w-md w-full mx-4 p-6 shadow-2xl">
+            {paymentSuccess ? (
+              <div className="text-center">
+                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <CheckCircle className="w-10 h-10 text-green-600" />
+                </div>
+                <h3 className="text-2xl font-bold text-gray-900 mb-2">Payment Successful!</h3>
+                <p className="text-gray-600 mb-6">Your order has been placed successfully</p>
+                <button
+                  onClick={closePaymentModal}
+                  className="w-full py-3 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700"
+                >
+                  Continue Shopping
+                </button>
+              </div>
+            ) : paymentStep === 'provider' ? (
+              <div>
+                <h3 className="text-xl font-bold text-gray-900 mb-4">Select Payment Provider</h3>
+                <div className="space-y-3">
                   <button
-                    onClick={() => window.location.reload()}
-                    className="inline-flex items-center px-4 py-3 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 focus:outline-none focus:ring-4 focus:ring-gray-200 transition-all duration-200"
+                    onClick={() => handleProviderSelect('mtn')}
+                    className="w-full p-4 border-2 border-gray-200 rounded-lg hover:border-yellow-500 hover:bg-yellow-50 transition-all text-left"
                   >
-                    <RefreshCw className="w-4 h-4 mr-2" /> Refresh
+                    <div className="font-semibold text-gray-900">MTN Mobile Money</div>
+                    <div className="text-sm text-gray-600">Pay with MTN MoMo</div>
+                  </button>
+                  <button
+                    onClick={() => handleProviderSelect('airtel')}
+                    className="w-full p-4 border-2 border-gray-200 rounded-lg hover:border-red-500 hover:bg-red-50 transition-all text-left"
+                  >
+                    <div className="font-semibold text-gray-900">Airtel Money</div>
+                    <div className="text-sm text-gray-600">Pay with Airtel Money</div>
+                  </button>
+                </div>
+                <button
+                  onClick={closePaymentModal}
+                  className="w-full mt-4 py-2 text-gray-600 hover:text-gray-800"
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : paymentStep === 'phone' ? (
+              <div>
+                <h3 className="text-xl font-bold text-gray-900 mb-4">Enter Phone Number</h3>
+                <input
+                  type="tel"
+                  value={paymentPhone}
+                  onChange={(e) => setPhoneNumber(e.target.value)}
+                  placeholder="078XXXXXXX"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 mb-2"
+                />
+                {paymentError && (
+                  <p className="text-sm text-red-600 mb-3">{paymentError}</p>
+                )}
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setPaymentStep('provider')}
+                    className="flex-1 py-3 border border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50"
+                  >
+                    Back
+                  </button>
+                  <button
+                    onClick={handlePhoneSubmit}
+                    className="flex-1 py-3 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700"
+                  >
+                    Continue
                   </button>
                 </div>
               </div>
-            </div>
-
-            <div className="bg-white rounded-2xl shadow-md overflow-hidden border border-gray-100">
-              <div className="px-6 py-4 border-b border-gray-200">
-                <h2 className="text-lg font-semibold text-gray-900">Toolkit Inventory for Rwandan Avocado Farms</h2>
-                <p className="text-sm text-gray-600 mt-1">
-                  Showing <strong>{filteredProducts.length}</strong> product{filteredProducts.length !== 1 ? 's' : ''}
-                </p>
-              </div>
-              
-              {loading ? (
-                <div className="p-12 text-center">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto border-green-600"></div>
-                  <p className="mt-4 text-sm text-gray-600">Loading inventory...</p>
+            ) : (
+              <div>
+                <h3 className="text-xl font-bold text-gray-900 mb-4">Confirm Payment</h3>
+                <div className="bg-gray-50 rounded-lg p-4 mb-4">
+                  <div className="flex justify-between mb-2">
+                    <span className="text-gray-600">Provider:</span>
+                    <span className="font-semibold">{mobileProvider === 'mtn' ? 'MTN MoMo' : 'Airtel Money'}</span>
+                  </div>
+                  <div className="flex justify-between mb-2">
+                    <span className="text-gray-600">Phone:</span>
+                    <span className="font-semibold">{paymentPhone}</span>
+                  </div>
+                  <div className="flex justify-between mb-2">
+                    <span className="text-gray-600">Buying for:</span>
+                    <span className="font-semibold">{purchaseMode === 'self' ? 'Myself (Agent)' : selectedFarmer?.full_name}</span>
+                  </div>
+                  <div className="flex justify-between pt-2 border-t border-gray-300">
+                    <span className="text-gray-900 font-bold">Total Amount:</span>
+                    <span className="text-green-600 font-bold">{pendingOrder?.totalAmount.toLocaleString()} RWF</span>
+                  </div>
                 </div>
-              ) : filteredProducts.length > 0 ? (
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stock</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {filteredProducts.map(product => {
-                        const stock = product.quantity || product.stock || 0;
-                        const stockStatus = getStockStatus(stock);
-                        const productId = product.id || product._id;
-                        
-                        return (
-                          <tr key={productId} className="hover:bg-gray-50 transition">
-                            <td className="px-6 py-4">
-                              <div className="flex items-center">
-                                <div className="h-12 w-12 bg-gradient-to-br from-green-100 to-green-200 rounded-lg flex items-center justify-center mr-4">
-                                  <Package2 className="h-6 w-6 text-green-700" />
-                                </div>
-                                <div>
-                                  <div className="text-sm font-medium text-gray-900">{product.name}</div>
-                                  <div className="text-sm text-gray-500">SKU: {product.sku || 'N/A'}</div>
-                                  {product.brand && (
-                                    <div className="text-xs text-gray-400 mt-0.5">{product.brand}</div>
-                                  )}
-                                </div>
-                              </div>
-                            </td>
-                            <td className="px-6 py-4">
-                              <div className="text-sm text-gray-900 capitalize">
-                                {product.category?.split('-').join(' ')}
-                              </div>
-                            </td>
-                            <td className="px-6 py-4">
-                              <div className="text-sm font-medium text-gray-900">
-                                {stock} {product.unit || 'units'}
-                              </div>
-                              <span className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full ${stockStatus.color} mt-1`}>
-                                {stockStatus.text}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4">
-                              <div className="text-sm font-medium text-gray-900">
-                                {formatRwf(product.price)}
-                              </div>
-                            </td>
-                            <td className="px-6 py-4">
-                              <span className={`inline-flex items-center px-2.5 py-1 text-xs font-semibold rounded-full border ${getStatusColor(product.status)}`}>
-                                {getStatusIcon(product.status)}
-                                <span className="ml-1 capitalize">
-                                  {product.status?.split('_').join(' ') || 'Available'}
-                                </span>
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 text-sm font-medium">
-                              <div className="flex space-x-2">
-                                {/* Manager: Full CRUD access */}
-                                {currentRole === 'manager' && (
-                                  <>
-                                    <button
-                                      onClick={() => handleUpdateStock(productId, stock + 1)}
-                                      className="text-green-600 hover:text-green-900 transition p-1 hover:bg-green-50 rounded"
-                                      title="Add Stock"
-                                      disabled={isUpdating}
-                                    >
-                                      <PlusCircle className="h-5 w-5" />
-                                    </button>
-                                    <button
-                                      onClick={() => handleUpdateStock(productId, stock - 1)}
-                                      disabled={stock === 0 || isUpdating}
-                                      className="text-orange-600 hover:text-orange-900 transition p-1 hover:bg-orange-50 rounded disabled:opacity-50 disabled:cursor-not-allowed"
-                                      title="Remove Stock"
-                                    >
-                                      <MinusCircle className="h-5 w-5" />
-                                    </button>
-                                    <button
-                                      onClick={() => handleEditProduct(product)}
-                                      className="text-blue-600 hover:text-blue-900 transition p-1 hover:bg-blue-50 rounded"
-                                      title="Edit Product"
-                                      disabled={isUpdating}
-                                    >
-                                      <Edit2 className="h-5 w-5" />
-                                    </button>
-                                    <button
-                                      onClick={() => handleDeleteProduct(productId)}
-                                      className="text-red-600 hover:text-red-900 transition p-1 hover:bg-red-50 rounded"
-                                      title="Delete Product (Manager Only)"
-                                      disabled={isUpdating}
-                                    >
-                                      <Trash2 className="h-5 w-5" />
-                                    </button>
-                                  </>
-                                )}
-                                {/* Agent: CRU access (no Delete) */}
-                                {currentRole === 'agent' && (
-                                  <>
-                                    <button
-                                      onClick={() => handleUpdateStock(productId, stock + 1)}
-                                      className="text-green-600 hover:text-green-900 transition p-1 hover:bg-green-50 rounded"
-                                      title="Add Stock"
-                                      disabled={isUpdating}
-                                    >
-                                      <PlusCircle className="h-5 w-5" />
-                                    </button>
-                                    <button
-                                      onClick={() => handleUpdateStock(productId, stock - 1)}
-                                      disabled={stock === 0 || isUpdating}
-                                      className="text-orange-600 hover:text-orange-900 transition p-1 hover:bg-orange-50 rounded disabled:opacity-50 disabled:cursor-not-allowed"
-                                      title="Remove Stock"
-                                    >
-                                      <MinusCircle className="h-5 w-5" />
-                                    </button>
-                                    <button
-                                      onClick={() => handleEditProduct(product)}
-                                      className="text-blue-600 hover:text-blue-900 transition p-1 hover:bg-blue-50 rounded"
-                                      title="Edit Product"
-                                      disabled={isUpdating}
-                                    >
-                                      <Edit2 className="h-5 w-5" />
-                                    </button>
-                                  </>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <div className="p-12 text-center">
-                  <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
-                    />
-                  </svg>
-                  <h3 className="mt-2 text-sm font-medium text-gray-900">No toolkits found</h3>
-                  <p className="mt-1 text-sm text-gray-500">
-                    {searchTerm ? 'No products match your search.' : 'Get started by adding your first product.'}
-                  </p>
-                  {!searchTerm && (
+                {paymentProcessing ? (
+                  <div className="text-center py-4">
+                    <Loader2 className="w-8 h-8 text-green-600 animate-spin mx-auto mb-2" />
+                    <p className="text-gray-600">Processing payment...</p>
+                  </div>
+                ) : (
+                  <div className="flex gap-3">
                     <button
-                      onClick={() => setShowAddForm(true)}
-                      className="mt-6 inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 transition-all duration-200"
+                      onClick={() => setPaymentStep('phone')}
+                      className="flex-1 py-3 border border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50"
                     >
-                      <Plus className="w-5 h-5 mr-2" /> Add Product
+                      Back
                     </button>
-                  )}
-                </div>
+                    <button
+                      onClick={handlePaymentComplete}
+                      className="flex-1 py-3 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700"
+                    >
+                      Pay Now
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Header */}
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <div className="flex items-center gap-4 mb-2">
+              {(purchaseMode === 'behalf' && currentStep === 3) && (
+                <button
+                  onClick={handleBackToFarmers}
+                  className="text-green-600 hover:text-green-700 font-medium"
+                >
+                  ← Change Farmer
+                </button>
+              )}
+              {currentStep === 3 && (
+                <button
+                  onClick={handleBackToMode}
+                  className="text-green-600 hover:text-green-700 font-medium"
+                >
+                  ← Change Purchase Mode
+                </button>
               )}
             </div>
+            <h1 className="text-3xl font-bold text-gray-900">Agent Shop</h1>
+            {purchaseMode === 'behalf' && selectedFarmer && (
+              <p className="text-gray-600 mt-1">
+                Shopping for: <span className="font-semibold text-green-600">{selectedFarmer.full_name}</span>
+              </p>
+            )}
+            {purchaseMode === 'self' && (
+              <p className="text-gray-600 mt-1">Shopping for yourself</p>
+            )}
+          </div>
+          
+          <button
+            onClick={() => setIsCartOpen(true)}
+            className="relative px-6 py-3 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-all flex items-center gap-2"
+          >
+            <ShoppingCart className="w-5 h-5" />
+            <span>Cart</span>
+            {cartCount > 0 && (
+              <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center">
+                {cartCount}
+              </span>
+            )}
+          </button>
         </div>
+
+        {/* Search and Filters */}
+        <div className="bg-white rounded-xl shadow p-4 mb-6">
+          <div className="flex gap-4">
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search products..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+              />
+            </div>
+            <select
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
+              className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+            >
+              {categories.map(category => (
+                <option key={category} value={category}>
+                  {category === 'all' ? 'All Categories' : category}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* Products Grid */}
+        {loading ? (
+          <div className="bg-white rounded-xl shadow p-12 text-center">
+            <Loader2 className="w-12 h-12 mx-auto text-green-600 animate-spin mb-4" />
+            <p className="text-gray-600">Loading products...</p>
+          </div>
+        ) : filteredProducts.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {filteredProducts.map((product) => (
+              <div
+                key={product.id}
+                className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-all duration-300 border border-gray-100"
+              >
+                <div className="relative h-48 bg-gradient-to-br from-green-100 to-green-200 flex items-center justify-center">
+                  {product.image ? (
+                    <img 
+                      src={product.image} 
+                      alt={product.name}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                        e.target.nextSibling.style.display = 'flex';
+                      }}
+                    />
+                  ) : null}
+                  <div className="hidden w-full h-full items-center justify-center">
+                    <Package className="w-16 h-16 text-green-600" />
+                  </div>
+                  {product.originalPrice && (
+                    <div className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded">
+                      SALE
+                    </div>
+                  )}
+                </div>
+                
+                <div className="p-4">
+                  <h3 className="font-bold text-gray-900 mb-1 text-lg truncate">{product.name}</h3>
+                  <p className="text-sm text-gray-600 mb-3 line-clamp-2">{product.description}</p>
+                  
+                  <div className="flex items-baseline gap-2 mb-3">
+                    <span className="text-2xl font-bold text-green-600">
+                      {product.price.toLocaleString()} RWF
+                    </span>
+                    {product.originalPrice && (
+                      <span className="text-sm text-gray-500 line-through">
+                        {product.originalPrice.toLocaleString()} RWF
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-xs text-gray-500">{product.capacity}</span>
+                    <span className="text-xs text-green-600 font-semibold">In Stock</span>
+                  </div>
+
+                  <button
+                    onClick={() => addToCart(product)}
+                    disabled={addingToCart === product.id || justAdded === product.id}
+                    className={`w-full py-2.5 rounded-lg font-semibold transition-all duration-300 flex items-center justify-center gap-2 ${
+                      justAdded === product.id
+                        ? 'bg-green-100 text-green-700'
+                        : addingToCart === product.id
+                        ? 'bg-gray-100 text-gray-400'
+                        : 'bg-green-600 text-white hover:bg-green-700'
+                    }`}
+                  >
+                    {addingToCart === product.id ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Adding...</span>
+                      </>
+                    ) : justAdded === product.id ? (
+                      <>
+                        <CheckCircle className="w-4 h-4" />
+                        <span>Added!</span>
+                      </>
+                    ) : (
+                      <>
+                        <ShoppingCart className="w-4 h-4" />
+                        <span>Add to Cart</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="bg-white rounded-xl shadow p-12 text-center">
+            <Package className="w-16 h-16 mx-auto text-gray-400 mb-4" />
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">No Products Found</h3>
+            <p className="text-gray-600">
+              {searchTerm || categoryFilter !== 'all' 
+                ? 'Try adjusting your search or filters' 
+                : 'No products available at the moment'}
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );

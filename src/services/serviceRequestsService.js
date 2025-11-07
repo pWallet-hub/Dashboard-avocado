@@ -252,6 +252,7 @@ export async function listHarvestRequests(options = {}) {
     if (options.priority) params.priority = options.priority;
     if (options.harvest_date_from) params.harvest_date_from = options.harvest_date_from;
     if (options.harvest_date_to) params.harvest_date_to = options.harvest_date_to;
+    if (options.agent_id) params.agent_id = options.agent_id; // Add agent_id filter
     
     console.log('📤 Request params:', params);
     

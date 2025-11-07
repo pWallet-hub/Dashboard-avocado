@@ -1,359 +1,715 @@
 import React, { useState } from 'react';
-import { CheckCircle } from 'lucide-react';
-import DashboardHeader from "../../components/Header/DashboardHeader";
 
-const PestManagement = () => {
-  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
-  const [selectedFile, setSelectedFile] = useState(null);
-  const [formData, setFormData] = useState({
-    firstPestDisease: '',
-    secondPestDisease: '',
-    thirdPestDisease: '',
-    firstPestDate: '',
-    secondPestDate: '',
-    thirdPestDate: '',
-    firstNoticed: '',
-    damageObserved: '',
-    damageObservedOther: '',
-    controlMethods: ''
-  });
+const diseases = [
+  { disease: "Root Rot (Phytophthora Root Rot)", symptoms: "Wilting, leaf yellowing, twig dieback, root decay with brown/black rot, stunted trees" },
+  { disease: "Anthracnose", symptoms: "Black sunken spots on fruit, lesions on twigs and leaves, postharvest rot" },
+  { disease: "Stem-End Rot", symptoms: "Brown to black decay at fruit stem end, extends inward postharvest" },
+  { disease: "Cercospora Spot (Leaf and Fruit Spot)", symptoms: "Purplish-brown leaf spots, small dark fruit lesions that crack" },
+  { disease: "Scab", symptoms: "Raised corky brown lesions on fruit, leaves, and twigs" },
+  { disease: "Botryosphaeria Dieback / Canker", symptoms: "Branch dieback, bark cracking, gumming" },
+  { disease: "Powdery Mildew", symptoms: "White powdery growth on young leaves, defoliation, flower abortion" },
+  { disease: "Armillaria Root Rot", symptoms: "Honey-colored mushrooms at base, white mycelial mats under bark" },
+  { disease: "Bacterial Canker", symptoms: "Water-soaked leaf spots, twig dieback, cankers on stems" },
+  { disease: "Bacterial Soft Rot (Postharvest)", symptoms: "Soft, watery fruit decay, foul odor" },
+  { disease: "Sunblotch", symptoms: "Yellow streaks on fruit, cracked bark, reduced fruit set, stunted growth" },
+  { disease: "Tip Burn / Leaf Burn", symptoms: "Brown leaf tips and margins" },
+  { disease: "Fruit Drop", symptoms: "Premature fruit fall" },
+  { disease: "Sunburn", symptoms: "Brown patches on fruit and exposed bark" }
+];
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+const pests = [
+  { pest: "Fruit fly", damage: "Larvae bore into fruit, causing rotting and early drop" },
+  { pest: "Seed weevil", damage: "Larvae feed inside the seed, fruit often drops" },
+  { pest: "Avocado seed moth", damage: "Larvae tunnel in seed and pulp" },
+  { pest: "Avocado lace bug", damage: "Sucks sap from underside of leaves to yellow stippling, leaf drop" },
+  { pest: "Leaf miner", damage: "Mines leaves, distorting growth" },
+  { pest: "Thrips", damage: "Feed on fruit epidermis to russeting and scarring" },
+  { pest: "Loopers / Caterpillars", damage: "Feed on tender leaves, flowers" },
+  { pest: "Whiteflies", damage: "Sap sucking to honeydew to sooty mold" },
+  { pest: "Shot hole borer / Ambrosia beetle", damage: "Bore into stems, inoculate fungi to dieback" },
+  { pest: "Bark beetle", damage: "Bores into branches; associated with Fusarium fungi" },
+  { pest: "Stem borer", damage: "Boring holes in stems and branches" },
+  { pest: "Persea mite", damage: "Yellow necrotic spots on underside of leaves; defoliation" },
+  { pest: "Avocado brown mite", damage: "Causes bronzing of leaves" },
+  { pest: "Root weevil", damage: "Larvae feed on roots, adults notch leaves" },
+  { pest: "Root mealybugs", damage: "Suck root sap, promote fungal growth" },
+  { pest: "Termites", damage: "Feed on bark, weaken tree base" },
+  { pest: "Snails & slugs", damage: "Feed on young shoots and leaves" },
+  { pest: "Rodents (rats, squirrels)", damage: "Gnaw fruits, bark, and seedlings" },
+  { pest: "Birds (esp. bulbuls, starlings)", damage: "Peck ripe fruits" }
+];
+
+export default function App() {
+  const [selectedDisease, setSelectedDisease] = useState('');
+  const [selectedSymptom, setSelectedSymptom] = useState('');
+  const [selectedPest, setSelectedPest] = useState('');
+  const [selectedDamage, setSelectedDamage] = useState('');
+  const [pestNoticed, setPestNoticed] = useState('');
+  const [controlMethods, setControlMethods] = useState('');
+  const [primaryImage, setPrimaryImage] = useState(null);
+  const [secondaryImage, setSecondaryImage] = useState(null);
+  const [errors, setErrors] = useState({});
+  const [submitted, setSubmitted] = useState(false);
+
+  const handleDiseaseChange = (e) => {
+    const index = e.target.value;
+    setSelectedDisease(index);
+    setSelectedSymptom(index);
+    if (errors.disease) {
+      setErrors(prev => ({ ...prev, disease: '' }));
+    }
   };
 
-  const handleFileSelect = (e) => {
+  const handleSymptomChange = (e) => {
+    const index = e.target.value;
+    setSelectedSymptom(index);
+    setSelectedDisease(index);
+    if (errors.disease) {
+      setErrors(prev => ({ ...prev, disease: '' }));
+    }
+  };
+
+  const handlePestChange = (e) => {
+    const index = e.target.value;
+    setSelectedPest(index);
+    setSelectedDamage(index);
+    if (errors.pest) {
+      setErrors(prev => ({ ...prev, pest: '' }));
+    }
+  };
+
+  const handleDamageChange = (e) => {
+    const index = e.target.value;
+    setSelectedDamage(index);
+    setSelectedPest(index);
+    if (errors.pest) {
+      setErrors(prev => ({ ...prev, pest: '' }));
+    }
+  };
+
+  const handlePrimaryImage = (e) => {
     const file = e.target.files[0];
-    setSelectedFile(file);
+    if (file && file.type.startsWith('image/')) {
+      setPrimaryImage(file);
+      setErrors(prev => ({ ...prev, primaryImage: '' }));
+    } else if (file) {
+      setErrors(prev => ({ ...prev, primaryImage: 'Please upload a valid image file' }));
+    }
   };
 
-  const handleUpload = () => {
-    if (selectedFile) {
-      console.log('Uploading file:', selectedFile.name);
-      // Handle file upload logic here
+  const handleSecondaryImage = (e) => {
+    const file = e.target.files[0];
+    if (file && file.type.startsWith('image/')) {
+      setSecondaryImage(file);
     }
   };
 
   const validateForm = () => {
-    if (!formData.firstPestDisease.trim()) {
-      alert('Please enter the 1st Pest or Disease Name (mandatory field)');
-      return false;
+    const newErrors = {};
+
+    if (!selectedDisease && !selectedPest) {
+      newErrors.general = 'Please select at least one disease or pest issue';
     }
-    return true;
+
+    if (!pestNoticed) {
+      newErrors.pestNoticed = 'Please select when you noticed the issue';
+    }
+
+    if (!primaryImage) {
+      newErrors.primaryImage = 'Primary image is required';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    
-    if (!validateForm()) {
-      return;
+    if (validateForm()) {
+      setSubmitted(true);
     }
-    
-    // Get farmer information from localStorage or use default values
-    const farmerName = localStorage.getItem('farmerName') || localStorage.getItem('username') || 'John Doe';
-    const farmerPhone = localStorage.getItem('farmerPhone') || '+250 123 456 789';
-    const farmerEmail = localStorage.getItem('farmerEmail') || localStorage.getItem('username') || 'farmer@example.com';
-    const farmerLocation = localStorage.getItem('farmerLocation') || 'Kigali, Rwanda';
-
-    const newRequest = {
-      id: Date.now().toString(),
-      type: 'Pest Management',
-      status: 'pending',
-      submittedAt: new Date().toISOString(),
-      farmerName,
-      farmerPhone,
-      farmerEmail,
-      farmerLocation,
-      firstPestDisease: formData.firstPestDisease,
-      secondPestDisease: formData.secondPestDisease,
-      thirdPestDisease: formData.thirdPestDisease,
-      firstPestDate: formData.firstPestDate,
-      secondPestDate: formData.secondPestDate,
-      thirdPestDate: formData.thirdPestDate,
-      firstNoticed: formData.firstNoticed,
-      damageObserved: formData.damageObserved,
-      damageObservedOther: formData.damageObservedOther,
-      controlMethods: formData.controlMethods,
-      uploadedImage: selectedFile ? selectedFile.name : null
-    };
-
-    // Get existing requests from localStorage
-    const existingRequests = JSON.parse(localStorage.getItem('farmerServiceRequests') || '[]');
-    const updatedRequests = [...existingRequests, newRequest];
-    
-    // Save to localStorage
-    localStorage.setItem('farmerServiceRequests', JSON.stringify(updatedRequests));
-    
-    console.log('Pest Management request submitted:', newRequest);
-    setShowSuccessMessage(true);
   };
 
-  const resetForm = () => {
-    setFormData({
-      firstPestDisease: '',
-      secondPestDisease: '',
-      thirdPestDisease: '',
-      firstPestDate: '',
-      secondPestDate: '',
-      thirdPestDate: '',
-      firstNoticed: '',
-      damageObserved: '',
-      damageObservedOther: '',
-      controlMethods: ''
-    });
-    setSelectedFile(null);
-    setShowSuccessMessage(false);
-  };
-
-  const damageOptions = [
-    { value: '', label: 'Select damage observed' },
-    { value: 'Fruits Damage', label: 'Fruits Damage' },
-    { value: 'Some Leaves Damage', label: 'Some Leaves Damage' },
-    { value: 'Tree Trunk Damage', label: 'Tree Trunk Damage' },
-    { value: 'Root Rot', label: 'Root Rot' },
-    { value: 'Other', label: 'Other' }
-  ];
-
-  const renderSuccessMessage = () => (
-    <div className="success-page">
-      <div className="success-container">
-        <div className="success-icon-wrapper">
-          <CheckCircle size={64} className="success-icon" />
+  if (submitted) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        background: 'linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '20px'
+      }}>
+        <div style={{
+          maxWidth: '600px',
+          width: '100%',
+          background: 'white',
+          borderRadius: '16px',
+          // padding: '48px 32px',
+          boxShadow: '0 12px 40px rgba(0, 0, 0, 0.1)',
+          textAlign: 'center'
+        }}>
+          <div style={{
+            width: '80px',
+            height: '80px',
+            background: 'linear-gradient(135deg, #27ae60, #219653)',
+            borderRadius: '50%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            margin: '0 auto 24px'
+          }}>
+            <svg width="40" height="40" fill="none" stroke="white" strokeWidth="3" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+          <h2 style={{
+            fontSize: '28px',
+            color: '#1b5e20',
+            marginBottom: '16px',
+            fontWeight: '700'
+          }}>
+            Diagnosis Submitted Successfully!
+          </h2>
+          <p style={{
+            fontSize: '16px',
+            color: '#555',
+            lineHeight: '1.6',
+            marginBottom: '32px'
+          }}>
+            Thank you for submitting your pest and disease diagnostic form. Our agricultural experts will review your submission and contact you within 24-48 hours with recommendations.
+          </p>
+          <button
+            onClick={() => {
+              setSubmitted(false);
+              setSelectedDisease('');
+              setSelectedSymptom('');
+              setSelectedPest('');
+              setSelectedDamage('');
+              setPestNoticed('');
+              setControlMethods('');
+              setPrimaryImage(null);
+              setSecondaryImage(null);
+              setErrors({});
+            }}
+            style={{
+              padding: '14px 32px',
+              background: 'linear-gradient(to right, #27ae60, #219653)',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              fontSize: '16px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'transform 0.2s'
+            }}
+            onMouseOver={(e) => e.target.style.transform = 'translateY(-2px)'}
+            onMouseOut={(e) => e.target.style.transform = 'translateY(0)'}
+          >
+            Submit Another Diagnosis
+          </button>
         </div>
-        
-        <h2 className="success-title">Pest Management Information Submitted Successfully!</h2>
-        <p className="success-message">Thank you! We've received your pest management information.</p>
-        
-        <button onClick={resetForm} className="success-button">
-          Submit Another Request
-        </button>
       </div>
-    </div>
-  );
-
-  if (showSuccessMessage) {
-    return renderSuccessMessage();
+    );
   }
 
   return (
-    <div className="form-page">
-      <DashboardHeader />
-      <div className="form-container">
-        <h1 className="form-title">
-          <span className="underlined">Pest</span> Management
-        </h1>
-        <div className="explanation-container">
-          <div className="explanation-card">
-            <div className="decorative-line">
-              <div className="line-left"></div>
-              <div className="center-dot"></div>
-              <div className="line-right"></div>
-            </div>
-            
-            <p className="explanation-text">
-              Take your Integrated Pest Management (IPM) to the next level and safeguard our Society's production quality assurance for better market and prices!
-            </p>
-            
-            <div className="animated-dots">
-              <div className="dot dot-1"></div>
-              <div className="dot dot-2"></div>
-              <div className="dot dot-3"></div>
-            </div>
-          </div>
+    <div style={{
+      minHeight: '100vh',
+      // background: 'linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%)',
+      // padding: '40px 20px',
+      fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+    }}>
+      <div style={{
+        maxWidth: '900px',
+        margin: '0 auto',
+        background: 'white',
+        borderRadius: '16px',
+        padding: '9px',
+        boxShadow: '0 12px 40px rgba(0, 0, 0, 0.08)'
+      }}>
+        {/* Header */}
+        <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+          <h1 style={{
+            fontSize: '28px',
+            color: '#1b5e20',
+            marginBottom: '8px',
+            fontWeight: '700',
+            letterSpacing: '-0.5px'
+          }}>
+            Avocado Pest & Disease Diagnostic
+          </h1>
+          <p style={{
+            fontSize: '15px',
+            color: '#666',
+            lineHeight: '1.5'
+          }}>
+            Help us identify and treat issues with your avocado trees
+          </p>
         </div>
-        
-        <div className="form-grid">
-          <div className="form-field">
-            <label className="field-label required">
-              <strong>• What Pest or Disease Are You Dealing With?</strong> <span className="mandatory-asterisk">*</span>
-            </label>
-            <input
-              type="text"
-              name="firstPestDisease"
-              value={formData.firstPestDisease}
-              onChange={handleInputChange}
-              className="field-input"
-              placeholder="Enter pest or disease name"
-              required
-            />
-            {formData.firstPestDisease && (
-              <div className="date-question">
-                <label className="field-label">
-                  • When did you first spot this on your farm?
+
+        <form onSubmit={handleSubmit}>
+          {errors.general && (
+            <div style={{
+              padding: '14px 16px',
+              background: '#fee',
+              border: '1px solid #fcc',
+              borderRadius: '8px',
+              color: '#c33',
+              fontSize: '14px',
+              marginBottom: '24px'
+            }}>
+              {errors.general}
+            </div>
+          )}
+
+          {/* Diseases Section */}
+          <div style={{
+            background: '#f9fafb',
+            padding: '28px',
+            borderRadius: '12px',
+            marginBottom: '24px',
+            border: '2px solid #e5e7eb'
+          }}>
+            <h2 style={{
+              fontSize: '20px',
+              color: '#1b5e20',
+              marginBottom: '20px',
+              fontWeight: '600',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px'
+            }}>
+              <span style={{
+                width: '32px',
+                height: '32px',
+                background: '#27ae60',
+                borderRadius: '6px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'white',
+                fontSize: '16px',
+                fontWeight: '700'
+              }}>1</span>
+              Disease Identification
+            </h2>
+
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: '1fr 1fr', 
+              gap: '20px',
+              marginBottom: '20px'
+            }}>
+              <div>
+                <label style={{
+                  display: 'block',
+                  marginBottom: '8px',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  color: '#374151'
+                }}>
+                  Select Disease
                 </label>
-                <input
-                  type="date"
-                  name="firstPestDate"
-                  value={formData.firstPestDate}
-                  onChange={handleInputChange}
-                  className="field-input date-input"
-                />
+                <select
+                  value={selectedDisease}
+                  onChange={handleDiseaseChange}
+                  style={{
+                    width: '100%',
+                    padding: '12px 16px',
+                    fontSize: '15px',
+                    border: errors.disease ? '2px solid #ef4444' : '2px solid #d1d5db',
+                    borderRadius: '8px',
+                    background: 'white',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  <option value="">-- Select a disease --</option>
+                  {diseases.map((item, index) => (
+                    <option key={index} value={index}>{item.disease}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label style={{
+                  display: 'block',
+                  marginBottom: '8px',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  color: '#374151'
+                }}>
+                  Or Select by Symptoms
+                </label>
+                <select
+                  value={selectedSymptom}
+                  onChange={handleSymptomChange}
+                  style={{
+                    width: '100%',
+                    padding: '12px 16px',
+                    fontSize: '15px',
+                    border: '2px solid #d1d5db',
+                    borderRadius: '8px',
+                    background: 'white',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <option value="">-- Select symptoms --</option>
+                  {diseases.map((item, index) => (
+                    <option key={index} value={index}>{item.symptoms}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {selectedDisease !== '' && (
+              <div style={{
+                padding: '20px',
+                background: 'linear-gradient(135deg, #e8f5e9 0%, #d4edda 100%)',
+                borderRadius: '10px',
+                border: '1px solid #a5d6a7',
+                marginTop: '20px'
+              }}>
+                <p style={{ fontSize: '15px', marginBottom: '8px', color: '#1b5e20' }}>
+                  <strong>Disease:</strong> {diseases[selectedDisease].disease}
+                </p>
+                <p style={{ fontSize: '15px', color: '#2e7d32' }}>
+                  <strong>Symptoms:</strong> {diseases[selectedDisease].symptoms}
+                </p>
               </div>
             )}
           </div>
 
-          <div className="form-field">
-            <label className="field-label">
-              <strong>• What Pest or Disease Are You Dealing With?</strong> <span className="optional-text">(Optional)</span>
-            </label>
-            <input
-              type="text"
-              name="secondPestDisease"
-              value={formData.secondPestDisease}
-              onChange={handleInputChange}
-              className="field-input"
-              placeholder="Enter pest or disease name (optional)"
-            />
-            {formData.secondPestDisease && (
-              <div className="date-question">
-                <label className="field-label">
-                  • When did you first spot this on your farm?
+          {/* Pests Section */}
+          <div style={{
+            background: '#f9fafb',
+            padding: '28px',
+            borderRadius: '12px',
+            marginBottom: '24px',
+            border: '2px solid #e5e7eb'
+          }}>
+            <h2 style={{
+              fontSize: '20px',
+              color: '#1b5e20',
+              marginBottom: '20px',
+              fontWeight: '600',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px'
+            }}>
+              <span style={{
+                width: '32px',
+                height: '32px',
+                background: '#27ae60',
+                borderRadius: '6px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'white',
+                fontSize: '16px',
+                fontWeight: '700'
+              }}>2</span>
+              Pest Identification
+            </h2>
+
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: '1fr 1fr', 
+              gap: '20px',
+              marginBottom: '20px'
+            }}>
+              <div>
+                <label style={{
+                  display: 'block',
+                  marginBottom: '8px',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  color: '#374151'
+                }}>
+                  Select Pest
                 </label>
-                <input
-                  type="date"
-                  name="secondPestDate"
-                  value={formData.secondPestDate}
-                  onChange={handleInputChange}
-                  className="field-input date-input"
-                />
+                <select
+                  value={selectedPest}
+                  onChange={handlePestChange}
+                  style={{
+                    width: '100%',
+                    padding: '12px 16px',
+                    fontSize: '15px',
+                    border: '2px solid #d1d5db',
+                    borderRadius: '8px',
+                    background: 'white',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <option value="">-- Select a pest --</option>
+                  {pests.map((item, index) => (
+                    <option key={index} value={index}>{item.pest}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label style={{
+                  display: 'block',
+                  marginBottom: '8px',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  color: '#374151'
+                }}>
+                  Or Select by Damage Type
+                </label>
+                <select
+                  value={selectedDamage}
+                  onChange={handleDamageChange}
+                  style={{
+                    width: '100%',
+                    padding: '12px 16px',
+                    fontSize: '15px',
+                    border: '2px solid #d1d5db',
+                    borderRadius: '8px',
+                    background: 'white',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <option value="">-- Select damage type --</option>
+                  {pests.map((item, index) => (
+                    <option key={index} value={index}>{item.damage}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {selectedPest !== '' && (
+              <div style={{
+                padding: '20px',
+                background: 'linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%)',
+                borderRadius: '10px',
+                border: '1px solid #ffb74d',
+                marginTop: '20px'
+              }}>
+                <p style={{ fontSize: '15px', marginBottom: '8px', color: '#e65100' }}>
+                  <strong>Pest:</strong> {pests[selectedPest].pest}
+                </p>
+                <p style={{ fontSize: '15px', color: '#f57c00' }}>
+                  <strong>Damage:</strong> {pests[selectedPest].damage}
+                </p>
               </div>
             )}
           </div>
 
-          <div className="form-field">
-            <label className="field-label">
-              <strong>• What Pest or Disease Are You Dealing With?</strong> <span className="optional-text">(Optional)</span>
-            </label>
-            <input
-              type="text"
-              name="thirdPestDisease"
-              value={formData.thirdPestDisease}
-              onChange={handleInputChange}
-              className="field-input"
-              placeholder="Enter pest or disease name (optional)"
-            />
-            {formData.thirdPestDisease && (
-              <div className="date-question">
-                <label className="field-label">
-                  • When did you first spot this on your farm?
+          {/* Additional Information */}
+          <div style={{
+            background: '#f9fafb',
+            padding: '28px',
+            borderRadius: '12px',
+            marginBottom: '24px',
+            border: '2px solid #e5e7eb'
+          }}>
+            <h2 style={{
+              fontSize: '20px',
+              color: '#1b5e20',
+              marginBottom: '20px',
+              fontWeight: '600',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px'
+            }}>
+              <span style={{
+                width: '32px',
+                height: '32px',
+                background: '#27ae60',
+                borderRadius: '6px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'white',
+                fontSize: '16px',
+                fontWeight: '700'
+              }}>3</span>
+              Additional Details
+            </h2>
+
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: '1fr 1fr', 
+              gap: '20px',
+              marginBottom: '20px'
+            }}>
+              <div>
+                <label style={{
+                  display: 'block',
+                  marginBottom: '8px',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  color: '#374151'
+                }}>
+                  When did you first notice the issue? <span style={{ color: '#ef4444' }}>*</span>
                 </label>
-                <input
-                  type="date"
-                  name="thirdPestDate"
-                  value={formData.thirdPestDate}
-                  onChange={handleInputChange}
-                  className="field-input date-input"
-                />
+                <select
+                  value={pestNoticed}
+                  onChange={(e) => {
+                    setPestNoticed(e.target.value);
+                    setErrors(prev => ({ ...prev, pestNoticed: '' }));
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '12px 16px',
+                    fontSize: '15px',
+                    border: errors.pestNoticed ? '2px solid #ef4444' : '2px solid #d1d5db',
+                    borderRadius: '8px',
+                    background: 'white',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <option value="">-- Select timeframe --</option>
+                  <option value="this_week">This week</option>
+                  <option value="few_weeks">A few weeks ago</option>
+                  <option value="2_months">In the last 2 months</option>
+                  <option value="last_year">Last year</option>
+                </select>
+                {errors.pestNoticed && (
+                  <p style={{ color: '#ef4444', fontSize: '13px', marginTop: '6px' }}>{errors.pestNoticed}</p>
+                )}
               </div>
-            )}
-          </div>
 
-          <div className="form-field">
-            <label className="field-label">
-              • When did you first notice the pests?
-            </label>
-            <input
-              type="text"
-              name="firstNoticed"
-              value={formData.firstNoticed}
-              onChange={handleInputChange}
-              className="field-input"
-              placeholder="e.g., 2 weeks ago, last month..."
-            />
-          </div>
-
-          <div className="form-field">
-            <label className="field-label">
-              • What damage have you observed?
-            </label>
-            <select
-              name="damageObserved"
-              value={formData.damageObserved}
-              onChange={handleInputChange}
-              className="field-input"
-            >
-              {damageOptions.map((option, index) => (
-                <option key={index} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-            {formData.damageObserved && (
-              <input
-                type="text"
-                name="damageObservedOther"
-                value={formData.damageObservedOther}
-                onChange={handleInputChange}
-                className="field-input"
-                placeholder={formData.damageObserved === 'Other' ? "Please specify other damage..." : "Provide details for selected damage..."}
-              />
-            )}
-          </div>
-
-          <div className="form-field">
-            <label className="field-label">
-              • What pest control methods have you tried?
-            </label>
-            <input
-              type="text"
-              name="controlMethods"
-              value={formData.controlMethods}
-              onChange={handleInputChange}
-              className="field-input"
-              placeholder="List methods you've already tried..."
-            />
-          </div>
-
-          <div className="form-field full-width">
-            <label className="field-label">
-              • Please upload a picture of the pests and crops?
-            </label>
-            <div className="professional-upload-container">
-              <div className="upload-area">
+              <div>
+                <label style={{
+                  display: 'block',
+                  marginBottom: '8px',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  color: '#374151'
+                }}>
+                  Upload Image of Problem <span style={{ color: '#ef4444' }}>*</span>
+                </label>
                 <input
                   type="file"
-                  id="file-input"
                   accept="image/*"
-                  onChange={handleFileSelect}
-                  className="hidden-file-input"
+                  onChange={handlePrimaryImage}
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    fontSize: '14px',
+                    border: errors.primaryImage ? '2px dashed #ef4444' : '2px dashed #d1d5db',
+                    borderRadius: '8px',
+                    background: '#f9fafb',
+                    cursor: 'pointer'
+                  }}
                 />
-                <label htmlFor="file-input" className="upload-zone">
-                  <div className="upload-content">
-                    <div className="upload-icon">📁</div>
-                    <div className="upload-text">
-                      <span className="upload-primary">
-                        {selectedFile ? selectedFile.name : 'Click to upload image'}
-                      </span>
-                      <span className="upload-secondary">
-                        or drag and drop your file here
-                      </span>
-                    </div>
-                  </div>
-                </label>
+                {primaryImage && (
+                  <p style={{ color: '#27ae60', fontSize: '14px', marginTop: '8px', fontWeight: '500' }}>
+                     Selected: {primaryImage.name}
+                  </p>
+                )}
+                {errors.primaryImage && (
+                  <p style={{ color: '#ef4444', fontSize: '13px', marginTop: '6px' }}>{errors.primaryImage}</p>
+                )}
               </div>
-              {selectedFile && (
-                <button 
-                  type="button" 
-                  onClick={handleUpload}
-                  className="professional-upload-button"
-                >
-                  Upload File
-                </button>
-              )}
+            </div>
+
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: '1fr 1fr', 
+              gap: '20px',
+              marginBottom: '20px'
+            }}>
+              <div>
+                <label style={{
+                  display: 'block',
+                  marginBottom: '8px',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  color: '#374151'
+                }}>
+                  Control methods already tried
+                </label>
+                <textarea
+                  value={controlMethods}
+                  onChange={(e) => setControlMethods(e.target.value)}
+                  placeholder="e.g., neem oil, copper spray, traps, sanitation practices..."
+                  rows="4"
+                  style={{
+                    width: '100%',
+                    padding: '12px 16px',
+                    fontSize: '15px',
+                    border: '2px solid #d1d5db',
+                    borderRadius: '8px',
+                    resize: 'vertical',
+                    fontFamily: 'inherit'
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{
+                  display: 'block',
+                  marginBottom: '8px',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  color: '#374151'
+                }}>
+                  Additional Image (Optional)
+                </label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleSecondaryImage}
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    fontSize: '14px',
+                    border: '2px dashed #d1d5db',
+                    borderRadius: '8px',
+                    background: '#f9fafb',
+                    cursor: 'pointer'
+                  }}
+                />
+                {secondaryImage && (
+                  <p style={{ color: '#27ae60', fontSize: '14px', marginTop: '8px', fontWeight: '500' }}>
+                    ✓ Selected: {secondaryImage.name}
+                  </p>
+                )}
+              </div>
             </div>
           </div>
-        </div>
 
-        <button onClick={handleSubmit} className="save-button">
-          Save
-        </button>
+          {/* Submit Button */}
+          <button
+            type="submit"
+            style={{
+              width: '40%',
+              padding: '16px',
+              background: 'linear-gradient(to right, #27ae60, #219653)',
+              color: 'white',
+              border: 'none',
+              borderRadius: '10px',
+              fontSize: '17px',
+              fontWeight: '700',
+              cursor: 'pointer',
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px',
+              boxShadow: '0 4px 14px rgba(39, 174, 96, 0.4)',
+              transition: 'all 0.3s'
+            }}
+            onMouseOver={(e) => {
+              e.target.style.transform = 'translateY(-2px)';
+              e.target.style.boxShadow = '0 6px 20px rgba(39, 174, 96, 0.5)';
+            }}
+            onMouseOut={(e) => {
+              e.target.style.transform = 'translateY(0)';
+              e.target.style.boxShadow = '0 4px 14px rgba(39, 174, 96, 0.4)';
+            }}
+          >
+            Submit Diagnosis
+          </button>
+        </form>
+
+        
+        
+         
+       
       </div>
     </div>
   );
-};
-
-export default PestManagement;
+}
