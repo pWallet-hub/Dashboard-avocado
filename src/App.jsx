@@ -26,6 +26,7 @@ import HarvestingPlan from './Pages/Agent/HarvestingPlan'
 import IPMRoutine from './Pages/Agent/IPMRoutine'
 import Report from './Pages/Agent/Report'
 import Shop from './Pages/Agent/Shop'
+import ServiceHistory from './Pages/Agent/ServiceHistory'
 import Agents from './Pages/Admin/Agents'
 import Reports from './Pages/Admin/Reports'
 import ShopView from './Pages/Admin/ShopView'
@@ -72,6 +73,7 @@ function App() {
           <Route path='agent/FarmerList' element={<RoleBasedRoute allowedRoles={['agent']}><FarmerList/></RoleBasedRoute>}/>
           <Route path='agent/HarvestingPlan' element={<RoleBasedRoute allowedRoles={['agent']}><HarvestingPlan/></RoleBasedRoute>}/>
           <Route path='agent/IPMRoutine' element={<RoleBasedRoute allowedRoles={['agent']}><IPMRoutine/></RoleBasedRoute>}/>
+          <Route path='agent/ServiceHistory' element={<RoleBasedRoute allowedRoles={['agent']}><ServiceHistory/></RoleBasedRoute>}/>
           <Route path='agent/Report' element={<RoleBasedRoute allowedRoles={['agent']}><Report/></RoleBasedRoute>}/>
           <Route path='agent/Shop' element={<RoleBasedRoute allowedRoles={['agent']}><Shop/></RoleBasedRoute>}/>
           

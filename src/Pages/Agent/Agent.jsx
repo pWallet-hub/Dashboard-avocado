@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { User, Mail, Phone, MapPin, Calendar, Activity, Award, BarChart3, Briefcase, Edit3, Save, X, AlertCircle, TrendingUp, Target, CheckCircle2 } from 'lucide-react';
+import { User, Mail, Phone, MapPin, Calendar, Activity, Award, BarChart3, Briefcase, Edit3, Save, X, AlertCircle, TrendingUp, Target, CheckCircle2, Clock, FileText } from 'lucide-react';
 import { getAgentInformation, updateAgentInformation } from '../../services/agent-information';
+import { listHarvestRequests } from '../../services/serviceRequestsService';
+import { Link } from 'react-router-dom';
 
 // Enhanced Profile Section for Membership Card
 const ProfileSection = ({ name, specialization, profileImage, status, agentId }) => (
@@ -219,6 +221,8 @@ export default function AgentProfile() {
   const [error, setError] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editedProfile, setEditedProfile] = useState({});
+  const [recentRequests, setRecentRequests] = useState([]);
+  const [requestsLoading, setRequestsLoading] = useState(false);
 
   useEffect(() => {
     const fetchAgentProfile = async () => {

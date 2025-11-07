@@ -126,6 +126,7 @@ const Sidebar = ({ role: propRole }) => {
     { to: "/dashboard/agent/FarmerList", icon: Users, text: "My Farmers" },
     { to: "/dashboard/agent/HarvestingPlan", icon: Calendar, text: "Schedule Harvesting Plan" },
     { to: "/dashboard/agent/IPMRoutine", icon: Bug, text: "Schedule IPM Routine" },
+    { to: "/dashboard/agent/ServiceHistory", icon: ClipboardList, text: "Service History" },
     { to: "/dashboard/agent/Shop", icon: ShoppingBag, text: "My Shop" },
     { to: "/dashboard/agent/Report", icon: FileText, text: "Reports" },
   ];

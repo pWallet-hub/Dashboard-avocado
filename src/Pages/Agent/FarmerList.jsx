@@ -225,67 +225,82 @@ export default function FarmerList() {
   // Remove Airtable preview effect as services are no longer available
 
   const exportToExcel = () => {
-    // Prepare data for Excel export
-    const exportData = filteredFarmers.map(farmer => ({
+    // Calculate statistics for summary report
+    const totalFarmers = farmers.length;
+    const totalTrees = farmers.reduce((sum, f) => sum + (f.profile?.farm_details?.tree_count || 0), 0);
+    const uniqueDistricts = new Set(farmers.map(f => f.profile?.district).filter(d => d));
+    const uniqueSectors = new Set(farmers.map(f => f.profile?.sector).filter(s => s));
+    const totalFarmArea = farmers.reduce((sum, f) => sum + (parseFloat(f.profile?.farm_details?.farm_size) || 0), 0);
+
+    // Sheet 1: Summary Report
+    const summaryData = [
+      { 'Metric': 'Total Farmers in Territory', 'Value': totalFarmers },
+      { 'Metric': 'Total Number of Trees', 'Value': totalTrees },
+      { 'Metric': 'Number of Districts', 'Value': uniqueDistricts.size },
+      { 'Metric': 'Number of Sectors', 'Value': uniqueSectors.size },
+      { 'Metric': 'Total Farm Area (hectares)', 'Value': totalFarmArea.toFixed(2) },
+      { 'Metric': '', 'Value': '' }, // Empty row
+      { 'Metric': 'Districts Covered', 'Value': Array.from(uniqueDistricts).join(', ') || 'N/A' },
+      { 'Metric': 'Sectors Covered', 'Value': Array.from(uniqueSectors).join(', ') || 'N/A' },
+      { 'Metric': '', 'Value': '' }, // Empty row
+      { 'Metric': 'Report Generated', 'Value': new Date().toLocaleString() },
+    ];
+
+    // Sheet 2: Farmers List - Prepare data for Excel export
+    const farmersData = farmers.map(farmer => ({
       'ID': farmer.id,
       'Full Name': farmer.full_name,
       'Email': farmer.email,
-      'Telephone': farmer.telephone,
-      'UPI Number': farmer.upi_number,
-      'Province': farmer.province,
-      'District': farmer.district,
-      'Sector': farmer.sector,
-      'Farm Province': farmer.farm_province,
-      'Farm District': farmer.farm_district,
-      'Farm Sector': farmer.farm_sector,
-      'Farm Cell': farmer.farm_cell,
-      'Farm Village': farmer.farm_village,
-      'Farm Size': farmer.farm_size,
-      'Tree Count': farmer.tree_count,
-      'Avocado Type': farmer.avocado_type,
-      'Mixed Percentage': farmer.mixed_percentage,
-      'Farm Age (Years)': farmer.farm_age,
-      'Date Planted': farmer.planted,
-      'Assistance Provided': farmer.assistance.join(', ')
+      'Phone': farmer.phone || 'N/A',
+      'UPI Number': farmer.profile?.farm_details?.upi_number || 'N/A',
+      'Province': farmer.profile?.province || 'N/A',
+      'District': farmer.profile?.district || 'N/A',
+      'Sector': farmer.profile?.sector || 'N/A',
+      'Farm District': farmer.profile?.farm_details?.farm_district || 'N/A',
+      'Farm Sector': farmer.profile?.farm_details?.farm_sector || 'N/A',
+      'Farm Cell': farmer.profile?.farm_details?.farm_cell || 'N/A',
+      'Farm Village': farmer.profile?.farm_details?.farm_village || 'N/A',
+      'Farm Size (ha)': farmer.profile?.farm_details?.farm_size || 'N/A',
+      'Tree Count': farmer.profile?.farm_details?.tree_count || 0,
+      'Avocado Type': farmer.profile?.farm_details?.avocado_type || 'N/A',
+      'Farm Age': farmer.profile?.farm_details?.farm_age || 'N/A',
+      'Date Planted': farmer.profile?.farm_details?.planted || 'N/A',
     }));
 
-    // Create workbook and worksheet
+    // Create workbook
     const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.json_to_sheet(exportData);
 
-    // Auto-size columns
+    // Create Summary Report worksheet
+    const wsSummary = XLSX.utils.json_to_sheet(summaryData);
+    
+    // Style summary sheet columns
+    wsSummary['!cols'] = [
+      { width: 35 }, // Metric column
+      { width: 50 }  // Value column
+    ];
+
+    // Create Farmers List worksheet
+    const wsFarmers = XLSX.utils.json_to_sheet(farmersData);
+
+    // Auto-size columns for farmers sheet
     const colWidths = [];
-    const keys = Object.keys(exportData[0] || {});
-    keys.forEach((key, index) => {
+    const keys = Object.keys(farmersData[0] || {});
+    keys.forEach((key) => {
       const maxLength = Math.max(
         key.length,
-        ...exportData.map(row => String(row[key] || '').length)
+        ...farmersData.map(row => String(row[key] || '').length)
       );
       colWidths.push({ width: Math.min(maxLength + 2, 50) });
     });
-    ws['!cols'] = colWidths;
+    wsFarmers['!cols'] = colWidths;
 
-    // Add styling to header row
-    const headerStyle = {
-      font: { bold: true, color: { rgb: "FFFFFF" } },
-      fill: { fgColor: { rgb: "1F310A" } },
-      alignment: { horizontal: "center", vertical: "center" }
-    };
-
-    // Apply header styling
-    keys.forEach((key, index) => {
-      const cellAddress = XLSX.utils.encode_cell({ r: 0, c: index });
-      if (ws[cellAddress]) {
-        ws[cellAddress].s = headerStyle;
-      }
-    });
-
-    // Add worksheet to workbook
-    XLSX.utils.book_append_sheet(wb, ws, 'Farmers List');
+    // Add worksheets to workbook
+    XLSX.utils.book_append_sheet(wb, wsSummary, 'Summary Report');
+    XLSX.utils.book_append_sheet(wb, wsFarmers, 'Farmers List');
 
     // Generate filename with current date
     const currentDate = new Date().toISOString().split('T')[0];
-    const filename = `farmers_list_${currentDate}.xlsx`;
+    const filename = `farmers_report_${currentDate}.xlsx`;
 
     // Save file
     XLSX.writeFile(wb, filename);
@@ -512,69 +527,99 @@ export default function FarmerList() {
         )}
 
         {/* Enhanced Stats Cards */}
-        <div className="grid grid-cols-1 gap-6 mb-8 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="p-6 bg-white rounded-2xl shadow-lg border border-gray-100 hover:shadow-xl transition-shadow duration-300">
+        <div className="grid grid-cols-2 gap-4 mb-8 md:grid-cols-3 lg:grid-cols-5">
+          <div className="p-4 bg-white rounded-xl shadow-lg border border-gray-100 hover:shadow-xl transition-shadow duration-300">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-500">
+                <p className="text-xs font-medium text-gray-500">
                   {agentTerritories.length > 0 ? 'Farmers in Territory' : 'Total Farmers'}
                 </p>
-                <p className="text-3xl font-bold text-gray-800">{farmers.length}</p>
+                <p className="text-2xl font-bold text-gray-800">{farmers.length}</p>
                 {agentTerritories.length > 0 && allFarmers.length > farmers.length && (
-                  <p className="text-xs text-gray-500 mt-1">of {allFarmers.length} total</p>
+                  <p className="text-[10px] text-gray-500 mt-1">of {allFarmers.length} total</p>
                 )}
               </div>
-              <div className="p-3 rounded-full" style={{ backgroundColor: '#1F310A20' }}>
-                <User className="w-8 h-8" style={{ color: '#1F310A' }} />
+              <div className="p-2 rounded-full" style={{ backgroundColor: '#1F310A20' }}>
+                <User className="w-6 h-6" style={{ color: '#1F310A' }} />
               </div>
             </div>
           </div>
           
-          <div className="p-6 bg-white rounded-2xl shadow-lg border border-gray-100 hover:shadow-xl transition-shadow duration-300">
+          <div className="p-4 bg-white rounded-xl shadow-lg border border-gray-100 hover:shadow-xl transition-shadow duration-300">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-500">Total Trees</p>
-                <p className="text-3xl font-bold text-gray-800">
+                <p className="text-xs font-medium text-gray-500">Total Numbers of Trees</p>
+                <p className="text-2xl font-bold text-gray-800">
                   {farmers.reduce((sum, f) => sum + (f.profile?.farm_details?.tree_count || 0), 0)}
                 </p>
               </div>
-              <div className="p-3 bg-green-100 rounded-full">
-                <TreePine className="w-8 h-8 text-green-600" />
+              <div className="p-2 bg-green-100 rounded-full">
+                <TreePine className="w-6 h-6 text-green-600" />
               </div>
             </div>
           </div>
           
-          <div className="p-6 bg-white rounded-2xl shadow-lg border border-gray-100 hover:shadow-xl transition-shadow duration-300">
+          <div className="p-4 bg-white rounded-xl shadow-lg border border-gray-100 hover:shadow-xl transition-shadow duration-300">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-500">Current Page</p>
-                <p className="text-3xl font-bold text-gray-800">{pagination.currentPage}/{pagination.totalPages}</p>
+                <p className="text-xs font-medium text-gray-500"> Number of Districts</p>
+                <p className="text-2xl font-bold text-gray-800">
+                  {(() => {
+                    const uniqueDistricts = new Set(
+                      farmers
+                        .map(f => f.profile?.district)
+                        .filter(d => d)
+                    );
+                    return uniqueDistricts.size || 0;
+                  })()}
+                </p>
               </div>
-              <div className="p-3 bg-purple-100 rounded-full">
-                <MapPin className="w-8 h-8 text-purple-600" />
+              <div className="p-2 bg-purple-100 rounded-full">
+                <MapPin className="w-6 h-6 text-purple-600" />
               </div>
             </div>
           </div>
           
-          <div className="p-6 bg-white rounded-2xl shadow-lg border border-gray-100 hover:shadow-xl transition-shadow duration-300">
+          <div className="p-4 bg-white rounded-xl shadow-lg border border-gray-100 hover:shadow-xl transition-shadow duration-300">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-500">Farm Area</p>
-                <p className="text-3xl font-bold text-gray-800">
+                <p className="text-xs font-medium text-gray-500">Number of Sectors</p>
+                <p className="text-2xl font-bold text-gray-800">
+                  {(() => {
+                    const uniqueSectors = new Set(
+                      farmers
+                        .map(f => f.profile?.sector)
+                        .filter(s => s)
+                    );
+                    return uniqueSectors.size || 0;
+                  })()}
+                </p>
+              </div>
+              <div className="p-2 bg-purple-100 rounded-full">
+                <MapPin className="w-6 h-6 text-purple-600" />
+              </div>
+            </div>
+          </div>
+          
+          <div className="p-4 bg-white rounded-xl shadow-lg border border-gray-100 hover:shadow-xl transition-shadow duration-300">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-medium text-gray-500">Farm Hectarage</p>
+                <p className="text-2xl font-bold text-gray-800">
                   {farmers.length > 0 
                     ? (farmers.reduce((sum, f) => sum + (parseFloat(f.profile?.farm_details?.farm_size) || 0), 0)).toFixed(1)
                     : '0'}ha
                 </p>
               </div>
-              <div className="p-3 bg-orange-100 rounded-full">
-                <Calendar className="w-8 h-8 text-orange-600" />
+              <div className="p-2 bg-orange-100 rounded-full">
+                <Calendar className="w-6 h-6 text-orange-600" />
               </div>
             </div>
           </div>
         </div>
 
         {/* Search and Filter Bar */}
-        <div className="mb-6 bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+        {/* <div className="mb-6 bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="relative flex-1 max-w-md">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
@@ -604,7 +649,7 @@ export default function FarmerList() {
               </select>
             </div>
           </div>
-        </div>
+        </div> */}
 
         {/* Export Info */}
         {filteredFarmers.length > 0 && (
