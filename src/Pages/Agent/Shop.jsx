@@ -501,7 +501,7 @@ export default function Shop() {
                 <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center mb-4">
                   <Users className="w-10 h-10 text-white" />
                 </div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-2">Buy for Farmer</h3>
+                <h3 className="text-2xl font-bold text-gray-900 mb-2">Buy for a Farmer</h3>
                 <p className="text-gray-600 mb-4">Purchase products on behalf of a farmer in your territory</p>
                 <button className="mt-auto px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors">
                   Select Farmer
