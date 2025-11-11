@@ -1,0 +1,107 @@
+/* AgentShopProductGrid.css */
+/* Dedicated CSS for agent shop product grid - isolated from other pages */
+
+/* Main Container */
+.agent-shop-product-grid-container {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1rem;
+  background: #f9fafb;
+}
+
+/* Product Grid */
+.agent-shop-product-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(2, 1fr);
+}
+
+/* Responsive Grid Columns */
+@media (min-width: 640px) {
+  .agent-shop-product-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .agent-shop-product-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+@media (min-width: 1280px) {
+  .agent-shop-product-grid {
+    grid-template-columns: repeat(5, 1fr);
+  }
+}
+
+/* Loading State */
+.agent-shop-product-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 1rem;
+}
+
+.agent-shop-loading-icon {
+  width: 3rem;
+  height: 3rem;
+  color: #16a34a;
+  margin-bottom: 1rem;
+  animation: spin 1s linear infinite;
+}
+
+.agent-shop-loading-text {
+  color: #6b7280;
+  font-size: 0.875rem;
+}
+
+/* Empty State */
+.agent-shop-product-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 1rem;
+}
+
+.agent-shop-empty-icon {
+  width: 3rem;
+  height: 3rem;
+  color: #d1d5db;
+  margin-bottom: 1rem;
+}
+
+.agent-shop-empty-text {
+  color: #6b7280;
+  font-size: 0.875rem;
+}
+
+/* Spin Animation */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Scrollbar Styling (optional, for webkit browsers) */
+.agent-shop-product-grid-container::-webkit-scrollbar {
+  width: 0.5rem;
+}
+
+.agent-shop-product-grid-container::-webkit-scrollbar-track {
+  background: #f3f4f6;
+}
+
+.agent-shop-product-grid-container::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 0.25rem;
+}
+
+.agent-shop-product-grid-container::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
