@@ -237,14 +237,14 @@ export default function App() {
             fontWeight: '700',
             letterSpacing: '-0.5px'
           }}>
-            Avocado Pest & Disease Diagnostic
+            Avocado Pest & Disease Diagnostic <br /> Plus Regural Agronomic Scouting
           </h1>
           <p style={{
             fontSize: '15px',
             color: '#666',
             lineHeight: '1.5'
           }}>
-            Help us identify and treat issues with your avocado trees
+            Help us identify and treat issues within  your avocado orchard!
           </p>
         </div>
 
@@ -297,7 +297,7 @@ export default function App() {
 
             <div style={{ 
               display: 'grid', 
-              gridTemplateColumns: '1fr 1fr', 
+              gridTemplateColumns: selectedDisease === '' ? '1fr' : '1fr 1fr',
               gap: '20px',
               marginBottom: '20px'
             }}>
@@ -309,38 +309,7 @@ export default function App() {
                   fontWeight: '600',
                   color: '#374151'
                 }}>
-                  Select Disease
-                </label>
-                <select
-                  value={selectedDisease}
-                  onChange={handleDiseaseChange}
-                  style={{
-                    width: '100%',
-                    padding: '12px 16px',
-                    fontSize: '15px',
-                    border: errors.disease ? '2px solid #ef4444' : '2px solid #d1d5db',
-                    borderRadius: '8px',
-                    background: 'white',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s'
-                  }}
-                >
-                  <option value="">-- Select a disease --</option>
-                  {diseases.map((item, index) => (
-                    <option key={index} value={index}>{item.disease}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label style={{
-                  display: 'block',
-                  marginBottom: '8px',
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  color: '#374151'
-                }}>
-                  Or Select by Symptoms
+                  Select by Symptoms
                 </label>
                 <select
                   value={selectedSymptom}
@@ -352,7 +321,8 @@ export default function App() {
                     border: '2px solid #d1d5db',
                     borderRadius: '8px',
                     background: 'white',
-                    cursor: 'pointer'
+                    cursor: 'pointer',
+                    marginBottom: '20px'
                   }}
                 >
                   <option value="">-- Select symptoms --</option>
@@ -360,25 +330,74 @@ export default function App() {
                     <option key={index} value={index}>{item.symptoms}</option>
                   ))}
                 </select>
-              </div>
-            </div>
 
-            {selectedDisease !== '' && (
-              <div style={{
-                padding: '20px',
-                background: 'linear-gradient(135deg, #e8f5e9 0%, #d4edda 100%)',
-                borderRadius: '10px',
-                border: '1px solid #a5d6a7',
-                marginTop: '20px'
-              }}>
-                <p style={{ fontSize: '15px', marginBottom: '8px', color: '#1b5e20' }}>
-                  <strong>Disease:</strong> {diseases[selectedDisease].disease}
-                </p>
-                <p style={{ fontSize: '15px', color: '#2e7d32' }}>
-                  <strong>Symptoms:</strong> {diseases[selectedDisease].symptoms}
-                </p>
+                <div>
+                  <label style={{
+                    display: 'block',
+                    marginBottom: '8px',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    color: '#374151'
+                  }}>
+                    When did you first notice the issue? <span style={{ color: '#ef4444' }}>*</span>
+                  </label>
+                  <select
+                    value={pestNoticed}
+                    onChange={(e) => {
+                      setPestNoticed(e.target.value);
+                      setErrors(prev => ({ ...prev, pestNoticed: '' }));
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '12px 16px',
+                      fontSize: '15px',
+                      border: errors.pestNoticed ? '2px solid #ef4444' : '2px solid #d1d5db',
+                      borderRadius: '8px',
+                      background: 'white',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <option value="">-- Select timeframe --</option>
+                    <option value="this_week">This week</option>
+                    <option value="few_weeks">A few weeks ago</option>
+                    <option value="2_months">In the last 2 months</option>
+                    <option value="last_year">Last year</option>
+                  </select>
+                  {errors.pestNoticed && (
+                    <p style={{ color: '#ef4444', fontSize: '13px', marginTop: '6px' }}>{errors.pestNoticed}</p>
+                  )}
+                </div>
               </div>
-            )}
+
+              {selectedDisease !== '' && (
+                <div style={{
+                  padding: '16px',
+                  background: 'linear-gradient(135deg, #e8f5e9 0%, #d4edda 100%)',
+                  borderRadius: '8px',
+                  border: '1px solid #a5d6a7',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '12px'
+                }}>
+                  <div>
+                    <p style={{ fontSize: '13px', color: '#1b5e20', marginBottom: '4px', fontWeight: '600' }}>
+                      Disease:
+                    </p>
+                    <p style={{ fontSize: '14px', color: '#2e7d32' }}>
+                      {diseases[selectedDisease].disease}
+                    </p>
+                  </div>
+                  <div>
+                    <p style={{ fontSize: '13px', color: '#1b5e20', marginBottom: '4px', fontWeight: '600' }}>
+                      Symptoms:
+                    </p>
+                    <p style={{ fontSize: '14px', color: '#2e7d32' }}>
+                      {diseases[selectedDisease].symptoms}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Pests Section */}
@@ -415,7 +434,7 @@ export default function App() {
 
             <div style={{ 
               display: 'grid', 
-              gridTemplateColumns: '1fr 1fr', 
+              gridTemplateColumns: selectedPest === '' ? '1fr' : '1fr 1fr',
               gap: '20px',
               marginBottom: '20px'
             }}>
@@ -427,37 +446,7 @@ export default function App() {
                   fontWeight: '600',
                   color: '#374151'
                 }}>
-                  Select Pest
-                </label>
-                <select
-                  value={selectedPest}
-                  onChange={handlePestChange}
-                  style={{
-                    width: '100%',
-                    padding: '12px 16px',
-                    fontSize: '15px',
-                    border: '2px solid #d1d5db',
-                    borderRadius: '8px',
-                    background: 'white',
-                    cursor: 'pointer'
-                  }}
-                >
-                  <option value="">-- Select a pest --</option>
-                  {pests.map((item, index) => (
-                    <option key={index} value={index}>{item.pest}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label style={{
-                  display: 'block',
-                  marginBottom: '8px',
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  color: '#374151'
-                }}>
-                  Or Select by Damage Type
+                  Select by Damage Type
                 </label>
                 <select
                   value={selectedDamage}
@@ -469,7 +458,8 @@ export default function App() {
                     border: '2px solid #d1d5db',
                     borderRadius: '8px',
                     background: 'white',
-                    cursor: 'pointer'
+                    cursor: 'pointer',
+                    marginBottom: '20px'
                   }}
                 >
                   <option value="">-- Select damage type --</option>
@@ -477,25 +467,74 @@ export default function App() {
                     <option key={index} value={index}>{item.damage}</option>
                   ))}
                 </select>
-              </div>
-            </div>
 
-            {selectedPest !== '' && (
-              <div style={{
-                padding: '20px',
-                background: 'linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%)',
-                borderRadius: '10px',
-                border: '1px solid #ffb74d',
-                marginTop: '20px'
-              }}>
-                <p style={{ fontSize: '15px', marginBottom: '8px', color: '#e65100' }}>
-                  <strong>Pest:</strong> {pests[selectedPest].pest}
-                </p>
-                <p style={{ fontSize: '15px', color: '#f57c00' }}>
-                  <strong>Damage:</strong> {pests[selectedPest].damage}
-                </p>
+                <div>
+                  <label style={{
+                    display: 'block',
+                    marginBottom: '8px',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    color: '#374151'
+                  }}>
+                    When did you first notice the issue? <span style={{ color: '#ef4444' }}>*</span>
+                  </label>
+                  <select
+                    value={pestNoticed}
+                    onChange={(e) => {
+                      setPestNoticed(e.target.value);
+                      setErrors(prev => ({ ...prev, pestNoticed: '' }));
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '12px 16px',
+                      fontSize: '15px',
+                      border: errors.pestNoticed ? '2px solid #ef4444' : '2px solid #d1d5db',
+                      borderRadius: '8px',
+                      background: 'white',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <option value="">-- Select timeframe --</option>
+                    <option value="this_week">This week</option>
+                    <option value="few_weeks">A few weeks ago</option>
+                    <option value="2_months">In the last 2 months</option>
+                    <option value="last_year">Last year</option>
+                  </select>
+                  {errors.pestNoticed && (
+                    <p style={{ color: '#ef4444', fontSize: '13px', marginTop: '6px' }}>{errors.pestNoticed}</p>
+                  )}
+                </div>
               </div>
-            )}
+
+              {selectedPest !== '' && (
+                <div style={{
+                  padding: '16px',
+                  background: 'linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%)',
+                  borderRadius: '8px',
+                  border: '1px solid #ffb74d',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '12px'
+                }}>
+                  <div>
+                    <p style={{ fontSize: '13px', color: '#e65100', marginBottom: '4px', fontWeight: '600' }}>
+                      Pest:
+                    </p>
+                    <p style={{ fontSize: '14px', color: '#f57c00' }}>
+                      {pests[selectedPest].pest}
+                    </p>
+                  </div>
+                  <div>
+                    <p style={{ fontSize: '13px', color: '#e65100', marginBottom: '4px', fontWeight: '600' }}>
+                      Damage:
+                    </p>
+                    <p style={{ fontSize: '14px', color: '#f57c00' }}>
+                      {pests[selectedPest].damage}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Additional Information */}
@@ -544,33 +583,23 @@ export default function App() {
                   fontWeight: '600',
                   color: '#374151'
                 }}>
-                  When did you first notice the issue? <span style={{ color: '#ef4444' }}>*</span>
+                  Control methods already tried
                 </label>
-                <select
-                  value={pestNoticed}
-                  onChange={(e) => {
-                    setPestNoticed(e.target.value);
-                    setErrors(prev => ({ ...prev, pestNoticed: '' }));
-                  }}
+                <textarea
+                  value={controlMethods}
+                  onChange={(e) => setControlMethods(e.target.value)}
+                  placeholder="e.g., neem oil, copper spray, traps, sanitation practices..."
+                  rows="4"
                   style={{
                     width: '100%',
                     padding: '12px 16px',
                     fontSize: '15px',
-                    border: errors.pestNoticed ? '2px solid #ef4444' : '2px solid #d1d5db',
+                    border: '2px solid #d1d5db',
                     borderRadius: '8px',
-                    background: 'white',
-                    cursor: 'pointer'
+                    resize: 'vertical',
+                    fontFamily: 'inherit'
                   }}
-                >
-                  <option value="">-- Select timeframe --</option>
-                  <option value="this_week">This week</option>
-                  <option value="few_weeks">A few weeks ago</option>
-                  <option value="2_months">In the last 2 months</option>
-                  <option value="last_year">Last year</option>
-                </select>
-                {errors.pestNoticed && (
-                  <p style={{ color: '#ef4444', fontSize: '13px', marginTop: '6px' }}>{errors.pestNoticed}</p>
-                )}
+                />
               </div>
 
               <div>
@@ -614,33 +643,6 @@ export default function App() {
               gap: '20px',
               marginBottom: '20px'
             }}>
-              <div>
-                <label style={{
-                  display: 'block',
-                  marginBottom: '8px',
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  color: '#374151'
-                }}>
-                  Control methods already tried
-                </label>
-                <textarea
-                  value={controlMethods}
-                  onChange={(e) => setControlMethods(e.target.value)}
-                  placeholder="e.g., neem oil, copper spray, traps, sanitation practices..."
-                  rows="4"
-                  style={{
-                    width: '100%',
-                    padding: '12px 16px',
-                    fontSize: '15px',
-                    border: '2px solid #d1d5db',
-                    borderRadius: '8px',
-                    resize: 'vertical',
-                    fontFamily: 'inherit'
-                  }}
-                />
-              </div>
-
               <div>
                 <label style={{
                   display: 'block',
