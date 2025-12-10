@@ -27,11 +27,14 @@ import IPMRoutine from './Pages/Agent/IPMRoutine'
 import Report from './Pages/Agent/Report'
 import Shop from './Pages/Agent/Shop'
 import ServiceHistory from './Pages/Agent/ServiceHistory'
+import QRCodeManagement from './Pages/Agent/QRCodeManagement'
 import Agents from './Pages/Admin/Agents'
 import Reports from './Pages/Admin/Reports'
 import ShopView from './Pages/Admin/ShopView'
 import Statistics from './Pages/Admin/Statistics'
 import ServiceRequests from './Pages/Admin/ServiceRequests'
+import SystemMonitoring from './Pages/Admin/SystemMonitoring'
+import NotificationsManagement from './Pages/Admin/NotificationsManagement'
 
 // New Shop Manager imports
 import ShopInventory from './Pages/ShopManager/ShopInventory'
@@ -65,6 +68,8 @@ function App() {
           <Route path="admin/shops" element={<RoleBasedRoute allowedRoles={['admin']}><ShopView/></RoleBasedRoute>} />
           <Route path="admin/statistics" element={<RoleBasedRoute allowedRoles={['admin']}><Statistics/></RoleBasedRoute>} />
           <Route path="admin/service-requests" element={<RoleBasedRoute allowedRoles={['admin']}><ServiceRequests/></RoleBasedRoute>} />
+          <Route path="admin/monitoring" element={<RoleBasedRoute allowedRoles={['admin']}><SystemMonitoring/></RoleBasedRoute>} />
+          <Route path="admin/notifications" element={<RoleBasedRoute allowedRoles={['admin']}><NotificationsManagement/></RoleBasedRoute>} />
           <Route path="/dashboard/admin/service-requests" element={<AdminServiceRequestsDashboard />} />
           
           
@@ -76,6 +81,7 @@ function App() {
           <Route path='agent/ServiceHistory' element={<RoleBasedRoute allowedRoles={['agent']}><ServiceHistory/></RoleBasedRoute>}/>
           <Route path='agent/Report' element={<RoleBasedRoute allowedRoles={['agent']}><Report/></RoleBasedRoute>}/>
           <Route path='agent/Shop' element={<RoleBasedRoute allowedRoles={['agent']}><Shop/></RoleBasedRoute>}/>
+          <Route path='agent/qr-management' element={<RoleBasedRoute allowedRoles={['agent']}><QRCodeManagement/></RoleBasedRoute>}/>
           
           {/* Farmer Routes */}
           <Route path="farmer" element={<RoleBasedRoute allowedRoles={['farmer']}><Farmer /></RoleBasedRoute>} />

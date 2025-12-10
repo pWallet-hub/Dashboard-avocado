@@ -1,12 +1,12 @@
-import apiClient from './apiClient';
+import apiClient, { extractData } from './apiClient';
 
 /**
  * Shop Management Service
  * Handles all shop-related API operations
- * Base URL: /api/addshops
+ * Base URL: /api/shops (updated to match API documentation)
  */
 
-const SHOP_API_BASE = '/addshops';
+const SHOP_API_BASE = '/shops';
 
 /**
  * Helper function to retry API calls with exponential backoff
@@ -22,7 +22,7 @@ const retryWithBackoff = async (fn, retries = 2, delay = 1000) => {
     if (retries === 0 || error.response?.status === 401 || error.response?.status === 403) {
       throw error;
     }
-    
+
     console.log(`⏳ Retrying... (${retries} attempts left, waiting ${delay}ms)`);
     await new Promise(resolve => setTimeout(resolve, delay));
     return retryWithBackoff(fn, retries - 1, delay * 2);
@@ -37,7 +37,7 @@ const retryWithBackoff = async (fn, retries = 2, delay = 1000) => {
 export const createShop = async (shopData) => {
   try {
     const response = await apiClient.post(`${SHOP_API_BASE}/addshop`, shopData);
-    return response.data;
+    return extractData(response);
   } catch (error) {
     console.error('Error creating shop:', error);
     throw error;
@@ -52,15 +52,15 @@ export const getAllShops = async () => {
   try {
     console.log('🔍 Fetching shops from:', `${SHOP_API_BASE}`);
     console.log('⏰ Note: First request may take 30-60s if backend is waking up from sleep');
-    
+
     const response = await retryWithBackoff(async () => {
       return await apiClient.get(SHOP_API_BASE);
     });
-    
+
     console.log('✅ Shop API Response Status:', response.status);
     console.log('✅ Shop API Response Data:', response.data);
     console.log('✅ Number of shops:', response.data?.data?.length || 0);
-    
+
     // API returns: { success: true, data: [...], message: "Shops retrieved successfully", meta: {...} }
     return response.data;
   } catch (error) {
@@ -68,7 +68,7 @@ export const getAllShops = async () => {
     console.error('❌ Error response:', error.response?.data);
     console.error('❌ Error status:', error.response?.status);
     console.error('❌ Error message:', error.message);
-    
+
     // Provide more helpful error messages
     if (error.message?.includes('timeout')) {
       throw new Error('Request timeout. The backend server may be starting up. Please try again in a moment.');
@@ -153,4 +153,59 @@ export const exportShopsToExcel = (shops) => {
   a.download = `shops_${new Date().toISOString().split('T')[0]}.csv`;
   a.click();
   window.URL.revokeObjectURL(url);
+};
+
+// Additional shop management functions from API documentation
+
+/**
+ * Get shop's inventory
+ * @param {number} shopId - Shop ID
+ * @param {Object} options - Query options
+ * @returns {Promise<Object>} Shop inventory data
+ */
+export const getShopInventory = async (shopId, options = {}) => {
+  try {
+    const params = {};
+    if (options.page) params.page = options.page;
+
+    const response = await apiClient.get(`${SHOP_API_BASE}/${shopId}/inventory`, { params });
+    return extractData(response);
+  } catch (error) {
+    console.error('Error fetching shop inventory:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get shop's orders
+ * @param {number} shopId - Shop ID
+ * @param {Object} options - Query options
+ * @returns {Promise<Object>} Shop orders data
+ */
+export const getShopOrders = async (shopId, options = {}) => {
+  try {
+    const params = {};
+    if (options.page) params.page = options.page;
+
+    const response = await apiClient.get(`${SHOP_API_BASE}/${shopId}/orders`, { params });
+    return extractData(response);
+  } catch (error) {
+    console.error('Error fetching shop orders:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get shop analytics
+ * @param {number} shopId - Shop ID
+ * @returns {Promise<Object>} Shop analytics data
+ */
+export const getShopAnalytics = async (shopId) => {
+  try {
+    const response = await apiClient.get(`${SHOP_API_BASE}/${shopId}/analytics`);
+    return extractData(response);
+  } catch (error) {
+    console.error('Error fetching shop analytics:', error);
+    throw error;
+  }
 };

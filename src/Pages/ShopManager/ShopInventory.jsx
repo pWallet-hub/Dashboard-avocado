@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Package, Plus, Search, AlertTriangle, Edit, Trash2, Eye, Filter, Leaf } from 'lucide-react';
-import { initializeStorage, getShopInventory, addToShopInventory, updateShopInventory, deleteInventoryItem, calculateExpiryDate } from '../../services/marketStorageService';
+import { listInventory, getLowStockItems, getOutOfStockItems, adjustStock } from '../../services/inventoryService';
+import { getAllProducts, createProduct, updateProduct, deleteProduct } from '../../services/productsService';
 
 const ShopInventory = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -12,7 +13,6 @@ const ShopInventory = () => {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    initializeStorage();
     loadInventory();
   }, []);
 
@@ -20,10 +20,28 @@ const ShopInventory = () => {
     setLoading(true);
     setError(null);
     try {
-      const inventoryData = await getShopInventory();
-      // Ensure inventoryData is always an array
-      const validInventory = Array.isArray(inventoryData) ? inventoryData : [];
-      setInventory(validInventory);
+      // Try to get products first (which acts as inventory)
+      const productsResponse = await getAllProducts();
+      const products = productsResponse.data || productsResponse || [];
+      
+      // Transform products to inventory format
+      const inventoryData = products.map(product => ({
+        id: product.id,
+        name: product.name,
+        category: product.category,
+        quantity: product.quantity || 0,
+        unit: product.unit || 'pieces',
+        price: product.price || 0,
+        minStock: product.min_stock || 10,
+        supplier: product.supplier_name || 'Unknown',
+        harvestDate: product.created_at ? new Date(product.created_at).toISOString().split('T')[0] : '',
+        expiryDate: product.expiry_date || '',
+        cost: product.cost || product.price * 0.8,
+        status: product.status || 'available',
+        sourceType: 'product'
+      }));
+      
+      setInventory(inventoryData);
     } catch (error) {
       console.error('Error loading inventory:', error);
       setError(error.message || 'Failed to load inventory');
@@ -148,10 +166,23 @@ const ShopInventory = () => {
         expiryDate: newItem.expiryDate || calculateExpiryDate(newItem.harvestDate, newItem.category)
       };
       
+      // Transform inventory item to product format
+      const productData = {
+        name: item.name,
+        description: `${item.category} product`,
+        price: item.price,
+        category: item.category.toLowerCase().replace(/\s+/g, '-'),
+        quantity: item.quantity,
+        unit: item.unit,
+        supplier_id: '1', // Default supplier
+        status: item.status === 'in-stock' ? 'available' : 'unavailable',
+        min_stock: item.minStock
+      };
+
       if (editingItem) {
-        await updateShopInventory(editingItem.id, item);
+        await updateProduct(editingItem.id, productData);
       } else {
-        await addToShopInventory(item);
+        await createProduct(productData);
       }
       await loadInventory();
       resetForm();
@@ -199,7 +230,7 @@ const ShopInventory = () => {
     if (!id || !window.confirm('Are you sure you want to delete this item?')) return;
     
     try {
-      await deleteInventoryItem(id);
+      await deleteProduct(id);
       await loadInventory();
       alert('Item deleted successfully!');
     } catch (error) {
