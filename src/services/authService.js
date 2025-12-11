@@ -1,189 +1,144 @@
-import apiClient, { extractData } from './apiClient';
+import apiClient from './apiClient';
 
-// Register a new user
-export async function register(userData) {
-  // Validate input data
-  if (!userData || !userData.email || !userData.password || !userData.full_name) {
-    throw new Error("Email, password, and full name are required");
+class AuthService {
+  constructor() {
+    this.tokenKey = 'authToken';
+    this.userKey = 'currentUser';
   }
-  
-  if (userData.password.length < 8) {
-    throw new Error("Password must be at least 8 characters long");
-  }
-  
-  const response = await apiClient.post('/auth/register', userData);
-  return extractData(response);
-}
 
-// Login user
-export async function login(credentials) {
-  // Validate input credentials
-  if (!credentials || !credentials.email || !credentials.password) {
-    throw new Error("Email and password are required");
-  }
-  
-  const response = await apiClient.post('/auth/login', credentials);
-  const data = extractData(response);
-  
-  // Validate response structure according to API documentation
-  if (!data || !data.token || !data.user) {
-    throw new Error("Invalid response format from server");
-  }
-  
-  // Store tokens and user data in localStorage
-  localStorage.setItem('token', data.token);
-  if (data.refreshToken) {
-    localStorage.setItem('refreshToken', data.refreshToken);
-  }
-  
-  // Store user information
-  localStorage.setItem('user', JSON.stringify(data.user));
-  localStorage.setItem('role', data.user.role);
-  localStorage.setItem('id', data.user.id);
-  
-  return data;
-}
-
-// Logout user
-export async function logout() {
-  try {
-    const response = await apiClient.post('/auth/logout');
-    
-    // Clear all user-related data from localStorage
-    localStorage.removeItem('token');
-    localStorage.removeItem('refreshToken');
-    localStorage.removeItem('user');
-    localStorage.removeItem('role');
-    localStorage.removeItem('id');
-    
-    return extractData(response);
-  } catch (error) {
-    // Even if logout fails on the server, we should clear local data
-    localStorage.removeItem('token');
-    localStorage.removeItem('refreshToken');
-    localStorage.removeItem('user');
-    localStorage.removeItem('role');
-    localStorage.removeItem('id');
-    
-    // If it's a network error, we still consider logout successful locally
-    if (error.message.includes('Network error')) {
-      return { success: true, message: 'Logged out successfully' };
-    }
-    
-    throw error;
-  }
-}
-
-// Get current user profile - role-based endpoint selection
-export async function getProfile() {
-  try {
-    // Get user role from localStorage
-    const userRole = localStorage.getItem('role');
-    
-    let endpoint;
-    if (userRole === 'farmer') {
-      // Farmers use the enhanced profile endpoint with flattened data
-      endpoint = '/users/me';
-      console.log('Fetching farmer profile from /users/me');
-    } else {
-      // Other roles use the standard auth profile endpoint
-      endpoint = '/auth/profile';
-      console.log('Fetching profile from /auth/profile for role:', userRole);
-    }
-    
-    const response = await apiClient.get(endpoint);
-    console.log('Profile response:', response);
-    return extractData(response);
-  } catch (error) {
-    console.error('Error fetching profile:', error);
-    console.error('Error response:', error.response?.data);
-    throw error;
-  }
-}
-
-// Update current user profile - role-based endpoint selection
-export async function updateProfile(profileData) {
-  // Validate input data
-  if (!profileData || typeof profileData !== 'object') {
-    throw new Error("Valid profile data is required");
-  }
-  
-  try {
-    // Get user role from localStorage
-    const userRole = localStorage.getItem('role');
-    
-    let endpoint;
-    if (userRole === 'farmer') {
-      // Farmers use the enhanced profile endpoint with flattened data structure
-      endpoint = '/users/me';
-      console.log('Updating farmer profile at /users/me with data:', profileData);
-    } else {
-      // Other roles use the standard auth profile endpoint
-      endpoint = '/auth/profile';
-      console.log('Updating profile at /auth/profile for role:', userRole, 'with data:', profileData);
-    }
-    
-    const response = await apiClient.put(endpoint, profileData);
-    console.log('Profile update response:', response);
-    
-    const updatedUser = extractData(response);
-    
-    // Update user data in localStorage
-    if (updatedUser) {
-      localStorage.setItem('user', JSON.stringify(updatedUser));
-      // Update role if it changed
-      if (updatedUser.role) {
-        localStorage.setItem('role', updatedUser.role);
+  async register(userData) {
+    try {
+      const response = await apiClient.post('/auth/register', userData);
+      
+      if (response.data.success) {
+        this.setAuthData(response.data.data.token, response.data.data.user);
+        return { success: true, user: response.data.data.user };
       }
-      // Update id if it changed
-      if (updatedUser.id) {
-        localStorage.setItem('id', updatedUser.id);
+      
+      return { success: false, message: response.data.message };
+    } catch (error) {
+      return { 
+        success: false, 
+        message: error.response?.data?.message || 'Network error occurred' 
+      };
+    }
+  }
+
+  async login(email, password) {
+    try {
+      const response = await apiClient.post('/auth/login', { email, password });
+      
+      if (response.data.success) {
+        this.setAuthData(response.data.data.token, response.data.data.user);
+        return { success: true, user: response.data.data.user };
       }
+      
+      return { success: false, message: response.data.message };
+    } catch (error) {
+      return { 
+        success: false, 
+        message: error.response?.data?.message || 'Network error occurred' 
+      };
     }
-    
-    return updatedUser;
-  } catch (error) {
-    console.error('Error updating profile:', error);
-    console.error('Error response:', error.response?.data);
-    throw error;
+  }
+
+  async logout() {
+    try {
+      await apiClient.post('/auth/logout');
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      this.clearAuthData();
+    }
+  }
+
+  async getProfile() {
+    try {
+      const response = await apiClient.get('/auth/profile');
+      return response.data.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Failed to fetch profile');
+    }
+  }
+
+  async updateProfile(profileData) {
+    try {
+      const response = await apiClient.put('/auth/profile', profileData);
+      if (response.data.success) {
+        const updatedUser = response.data.data;
+        localStorage.setItem(this.userKey, JSON.stringify(updatedUser));
+        return updatedUser;
+      }
+      throw new Error(response.data.message);
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Failed to update profile');
+    }
+  }
+
+  async changePassword(passwordData) {
+    try {
+      const response = await apiClient.put('/auth/password', passwordData);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Failed to change password');
+    }
+  }
+
+  async refreshToken() {
+    try {
+      const response = await apiClient.post('/auth/refresh');
+      if (response.data.success) {
+        this.setAuthData(response.data.data.token, response.data.data.user);
+        return response.data.data;
+      }
+      throw new Error(response.data.message);
+    } catch (error) {
+      this.clearAuthData();
+      throw new Error('Session expired');
+    }
+  }
+
+  async verifyToken() {
+    try {
+      const response = await apiClient.get('/auth/verify');
+      return response.data.success;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  setAuthData(token, user) {
+    localStorage.setItem(this.tokenKey, token);
+    localStorage.setItem(this.userKey, JSON.stringify(user));
+  }
+
+  clearAuthData() {
+    localStorage.removeItem(this.tokenKey);
+    localStorage.removeItem(this.userKey);
+  }
+
+  getToken() {
+    return localStorage.getItem(this.tokenKey);
+  }
+
+  getCurrentUser() {
+    const user = localStorage.getItem(this.userKey);
+    return user ? JSON.parse(user) : null;
+  }
+
+  isAuthenticated() {
+    return !!this.getToken();
+  }
+
+  hasRole(role) {
+    const user = this.getCurrentUser();
+    return user?.role === role;
+  }
+
+  hasAnyRole(roles) {
+    const user = this.getCurrentUser();
+    return roles.includes(user?.role);
   }
 }
 
-// Change user password
-export async function changePassword(passwordData) {
-  // Validate input data
-  if (!passwordData || !passwordData.currentPassword || !passwordData.newPassword) {
-    throw new Error("Current password and new password are required");
-  }
-  
-  if (passwordData.newPassword.length < 8) {
-    throw new Error("New password must be at least 8 characters long");
-  }
-  
-  const response = await apiClient.put('/auth/password', passwordData);
-  return extractData(response);
-}
-
-// Refresh token
-export async function refreshToken() {
-  const refreshToken = localStorage.getItem('refreshToken');
-  if (!refreshToken) {
-    throw new Error("No refresh token available");
-  }
-  
-  const response = await apiClient.post('/auth/refresh', { refreshToken });
-  const data = extractData(response);
-  
-  if (data && data.token) {
-    localStorage.setItem('token', data.token);
-    // Update user data if provided
-    if (data.user) {
-      localStorage.setItem('user', JSON.stringify(data.user));
-      localStorage.setItem('role', data.user.role);
-      localStorage.setItem('id', data.user.id);
-    }
-    return data;
-  } else {
-    throw new Error("Failed to refresh token");
-  }
-}
+export default new AuthService();

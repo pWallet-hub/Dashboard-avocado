@@ -2,11 +2,10 @@ import { useEffect, useState } from 'react';
 import { ClipLoader } from 'react-spinners';
 import Select from 'react-select';
 import {
-  getAllShops,
-  updateShop,
-  deleteShop,
-  exportShopsToExcel
-} from '../../services/shopService';
+  getSuppliers,
+  updateSupplier,
+  deleteSupplier
+} from '../../services/suppliersService';
 import {
   Store, MapPin, User, Phone, Mail, Edit, Trash2, Download,
   Search, Eye, Building2, MapPinned, TrendingUp, CheckCircle2,
@@ -41,23 +40,23 @@ const customSelectStyles = {
 };
 
 export default function ShopSuppliers() {
-  const [shops, setShops] = useState([]);
+  const [suppliers, setSuppliers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [selectedDistrict, setSelectedDistrict] = useState(null);
   const [selectedProvince, setSelectedProvince] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedShop, setSelectedShop] = useState(null);
+  const [selectedSupplier, setSelectedSupplier] = useState(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [editFormData, setEditFormData] = useState({
-    shopName: '',
+    name: '',
     description: '',
     province: '',
     district: '',
-    ownerName: '',
-    ownerEmail: '',
-    ownerPhone: '',
+    contactName: '',
+    email: '',
+    phone: '',
   });
 
   const provinces = [
@@ -77,30 +76,33 @@ export default function ShopSuppliers() {
   };
 
   useEffect(() => {
-    fetchShops();
+    fetchSuppliers();
   }, []);
 
-  const fetchShops = async () => {
+  const fetchSuppliers = async () => {
     setLoading(true);
     setError(null);
     try {
-      console.log('Starting to fetch shops...');
-      const response = await getAllShops();
+      console.log('Starting to fetch suppliers...');
+      const response = await getSuppliers({
+        page: 1,
+        limit: 100
+      });
       console.log('Response received:', response);
       if (response.success && response.data) {
-        const shopsData = Array.isArray(response.data) ? response.data : [];
-        console.log(`Successfully loaded ${shopsData.length} shops`);
-        setShops(shopsData);
-        if (shopsData.length === 0) {
-          setError('No shops found. Create your first shop to get started!');
+        const suppliersData = Array.isArray(response.data) ? response.data : [];
+        console.log(`Successfully loaded ${suppliersData.length} suppliers`);
+        setSuppliers(suppliersData);
+        if (suppliersData.length === 0) {
+          setError('No suppliers found. Add your first supplier to get started!');
         }
       } else {
-        setShops([]);
-        setError(response.message || 'Failed to load shops.');
+        setSuppliers([]);
+        setError(response.message || 'Failed to load suppliers.');
       }
     } catch (error) {
-      console.error('Error in fetchShops:', error);
-      setShops([]);
+      console.error('Error in fetchSuppliers:', error);
+      setSuppliers([]);
       if (error.message?.includes('timeout') || error.message?.includes('starting up')) {
         setError('The server is waking up (this can take 30-60 seconds on first request). Please click Retry.');
       } else if (error.message?.includes('Network error')) {
@@ -108,31 +110,31 @@ export default function ShopSuppliers() {
       } else if (error.response?.status === 401) {
         setError('Session expired. Please log in again.');
       } else if (error.response?.status === 403) {
-        setError('Access denied. You do not have permission to view shops.');
+        setError('Access denied. You do not have permission to view suppliers.');
       } else {
-        setError(error.message || 'Failed to load shops. Please try again.');
+        setError(error.message || 'Failed to load suppliers. Please try again.');
       }
     } finally {
       setLoading(false);
     }
   };
 
-  const handleEditShop = (shop) => {
-    setSelectedShop(shop);
+  const handleEditSupplier = (supplier) => {
+    setSelectedSupplier(supplier);
     setEditFormData({
-      shopName: shop.shopName,
-      description: shop.description,
-      province: shop.province,
-      district: shop.district,
-      ownerName: shop.ownerName,
-      ownerEmail: shop.ownerEmail,
-      ownerPhone: shop.ownerPhone,
+      name: supplier.name,
+      description: supplier.description,
+      province: supplier.province,
+      district: supplier.district,
+      contactName: supplier.contactName,
+      email: supplier.email,
+      phone: supplier.phone,
     });
     setIsEditModalOpen(true);
   };
 
-  const handleViewShop = (shop) => {
-    setSelectedShop(shop);
+  const handleViewSupplier = (supplier) => {
+    setSelectedSupplier(supplier);
     setIsViewModalOpen(true);
   };
 
@@ -144,42 +146,64 @@ export default function ShopSuppliers() {
     }));
   };
 
-  const handleUpdateShop = async () => {
-    if (!selectedShop) return;
+  const handleUpdateSupplier = async () => {
+    if (!selectedSupplier) return;
     setLoading(true);
     try {
-      const response = await updateShop(selectedShop.id, editFormData);
+      const response = await updateSupplier(selectedSupplier.id, editFormData);
       if (response.success) {
-        alert('Shop updated successfully!');
+        alert('Supplier updated successfully!');
         setIsEditModalOpen(false);
-        fetchShops();
+        fetchSuppliers();
       }
     } catch (error) {
-      alert(`Error: ${error.response?.data?.message || 'Failed to update shop'}`);
+      alert(`Error: ${error.response?.data?.message || 'Failed to update supplier'}`);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDeleteShop = async (shopId) => {
-    if (!window.confirm('Are you sure you want to delete this shop?')) return;
+  const handleDeleteSupplier = async (supplierId) => {
+    if (!window.confirm('Are you sure you want to delete this supplier?')) return;
     try {
-      const response = await deleteShop(shopId);
+      const response = await deleteSupplier(supplierId);
       if (response.success) {
-        alert('Shop deleted successfully');
-        fetchShops();
+        alert('Supplier deleted successfully');
+        fetchSuppliers();
       }
     } catch (error) {
-      alert(`Error: ${error.response?.data?.message || 'Failed to delete shop'}`);
+      alert(`Error: ${error.response?.data?.message || 'Failed to delete supplier'}`);
     }
   };
 
   const exportToExcel = () => {
-    if (shops.length === 0) {
-      alert('No shops data to export');
+    if (suppliers.length === 0) {
+      alert('No suppliers data to export');
       return;
     }
-    exportShopsToExcel(shops);
+    // Create CSV content
+    const headers = ['Name', 'Contact Name', 'Email', 'Phone', 'Province', 'District', 'Description'];
+    const csvContent = [
+      headers.join(','),
+      ...suppliers.map(supplier => [
+        supplier.name || '',
+        supplier.contactName || '',
+        supplier.email || '',
+        supplier.phone || '',
+        supplier.province || '',
+        supplier.district || '',
+        supplier.description || ''
+      ].map(field => `"${field}"`).join(','))
+    ].join('\n');
+    
+    // Download CSV
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'suppliers.csv';
+    a.click();
+    window.URL.revokeObjectURL(url);
   };
 
   const clearFilters = () => {
@@ -188,26 +212,26 @@ export default function ShopSuppliers() {
     setSearchQuery('');
   };
 
-  const filteredShops = shops.filter((shop) => {
-    const matchesDistrict = !selectedDistrict || shop.district === selectedDistrict;
-    const matchesProvince = !selectedProvince || shop.province === selectedProvince;
+  const filteredSuppliers = suppliers.filter((supplier) => {
+    const matchesDistrict = !selectedDistrict || supplier.district === selectedDistrict;
+    const matchesProvince = !selectedProvince || supplier.province === selectedProvince;
     const matchesSearch = !searchQuery ||
-      shop.shopName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      shop.ownerName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      shop.ownerEmail?.toLowerCase().includes(searchQuery.toLowerCase());
+      supplier.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      supplier.contactName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      supplier.email?.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesDistrict && matchesProvince && matchesSearch;
   });
 
   const stats = {
-    total: shops.length,
-    active: shops.filter(s => s.canSell !== false).length,
-    provinces: new Set(shops.map(s => s.province).filter(Boolean)).size,
-    districts: new Set(shops.map(s => s.district).filter(Boolean)).size,
+    total: suppliers.length,
+    active: suppliers.filter(s => s.status !== 'inactive').length,
+    provinces: new Set(suppliers.map(s => s.province).filter(Boolean)).size,
+    districts: new Set(suppliers.map(s => s.district).filter(Boolean)).size,
   };
 
   const statCards = [
-    { label: 'Total Shops', value: stats.total, icon: Store, gradient: 'from-green-600 to-emerald-700', bg: 'from-green-50 to-emerald-50', iconColor: 'text-green-700' },
-    { label: 'Active Shops', value: stats.active, icon: CheckCircle2, gradient: 'from-teal-600 to-cyan-700', bg: 'from-teal-50 to-cyan-50', iconColor: 'text-teal-700' },
+    { label: 'Total Suppliers', value: stats.total, icon: Store, gradient: 'from-green-600 to-emerald-700', bg: 'from-green-50 to-emerald-50', iconColor: 'text-green-700' },
+    { label: 'Active Suppliers', value: stats.active, icon: CheckCircle2, gradient: 'from-teal-600 to-cyan-700', bg: 'from-teal-50 to-cyan-50', iconColor: 'text-teal-700' },
     { label: 'Provinces', value: stats.provinces, icon: Globe, gradient: 'from-amber-600 to-orange-700', bg: 'from-amber-50 to-orange-50', iconColor: 'text-amber-700' },
     { label: 'Districts', value: stats.districts, icon: MapPinned, gradient: 'from-purple-600 to-pink-700', bg: 'from-purple-50 to-pink-50', iconColor: 'text-purple-700' },
   ];
@@ -226,14 +250,14 @@ export default function ShopSuppliers() {
                 </div>
                 <div>
                   <h1 className="text-3xl font-bold text-white flex items-center gap-3">
-                    Shop Management Dashboard
+                    Supplier Management Dashboard
                   </h1>
-                  <p className="text-green-100 mt-1">Manage and monitor all shop operations</p>
+                  <p className="text-green-100 mt-1">Manage and monitor all supplier operations</p>
                 </div>
               </div>
               <div className="flex gap-3">
                 <button
-                  onClick={fetchShops}
+                  onClick={fetchSuppliers}
                   className="flex items-center gap-2 px-5 py-2.5 bg-white/20 backdrop-blur-sm text-white rounded-xl font-semibold hover:bg-white/30 transition-all duration-200 border border-white/30"
                 >
                   <RefreshCw className="w-5 h-5" />
@@ -295,14 +319,14 @@ export default function ShopSuppliers() {
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-1.5">
                 <Search className="w-4 h-4 text-green-700" />
-                Search Shops
+                Search Suppliers
               </label>
               <div className="relative">
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Name, owner, email..."
+                  placeholder="Name, contact, email..."
                   className="w-full pl-11 pr-4 py-2.5 bg-green-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all"
                 />
                 <Search className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -316,7 +340,7 @@ export default function ShopSuppliers() {
                 Filter by Province
               </label>
               <Select
-                options={[...new Set(shops.map(s => s.province).filter(Boolean))].map(p => ({
+                options={[...new Set(suppliers.map(s => s.province).filter(Boolean))].map(p => ({
                   label: p,
                   value: p,
                 }))}
@@ -335,7 +359,7 @@ export default function ShopSuppliers() {
                 Filter by District
               </label>
               <Select
-                options={[...new Set(shops.map(s => s.district).filter(Boolean))].map(d => ({
+                options={[...new Set(suppliers.map(s => s.district).filter(Boolean))].map(d => ({
                   label: d,
                   value: d,
                 }))}
@@ -385,8 +409,8 @@ export default function ShopSuppliers() {
           {/* Results Count */}
           <div className="mt-4 pt-4 border-t border-gray-100">
             <p className="text-sm text-gray-600">
-              Showing <span className="font-bold text-green-700">{filteredShops.length}</span> of{' '}
-              <span className="font-bold text-gray-900">{shops.length}</span> shops
+              Showing <span className="font-bold text-green-700">{filteredSuppliers.length}</span> of{' '}
+              <span className="font-bold text-gray-900">{suppliers.length}</span> suppliers
             </p>
           </div>
         </div>
@@ -396,7 +420,7 @@ export default function ShopSuppliers() {
           {loading ? (
             <div className="flex flex-col items-center justify-center py-20">
               <ClipLoader color="#0f4c3a" loading={loading} size={60} />
-              <p className="mt-4 text-gray-600 font-medium">Loading shops data...</p>
+              <p className="mt-4 text-gray-600 font-medium">Loading suppliers data...</p>
               <p className="mt-2 text-sm text-gray-500">First load may take 30-60 seconds while server wakes up</p>
             </div>
           ) : error ? (
@@ -409,23 +433,23 @@ export default function ShopSuppliers() {
                 </p>
               )}
               <button
-                onClick={fetchShops}
+                onClick={fetchSuppliers}
                 className="mt-4 px-6 py-2.5 bg-green-700 text-white rounded-xl font-semibold hover:bg-green-800 transition-colors inline-flex items-center gap-2"
               >
                 <RefreshCw className="w-4 h-4" />
                 Retry Now
               </button>
             </div>
-          ) : filteredShops.length > 0 ? (
+          ) : filteredSuppliers.length > 0 ? (
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-gradient-to-r from-green-50 to-emerald-50 border-b-2 border-green-100">
                   <tr>
                     {[
-                      { label: 'Shop Details', icon: Store },
+                      { label: 'Supplier Details', icon: Store },
                       { label: 'Location', icon: MapPin },
-                      { label: 'Owner', icon: User },
-                      { label: 'Contact', icon: Mail },
+                      { label: 'Contact Person', icon: User },
+                      { label: 'Contact Info', icon: Mail },
                       { label: 'Status', icon: CheckCircle2 },
                       { label: 'Actions', icon: null }
                     ].map((header, idx) => (
@@ -441,7 +465,7 @@ export default function ShopSuppliers() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {filteredShops.map((shop, idx) => {
+                  {filteredSuppliers.map((supplier, idx) => {
                     const colors = [
                       'from-green-600 to-emerald-700',
                       'from-teal-600 to-cyan-700',
@@ -452,19 +476,19 @@ export default function ShopSuppliers() {
                     const colorIdx = idx % colors.length;
 
                     return (
-                      <tr key={shop.id} className="hover:bg-green-50 transition-all duration-200 group">
-                        {/* Shop Details */}
+                      <tr key={supplier.id} className="hover:bg-green-50 transition-all duration-200 group">
+                        {/* Supplier Details */}
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
                             <div className={`w-12 h-12 bg-gradient-to-br ${colors[colorIdx]} rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-md group-hover:scale-110 transition-transform duration-200`}>
-                              {shop.shopName?.charAt(0).toUpperCase() || 'S'}
+                              {supplier.name?.charAt(0).toUpperCase() || 'S'}
                             </div>
                             <div className="min-w-0">
                               <p className="font-bold text-gray-900 group-hover:text-green-700 transition-colors">
-                                {shop.shopName}
+                                {supplier.name}
                               </p>
-                              <p className="text-sm text-gray-500 truncate max-w-xs" title={shop.description}>
-                                {shop.description || 'No description'}
+                              <p className="text-sm text-gray-500 truncate max-w-xs" title={supplier.description}>
+                                {supplier.description || 'No description'}
                               </p>
                             </div>
                           </div>
@@ -475,41 +499,41 @@ export default function ShopSuppliers() {
                           <div className="space-y-1.5">
                             <div className="flex items-center gap-2">
                               <span className="px-2.5 py-1 bg-amber-100 text-amber-800 rounded-lg text-xs font-semibold">
-                                {shop.province}
+                                {supplier.province}
                               </span>
                             </div>
                             <div className="flex items-center gap-2">
                               <span className="px-2.5 py-1 bg-purple-100 text-purple-800 rounded-lg text-xs font-semibold">
-                                {shop.district}
+                                {supplier.district}
                               </span>
                             </div>
                           </div>
                         </td>
 
-                        {/* Owner */}
+                        {/* Contact Person */}
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-2.5">
                             <div className="w-9 h-9 bg-gradient-to-br from-green-100 to-emerald-100 rounded-lg flex items-center justify-center">
                               <User className="w-5 h-5 text-green-700" />
                             </div>
                             <div>
-                              <p className="font-semibold text-gray-900">{shop.ownerName}</p>
+                              <p className="font-semibold text-gray-900">{supplier.contactName}</p>
                             </div>
                           </div>
                         </td>
 
-                        {/* Contact */}
+                        {/* Contact Info */}
                         <td className="px-6 py-4">
                           <div className="space-y-2">
                             <div className="flex items-center gap-2 text-sm text-gray-600">
                               <Mail className="w-4 h-4 text-gray-400" />
-                              <span className="truncate max-w-[180px]" title={shop.ownerEmail}>
-                                {shop.ownerEmail}
+                              <span className="truncate max-w-[180px]" title={supplier.email}>
+                                {supplier.email}
                               </span>
                             </div>
                             <div className="flex items-center gap-2 text-sm text-gray-600">
                               <Phone className="w-4 h-4 text-gray-400" />
-                              <span>{shop.ownerPhone}</span>
+                              <span>{supplier.phone}</span>
                             </div>
                           </div>
                         </td>
@@ -517,11 +541,11 @@ export default function ShopSuppliers() {
                         {/* Status */}
                         <td className="px-6 py-4">
                           <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold ${
-                            shop.canSell !== false
+                            supplier.status !== 'inactive'
                               ? 'bg-emerald-100 text-emerald-800'
                               : 'bg-red-100 text-red-800'
                           }`}>
-                            {shop.canSell !== false ? (
+                            {supplier.status !== 'inactive' ? (
                               <>
                                 <CheckCircle2 className="w-4 h-4" />
                                 Active
@@ -539,23 +563,23 @@ export default function ShopSuppliers() {
                         <td className="px-6 py-4">
                           <div className="flex gap-2">
                             <button
-                              onClick={() => handleViewShop(shop)}
+                              onClick={() => handleViewSupplier(supplier)}
                               className="p-2 bg-green-100 text-green-800 rounded-lg hover:bg-green-200 transition-colors group/btn"
                               title="View Details"
                             >
                               <Eye className="w-4 h-4 group-hover/btn:scale-110 transition-transform" />
                             </button>
                             <button
-                              onClick={() => handleEditShop(shop)}
+                              onClick={() => handleEditSupplier(supplier)}
                               className="p-2 bg-amber-100 text-amber-800 rounded-lg hover:bg-amber-200 transition-colors group/btn"
-                              title="Edit Shop"
+                              title="Edit Supplier"
                             >
                               <Edit className="w-4 h-4 group-hover/btn:scale-110 transition-transform" />
                             </button>
                             <button
-                              onClick={() => handleDeleteShop(shop.id)}
+                              onClick={() => handleDeleteSupplier(supplier.id)}
                               className="p-2 bg-red-100 text-red-800 rounded-lg hover:bg-red-200 transition-colors group/btn"
-                              title="Delete Shop"
+                              title="Delete Supplier"
                             >
                               <Trash2 className="w-4 h-4 group-hover/btn:scale-110 transition-transform" />
                             </button>
@@ -572,11 +596,11 @@ export default function ShopSuppliers() {
               <div className="w-20 h-20 bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl flex items-center justify-center mx-auto mb-6">
                 <Store className="w-10 h-10 text-green-600" />
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">No shops found</h3>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">No suppliers found</h3>
               <p className="text-gray-600 mb-6 max-w-md mx-auto">
                 {searchQuery || selectedDistrict || selectedProvince
-                  ? 'No shops match your current filters. Try adjusting your search criteria.'
-                  : 'Get started by adding your first shop to the system.'}
+                  ? 'No suppliers match your current filters. Try adjusting your search criteria.'
+                  : 'Get started by adding your first supplier to the system.'}
               </p>
               {(searchQuery || selectedDistrict || selectedProvince) && (
                 <button
@@ -592,7 +616,7 @@ export default function ShopSuppliers() {
         </div>
 
               {/* ────────────────────────  VIEW SHOP MODAL  ──────────────────────── */}
-        {isViewModalOpen && selectedShop && (
+        {isViewModalOpen && selectedSupplier && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
             <div className="bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-2xl animate-in zoom-in-95 duration-200">
               {/* Header */}
@@ -602,8 +626,8 @@ export default function ShopSuppliers() {
                     <Eye className="w-6 h-6 text-white" />
                   </div>
                   <div>
-                    <h2 className="text-2xl font-bold text-white">Shop Details</h2>
-                    <p className="text-green-100 text-sm">Complete shop information</p>
+                    <h2 className="text-2xl font-bold text-white">Supplier Details</h2>
+                    <p className="text-green-100 text-sm">Complete supplier information</p>
                   </div>
                 </div>
                 <button
@@ -617,13 +641,13 @@ export default function ShopSuppliers() {
               {/* Form-style content */}
               <div className="p-8">
                 <div className="grid md:grid-cols-2 gap-6">
-                  {/* Shop Name */}
+                  {/* Supplier Name */}
                   <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                      Shop Name
+                      Supplier Name
                     </label>
                     <div className="px-4 py-3 bg-white border border-gray-300 rounded-lg text-base">
-                      {selectedShop.shopName}
+                      {selectedSupplier.name}
                     </div>
                   </div>
 
@@ -633,7 +657,7 @@ export default function ShopSuppliers() {
                       Province
                     </label>
                     <div className="px-4 py-3 bg-white border border-gray-300 rounded-lg text-base">
-                      {selectedShop.province}
+                      {selectedSupplier.province}
                     </div>
                   </div>
 
@@ -643,57 +667,57 @@ export default function ShopSuppliers() {
                       District
                     </label>
                     <div className="px-4 py-3 bg-white border border-gray-300 rounded-lg text-base">
-                      {selectedShop.district}
+                      {selectedSupplier.district}
                     </div>
                   </div>
 
-                  {/* Owner Name */}
+                  {/* Contact Name */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                      Owner Name
+                      Contact Name
                     </label>
                     <div className="px-4 py-3 bg-white border border-gray-300 rounded-lg text-base">
-                      {selectedShop.ownerName}
+                      {selectedSupplier.contactName}
                     </div>
                   </div>
 
-                  {/* Owner Email */}
+                  {/* Email */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                      Owner Email
+                      Email
                     </label>
                     <div className="px-4 py-3 bg-white border border-gray-300 rounded-lg text-base">
-                      {selectedShop.ownerEmail}
+                      {selectedSupplier.email}
                     </div>
                   </div>
 
-                  {/* Owner Phone */}
+                  {/* Phone */}
                   <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                      Owner Phone
+                      Phone
                     </label>
                     <div className="px-4 py-3 bg-white border border-gray-300 rounded-lg text-base">
-                      {selectedShop.ownerPhone}
+                      {selectedSupplier.phone}
                     </div>
                   </div>
 
                   {/* Description */}
-                  {selectedShop.description && (
+                  {selectedSupplier.description && (
                     <div className="md:col-span-2">
                       <label className="block text-sm font-medium text-gray-700 mb-1.5">
                         Description
                       </label>
                       <div className="px-4 py-3 bg-white border border-gray-300 rounded-lg text-base">
-                        {selectedShop.description}
+                        {selectedSupplier.description}
                       </div>
                     </div>
                   )}
 
                   {/* Created Date */}
-                  {selectedShop.createdAt && (
+                  {selectedSupplier.createdAt && (
                     <div className="md:col-span-2 text-center text-sm text-gray-500 mt-4">
                       Created on{' '}
-                      {new Date(selectedShop.createdAt).toLocaleDateString('en-US', {
+                      {new Date(selectedSupplier.createdAt).toLocaleDateString('en-US', {
                         year: 'numeric',
                         month: 'long',
                         day: 'numeric',
@@ -714,12 +738,12 @@ export default function ShopSuppliers() {
                 <button
                   onClick={() => {
                     setIsViewModalOpen(false);
-                    handleEditShop(selectedShop);
+                    handleEditSupplier(selectedSupplier);
                   }}
                   className="px-6 py-2.5 bg-gradient-to-r from-green-600 to-emerald-700 text-white rounded-xl font-semibold hover:from-green-700 hover:to-emerald-800 transition-all shadow-lg flex items-center gap-2"
                 >
                   <Edit className="w-4 h-4" />
-                  Edit Shop
+                  Edit Supplier
                 </button>
               </div>
             </div>
@@ -735,8 +759,8 @@ export default function ShopSuppliers() {
                     <Edit className="w-6 h-6 text-white" />
                   </div>
                   <div>
-                    <h2 className="text-2xl font-bold text-white">Edit Shop</h2>
-                    <p className="text-green-100 text-sm">Update shop information</p>
+                    <h2 className="text-2xl font-bold text-white">Edit Supplier</h2>
+                    <p className="text-green-100 text-sm">Update supplier information</p>
                   </div>
                 </div>
                 <button
@@ -750,17 +774,17 @@ export default function ShopSuppliers() {
               {/* Form */}
               <div className="p-8">
                 <div className="grid md:grid-cols-2 gap-6">
-                  {/* Shop Name */}
+                  {/* Supplier Name */}
                   <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                      Shop Name *
+                      Supplier Name *
                     </label>
                     <input
                       type="text"
-                      value={editFormData.shopName}
-                      onChange={(e) => handleEditFormChange('shopName', e.target.value)}
+                      value={editFormData.name}
+                      onChange={(e) => handleEditFormChange('name', e.target.value)}
                       className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all"
-                      placeholder="Enter shop name"
+                      placeholder="Enter supplier name"
                     />
                   </div>
 
@@ -800,43 +824,43 @@ export default function ShopSuppliers() {
                     </select>
                   </div>
 
-                  {/* Owner Name */}
+                  {/* Contact Name */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                      Owner Name *
+                      Contact Name *
                     </label>
                     <input
                       type="text"
-                      value={editFormData.ownerName}
-                      onChange={(e) => handleEditFormChange('ownerName', e.target.value)}
+                      value={editFormData.contactName}
+                      onChange={(e) => handleEditFormChange('contactName', e.target.value)}
                       className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all"
-                      placeholder="Enter owner name"
+                      placeholder="Enter contact name"
                     />
                   </div>
 
-                  {/* Owner Email */}
+                  {/* Email */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                      Owner Email *
+                      Email *
                     </label>
                     <input
                       type="email"
-                      value={editFormData.ownerEmail}
-                      onChange={(e) => handleEditFormChange('ownerEmail', e.target.value)}
+                      value={editFormData.email}
+                      onChange={(e) => handleEditFormChange('email', e.target.value)}
                       className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all"
-                      placeholder="owner@example.com"
+                      placeholder="contact@example.com"
                     />
                   </div>
 
-                  {/* Owner Phone */}
+                  {/* Phone */}
                   <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                      Owner Phone
+                      Phone
                     </label>
                     <input
                       type="tel"
-                      value={editFormData.ownerPhone}
-                      onChange={(e) => handleEditFormChange('ownerPhone', e.target.value)}
+                      value={editFormData.phone}
+                      onChange={(e) => handleEditFormChange('phone', e.target.value)}
                       className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all"
                       placeholder="+250 XXX XXX XXX"
                     />
@@ -852,7 +876,7 @@ export default function ShopSuppliers() {
                       onChange={(e) => handleEditFormChange('description', e.target.value)}
                       rows={4}
                       className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all resize-vertical"
-                      placeholder="Enter shop description (optional)"
+                      placeholder="Enter supplier description (optional)"
                     />
                   </div>
                 </div>
@@ -867,7 +891,7 @@ export default function ShopSuppliers() {
                   Cancel
                 </button>
                 <button
-                  onClick={handleUpdateShop}
+                  onClick={handleUpdateSupplier}
                   disabled={loading}
                   className="px-6 py-2.5 bg-purple-600 text-white rounded-xl font-semibold hover:bg-purple-700 transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                 >
@@ -879,7 +903,7 @@ export default function ShopSuppliers() {
                   ) : (
                     <>
                       <CheckCircle2 className="w-4 h-4" />
-                      Update Shop
+                      Update Supplier
                     </>
                   )}
                 </button>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ShoppingCart, Search, Filter, Eye, Edit, CheckCircle, Leaf, Plus, Trash2 } from 'lucide-react';
-import { listOrders, updateOrderStatus, getOrder, createOrder } from '../../services/orderService';
+import { getOrders, updateOrderStatus, getOrderById, createOrder } from '../../services/orderService';
 
 const ShopOrders = () => {
   const [orders, setOrders] = useState([]);
@@ -122,7 +122,7 @@ const ShopOrders = () => {
     } catch (error) {
       console.error('Error loading orders:', error);
       setError(error.message || 'Failed to load orders');
-      setOrders([]); // Set empty array instead of mock data
+      setOrders([]);
       setPagination({
         currentPage: 1,
         totalPages: 1,

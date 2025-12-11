@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { X, Camera, User, Mail, Shield, Calendar, Edit2, Save, Phone, MapPin } from 'lucide-react';
-import { updateProfile, changePassword } from '../../services/authService';
+import authService from '../../services/authService';
 import ProfilePictureUploader from './ProfilePictureUploader';
 
 const UserProfile = ({ user, isOpen, onClose, onUpdate }) => {

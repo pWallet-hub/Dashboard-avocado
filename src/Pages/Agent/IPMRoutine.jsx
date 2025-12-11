@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { Search, Mail, Phone, MapPin, Maximize2, Bug } from "lucide-react";
 import "../../Pages/Styles/HarvestingDay.css";
-import { createIPMRoutineRequest } from '../../services/serviceRequestsService';
-import { listFarmers } from '../../services/usersService';
+import { createPestManagementRequest } from '../../services/serviceRequestsService';
+import { getFarmers } from '../../services/usersService';
 import { getAgentInformation } from '../../services/agent-information';
 
 export default function AgentScheduleIPMRoutine() {
@@ -117,7 +117,7 @@ export default function AgentScheduleIPMRoutine() {
     const fetchFarmers = async () => {
       setLoading(true);
       try {
-        const response = await listFarmers({ limit: 100 });
+        const response = await getFarmers({ limit: 100 });
         const farmersList = response.data || [];
         
         // Apply territory filtering to show only farmers in agent's assigned territories

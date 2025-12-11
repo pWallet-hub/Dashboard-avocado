@@ -1,47 +1,51 @@
-import apiClient, { extractData } from './apiClient';
+import apiClient from './apiClient';
 
 // Get dashboard statistics
-export async function getDashboardStatistics() {
-  const response = await apiClient.get('/analytics/dashboard');
-  return extractData(response);
-}
+export const getDashboardStats = async () => {
+  try {
+    const response = await apiClient.get('/analytics/dashboard');
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.message || 'Failed to fetch dashboard statistics');
+  }
+};
 
 // Get sales analytics
-export async function getSalesAnalytics(options = {}) {
-  const params = {};
-  if (options.start_date) params.start_date = options.start_date;
-  if (options.end_date) params.end_date = options.end_date;
-  
-  const response = await apiClient.get('/analytics/sales', { params });
-  return extractData(response);
-}
+export const getSalesAnalytics = async (params = {}) => {
+  try {
+    const response = await apiClient.get('/analytics/sales', { params });
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.message || 'Failed to fetch sales analytics');
+  }
+};
 
 // Get product analytics
-export async function getProductAnalytics(options = {}) {
-  const params = {};
-  if (options.start_date) params.start_date = options.start_date;
-  if (options.end_date) params.end_date = options.end_date;
-  
-  const response = await apiClient.get('/analytics/products', { params });
-  return extractData(response);
-}
+export const getProductAnalytics = async (params = {}) => {
+  try {
+    const response = await apiClient.get('/analytics/products', { params });
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.message || 'Failed to fetch product analytics');
+  }
+};
 
 // Get user analytics
-export async function getUserAnalytics(options = {}) {
-  const params = {};
-  if (options.start_date) params.start_date = options.start_date;
-  if (options.end_date) params.end_date = options.end_date;
-  
-  const response = await apiClient.get('/analytics/users', { params });
-  return extractData(response);
-}
+export const getUserAnalytics = async (params = {}) => {
+  try {
+    const response = await apiClient.get('/analytics/users', { params });
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.message || 'Failed to fetch user analytics');
+  }
+};
 
 // Get monthly order trends
-export async function getMonthlyOrderTrends(options = {}) {
-  const params = {};
-  if (options.start_date) params.start_date = options.start_date;
-  if (options.end_date) params.end_date = options.end_date;
-  
-  const response = await apiClient.get('/analytics/orders/monthly', { params });
-  return extractData(response);
-}
+export const getMonthlyOrderTrends = async (params = {}) => {
+  try {
+    const response = await apiClient.get('/analytics/orders/monthly', { params });
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.message || 'Failed to fetch monthly order trends');
+  }
+};

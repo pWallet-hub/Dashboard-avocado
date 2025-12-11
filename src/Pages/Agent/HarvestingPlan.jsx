@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Search, Calendar, TrendingUp, Maximize2, Users, Package, Truck, Warehouse, Award, Target, Mail, Phone, MapPin } from "lucide-react";
 import "../../Pages/Styles/HarvestingDay.css";
 import { createHarvestRequest } from '../../services/serviceRequestsService';
-import { listFarmers } from '../../services/usersService';
+import { getFarmers } from '../../services/usersService';
 import { getAgentInformation } from '../../services/agent-information';
 
 export default function AgentScheduleHarvestingPlan() {
@@ -99,7 +99,7 @@ export default function AgentScheduleHarvestingPlan() {
     const fetchFarmers = async () => {
       setLoading(true);
       try {
-        const response = await listFarmers({ limit: 100 });
+        const response = await getFarmers({ limit: 100 });
         const farmersList = response.data || [];
         
         // Apply territory filtering to show only farmers in agent's assigned territories

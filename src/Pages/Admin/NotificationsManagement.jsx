@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Bell, Plus, Search, Filter, Eye, Trash2, Send, Users, User, CheckCircle, AlertCircle } from 'lucide-react';
 import { 
-  listNotifications, 
+  getNotifications, 
   createNotification, 
   deleteNotification, 
   markAsRead, 
   markAllAsRead,
   getUnreadCount 
 } from '../../services/notificationsService';
-import { listUsers } from '../../services/usersService';
+import { getUsers } from '../../services/usersService';
 
 const NotificationsManagement = () => {
   const [notifications, setNotifications] = useState([]);
@@ -39,8 +39,8 @@ const NotificationsManagement = () => {
     
     try {
       const [notificationsData, usersData, unreadData] = await Promise.allSettled([
-        listNotifications({ limit: 100 }),
-        listUsers({ limit: 1000 }),
+        getNotifications({ limit: 100 }),
+        getUsers({ limit: 1000 }),
         getUnreadCount()
       ]);
 

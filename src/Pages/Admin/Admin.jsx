@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { ClipboardList, Clock, CheckCircle, XCircle, User, Mail, Phone, Shield, Edit3, Save, X, Truck } from 'lucide-react';
 import '../Styles/Admin.css';
-import { getProfile, updateProfile, changePassword } from '../../services/authService';
-import { listServiceRequests, listHarvestRequests } from '../../services/serviceRequestsService';
+import authService from '../../services/authService';
+import { getPestManagementRequests, getHarvestRequests, getPropertyEvaluationRequests } from '../../services/serviceRequestsService';
 
 function Admin() {
   const [adminProfile, setAdminProfile] = useState({});
@@ -59,7 +59,7 @@ function Admin() {
       try {
         // Fetch both endpoints in parallel with better error handling
         const [propertyEvalResponse, harvestResponse] = await Promise.allSettled([
-          listServiceRequests().catch(error => {
+          getPestManagementRequests().catch(error => {
             console.warn('Property evaluation requests failed:', error);
             return [];
           }),

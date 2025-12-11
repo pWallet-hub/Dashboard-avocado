@@ -7,7 +7,7 @@ import { Link } from 'react-router-dom';
 import product from '../../assets/image/product.jpg';
 import { ShoppingCart, X, CheckCircle, Loader2, Package, Minus, Plus, Trash2, Smartphone } from 'lucide-react';
 
-import { getAllProducts } from '../../services/productsService';
+import { getProducts } from '../../services/productsService';
 
 // Cart Service Singleton
 const CartService = {
@@ -171,21 +171,26 @@ export default function Market() {
       try {
         setLoading(true);
         
-        // Get all products
-        const allProductsResponse = await getAllProducts();
+        // Get all products using the new API service
+        const response = await getProducts({ 
+          status: 'available',
+          limit: 50 
+        });
         
-        console.log('All products response:', allProductsResponse);
+        console.log('Products response:', response);
         
-        // Handle all products
-        if (Array.isArray(allProductsResponse)) {
-          setAllProducts(allProductsResponse);
-        } else if (allProductsResponse.data && Array.isArray(allProductsResponse.data)) {
-          setAllProducts(allProductsResponse.data);
+        // Handle the response based on the API documentation structure
+        if (response.success && Array.isArray(response.data)) {
+          setAllProducts(response.data);
+        } else if (Array.isArray(response.data)) {
+          setAllProducts(response.data);
+        } else if (Array.isArray(response)) {
+          setAllProducts(response);
         } else {
           setAllProducts([]);
         }
       } catch (error) {
-        console.error('Error fetching all products:', error);
+        console.error('Error fetching products:', error.message);
         setAllProducts([]);
       } finally {
         setLoading(false);
@@ -300,19 +305,19 @@ export default function Market() {
            <div className="market-tabs">
             <button>All Categories</button>
             <div className="market-tabs-grid">
-              <Link to="/dashboard/farmer/IrrigationKits">
+              <Link to="/dashboard/farmer/irrigation-kits">
                 <button>Irrigation Kits</button>
               </Link>
-              <Link to="/dashboard/farmer/HarvestingKit">
+              <Link to="/dashboard/farmer/harvesting-kit">
                 <button>Harvesting Kits</button>
               </Link>
-              <Link to="/dashboard/farmer/Protection">
+              <Link to="/dashboard/farmer/protection">
                 <button>Safety & Protection</button>
               </Link>
-              <Link to="/dashboard/farmer/Container">
-                <button>Container</button>
+              <Link to="/dashboard/farmer/containers">
+                <button>Containers</button>
               </Link>
-              <Link to="/dashboard/farmer/Pest">
+              <Link to="/dashboard/farmer/pest-management">
                 <button>Pest Management</button>
               </Link>
             </div>

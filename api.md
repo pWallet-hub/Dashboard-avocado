@@ -1,237 +1,525 @@
-# Complete API Documentation
+# Dashboard Avocado Backend API - Complete Documentation
 
-**Version:** 2.0.0  
-**Last Updated:** December 10, 2025
+## Table of Contents
+1. [Overview](#overview)
+2. [Authentication](#authentication)
+3. [Response Format](#response-format)
+4. [Error Handling](#error-handling)
+5. [Rate Limiting](#rate-limiting)
+6. [API Endpoints](#api-endpoints)
+   - [Welcome & System](#welcome--system)
+   - [Authentication](#authentication-endpoints)
+   - [User Management](#user-management)
+   - [Farmer Information](#farmer-information)
+   - [Agent Information](#agent-information)
+   - [Profile Access](#profile-access)
+   - [Products](#products)
+   - [Orders](#orders)
+   - [Service Requests](#service-requests)
+   - [Shops](#shops)
+   - [Inventory](#inventory)
+   - [Customers](#customers)
+   - [Suppliers](#suppliers)
+   - [Reports](#reports)
+   - [Farms](#farms)
+   - [Weather](#weather)
+   - [Analytics](#analytics)
+   - [Notifications](#notifications)
+   - [Upload](#upload)
+   - [Logs](#logs)
+   - [Monitoring](#monitoring)
 
 ## Overview
-This document provides comprehensive documentation for the Dashboard Avocado Backend API. It details all available endpoints, authentication requirements, request/response formats, and access permissions for frontend integration.
 
-## Base URL
-All API requests should be prefixed with:
-```
-http://<your-domain>/api
-```
+The Dashboard Avocado Backend API is a comprehensive agricultural management system that provides endpoints for managing farmers, agents, products, orders, and various agricultural services.
+
+**Base URL:** `https://dash-api-hnyp.onrender.com/api` (development)
+**API Version:** Latest
+**Environment:** Development/Production
 
 ## Authentication
-Most endpoints require authentication using a Bearer Token in the Authorization header:
+
+The API uses JWT (JSON Web Token) based authentication. Include the token in the Authorization header:
+
 ```
-Authorization: Bearer <your_jwt_token>
+Authorization: Bearer <your-jwt-token>
 ```
 
-Tokens are obtained via the `/auth/login` endpoint and contain user information including role and permissions.
+### User Roles
+- **admin**: Full system access
+- **agent**: Agricultural extension agent
+- **farmer**: Farm owner/operator
+- **shop_manager**: Shop/store manager
 
 ## Response Format
-All API responses follow this standard structure:
+
+### Success Response
 ```json
 {
   "success": true,
   "message": "Operation successful",
-  "data": { ... },
-  "meta": {
-    "timestamp": "2025-12-10T10:30:00.000Z",
-    "version": "2.0.0"
-  }
+  "data": { ... }
 }
 ```
 
-## Status Codes
-- `200 OK` - Request successful
-- `201 Created` - Resource created successfully
-- `400 Bad Request` - Validation error or invalid input
-- `401 Unauthorized` - Missing or invalid authentication token
-- `403 Forbidden` - Insufficient permissions
-- `404 Not Found` - Resource not found
-- `500 Internal Server Error` - Server-side error
+### Error Response
+```json
+{
+  "success": false,
+  "message": "Error description",
+  "error": "Detailed error information"
+}
+```
 
----
-
-# 1. Authentication & User Management
-
-## Authentication Endpoints
-**Base Path:** `/auth`
-
-| Method | Endpoint | Description | Access | Request Body |
-|:-------|:---------|:------------|:-------|:-------------|
-| **POST** | `/register` | Register a new user account | Public | `email`, `password`, `full_name`, `phone`, `role` (optional), `profile` (optional) |
-| **POST** | `/login` | Authenticate user and retrieve token | Public | `email`, `password` |
-| **POST** | `/logout` | Invalidate current session | Private | - |
-| **GET** | `/profile` | Get current user's profile | Private | - |
-| **PUT** | `/profile` | Update current user's profile | Private | `full_name`, `phone`, `profile` |
-| **PUT** | `/password` | Change user password | Private | `currentPassword`, `newPassword` |
-| **POST** | `/refresh` | Refresh JWT token | Private | - |
-| **GET** | `/verify` | Verify token validity | Private | - |
-
-### Login Response Example
+### Paginated Response
 ```json
 {
   "success": true,
-  "data": {
-    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-    "user": {
-      "id": "507f1f77bcf86cd799439011",
-      "email": "user@example.com",
-      "full_name": "John Doe",
-      "role": "farmer",
-      "status": "active"
-    }
-  },
-  "message": "Login successful"
+  "message": "Data retrieved successfully",
+  "data": [...],
+  "pagination": {
+    "total": 100,
+    "page": 1,
+    "pages": 10,
+    "limit": 10
+  }
 }
 ```
 
-## User Management Endpoints
-**Base Path:** `/users`
+## Error Handling
 
-| Method | Endpoint | Description | Access | Query Parameters |
-|:-------|:---------|:------------|:-------|:-----------------|
-| **GET** | `/` | List all users (paginated) | Admin | `page`, `limit`, `role`, `status`, `search` |
-| **GET** | `/me` | Get current user's extended profile | Private | - |
-| **PUT** | `/me` | Update current user's profile | Private | - |
-| **GET** | `/farmers` | List all farmers | Admin/Agent | `page`, `limit`, `status`, `search` |
-| **POST** | `/farmers` | Create new farmer account | Admin | Farmer profile data |
-| **GET** | `/agents` | List all agents | Admin | `page`, `limit`, `status`, `search` |
-| **POST** | `/agents` | Create new agent account | Admin | Agent profile data |
-| **GET** | `/shop-managers` | List all shop managers | Admin | `page`, `limit`, `status`, `search` |
-| **GET** | `/:id` | Get user by ID | Admin/Self | - |
-| **PUT** | `/:id` | Update user | Admin/Self | User fields |
-| **DELETE** | `/:id` | Delete user | Admin | - |
-| **PUT** | `/:id/status` | Update user status | Admin | `status` |
-| **PUT** | `/:id/role` | Update user role | Admin | `role` |
+| Status Code | Description |
+|-------------|-------------|
+| 200 | Success |
+| 201 | Created |
+| 400 | Bad Request |
+| 401 | Unauthorized |
+| 403 | Forbidden |
+| 404 | Not Found |
+| 409 | Conflict |
+| 422 | Validation Error |
+| 429 | Rate Limit Exceeded |
+| 500 | Internal Server Error |
+
+
+
+## API Endpoints
+
 ---
 
+## Welcome & System
 
-# 2. Profile Management
+### GET /
+**Description:** Root endpoint with basic API information
+**Access:** Public
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Welcome to the Dashboard Avocado Backend API",
+  "data": {
+    "message": "Dashboard Avocado Backend API",
+    "version": "1.0.0",
+    "documentation": "/api-docs"
+  }
+}
+```
+
+### GET /health
+**Description:** Health check endpoint
+**Access:** Public
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Service is healthy",
+  "data": {
+    "status": "healthy",
+    "timestamp": "2024-01-01T00:00:00.000Z",
+    "uptime": 3600,
+    "memory": {
+      "used": 50000000,
+      "total": 100000000,
+      "percentage": 50
+    }
+  }
+}
+```
+
+### GET /api/welcome
+**Description:** Welcome endpoint with system overview
+**Access:** Public
+
+### GET /api/welcome/stats
+**Description:** Detailed system statistics
+**Access:** Public
+
+### GET /api-docs
+**Description:** API documentation
+**Access:** Public
+
+---
+
+## Authentication Endpoints
+
+### POST /api/auth/register
+**Description:** Register a new user
+**Access:** Public
+
+**Request Body:**
+```json
+{
+  "email": "user@example.com",
+  "password": "password123",
+  "full_name": "John Doe",
+  "phone": "+250123456789",
+  "role": "farmer",
+  "profile": {}
+}
+```
+
+### POST /api/auth/login
+**Description:** User login
+**Access:** Public
+
+**Request Body:**
+```json
+{
+  "email": "user@example.com",
+  "password": "password123"
+}
+```
+
+### POST /api/auth/logout
+**Description:** User logout
+**Access:** Private
+
+### GET /api/auth/profile
+**Description:** Get current user profile
+**Access:** Private
+
+### PUT /api/auth/profile
+**Description:** Update current user profile
+**Access:** Private
+
+### PUT /api/auth/password
+**Description:** Change user password
+**Access:** Private
+
+**Request Body:**
+```json
+{
+  "currentPassword": "oldpassword",
+  "newPassword": "newpassword"
+}
+```
+
+### POST /api/auth/refresh
+**Description:** Refresh JWT token
+**Access:** Private
+
+### GET /api/auth/verify
+**Description:** Verify if current token is valid
+**Access:** Private
+
+---
+
+## User Management
+
+### GET /api/users
+**Description:** Get all users with pagination and filters
+**Access:** Private (Admin only)
+
+**Query Parameters:**
+- `page` (number): Page number (default: 1)
+- `limit` (number): Items per page (default: 10)
+- `role` (string): Filter by role
+- `status` (string): Filter by status
+- `search` (string): Search by name or email
+
+### GET /api/users/farmers
+**Description:** Get all farmers
+**Access:** Private (Admin, Agent)
+
+### POST /api/users/farmers
+**Description:** Create new farmer
+**Access:** Private (Admin only)
+
+**Request Body:**
+```json
+{
+  "full_name": "John Farmer",
+  "email": "farmer@example.com",
+  "phone": "+250123456789",
+  "gender": "male",
+  "age": 35,
+  "province": "Eastern",
+  "district": "Kayonza",
+  "farm_size": 2.5,
+  "tree_count": 150
+}
+```
+
+### GET /api/users/agents
+**Description:** Get all agents
+**Access:** Private (Admin only)
+
+### POST /api/users/agents
+**Description:** Create new agent
+**Access:** Private (Admin only)
+
+**Request Body:**
+```json
+{
+  "full_name": "Jane Agent",
+  "email": "agent@example.com",
+  "phone": "+250123456789",
+  "province": "Eastern",
+  "district": "Kayonza"
+}
+```
+
+### GET /api/users/shop-managers
+**Description:** Get all shop managers
+**Access:** Private (Admin only)
+
+### GET /api/users/me
+**Description:** Get current user profile
+**Access:** Private
+
+### PUT /api/users/me
+**Description:** Update current user profile
+**Access:** Private
+
+### GET /api/users/:id
+**Description:** Get user by ID
+**Access:** Private (Admin or self)
+
+### PUT /api/users/:id
+**Description:** Update user
+**Access:** Private (Admin or self)
+
+### PUT /api/users/:id/status
+**Description:** Update user status
+**Access:** Private (Admin only)
+
+**Request Body:**
+```json
+{
+  "status": "active"
+}
+```
+
+### PUT /api/users/:id/role
+**Description:** Update user role
+**Access:** Private (Admin only)
+
+**Request Body:**
+```json
+{
+  "role": "agent"
+}
+```
+
+### DELETE /api/users/:id
+**Description:** Delete user
+**Access:** Private (Admin only)
+
+---
 
 ## Farmer Information
-**Base Path:** `/farmer-information`
 
-| Method | Endpoint | Description | Access | Request Body |
-|:-------|:---------|:------------|:-------|:-------------|
-| **GET** | `/` | Get farmer's profile and farm details | Farmer/Agent/Admin | Query: `farmerId` (for Agents/Admins) |
-| **PUT** | `/` | Update farmer/farm details | Farmer/Agent/Admin | Profile fields, `farmerId` (optional) |
-| **POST** | `/create` | Initialize farmer profile | Farmer | Profile fields |
-| **PUT** | `/tree-count` | Quick update for tree count | Farmer | `tree_count` |
+### GET /api/farmer-information
+**Description:** Get farmer information and profile
+**Access:** Private (Farmers, Agents, Admin)
 
-### Farmer Profile Structure
+**Query Parameters:**
+- `farmerId` (string): Specific farmer ID (for agents/admin)
+
+### PUT /api/farmer-information
+**Description:** Update farmer profile information
+**Access:** Private (Farmers, Agents, Admin)
+
+**Request Body:**
 ```json
 {
-  "farmer_id": "507f1f77bcf86cd799439011",
-  "user_info": {
-    "id": "507f1f77bcf86cd799439011",
-    "email": "farmer@example.com",
-    "full_name": "John Farmer",
-    "phone": "+250788123456",
-    "status": "active",
-    "created_at": "2025-01-01T00:00:00.000Z",
-    "updated_at": "2025-01-01T00:00:00.000Z"
-  },
-  "farmer_profile": {
-    "age": 35,
-    "gender": "male",
-    "marital_status": "married",
-    "education_level": "secondary",
-    "province": "Eastern Province",
-    "district": "Gatsibo",
-    "sector": "Kiramuruzi",
-    "farm_age": 5,
-    "planted": "2020",
-    "avocado_type": "hass",
-    "farm_size": 2.5,
-    "tree_count": 150,
-    "farm_province": "Eastern Province",
-    "farm_district": "Gatsibo",
-    "farm_sector": "Kiramuruzi"
-  }
+  "full_name": "Updated Name",
+  "age": 35,
+  "gender": "male",
+  "province": "Eastern",
+  "district": "Kayonza",
+  "farm_size": 3.0,
+  "tree_count": 200,
+  "farmerId": "farmer_id_here"
 }
 ```
 
-## Agent Information
-**Base Path:** `/agent-information`
+### POST /api/farmer-information/create
+**Description:** Create farmer profile
+**Access:** Private (Farmers only)
 
-| Method | Endpoint | Description | Access | Request Body |
-|:-------|:---------|:------------|:-------|:-------------|
-| **GET** | `/` | Get agent's profile and territory | Agent/Admin | - |
-| **PUT** | `/` | Update agent profile and territory | Agent | Profile fields with `agent_profile` object |
-| **POST** | `/create` | Initialize agent profile | Agent | Profile fields |
-| **PUT** | `/performance` | Update performance metrics | Agent | `statistics` object |
-| **POST** | `/admin/create` | Create agent profile (admin) | Admin | `userId`, `agent_profile` |
-| **GET** | `/admin/:userId` | Get agent profile by user ID | Admin | - |
+### PUT /api/farmer-information/tree-count
+**Description:** Update tree count
+**Access:** Private (Farmers only)
 
-### Agent Profile Structure
+**Request Body:**
 ```json
 {
-  "user_info": {
-    "id": "507f1f77bcf86cd799439011",
-    "full_name": "Jane Agent",
-    "email": "agent@example.com",
-    "phone": "+250788654321",
-    "role": "agent",
-    "status": "active"
-  },
-  "agent_profile": {
-    "agentId": "AGT000001",
-    "province": "Eastern Province",
-    "territory": [
-      {
-        "district": "Gatsibo",
-        "sector": "Kiramuruzi",
-        "isPrimary": true,
-        "assignedDate": "2025-01-01T00:00:00.000Z"
-      }
-    ],
-    "territoryCoverage": {
-      "totalDistricts": 1,
-      "totalSectors": 1,
-      "districts": ["Gatsibo"]
-    },
-    "specialization": "Avocado Farming Expert",
-    "experience": "5 years",
-    "statistics": {
-      "farmersAssisted": 150,
-      "totalTransactions": 350,
-      "performance": "85%",
-      "activeFarmers": 142,
-      "territoryUtilization": "78%"
-    }
-  }
+  "tree_count": 250
 }
 ```
 
 ---
 
-# 3. Product & Inventory Management
+## Agent Information
 
-## Products
-**Base Path:** `/products`
+### GET /api/agent-information/test
+**Description:** Test endpoint for agent information routes
+**Access:** Public
 
-| Method | Endpoint | Description | Access | Query Parameters |
-|:-------|:---------|:------------|:-------|:-----------------|
-| **GET** | `/` | List products with filters | Public | `page`, `limit`, `category`, `supplier_id`, `status`, `price_min`, `price_max`, `in_stock`, `search` |
-| **GET** | `/:id` | Get product details | Public | - |
-| **POST** | `/` | Create new product | Admin/Shop/Agent | Product data |
-| **PUT** | `/:id` | Update product | Admin/Shop/Agent | Product fields |
-| **DELETE** | `/:id` | Discontinue product | Admin | - |
-| **PUT** | `/:id/stock` | Update product stock | Admin/Shop/Agent | `quantity`, `reason`, `notes` |
-| **GET** | `/:id/stock-history` | Get stock history | Admin/Shop | `page`, `limit` |
+### GET /api/agent-information
+**Description:** Get agent information and profile
+**Access:** Private (Agents, Admin)
 
-### Product Categories
-- `irrigation` - Irrigation equipment
-- `harvesting` - Harvesting tools
-- `containers` - Storage containers
-- `pest-management` - Pest control products
+### PUT /api/agent-information
+**Description:** Update agent profile information
+**Access:** Private (Agents only)
 
-### Product Structure
+**Request Body:**
 ```json
 {
-  "id": "507f1f77bcf86cd799439011",
-  "name": "Drip Irrigation Kit",
-  "description": "Complete drip irrigation system for avocado farms",
+  "province": "Eastern",
+  "territory": [
+    {
+      "district": "Kayonza",
+      "sector": "Kabare",
+      "isPrimary": true,
+      "assignedDate": "2024-01-01"
+    }
+  ],
+  "specialization": "Avocado farming",
+  "experience": "5 years"
+}
+```
+
+### POST /api/agent-information/create
+**Description:** Create agent profile
+**Access:** Private (Agents only)
+
+### PUT /api/agent-information/performance
+**Description:** Update agent performance metrics
+**Access:** Private (Agents only)
+
+**Request Body:**
+```json
+{
+  "statistics": {
+    "farmersAssisted": 50,
+    "totalTransactions": 100,
+    "performance": "85%"
+  }
+}
+```
+
+### POST /api/agent-information/admin/create
+**Description:** Create agent profile with full territory (Admin only)
+**Access:** Private (Admin only)
+
+### GET /api/agent-information/admin/:userId
+**Description:** Get agent profile with full territory details (Admin only)
+**Access:** Private (Admin only)
+
+---
+
+## Profile Access
+
+### GET /api/profile-access/qr/:userId
+**Description:** Generate QR code for a user
+**Access:** Private (Agent, Admin)
+
+### GET /api/profile-access/scan/:token
+**Description:** Get user info by scanning QR token
+**Access:** Public
+
+### PUT /api/profile-access/scan/:token
+**Description:** Update user info by scanning QR token
+**Access:** Private (Agent, Admin)
+
+### POST /api/profile-access/bulk-import
+**Description:** Import users from Excel/JSON and generate access keys
+**Access:** Private (Admin only)
+
+**Request Body:** Multipart form with file upload or JSON array
+
+### POST /api/profile-access/verify-access-key
+**Description:** Verify access key and get user info
+**Access:** Public
+
+**Request Body:**
+```json
+{
+  "access_key": "XXXX-XXXX-XXXX"
+}
+```
+
+### PUT /api/profile-access/update-profile
+**Description:** Update user profile using access key
+**Access:** Public
+
+**Request Body:**
+```json
+{
+  "access_key": "XXXX-XXXX-XXXX",
+  "profile_data": {
+    "full_name": "Updated Name",
+    "phone": "+250123456789"
+  }
+}
+```
+
+### GET /api/profile-access/generate-qr/:userId
+**Description:** Generate QR code containing access key for a user
+**Access:** Private (Agent, Admin)
+
+---
+
+## Products
+
+### GET /api/products
+**Description:** Get all products with filters and pagination
+**Access:** Public
+
+**Query Parameters:**
+- `page` (number): Page number
+- `limit` (number): Items per page
+- `category` (string): Filter by category (irrigation, harvesting, containers, pest-management)
+- `supplier_id` (string): Filter by supplier
+- `status` (string): Filter by status
+- `price_min` (number): Minimum price filter
+- `price_max` (number): Maximum price filter
+- `in_stock` (boolean): Filter by stock availability
+- `search` (string): Search by name, description, or brand
+
+### GET /api/products/:id
+**Description:** Get product by ID
+**Access:** Public
+
+### POST /api/products
+**Description:** Create new product
+**Access:** Private (Admin, Shop Manager, Agent)
+
+**Request Body:**
+```json
+{
+  "name": "Irrigation System",
+  "description": "Advanced drip irrigation system",
   "price": 150000,
   "category": "irrigation",
-  "quantity": 25,
-  "status": "available",
-  "supplier_id": "1",
-  "images": ["https://example.com/image1.jpg"],
+  "quantity": 50,
+  "supplier_id": "supplier123",
+  "brand": "AgroTech",
   "specifications": {
     "coverage": "1 hectare",
     "material": "PVC"
@@ -239,650 +527,840 @@ All API responses follow this standard structure:
 }
 ```
 
-## Inventory Management
-**Base Path:** `/inventory`
+### PUT /api/products/:id
+**Description:** Update product
+**Access:** Private (Admin, Shop Manager, Agent)
 
-| Method | Endpoint | Description | Access | Query Parameters |
-|:-------|:---------|:------------|:-------|:-----------------|
-| **GET** | `/` | List all inventory items | Admin | `page`, `limit` |
-| **GET** | `/low-stock` | Get low stock items | Admin/Shop | `threshold`, `shopId` |
-| **GET** | `/out-of-stock` | Get out of stock items | Admin/Shop | `shopId` |
-| **POST** | `/stock-adjustment` | Adjust stock levels | Admin/Shop | `productId`, `quantity`, `reason`, `notes` |
-| **GET** | `/valuation` | Get inventory valuation | Admin/Shop | `shopId` |-
---
+### DELETE /api/products/:id
+**Description:** Delete product (mark as discontinued)
+**Access:** Private (Admin only)
 
-# 4. Order Management
+### PUT /api/products/:id/stock
+**Description:** Update product stock
+**Access:** Private (Admin, Shop Manager, Agent)
+
+**Request Body:**
+```json
+{
+  "quantity": 75,
+  "reason": "restock",
+  "notes": "New shipment received"
+}
+```
+
+### GET /api/products/:id/stock-history
+**Description:** Get product stock history
+**Access:** Private (Admin, Shop Manager)
+
+---
 
 ## Orders
-**Base Path:** `/orders`
 
-| Method | Endpoint | Description | Access | Query Parameters |
-|:-------|:---------|:------------|:-------|:-----------------|
-| **GET** | `/` | List all orders | Admin/Shop | `page`, `status`, `customer_id`, `date_from`, `date_to` |
-| **POST** | `/` | Create new order | Authenticated | Order data |
-| **GET** | `/:id` | Get order details | Admin/Shop/Owner | - |
-| **PUT** | `/:id` | Update order | Admin/Shop | Order fields |
-| **DELETE** | `/:id` | Delete order | Admin | - |
-| **PUT** | `/:id/status` | Update order status | Admin/Shop | `status` |
-| **GET** | `/user/:userId` | Get user's orders | Admin/Shop/User | `page`, `limit`, `status` |
+### GET /api/orders
+**Description:** Get all orders
+**Access:** Private (Admin, Shop Manager)
 
-### Order Statuses
-- `pending` - Order placed, awaiting confirmation
-- `confirmed` - Order confirmed by shop
-- `processing` - Order being prepared
-- `shipped` - Order shipped to customer
-- `delivered` - Order delivered successfully
-- `cancelled` - Order cancelled
-- `returned` - Order returned
+**Query Parameters:**
+- `page` (number): Page number
+- `limit` (number): Items per page
+- `customer_id` (string): Filter by customer
+- `status` (string): Filter by status
+- `payment_status` (string): Filter by payment status
+- `date_from` (string): Start date filter
+- `date_to` (string): End date filter
+- `amount_min` (number): Minimum amount filter
+- `amount_max` (number): Maximum amount filter
+- `search` (string): Search by order number
 
-### Order Structure
+### GET /api/orders/:id
+**Description:** Get order by ID
+**Access:** Private (Admin, Shop Manager, Order owner)
+
+### POST /api/orders
+**Description:** Create new order
+**Access:** Private (All authenticated users)
+
+**Request Body:**
 ```json
 {
-  "id": "507f1f77bcf86cd799439011",
-  "order_number": "ORD-2025-001",
-  "customer_id": "507f1f77bcf86cd799439012",
   "items": [
     {
-      "product_id": "507f1f77bcf86cd799439013",
-      "product_name": "Drip Irrigation Kit",
+      "product_id": "product123",
       "quantity": 2,
-      "unit_price": 150000,
-      "total_price": 300000
+      "specifications": {}
     }
   ],
-  "subtotal": 300000,
-  "tax_amount": 30000,
-  "shipping_cost": 10000,
-  "total_amount": 340000,
-  "status": "pending",
-  "payment_method": "mobile_money",
   "shipping_address": {
-    "province": "Eastern Province",
-    "district": "Gatsibo",
-    "sector": "Kiramuruzi"
-  }
+    "street": "123 Main St",
+    "city": "Kigali",
+    "province": "Kigali City"
+  },
+  "payment_method": "cash",
+  "notes": "Urgent delivery"
 }
 ```
 
----
+### PUT /api/orders/:id
+**Description:** Update order
+**Access:** Private (Admin, Shop Manager)
 
-# 5. Service Requests
+### DELETE /api/orders/:id
+**Description:** Delete order
+**Access:** Private (Admin only)
 
-## Service Request Types
-**Base Path:** `/service-requests`
+### PUT /api/orders/:id/status
+**Description:** Update order status
+**Access:** Private (Admin, Shop Manager)
 
-### Pest Management
-| Method | Endpoint | Description | Access | Request Body |
-|:-------|:---------|:------------|:-------|:-------------|
-| **POST** | `/pest-management` | Request pest control service | Farmer | Pest management details |
-| **GET** | `/pest-management` | List pest requests | Private | `page`, `status`, `priority` |
-| **PUT** | `/:id/approve-pest-management` | Approve pest request | Admin | `agent_id`, `scheduled_date`, `cost_estimate` |
-
-### Property Evaluation
-| Method | Endpoint | Description | Access | Request Body |
-|:-------|:---------|:------------|:-------|:-------------|
-| **POST** | `/property-evaluation` | Request property evaluation | Farmer | Evaluation details |
-| **GET** | `/property-evaluation` | List evaluation requests | Private | `page`, `status`, `visit_date` |
-| **PUT** | `/:id/approve-property-evaluation` | Approve evaluation | Admin | `agent_id`, `scheduled_date`, `cost_estimate` |
-
-### Harvest Services
-| Method | Endpoint | Description | Access | Request Body |
-|:-------|:---------|:------------|:-------|:-------------|
-| **POST** | `/harvest` | Request harvest service | Farmer/Agent | Harvest details |
-| **GET** | `/harvest` | List harvest requests | Private | `page`, `status`, `date` |
-| **GET** | `/harvest/agent/me` | Get agent's harvest requests | Agent | `page`, `status` |
-| **PUT** | `/:id/approve-harvest` | Approve harvest request | Admin | `agent_id`, `scheduled_date`, `approved_workers` |
-| **PUT** | `/:id/complete-harvest` | Mark harvest complete | Admin/Agent | `completion_notes`, `actual_harvest_amount` |
-
-### Service Request Statuses
-- `pending` - Request submitted, awaiting review
-- `approved` - Request approved and assigned
-- `in_progress` - Service being performed
-- `completed` - Service completed successfully
-- `cancelled` - Request cancelled
-- `rejected` - Request rejected
-
----
-
-# 6. Shop Management
-
-## Shops
-**Base Path:** `/shops`
-
-| Method | Endpoint | Description | Access | Request Body |
-|:-------|:---------|:------------|:-------|:-------------|
-| **GET** | `/` | List all shops | Admin/Shop | - |
-| **POST** | `/addshop` | Create new shop | Admin | Shop details |
-| **GET** | `/:id` | Get shop details | Admin/Shop | - |
-| **PUT** | `/:id` | Update shop | Admin/Shop | Shop fields |
-| **DELETE** | `/:id` | Delete shop | Admin/Shop | - |
-| **GET** | `/:id/inventory` | Get shop's products | Admin/Shop | `page` |
-| **GET** | `/:id/orders` | Get shop's orders | Admin/Shop | `page` |
-| **GET** | `/:id/analytics` | Get shop analytics | Admin/Shop | - |
-
-### Shop Structure
+**Request Body:**
 ```json
 {
-  "id": 1,
-  "shopName": "Green Valley Avocado Shop",
-  "description": "Premium avocado sales and distribution center",
-  "province": "Eastern Province",
-  "district": "Rwamagana",
-  "ownerName": "John Doe",
-  "ownerEmail": "john.doe@example.com",
-  "ownerPhone": "+250788123456",
-  "createdBy": "admin_user_id",
-  "createdAt": "2025-01-01T00:00:00.000Z"
+  "status": "confirmed"
 }
-```---
+```
 
-#
- 7. Analytics & Reporting
+### GET /api/orders/user/:userId
+**Description:** Get orders for a specific user
+**Access:** Private (Admin, Shop Manager, User themselves)
 
-## Analytics
-**Base Path:** `/analytics`
+---
 
-| Method | Endpoint | Description | Access | Query Parameters |
-|:-------|:---------|:------------|:-------|:-----------------|
-| **GET** | `/dashboard` | Main dashboard statistics | Admin/Shop | - |
-| **GET** | `/sales` | Sales analytics over time | Admin/Shop | `start_date`, `end_date` |
-| **GET** | `/products` | Product performance analytics | Admin/Shop | `start_date`, `end_date` |
-| **GET** | `/users` | User analytics | Admin | `start_date`, `end_date` |
-| **GET** | `/orders/monthly` | Monthly order trends | Admin/Shop | `start_date`, `end_date` |
+## Service Requests
 
-### Dashboard Response Example
+### POST /api/service-requests/pest-management
+**Description:** Create pest management request
+**Access:** Private (Farmers only)
+
+**Request Body:**
 ```json
 {
-  "users": {
-    "total": 1250,
-    "recent": 45,
-    "byRole": {
-      "farmer": 1000,
-      "agent": 200,
-      "admin": 25,
-      "shop_manager": 25
-    }
+  "service_type": "pest_control",
+  "title": "Pest Control Request",
+  "description": "Need help with aphid infestation",
+  "location": {
+    "province": "Eastern",
+    "district": "Kayonza"
   },
-  "orders": {
-    "total": 850,
-    "recent": 120,
-    "revenue": {
-      "total": 45000000,
-      "last30Days": 12000000
-    }
-  },
-  "products": {
-    "total": 150,
-    "inStock": 120,
-    "outOfStock": 30
-  },
-  "serviceRequests": {
-    "total": 300,
-    "byStatus": {
-      "pending": 45,
-      "approved": 80,
-      "completed": 175
-    }
-  }
-}
-```
-
----
-
-# 8. File Management & Utilities
-
-## Upload
-**Base Path:** `/upload`
-
-| Method | Endpoint | Description | Access | Request Body |
-|:-------|:---------|:------------|:-------|:-------------|
-| **POST** | `/` | Upload single file | Private | Multipart form with `file` |
-| **POST** | `/multiple` | Upload multiple files (max 5) | Private | Multipart form with `files[]` |
-
-### Supported File Types
-- Images: JPG, PNG, GIF (max 5MB)
-- Documents: PDF (max 10MB)
-
-### Upload Response
-```json
-{
-  "success": true,
-  "data": {
-    "url": "https://cloudinary.com/path/to/file.jpg",
-    "filename": "file_123456.jpg",
-    "mimetype": "image/jpeg",
-    "size": 1024000
-  }
-}
-```
-
-## Notifications
-**Base Path:** `/notifications`
-
-| Method | Endpoint | Description | Access | Query Parameters |
-|:-------|:---------|:------------|:-------|:-----------------|
-| **GET** | `/` | Get user notifications | Private | `page`, `limit` |
-| **GET** | `/unread-count` | Get unread notification count | Private | - |
-| **GET** | `/:id` | Get notification by ID | Private | - |
-| **PUT** | `/:id/read` | Mark notification as read | Private | - |
-| **PUT** | `/read-all` | Mark all notifications as read | Private | - |
-| **DELETE** | `/:id` | Delete notification | Private | - |
-| **POST** | `/` | Create notification (admin) | Admin | Notification data |
-
-## Profile Access (QR Code)
-**Base Path:** `/profile-access`
-
-| Method | Endpoint | Description | Access | Request Body |
-|:-------|:---------|:------------|:-------|:-------------|
-| **GET** | `/qr/:userId` | Generate QR code for user | Agent/Admin | - |
-| **GET** | `/scan/:token` | Get user info by QR token | Public | - |
-| **PUT** | `/scan/:token` | Update user via QR scan | Agent/Admin | User data |
-| **POST** | `/import` | Import users from Excel | Admin | Multipart form with Excel file |
-
----
-
-# 9. System Management
-
-## Logs
-**Base Path:** `/logs`
-
-| Method | Endpoint | Description | Access | Query Parameters |
-|:-------|:---------|:------------|:-------|:-----------------|
-| **GET** | `/` | View system logs | Admin | `level`, `limit`, `page` |
-
-## Monitoring
-**Base Path:** `/monitoring`
-
-| Method | Endpoint | Description | Access | Query Parameters |
-|:-------|:---------|:------------|:-------|:-----------------|
-| **GET** | `/usage` | Get system usage statistics | Admin | `period` (24h, 7d, 30d) |
-| **GET** | `/activity` | Get recent system activity | Admin | `limit` |
-
----
-
-# Role-Based Access Control
-
-## User Roles
-- **Admin**: Full system access
-- **Agent**: Agricultural extension agent with territory management
-- **Farmer**: Avocado farmer with profile and service requests
-- **Shop Manager**: Shop inventory and order management
-
-## Permission Matrix
-
-| Endpoint Category | Admin | Agent | Farmer | Shop Manager |
-|:------------------|:------|:------|:-------|:-------------|
-| User Management | ✅ Full | ❌ | ❌ | ❌ |
-| Farmer Profiles | ✅ Full | ✅ View/Edit | ✅ Own Only | ❌ |
-| Agent Profiles | ✅ Full | ✅ Own Only | ❌ | ❌ |
-| Products | ✅ Full | ✅ Create/Edit | ✅ View | ✅ Full |
-| Orders | ✅ Full | ❌ | ✅ Own Only | ✅ Full |
-| Service Requests | ✅ Full | ✅ Assigned | ✅ Own Only | ❌ |
-| Shops | ✅ Full | ❌ | ❌ | ✅ Assigned |
-| Analytics | ✅ Full | ❌ | ❌ | ✅ Own Shop |
-| System Logs | ✅ Only | ❌ | ❌ | ❌ |---
-
-
-# Frontend Integration Guidelines
-
-## Authentication Flow
-1. **Login**: POST `/auth/login` with credentials
-2. **Store Token**: Save JWT token in secure storage
-3. **Include Token**: Add `Authorization: Bearer <token>` to all requests
-4. **Handle Expiry**: Refresh token using POST `/auth/refresh`
-5. **Logout**: Clear token and call POST `/auth/logout`
-
-## Error Handling
-```javascript
-// Example error handling
-try {
-  const response = await fetch('/api/products', {
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    }
-  });
-  
-  const data = await response.json();
-  
-  if (!data.success) {
-    throw new Error(data.message);
-  }
-  
-  return data.data;
-} catch (error) {
-  console.error('API Error:', error.message);
-  // Handle specific error codes
-  if (error.status === 401) {
-    // Redirect to login
-  }
-}
-```
-
-## Pagination Handling
-```javascript
-// Example pagination request
-const getProducts = async (page = 1, limit = 20) => {
-  const response = await fetch(`/api/products?page=${page}&limit=${limit}`);
-  const data = await response.json();
-  
-  return {
-    items: data.data,
-    pagination: {
-      total: data.meta.total,
-      page: data.meta.page,
-      pages: Math.ceil(data.meta.total / limit)
-    }
-  };
-};
-```
-
-## File Upload Example
-```javascript
-// Example file upload
-const uploadFile = async (file) => {
-  const formData = new FormData();
-  formData.append('file', file);
-  
-  const response = await fetch('/api/upload', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${token}`
-    },
-    body: formData
-  });
-  
-  return response.json();
-};
-```
-
-## Service Request Examples
-
-### Create Pest Management Request
-```javascript
-const createPestRequest = async (pestData) => {
-  const response = await fetch('/api/service-requests/pest-management', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      service_type: 'pest_control',
-      title: 'Pest Control Needed',
-      description: 'Aphids attacking my avocado trees',
-      location: {
-        province: 'Eastern Province',
-        district: 'Gatsibo'
-      },
-      pest_management_details: {
-        pests_diseases: [
-          {
-            name: 'Aphids',
-            first_spotted_date: '2025-01-01'
-          }
-        ],
-        first_noticed: 'Last week',
-        damage_observed: 'high',
-        damage_details: 'Leaves turning yellow',
-        control_methods_tried: 'Organic spray',
-        severity_level: 'medium'
-      },
-      farmer_info: {
-        name: 'John Farmer',
-        phone: '+250788123456',
-        location: 'Kiramuruzi Sector'
-      },
-      priority: 'medium'
-    })
-  });
-  
-  return response.json();
-};
-```
-
-### Create Harvest Request
-```javascript
-const createHarvestRequest = async (harvestData) => {
-  const response = await fetch('/api/service-requests/harvest', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      workersNeeded: 5,
-      treesToHarvest: 100,
-      harvestDateFrom: '2025-02-01',
-      harvestDateTo: '2025-02-05',
-      location: {
-        province: 'Eastern Province',
-        district: 'Gatsibo',
-        sector: 'Kiramuruzi'
-      },
-      priority: 'high'
-    })
-  });
-  
-  return response.json();
-};
-```
-
-## Profile Management Examples
-
-### Update Farmer Profile
-```javascript
-const updateFarmerProfile = async (profileData) => {
-  const response = await fetch('/api/farmer-information', {
-    method: 'PUT',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      full_name: 'Updated Name',
-      phone: '+250788654321',
-      farm_size: 3.0,
-      tree_count: 200,
-      farm_province: 'Eastern Province',
-      farm_district: 'Gatsibo'
-    })
-  });
-  
-  return response.json();
-};
-```
-
-### Update Agent Territory
-```javascript
-const updateAgentTerritory = async (territoryData) => {
-  const response = await fetch('/api/agent-information', {
-    method: 'PUT',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      agent_profile: {
-        province: 'Eastern Province',
-        territory: [
-          {
-            district: 'Gatsibo',
-            sector: 'Kiramuruzi',
-            isPrimary: true,
-            assignedDate: new Date().toISOString()
-          },
-          {
-            district: 'Gatsibo',
-            sector: 'Kabarore',
-            isPrimary: false,
-            assignedDate: new Date().toISOString()
-          }
-        ],
-        specialization: 'Avocado Farming Expert'
-      }
-    })
-  });
-  
-  return response.json();
-};
-```
-
----
-
-# API Testing
-
-## Health Check
-```bash
-curl -X GET http://localhost:5000/health
-```
-
-## Authentication Test
-```bash
-# Login
-curl -X POST http://localhost:5000/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"email": "user@example.com", "password": "password123"}'
-
-# Use token in subsequent requests
-curl -X GET http://localhost:5000/api/auth/profile \
-  -H "Authorization: Bearer YOUR_TOKEN_HERE"
-```
-
-## Product Management Test
-```bash
-# Get products
-curl -X GET "http://localhost:5000/api/products?page=1&limit=10&category=irrigation" \
-  -H "Authorization: Bearer YOUR_TOKEN_HERE"
-
-# Create product (Admin/Shop/Agent)
-curl -X POST http://localhost:5000/api/products \
-  -H "Authorization: Bearer YOUR_TOKEN_HERE" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "Advanced Irrigation System",
-    "description": "High-efficiency drip irrigation",
-    "price": 200000,
-    "category": "irrigation",
-    "quantity": 10,
-    "supplier_id": "1"
-  }'
-```
-
-## Order Management Test
-```bash
-# Create order
-curl -X POST http://localhost:5000/api/orders \
-  -H "Authorization: Bearer YOUR_TOKEN_HERE" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "items": [
+  "pest_management_details": {
+    "pests_diseases": [
       {
-        "product_id": "507f1f77bcf86cd799439011",
-        "quantity": 2
+        "name": "Aphids",
+        "first_spotted_date": "2024-01-01"
       }
     ],
-    "shipping_address": {
-      "province": "Eastern Province",
-      "district": "Gatsibo",
-      "sector": "Kiramuruzi"
-    },
-    "payment_method": "mobile_money"
-  }'
+    "first_noticed": "Last week",
+    "damage_observed": "high",
+    "damage_details": "Leaves turning yellow",
+    "control_methods_tried": "Organic spray",
+    "severity_level": "high"
+  },
+  "farmer_info": {
+    "name": "John Farmer",
+    "phone": "+250123456789",
+    "location": "Kayonza, Eastern"
+  }
+}
+```
+
+### GET /api/service-requests/pest-management
+**Description:** Get all pest management requests
+**Access:** Private
+
+### POST /api/service-requests/property-evaluation
+**Description:** Create property evaluation request
+**Access:** Private (Farmers only)
+
+**Request Body:**
+```json
+{
+  "irrigationSource": "Yes",
+  "irrigationTiming": "This Coming Season",
+  "soilTesting": "Need soil pH testing",
+  "visitStartDate": "2024-02-01",
+  "visitEndDate": "2024-02-05",
+  "evaluationPurpose": "Irrigation system planning",
+  "location": {
+    "province": "Eastern",
+    "district": "Kayonza"
+  }
+}
+```
+
+### GET /api/service-requests/property-evaluation
+**Description:** Get all property evaluation requests
+**Access:** Private
+
+### POST /api/service-requests/harvest
+**Description:** Create harvest request
+**Access:** Private (Farmers, Agents)
+
+**Request Body:**
+```json
+{
+  "workersNeeded": 10,
+  "equipmentNeeded": ["ladders", "baskets"],
+  "treesToHarvest": 50,
+  "harvestDateFrom": "2024-03-01",
+  "harvestDateTo": "2024-03-03",
+  "location": {
+    "province": "Eastern",
+    "district": "Kayonza"
+  },
+  "farmer_id": "farmer123"
+}
+```
+
+### GET /api/service-requests/harvest
+**Description:** Get all harvest requests
+**Access:** Private
+
+### GET /api/service-requests/harvest/agent/me
+**Description:** Get harvest requests created by authenticated agent
+**Access:** Private (Agents only)
+
+### PUT /api/service-requests/:id/approve-pest-management
+**Description:** Approve pest management request
+**Access:** Private (Admin only)
+
+### PUT /api/service-requests/:id/approve-property-evaluation
+**Description:** Approve property evaluation request
+**Access:** Private (Admin only)
+
+### PUT /api/service-requests/:id/approve-harvest
+**Description:** Approve harvest request
+**Access:** Private (Admin only)
+
+### PUT /api/service-requests/:id/complete-harvest
+**Description:** Complete harvest request
+**Access:** Private (Admin, Agent)
+
+---
+
+## Shops
+
+### POST /api/shops/addshop
+**Description:** Create a new shop
+**Access:** Private (Admin only)
+
+**Request Body:**
+```json
+{
+  "shopName": "AgroSupply Store",
+  "description": "Agricultural supplies and equipment",
+  "province": "Eastern",
+  "district": "Kayonza",
+  "ownerName": "Jane Smith",
+  "ownerEmail": "jane@agrosupply.com",
+  "ownerPhone": "+250123456789"
+}
+```
+
+### GET /api/shops
+**Description:** Get all shops
+**Access:** Private (Admin, Shop Manager)
+
+### GET /api/shops/:id
+**Description:** Get shop by ID
+**Access:** Private (Admin, Shop Manager)
+
+### PUT /api/shops/:id
+**Description:** Update shop
+**Access:** Private (Admin, Shop Manager)
+
+### DELETE /api/shops/:id
+**Description:** Delete shop
+**Access:** Private (Admin, Shop Manager)
+
+### GET /api/shops/:id/inventory
+**Description:** Get shop inventory
+**Access:** Private (Admin, Shop Manager)
+
+### GET /api/shops/:id/orders
+**Description:** Get orders from specific shop
+**Access:** Private (Admin, Shop Manager)
+
+### GET /api/shops/:id/analytics
+**Description:** Get shop analytics
+**Access:** Private (Admin, Shop Manager)
+
+---
+
+## Inventory
+
+### GET /api/inventory
+**Description:** Get all inventory
+**Access:** Private (Admin)
+
+### GET /api/inventory/low-stock
+**Description:** Get low stock items
+**Access:** Private (Admin, Shop Manager)
+
+**Query Parameters:**
+- `threshold` (number): Stock threshold (default: 10)
+- `shopId` (string): Filter by shop
+
+### GET /api/inventory/out-of-stock
+**Description:** Get out of stock items
+**Access:** Private (Admin, Shop Manager)
+
+### POST /api/inventory/stock-adjustment
+**Description:** Adjust stock levels
+**Access:** Private (Admin, Shop Manager)
+
+**Request Body:**
+```json
+{
+  "productId": "product123",
+  "quantity": 10,
+  "reason": "adjustment",
+  "notes": "Manual stock correction"
+}
+```
+
+### GET /api/inventory/valuation
+**Description:** Get inventory valuation
+**Access:** Private (Admin, Shop Manager)
+
+---
+
+## Customers
+
+### GET /api/customers
+**Description:** Get all customers
+**Access:** Private (Admin, Shop Manager)
+
+**Query Parameters:**
+- `page` (number): Page number
+- `limit` (number): Items per page
+- `shop_id` (string): Filter by shop
+- `status` (string): Filter by status
+- `search` (string): Search by name, email, or phone
+
+### GET /api/customers/:id
+**Description:** Get customer by ID
+**Access:** Private (Admin, Shop Manager)
+
+### POST /api/customers
+**Description:** Create new customer
+**Access:** Private (Admin, Shop Manager)
+
+**Request Body:**
+```json
+{
+  "name": "John Customer",
+  "email": "customer@example.com",
+  "phone": "+250123456789",
+  "shop_id": "shop123",
+  "address": {
+    "street": "123 Main St",
+    "city": "Kigali"
+  }
+}
+```
+
+### PUT /api/customers/:id
+**Description:** Update customer
+**Access:** Private (Admin, Shop Manager)
+
+### DELETE /api/customers/:id
+**Description:** Delete customer
+**Access:** Private (Admin only)
+
+### GET /api/customers/:id/orders
+**Description:** Get customer orders
+**Access:** Private (Admin, Shop Manager)
+
+### GET /api/customers/:id/statistics
+**Description:** Get customer statistics
+**Access:** Private (Admin, Shop Manager)
+
+### GET /api/customers/search
+**Description:** Search customers
+**Access:** Private (Admin, Shop Manager)
+
+---
+
+## Suppliers
+
+### GET /api/suppliers
+**Description:** Get all suppliers
+**Access:** Private (Admin, Shop Manager)
+
+**Query Parameters:**
+- `page` (number): Page number
+- `limit` (number): Items per page
+- `province` (string): Filter by province
+- `district` (string): Filter by district
+- `status` (string): Filter by status
+- `search` (string): Search by name, contact person, or email
+
+### GET /api/suppliers/:id
+**Description:** Get supplier by ID
+**Access:** Private (Admin, Shop Manager)
+
+### POST /api/suppliers
+**Description:** Create new supplier
+**Access:** Private (Admin only)
+
+**Request Body:**
+```json
+{
+  "name": "AgroSupplier Ltd",
+  "contact_person": "Jane Doe",
+  "email": "contact@agrosupplier.com",
+  "phone": "+250123456789",
+  "address": {
+    "province": "Eastern",
+    "district": "Kayonza",
+    "street": "Industrial Area"
+  }
+}
+```
+
+### PUT /api/suppliers/:id
+**Description:** Update supplier
+**Access:** Private (Admin only)
+
+### DELETE /api/suppliers/:id
+**Description:** Delete supplier
+**Access:** Private (Admin only)
+
+### GET /api/suppliers/:id/products
+**Description:** Get products from specific supplier
+**Access:** Private (Admin, Shop Manager)
+
+### GET /api/suppliers/:id/orders
+**Description:** Get orders from specific supplier
+**Access:** Private (Admin, Shop Manager)
+
+### GET /api/suppliers/by-location
+**Description:** Get suppliers by location
+**Access:** Private (Admin, Shop Manager)
+
+---
+
+## Reports
+
+### GET /api/reports
+**Description:** Get all reports
+**Access:** Private (Admin, Agent)
+
+**Query Parameters:**
+- `page` (number): Page number
+- `limit` (number): Items per page
+- `agent_id` (string): Filter by agent
+- `report_type` (string): Filter by report type
+- `status` (string): Filter by status
+- `date_from` (string): Start date filter
+- `date_to` (string): End date filter
+
+### GET /api/reports/:id
+**Description:** Get report by ID
+**Access:** Private (Admin, Agent - own reports)
+
+### POST /api/reports
+**Description:** Create new report
+**Access:** Private (Admin, Agent)
+
+**Request Body:**
+```json
+{
+  "report_type": "farm_visit",
+  "title": "Farm Visit Report",
+  "description": "Monthly farm inspection",
+  "farmer_id": "farmer123",
+  "scheduled_date": "2024-02-01",
+  "status": "pending"
+}
+```
+
+### PUT /api/reports/:id
+**Description:** Update report
+**Access:** Private (Admin, Agent - own reports)
+
+### DELETE /api/reports/:id
+**Description:** Delete report
+**Access:** Private (Admin only)
+
+### POST /api/reports/:id/attachments
+**Description:** Upload report attachments
+**Access:** Private (Admin, Agent - own reports)
+
+### GET /api/reports/statistics
+**Description:** Get report statistics
+**Access:** Private (Admin, Agent)
+
+---
+
+## Farms
+
+### GET /api/farms
+**Description:** Get all farms
+**Access:** Private (Admin, Agent)
+
+**Query Parameters:**
+- `page` (number): Page number
+- `limit` (number): Items per page
+- `crop_type` (string): Filter by crop type
+- `province` (string): Filter by province
+- `district` (string): Filter by district
+- `sector` (string): Filter by sector
+- `status` (string): Filter by status
+
+### GET /api/farms/:id
+**Description:** Get farm by ID
+**Access:** Private (Admin, Agent, Farmer - own farm)
+
+### GET /api/farms/:id/details
+**Description:** Get detailed farm information
+**Access:** Private (Admin, Agent, Farmer - own farm)
+
+### GET /api/farms/:id/harvest-schedule
+**Description:** Get farm harvest schedule
+**Access:** Private (Admin, Agent, Farmer - own farm)
+
+### POST /api/farms/:id/purchase-orders
+**Description:** Create purchase order from farm
+**Access:** Private (Admin, Agent)
+
+**Request Body:**
+```json
+{
+  "quantity": 1000,
+  "variety": "Hass",
+  "price_per_kg": 500,
+  "delivery_date": "2024-03-01",
+  "buyer_info": {
+    "name": "Export Company",
+    "contact": "+250123456789"
+  }
+}
+```
+
+### GET /api/farms/by-location
+**Description:** Get farms by location
+**Access:** Private (Admin, Agent)
+
+### GET /api/farms/harvest-ready
+**Description:** Get farms ready for harvest
+**Access:** Private (Admin, Agent)
+
+### GET /api/farms/:id/production-stats
+**Description:** Get farm production statistics
+**Access:** Private (Admin, Agent, Farmer - own farm)
+
+### GET /api/farms/overview
+**Description:** Get farms overview/summary
+**Access:** Private (Admin, Agent)
+
+### POST /api/farms
+**Description:** Create new farm
+**Access:** Private (Admin, Agent)
+
+**Request Body:**
+```json
+{
+  "farmName": "Green Valley Farm",
+  "farmer_id": "farmer123",
+  "location": {
+    "province": "Eastern",
+    "district": "Kayonza",
+    "sector": "Kabare"
+  },
+  "crop_type": "avocado",
+  "farm_size": 5.0,
+  "tree_count": 300
+}
+```
+
+### PUT /api/farms/:id
+**Description:** Update farm
+**Access:** Private (Admin, Agent, Farmer - own farm)
+
+### DELETE /api/farms/:id
+**Description:** Delete farm
+**Access:** Private (Admin only)
+
+---
+
+## Weather
+
+### GET /api/weather/current
+**Description:** Get current weather for location
+**Access:** Private
+
+**Query Parameters:**
+- `location` (string): Location name (required)
+
+### GET /api/weather/forecast
+**Description:** Get weather forecast
+**Access:** Private
+
+**Query Parameters:**
+- `location` (string): Location name (required)
+- `days` (number): Number of days (default: 7)
+
+### GET /api/weather/farm-conditions
+**Description:** Get farm-specific weather conditions
+**Access:** Private
+
+**Query Parameters:**
+- `farm_id` (string): Farm ID (required)
+
+### POST /api/weather/multi-location
+**Description:** Get weather for multiple locations
+**Access:** Private
+
+**Request Body:**
+```json
+{
+  "locations": ["Kigali", "Huye", "Musanze"]
+}
 ```
 
 ---
 
-# Common Query Parameters
-- `page`: Page number for pagination (default: 1)
-- `limit`: Items per page (default: 10-20 depending on endpoint)
-- `search`: Search term for filtering
-- `status`: Filter by status
-- `start_date` / `end_date`: Date range filtering
-- `category`: Filter by category (products)
-- `role`: Filter by user role
-- `priority`: Filter by priority level
+## Analytics
+
+### GET /api/analytics/dashboard
+**Description:** Get dashboard statistics
+**Access:** Private (Admin, Shop Manager)
+
+### GET /api/analytics/sales
+**Description:** Get sales analytics
+**Access:** Private (Admin, Shop Manager)
+
+**Query Parameters:**
+- `start_date` (string): Start date
+- `end_date` (string): End date
+
+### GET /api/analytics/products
+**Description:** Get product analytics
+**Access:** Private (Admin, Shop Manager)
+
+### GET /api/analytics/users
+**Description:** Get user analytics
+**Access:** Private (Admin only)
+
+### GET /api/analytics/orders/monthly
+**Description:** Get monthly order trends
+**Access:** Private (Admin, Shop Manager)
 
 ---
 
-# Rate Limiting & Security
+## Notifications
 
-## Rate Limiting
-- **Limit**: 100 requests per 15 minutes per IP
-- **Headers**: Rate limit info in `RateLimit-*` headers
-- **Exceeded**: Returns 429 status with retry information
+### GET /api/notifications
+**Description:** Get user notifications
+**Access:** Private
 
-## Security Features
-- **Helmet**: Security headers
-- **CORS**: Configurable cross-origin requests
-- **Sanitization**: NoSQL injection protection
-- **Validation**: Input validation on all endpoints
-- **Authentication**: JWT-based with role permissions
+**Query Parameters:**
+- `page` (number): Page number
+- `limit` (number): Items per page
 
-## CORS Configuration
-The API supports both public and restricted CORS modes:
-- **Public Mode**: Allows requests from any origin
-- **Restricted Mode**: Only allows requests from specified origins
+### GET /api/notifications/unread-count
+**Description:** Get unread notification count
+**Access:** Private
 
----
+### GET /api/notifications/:id
+**Description:** Get notification by ID
+**Access:** Private
 
-# Error Response Examples
+### PUT /api/notifications/:id/read
+**Description:** Mark notification as read
+**Access:** Private
 
-## Validation Error (400)
+### PUT /api/notifications/read-all
+**Description:** Mark all notifications as read
+**Access:** Private
+
+### DELETE /api/notifications/:id
+**Description:** Delete notification
+**Access:** Private
+
+### POST /api/notifications
+**Description:** Create notification (Admin only)
+**Access:** Private (Admin only)
+
+**Request Body:**
 ```json
 {
-  "success": false,
-  "message": "Validation failed",
-  "errors": [
+  "recipient_id": "user123",
+  "title": "New Message",
+  "message": "You have a new message",
+  "type": "info"
+}
+```
+
+---
+
+## Upload
+
+### POST /api/upload
+**Description:** Upload a single file
+**Access:** Private
+
+**Request:** Multipart form with `file` field
+
+### POST /api/upload/multiple
+**Description:** Upload multiple files (max 5)
+**Access:** Private
+
+**Request:** Multipart form with `files` field
+
+---
+
+## Logs
+
+### GET /api/logs
+**Description:** Get system logs
+**Access:** Private (Admin only)
+
+**Query Parameters:**
+- `level` (string): Filter by log level
+- `limit` (number): Number of logs to return
+- `page` (number): Page number
+
+### GET /api/logs/export
+**Description:** Export logs to CSV
+**Access:** Private (Admin only)
+
+**Query Parameters:**
+- `level` (string): Filter by log level
+- `start_date` (string): Start date
+- `end_date` (string): End date
+- `format` (string): Export format (csv)
+
+### DELETE /api/logs/cleanup
+**Description:** Clean up old log entries
+**Access:** Private (Admin only)
+
+**Request Body:**
+```json
+{
+  "older_than_days": 30
+}
+```
+
+### GET /api/logs/statistics
+**Description:** Get log statistics
+**Access:** Private (Admin only)
+
+---
+
+## Monitoring
+
+### GET /api/monitoring/usage
+**Description:** Get system usage statistics
+**Access:** Private (Admin only)
+
+**Query Parameters:**
+- `period` (string): Time period (24h, 7d, 30d)
+
+### GET /api/monitoring/activity
+**Description:** Get recent system activity feed
+**Access:** Private (Admin only)
+
+**Query Parameters:**
+- `limit` (number): Number of activities to return
+
+### GET /api/monitoring/health
+**Description:** Comprehensive health check
+**Access:** Public
+
+### GET /api/monitoring/metrics
+**Description:** Get detailed system metrics
+**Access:** Private (Admin only)
+
+### POST /api/monitoring/cleanup
+**Description:** Clean up expired access keys and old logs
+**Access:** Private (Admin only)
+
+---
+
+## Data Models
+
+### User
+```json
+{
+  "id": "string",
+  "email": "string",
+  "full_name": "string",
+  "phone": "string",
+  "role": "admin|agent|farmer|shop_manager",
+  "status": "active|inactive",
+  "profile": {},
+  "created_at": "date",
+  "updated_at": "date"
+}
+```
+
+### Product
+```json
+{
+  "id": "string",
+  "name": "string",
+  "description": "string",
+  "price": "number",
+  "category": "irrigation|harvesting|containers|pest-management",
+  "quantity": "number",
+  "status": "available|out_of_stock|discontinued",
+  "supplier_id": "string",
+  "brand": "string",
+  "specifications": {},
+  "created_at": "date",
+  "updated_at": "date"
+}
+```
+
+### Order
+```json
+{
+  "id": "string",
+  "customer_id": "string",
+  "order_number": "string",
+  "items": [
     {
-      "type": "field",
-      "value": "",
-      "msg": "Email is required",
-      "path": "email",
-      "location": "body"
+      "product_id": "string",
+      "product_name": "string",
+      "quantity": "number",
+      "unit_price": "number",
+      "total_price": "number"
     }
-  ]
+  ],
+  "subtotal": "number",
+  "tax_amount": "number",
+  "shipping_cost": "number",
+  "total_amount": "number",
+  "status": "pending|confirmed|processing|shipped|delivered|cancelled",
+  "payment_method": "string",
+  "shipping_address": {},
+  "created_at": "date",
+  "updated_at": "date"
 }
 ```
 
-## Authentication Error (401)
+### Service Request
 ```json
 {
-  "success": false,
-  "message": "Access token is required",
-  "meta": {
-    "timestamp": "2025-12-10T10:30:00.000Z",
-    "version": "2.0.0"
-  }
-}
-```
-
-## Authorization Error (403)
-```json
-{
-  "success": false,
-  "message": "Access denied. Insufficient permissions",
-  "meta": {
-    "timestamp": "2025-12-10T10:30:00.000Z",
-    "version": "2.0.0"
-  }
-}
-```
-
-## Not Found Error (404)
-```json
-{
-  "success": false,
-  "message": "Resource not found",
-  "meta": {
-    "timestamp": "2025-12-10T10:30:00.000Z",
-    "version": "2.0.0"
-  }
+  "id": "string",
+  "farmer_id": "string",
+  "agent_id": "string",
+  "service_type": "pest_control|harvest|other",
+  "title": "string",
+  "description": "string",
+  "request_number": "string",
+  "status": "pending|approved|in_progress|completed|cancelled",
+  "priority": "low|medium|high|urgent",
+  "location": {},
+  "created_at": "date",
+  "updated_at": "date"
 }
 ```
 
 ---
 
-This comprehensive API documentation covers all available endpoints in the Dashboard Avocado Backend API. The API is designed to support a complete avocado farming management system with role-based access control, comprehensive profile management, e-commerce functionality, and service request management.
 
-For specific implementation details, additional features, or technical support, please refer to the individual route files in the codebase or contact the development team.
+
+
+This documentation covers all available endpoints in the Dashboard Avocado Backend API. Each endpoint includes the HTTP method, description, access requirements, and request/response examples where applicable.

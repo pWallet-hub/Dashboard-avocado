@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Activity, Server, Database, Users, AlertTriangle, RefreshCw, Clock, TrendingUp } from 'lucide-react';
 import { getSystemUsage, getSystemActivity } from '../../services/monitoringService';
-import { getSystemLogs } from '../../services/logsService';
+import { getLogs } from '../../services/logsService';
 
 const SystemMonitoring = () => {
   const [usage, setUsage] = useState({});

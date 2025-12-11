@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Users, Activity, ShoppingBag, DollarSign, UserPlus, Store } from "lucide-react";
 import "../Styles/Statistics.css";
-import { getDashboardStatistics } from '../../services/analyticsService';
+import { getDashboardStats } from '../../services/analyticsService';
 
 export default function Statistics() {
   const [stats, setStats] = useState({

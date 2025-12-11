@@ -222,54 +222,6 @@ export default function PestManagement() {
         console.error('❌ Error fetching pest management products:', err);
         setError(`Failed to load products: ${err.message}`);
         
-        // Fallback to mock data in case of API failure for development
-        console.log('🔄 Loading fallback mock data...');
-        const mockProducts = [
-          {
-            _id: 'mock-1',
-            id: 'mock-1',
-            name: 'Bio-Organic Insect Spray',
-            description: 'Eco-friendly organic insect spray that effectively controls pests while being safe for crops and environment.',
-            price: '12,500',
-            originalPrice: null,
-            image: 'https://images.unsplash.com/photo-1588964895597-cfccd6e2dbf9?w=400&h=300&fit=crop',
-            rating: 4.7,
-            reviews: 120,
-            features: ['100% Organic', 'Non-toxic formula', 'Long-lasting protection', 'Safe for crops'],
-            category: 'organic',
-            inStock: true,
-            discount: 15,
-            capacity: '50 bottle',
-            effectiveness: '95% effectiveness',
-            unit: 'bottle',
-            quantity: 50,
-            supplier_id: 'mock-supplier'
-          },
-          {
-            _id: 'mock-2',
-            id: 'mock-2',
-            name: 'Professional Rodent Control Kit',
-            description: 'Complete rodent control solution with professional-grade traps and monitoring system.',
-            price: '25,000',
-            originalPrice: null,
-            image: 'https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=400&h=300&fit=crop',
-            rating: 4.6,
-            reviews: 85,
-            features: ['Humane traps', 'Bait stations', 'Monitoring system', 'Reusable design'],
-            category: 'rodent',
-            inStock: true,
-            discount: 15,
-            capacity: '20 kit',
-            effectiveness: '95% effectiveness',
-            unit: 'kit',
-            quantity: 20,
-            supplier_id: 'mock-supplier'
-          }
-        ];
-        
-        setProducts(mockProducts);
-        setError(null);
-        
       } finally {
         setLoading(false);
       }
@@ -401,9 +353,7 @@ export default function PestManagement() {
     setPaymentError('');
   };
 
-  const showingMockData = products.some(p => {
-    return p && p.id && typeof p.id === 'string' && p.id.startsWith('mock-');
-  });
+
 
   const ProductModal = ({ product, onClose }) => (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 animate-fadeIn">
@@ -577,11 +527,6 @@ export default function PestManagement() {
               <>
                 <div className="mb-3 text-xs text-gray-600">
                   Showing {filteredProducts.length} products
-                  {showingMockData && (
-                    <span className="ml-2 px-2 py-0.5 bg-yellow-100 text-yellow-800 text-xs rounded-full">
-                      Fallback data
-                    </span>
-                  )}
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">

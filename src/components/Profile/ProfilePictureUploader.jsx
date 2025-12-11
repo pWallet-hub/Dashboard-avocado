@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { Camera, X } from 'lucide-react';
-import { updateProfile } from '../../services/authService';
+import authService from '../../services/authService';
 
 const ProfilePictureUploader = ({ 
   currentPicture, 

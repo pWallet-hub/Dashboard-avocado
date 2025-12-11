@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { QrCode, Search, User, Edit, Download, Upload, Eye, Scan } from 'lucide-react';
 import QRCodeLib from 'qrcode';
-import { generateQRCode, getUserByQRToken, updateUserViaQR, importUsersFromExcel } from '../../services/profileAccessService';
-import { listFarmers } from '../../services/usersService';
+import { generateQRCode, verifyAccessKey, updateProfileWithAccessKey, bulkImportUsers } from '../../services/profileAccessService';
+import { getFarmers } from '../../services/usersService';
 
 const QRCodeManagement = () => {
   const [farmers, setFarmers] = useState([]);
@@ -26,7 +26,7 @@ const QRCodeManagement = () => {
     setError(null);
     
     try {
-      const response = await listFarmers({ limit: 1000 });
+      const response = await getFarmers({ limit: 1000 });
       const farmersData = response?.data || response || [];
       setFarmers(Array.isArray(farmersData) ? farmersData : []);
     } catch (error) {

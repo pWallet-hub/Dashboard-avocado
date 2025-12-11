@@ -22,7 +22,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { 
-  getAllProducts, 
+  getProducts, 
   createProduct, 
   updateProduct, 
   deleteProduct,

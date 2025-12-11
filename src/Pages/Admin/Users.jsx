@@ -4,7 +4,7 @@ import { CiLogout } from "react-icons/ci";
 import Select from 'react-select';
 import { ClipLoader } from "react-spinners";
 import '../Styles/Growers.css';
-import { listUsers, createFarmer, updateUser, deleteUser } from '../../services/usersService';
+import { getUsers, createFarmer, updateUser, deleteUser } from '../../services/usersService';
 
 const Users = () => {
   const [users, setUsers] = useState([]);
@@ -65,7 +65,7 @@ const Users = () => {
       setLoading(true);
       setError(null);
       try {
-        const response = await listUsers();
+        const response = await getUsers();
         setUsers(response || []);
       } catch (error) {
         console.error('Error fetching farmers:', error);

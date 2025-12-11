@@ -1,36 +1,157 @@
 import { Link, useLocation } from "react-router-dom";
-import { ShoppingCart, Calendar, Bug, MapPin, ClipboardList } from 'lucide-react';
+import { useAuth } from '../../hooks/useAuth.jsx';
 
 export default function DashboardHeader() {
   const location = useLocation();
+  const { user } = useAuth();
 
-  const navigationItems = [
-    { 
-      icon: "🏪", 
-      label: "Farm Market", 
-      route: "/dashboard/farmer/market" 
-    },
-    { 
-      icon: "🛠️", 
-      label: "Book Harvesting Day", 
-      route: "/dashboard/farmer/HarvestingDay" 
-    },
-    { 
-      icon: "📊", 
-      label: "Book your IPM Day", 
-      route: "/dashboard/farmer/PestManagement" 
-    },
-    { 
-      icon: "👤", 
-      label: "Book your PE Day", 
-      route: "/dashboard/farmer/PropertyEvaluation" 
-    },
-    { 
-      icon: "📋", 
-      label: "My Requests", 
-      route: "/dashboard/farmer/my-service-requests" 
-    },
-  ];
+  // Navigation items based on user role
+  const getNavigationItems = () => {
+    if (!user) return [];
+
+    switch (user.role) {
+      case 'farmer':
+        return [
+          { 
+            icon: "🏪", 
+            label: "Market", 
+            route: "/dashboard/farmer/market" 
+          },
+          { 
+            icon: "🌾", 
+            label: "Harvest Request", 
+            route: "/dashboard/farmer/harvest-request" 
+          },
+          { 
+            icon: "🐛", 
+            label: "Pest Management", 
+            route: "/dashboard/farmer/pest-management-request" 
+          },
+          { 
+            icon: "🏡", 
+            label: "Property Evaluation", 
+            route: "/dashboard/farmer/property-evaluation" 
+          },
+          { 
+            icon: "📋", 
+            label: "My Requests", 
+            route: "/dashboard/farmer/service-requests" 
+          },
+          { 
+            icon: "👤", 
+            label: "Profile", 
+            route: "/dashboard/farmer/profile" 
+          },
+        ];
+      
+      case 'agent':
+        return [
+          { 
+            icon: "👥", 
+            label: "Farmers", 
+            route: "/dashboard/agent/farmers" 
+          },
+          { 
+            icon: "🌾", 
+            label: "Harvest Plans", 
+            route: "/dashboard/agent/harvest-plan" 
+          },
+          { 
+            icon: "🐛", 
+            label: "IPM Routine", 
+            route: "/dashboard/agent/ipm-routine" 
+          },
+          { 
+            icon: "📊", 
+            label: "Reports", 
+            route: "/dashboard/agent/reports" 
+          },
+          { 
+            icon: "🏪", 
+            label: "Shop", 
+            route: "/dashboard/agent/shop" 
+          },
+          { 
+            icon: "📱", 
+            label: "QR Management", 
+            route: "/dashboard/agent/qr-management" 
+          },
+        ];
+      
+      case 'admin':
+        return [
+          { 
+            icon: "👥", 
+            label: "Users", 
+            route: "/dashboard/admin/users" 
+          },
+          { 
+            icon: "🤝", 
+            label: "Agents", 
+            route: "/dashboard/admin/agents" 
+          },
+          { 
+            icon: "🏪", 
+            label: "Shops", 
+            route: "/dashboard/admin/shops" 
+          },
+          { 
+            icon: "📋", 
+            label: "Service Requests", 
+            route: "/dashboard/admin/service-requests" 
+          },
+          { 
+            icon: "📊", 
+            label: "Statistics", 
+            route: "/dashboard/admin/statistics" 
+          },
+          { 
+            icon: "🔧", 
+            label: "Monitoring", 
+            route: "/dashboard/admin/monitoring" 
+          },
+        ];
+      
+      case 'shop_manager':
+        return [
+          { 
+            icon: "📦", 
+            label: "Inventory", 
+            route: "/dashboard/shop-manager/inventory" 
+          },
+          { 
+            icon: "🛒", 
+            label: "Orders", 
+            route: "/dashboard/shop-manager/orders" 
+          },
+          { 
+            icon: "📈", 
+            label: "Sales", 
+            route: "/dashboard/shop-manager/sales" 
+          },
+          { 
+            icon: "👥", 
+            label: "Customers", 
+            route: "/dashboard/shop-manager/customers" 
+          },
+          { 
+            icon: "📊", 
+            label: "Analytics", 
+            route: "/dashboard/shop-manager/analytics" 
+          },
+          { 
+            icon: "⚙️", 
+            label: "Profile", 
+            route: "/dashboard/shop-manager/profile" 
+          },
+        ];
+      
+      default:
+        return [];
+    }
+  };
+
+  const navigationItems = getNavigationItems();
 
   const isActive = (route) => {
     return location.pathname === route || location.pathname.startsWith(route);

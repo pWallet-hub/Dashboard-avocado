@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { User, Mail, Phone, MapPin, Calendar, Store, Edit3, Save, X, Award, Package, Users } from 'lucide-react';
-import { getProfile, updateProfile } from '../../services/authService';
+import authService from '../../services/authService';
 import MembershipCard from '../../components/Profile/MembershipCard';
 import '../Styles/Shop.css';
 

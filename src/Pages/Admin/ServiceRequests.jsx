@@ -1,17 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { CheckCircle, XCircle, Clock, Eye, Filter, Search, Calendar, User, MapPin, Phone, Mail, Database, CalendarClock } from 'lucide-react';
 import { 
-  listServiceRequests, 
-  listHarvestRequests,
+  getPestManagementRequests, 
+  getHarvestRequests,
   approveHarvestRequest,
-  rejectHarvestRequest,
-  startHarvestRequest,
   completeHarvestRequest,
-  updateServiceRequestStatus as updateServiceRequestStatusAPI,
   getPropertyEvaluationRequests,
-  approvePropertyEvaluationRequest,
-  rejectPropertyEvaluationRequest,
-  rescheduleEvaluationVisit
+  approvePropertyEvaluationRequest
 } from '../../services/serviceRequestsService';
 
 export default function ServiceRequests() {
@@ -38,11 +33,11 @@ export default function ServiceRequests() {
     setError(null);
     try {
       const [regularRequests, harvestRequests, propertyEvaluationRequests] = await Promise.all([
-        listServiceRequests().catch((err) => {
+        getPestManagementRequests().catch((err) => {
           console.error('Error fetching regular requests:', err);
           return [];
         }),
-        listHarvestRequests().catch((err) => {
+        getHarvestRequests().catch((err) => {
           console.error('Error fetching harvest requests:', err);
           return { data: [] };
         }),

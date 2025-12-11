@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ClipboardList, Clock, CheckCircle, XCircle, Eye, Calendar, User, MapPin, Bell } from 'lucide-react';
 import DashboardHeader from '../../components/Header/DashboardHeader';
-import { getServiceRequestsForFarmer, listHarvestRequests } from '../../services/serviceRequestsService';
+import { getPestManagementRequests, getHarvestRequests, getPropertyEvaluationRequests } from '../../services/serviceRequestsService';
 
 export default function MyServiceRequests() {
   const [requests, setRequests] = useState([]);

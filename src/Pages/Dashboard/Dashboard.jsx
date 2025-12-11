@@ -5,8 +5,8 @@ import { FiEdit } from "react-icons/fi";
 import * as XLSX from 'xlsx';
 import { CiLogout } from "react-icons/ci";
 import Select from 'react-select'; 
-import { listFarmers as apiListFarmers, updateUser as apiUpdateUser, deleteUser as apiDeleteUser } from '../../services/usersService';
-import { initializeStorage, getFarmerProducts, getFarmerToShopTransactions, getShopInventory } from '../../services/marketStorageService';
+import { getFarmers as apiListFarmers, updateUser as apiUpdateUser, deleteUser as apiDeleteUser } from '../../services/usersService';
+import { getMarketData, getMarketStats, searchMarketItems } from '../../services/marketStorageService';
 import { 
   BarChart3, TrendingUp, Package, DollarSign, ShoppingCart, 
   Users, Calendar, Eye, Plus, Truck, Store, Activity
@@ -57,7 +57,7 @@ const Dashboard = () => {
     try {
       setLoading(true);
       setError(null);
-      initializeStorage();
+      // Initialize market data
       
       // Get current farmer (in real app, this would come from auth)
       const currentFarmer = getCurrentFarmer();

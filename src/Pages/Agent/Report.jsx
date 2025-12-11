@@ -22,6 +22,15 @@ import {
   ChevronDown,
 } from "lucide-react";
 
+// Import reports service
+import { 
+  getReports, 
+  createReport, 
+  updateReport, 
+  deleteReport,
+  uploadReportAttachments 
+} from '../../services/reportsService';
+
 const ProfessionalReportSystem = () => {
   const [formData, setFormData] = useState({
     title: "",
@@ -68,99 +77,39 @@ const ProfessionalReportSystem = () => {
     { value: "survey", label: "Field Survey", icon: MapPin },
   ];
 
-  const mockReports = [
-    {
-      id: 1,
-      title: "Monthly Quality Inspection - Factory A",
-      description: "Comprehensive quality assessment of production line efficiency and output standards",
-      scheduledDate: "2024-12-20",
-      scheduledTime: "09:00",
-      administrativeLocation: "Manufacturing District - Zone 3",
-      volume: "2,500 units",
-      qualityGrade: "A+",
-      reportType: "inspection",
-      priority: "high",
-      notes: "Initial assessment completed",
-      createdAt: "2024-12-15T10:30:00Z",
-      status: "completed",
-      location: {
-        lat: -1.9441,
-        lng: 30.0619,
-        address: "Kigali Industrial Park, Rwanda",
-        placeName: "Kigali Industrial Park, Rwanda",
-      },
-      files: [
-        { name: "quality_report.pdf", type: "application/pdf", size: "2.4 MB" },
-        { name: "inspection_photos.jpg", type: "image/jpeg", size: "1.8 MB" },
-      ],
-    },
-    {
-      id: 2,
-      title: "Compliance Audit - Warehouse B",
-      description: "Regulatory compliance verification and safety protocol assessment",
-      scheduledDate: "2024-12-18",
-      scheduledTime: "14:30",
-      administrativeLocation: "Logistics Hub - Sector 7",
-      volume: "15,000 sq ft",
-      qualityGrade: "B+",
-      reportType: "audit",
-      priority: "medium",
-      notes: "Pending final review",
-      createdAt: "2024-12-10T14:20:00Z",
-      status: "pending",
-      location: {
-        lat: -1.9706,
-        lng: 30.1044,
-        address: "Kigali Logistics Center, Rwanda",
-        placeName: "Kigali Logistics Center, Rwanda",
-      },
-      files: [
-        {
-          name: "compliance_checklist.xlsx",
-          type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-          size: "892 KB",
-        },
-      ],
-    },
-  ];
-
   useEffect(() => {
     const fetchReports = async () => {
       setFetchingReports(true);
-      setTimeout(() => {
-        setReports(mockReports);
+      try {
+        // Fetch actual reports from API using reportsService
+        const response = await getReports({
+          page: 1,
+          limit: 50,
+          sort: 'created_at',
+          order: 'desc'
+        });
+        
+        if (response.success && response.data) {
+          setReports(Array.isArray(response.data) ? response.data : []);
+        } else {
+          setReports([]);
+        }
+      } catch (error) {
+        console.error('Error fetching reports:', error);
+        setError('Failed to load reports. Please try again.');
+        setReports([]);
+      } finally {
         setFetchingReports(false);
-      }, 1000);
+      }
     };
     fetchReports();
   }, []);
 
   const reverseGeocode = async (latitude, longitude) => {
     try {
-      await new Promise((resolve) => setTimeout(resolve, 800));
-      const mockLocations = {
-        "-1.94": "Kigali City Center, Rwanda",
-        "-1.97": "Kigali Industrial Area, Rwanda",
-        "40.71": "New York City, USA",
-        "34.05": "Los Angeles, USA",
-        "41.87": "Chicago, USA",
-        "51.50": "London, United Kingdom",
-        "48.85": "Paris, France",
-        "52.52": "Berlin, Germany",
-        "35.68": "Tokyo, Japan",
-        "28.61": "New Delhi, India",
-        "39.90": "Beijing, China",
-      };
-
-      const latKey = Object.keys(mockLocations).find((key) =>
-        latitude.toFixed(2).startsWith(key.substring(0, key.length - 1))
-      );
-
-      if (latKey) {
-        return mockLocations[latKey];
-      }
-
-      return `Location near ${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+      // Use a real geocoding service like Google Maps API or OpenStreetMap Nominatim
+      // For now, return a simple coordinate-based location string
+      return `Location at ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
     } catch (error) {
       console.error("Geocoding error:", error);
       return `Location at ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
@@ -314,35 +263,59 @@ const ProfessionalReportSystem = () => {
     setShowConfirmation(true);
   }, [formData, validateAllSteps]);
 
-  const confirmSubmission = useCallback(() => {
+  const confirmSubmission = useCallback(async () => {
     setShowConfirmation(false);
     setLoading(true);
     setError(null);
     setSuccess(null);
 
-    setTimeout(() => {
-      const newReport = {
-        id: editingReport ? editingReport.id : reports.length + 1,
+    try {
+      const reportData = {
         ...formData,
-        createdAt: editingReport ? editingReport.createdAt : new Date().toISOString(),
-        status: editingReport ? editingReport.status : "pending",
         location: location,
-        files: files.map((f) => ({
+        attachments: files.map((f) => ({
           name: f.name,
           type: f.type,
           size: f.size,
         })),
       };
 
+      let response;
       if (editingReport) {
-        setReports(reports.map((r) => (r.id === editingReport.id ? newReport : r)));
+        response = await updateReport(editingReport.id, reportData);
         setSuccess("Report updated successfully!");
         setEditingReport(null);
       } else {
-        setReports([newReport, ...reports]);
+        response = await createReport(reportData);
         setSuccess("Report created successfully!");
       }
 
+      // Upload attachments if any
+      if (files.length > 0 && response.data?.id) {
+        try {
+          const fileObjects = files.map(f => f.file).filter(Boolean);
+          if (fileObjects.length > 0) {
+            await uploadReportAttachments(response.data.id, fileObjects);
+          }
+        } catch (uploadError) {
+          console.error('Error uploading attachments:', uploadError);
+          setError('Report saved but failed to upload attachments');
+        }
+      }
+
+      // Refresh reports list
+      const updatedReports = await getReports({
+        page: 1,
+        limit: 50,
+        sort: 'created_at',
+        order: 'desc'
+      });
+      
+      if (updatedReports.success && updatedReports.data) {
+        setReports(Array.isArray(updatedReports.data) ? updatedReports.data : []);
+      }
+
+      // Reset form
       setFormData({
         title: "",
         description: "",
@@ -363,9 +336,14 @@ const ProfessionalReportSystem = () => {
       setGpsStatus("idle");
       setShowForm(false);
       setCurrentStep(1);
+      
+    } catch (error) {
+      console.error('Error saving report:', error);
+      setError(error.message || 'Failed to save report. Please try again.');
+    } finally {
       setLoading(false);
-    }, 1500);
-  }, [editingReport, formData, location, files, reports]);
+    }
+  }, [editingReport, formData, location, files]);
 
   const handleEdit = useCallback((report) => {
     setEditingReport(report);
@@ -396,13 +374,32 @@ const ProfessionalReportSystem = () => {
     setDeleteConfirm(reportId);
   }, []);
 
-  const confirmDelete = useCallback(() => {
+  const confirmDelete = useCallback(async () => {
     if (deleteConfirm) {
-      setReports(reports.filter((r) => r.id !== deleteConfirm));
-      setSuccess("Report deleted successfully");
-      setDeleteConfirm(null);
+      try {
+        await deleteReport(deleteConfirm);
+        
+        // Refresh reports list
+        const updatedReports = await getReports({
+          page: 1,
+          limit: 50,
+          sort: 'created_at',
+          order: 'desc'
+        });
+        
+        if (updatedReports.success && updatedReports.data) {
+          setReports(Array.isArray(updatedReports.data) ? updatedReports.data : []);
+        }
+        
+        setSuccess("Report deleted successfully");
+        setDeleteConfirm(null);
+      } catch (error) {
+        console.error('Error deleting report:', error);
+        setError(error.message || 'Failed to delete report. Please try again.');
+        setDeleteConfirm(null);
+      }
     }
-  }, [deleteConfirm, reports]);
+  }, [deleteConfirm]);
 
   const nextStep = useCallback(() => {
     const isValid = validateCurrentStep();

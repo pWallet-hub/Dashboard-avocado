@@ -29,6 +29,14 @@ import {
   Clock
 } from 'lucide-react';
 
+// Import API services
+import { getDashboardStats } from '../../services/analyticsService';
+import { getInventory } from '../../services/inventoryService';
+import { getOrders } from '../../services/orderService';
+import { getCustomers } from '../../services/customersService';
+import { getAvocadoFarms } from '../../services/farmsService';
+import { getCurrentWeather } from '../../services/weatherService';
+
 
 const RwandaAvocadoManager = () => {
   const [activeSection, setActiveSection] = useState('dashboard');
@@ -39,137 +47,83 @@ const RwandaAvocadoManager = () => {
   const [avocadoFarms, setAvocadoFarms] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // Sample Rwanda Avocado data
   useEffect(() => {
-    setDashboardData({
-      totalRevenue: 4750000,
-      totalOrders: 89,
-      totalCustomers: 45,
-      totalTrees: 2850,
-      harvestReady: 320,
-      recentOrders: [
-        { id: 'AVO-2024-001', customer: 'Kigali Premium Foods', date: '2024-09-03', amount: 450000, status: 'completed', variety: 'Hass' },
-        { id: 'AVO-2024-002', customer: 'Hotel des Mille Collines', date: '2024-09-02', amount: 280000, status: 'processing', variety: 'Fuerte' },
-        { id: 'AVO-2024-003', customer: 'Nakumatt Supermarket', date: '2024-09-02', amount: 180000, status: 'pending', variety: 'Hass' },
-        { id: 'AVO-2024-004', customer: 'Rwanda Export Co.', date: '2024-09-01', amount: 650000, status: 'completed', variety: 'Mixed' }
-      ],
-      topVarieties: [
-        { name: 'Hass Avocado', sold: 850, revenue: 1700000, pricePerKg: 2000 },
-        { name: 'Fuerte Avocado', sold: 620, revenue: 1240000, pricePerKg: 2000 },
-        { name: 'Ettinger Avocado', sold: 450, revenue: 810000, pricePerKg: 1800 },
-        { name: 'Pinkerton Avocado', sold: 380, revenue: 684000, pricePerKg: 1800 }
-      ],
-      weatherData: {
-        temperature: '24°C',
-        humidity: '68%',
-        rainfall: '15mm',
-        soilMoisture: '72%'
+    const fetchDashboardData = async () => {
+      setLoading(true);
+      try {
+        // Fetch real dashboard data from API services
+        const [
+          dashboardStats,
+          inventoryData,
+          ordersData,
+          customersData,
+          farmsData,
+          weatherData
+        ] = await Promise.allSettled([
+          getDashboardStats(),
+          getInventory({ limit: 50 }),
+          getOrders({ limit: 20 }),
+          getCustomers({ limit: 50 }),
+          getAvocadoFarms({ limit: 20 }),
+          getCurrentWeather('Rwanda')
+        ]);
+
+        // Process dashboard stats
+        const stats = dashboardStats.status === 'fulfilled' ? dashboardStats.value : {};
+        
+        // Process weather data
+        const weather = weatherData.status === 'fulfilled' ? weatherData.value : {};
+        
+        setDashboardData({
+          totalRevenue: stats.orders?.revenue?.total || 0,
+          totalOrders: stats.orders?.total || 0,
+          totalCustomers: stats.users?.byRole?.farmer || 0,
+          totalTrees: stats.farms?.totalTrees || 0,
+          harvestReady: stats.farms?.harvestReady || 0,
+          recentOrders: stats.recentOrders || [],
+          topVarieties: stats.topProducts || [],
+          weatherData: {
+            temperature: weather.temperature || '--',
+            humidity: weather.humidity || '--',
+            rainfall: weather.rainfall || '--',
+            soilMoisture: weather.soilMoisture || '--'
+          }
+        });
+
+        // Set component data
+        setInventory(inventoryData.status === 'fulfilled' ? inventoryData.value.data || [] : []);
+        setOrders(ordersData.status === 'fulfilled' ? ordersData.value.data || [] : []);
+        setCustomers(customersData.status === 'fulfilled' ? customersData.value.data || [] : []);
+        setAvocadoFarms(farmsData.status === 'fulfilled' ? farmsData.value.data || [] : []);
+        
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+        // Initialize with empty data on error
+        setDashboardData({
+          totalRevenue: 0,
+          totalOrders: 0,
+          totalCustomers: 0,
+          totalTrees: 0,
+          harvestReady: 0,
+          recentOrders: [],
+          topVarieties: [],
+          weatherData: {
+            temperature: '--',
+            humidity: '--',
+            rainfall: '--',
+            soilMoisture: '--'
+          }
+        });
+        setInventory([]);
+        setOrders([]);
+        setCustomers([]);
+        setAvocadoFarms([]);
+      } finally {
+        setLoading(false);
       }
-    });
+    };
 
-    setInventory([
-      { id: 1, name: 'Hass Avocado - Grade A', variety: 'Hass', quantity: 450, unit: 'kg', price: 2200, status: 'in-stock', quality: 'Premium', harvestDate: '2024-08-28' },
-      { id: 2, name: 'Hass Avocado - Grade B', variety: 'Hass', quantity: 280, unit: 'kg', price: 1800, status: 'in-stock', quality: 'Standard', harvestDate: '2024-08-28' },
-      { id: 3, name: 'Fuerte Avocado - Grade A', variety: 'Fuerte', quantity: 75, unit: 'kg', price: 2000, status: 'low-stock', quality: 'Premium', harvestDate: '2024-08-30' },
-      { id: 4, name: 'Ettinger Avocado', variety: 'Ettinger', quantity: 320, unit: 'kg', price: 1800, status: 'in-stock', quality: 'Standard', harvestDate: '2024-09-01' },
-      { id: 5, name: 'Pinkerton Avocado', variety: 'Pinkerton', quantity: 185, unit: 'kg', price: 1900, status: 'in-stock', quality: 'Premium', harvestDate: '2024-08-26' },
-      { id: 6, name: 'Avocado Seedlings', variety: 'Various', quantity: 25, unit: 'plants', price: 15000, status: 'low-stock', quality: 'Premium', harvestDate: 'N/A' }
-    ]);
-
-    setOrders([
-      { id: 'AVO-2024-001', customer: 'Kigali Premium Foods', orderDate: '2024-09-03', status: 'completed', totalAmount: 450000, variety: 'Hass Grade A', quantity: '220kg' },
-      { id: 'AVO-2024-002', customer: 'Hotel des Mille Collines', orderDate: '2024-09-02', status: 'processing', totalAmount: 280000, variety: 'Fuerte Grade A', quantity: '140kg' },
-      { id: 'AVO-2024-003', customer: 'Nakumatt Supermarket', orderDate: '2024-09-02', status: 'pending', totalAmount: 180000, variety: 'Hass Grade B', quantity: '100kg' },
-      { id: 'AVO-2024-004', customer: 'Rwanda Export Co.', orderDate: '2024-09-01', status: 'completed', totalAmount: 650000, variety: 'Mixed Premium', quantity: '325kg' },
-      { id: 'AVO-2024-005', customer: 'Serena Hotel Rwanda', orderDate: '2024-08-31', status: 'completed', totalAmount: 320000, variety: 'Hass Grade A', quantity: '160kg' }
-    ]);
-
-    setCustomers([
-      { id: 1, name: 'Kigali Premium Foods', email: 'orders@kigalipremium.rw', phone: '+250 788 123 456', totalOrders: 18, totalSpent: 2850000, status: 'Premium Export', location: 'Kigali City', preferredVariety: 'Hass Grade A' },
-      { id: 2, name: 'Hotel des Mille Collines', email: 'procurement@millecollines.rw', phone: '+250 788 234 567', totalOrders: 12, totalSpent: 1650000, status: 'Hospitality', location: 'Kigali', preferredVariety: 'Fuerte' },
-      { id: 3, name: 'Rwanda Export Co.', email: 'exports@rwandaexport.rw', phone: '+250 788 345 678', totalOrders: 25, totalSpent: 4200000, status: 'International Export', location: 'Kigali', preferredVariety: 'Mixed Premium' },
-      { id: 4, name: 'Nakumatt Supermarket', email: 'fresh@nakumatt.rw', phone: '+250 788 456 789', totalOrders: 15, totalSpent: 1890000, status: 'Retail Chain', location: 'Multiple Locations', preferredVariety: 'All Varieties' },
-      { id: 5, name: 'Serena Hotel Rwanda', email: 'kitchen@serena.rw', phone: '+250 788 567 890', totalOrders: 20, totalSpent: 2450000, status: 'Hospitality', location: 'Kigali', preferredVariety: 'Hass Premium' }
-    ]);
-
-    setAvocadoFarms([
-      { 
-        id: 1, 
-        farmerId: 'AF001', 
-        farmerName: 'Jean Claude Nzeyimana', 
-        farmName: 'Volcano View Avocado Farm',
-        location: 'Musanze District', 
-        totalTrees: 450, 
-        varieties: ['Hass', 'Fuerte'], 
-        plantingDate: '2019-03-15',
-        expectedHarvest: '2024-10-15',
-        currentYield: '8.5 tons/year',
-        soilType: 'Volcanic Loam',
-        altitude: '1,650m',
-        irrigationSystem: 'Drip Irrigation',
-        organicCertified: true,
-        status: 'producing',
-        nextHarvest: '25 days',
-        description: 'Premium avocado farm in the foothills of Volcanoes National Park with ideal climate conditions'
-      },
-      { 
-        id: 2, 
-        farmerId: 'AF002', 
-        farmerName: 'Rose Mukamana', 
-        farmName: 'Sunrise Avocado Cooperative',
-        location: 'Huye District', 
-        totalTrees: 320, 
-        varieties: ['Ettinger', 'Pinkerton'], 
-        plantingDate: '2020-01-20',
-        expectedHarvest: '2024-11-01',
-        currentYield: '6.2 tons/year',
-        soilType: 'Clay Loam',
-        altitude: '1,450m',
-        irrigationSystem: 'Sprinkler',
-        organicCertified: false,
-        status: 'producing',
-        nextHarvest: '42 days',
-        description: 'Women cooperative specializing in high-quality avocado varieties with sustainable farming practices'
-      },
-      { 
-        id: 3, 
-        farmerId: 'AF003', 
-        farmerName: 'Paul Uwimana', 
-        farmName: 'Highland Avocado Estate',
-        location: 'Nyanza District', 
-        totalTrees: 280, 
-        varieties: ['Hass', 'Ettinger'], 
-        plantingDate: '2018-09-10',
-        expectedHarvest: '2024-09-20',
-        currentYield: '7.8 tons/year',
-        soilType: 'Red Clay',
-        altitude: '1,720m',
-        irrigationSystem: 'Manual Watering',
-        organicCertified: true,
-        status: 'harvest-ready',
-        nextHarvest: '5 days',
-        description: 'Established avocado farm with mature trees producing premium export-quality fruit'
-      },
-      { 
-        id: 4, 
-        farmerId: 'AF004', 
-        farmerName: 'Marie Therese Uwimana', 
-        farmName: 'Green Hills Avocado Farm',
-        location: 'Kayonza District', 
-        totalTrees: 180, 
-        varieties: ['Fuerte', 'Pinkerton'], 
-        plantingDate: '2021-05-12',
-        expectedHarvest: '2024-12-10',
-        currentYield: '4.5 tons/year',
-        soilType: 'Sandy Loam',
-        altitude: '1,380m',
-        irrigationSystem: 'Drip Irrigation',
-        organicCertified: false,
-        status: 'developing',
-        nextHarvest: '68 days',
-        description: 'Young avocado plantation with modern irrigation and sustainable farming techniques'
-      }
-    ]);
+    fetchDashboardData();
   }, []);
 
   const handlePurchaseFromFarm = (farmerId, quantity, variety) => {

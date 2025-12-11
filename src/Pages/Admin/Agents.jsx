@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ClipLoader } from 'react-spinners';
 import '../Styles/Agent.css';
-import { listAgents, deleteUser, createUser, createAgent } from '../../services/usersService';
+import { getAgents, deleteUser, createAgent } from '../../services/usersService';
 
 export default function Agents() {
   const [agents, setAgents] = useState([]);

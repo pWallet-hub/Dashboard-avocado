@@ -4,8 +4,8 @@ import {
   Search, Eye, Edit2, Plus, BarChart3, Download,
   ArrowUpRight, ArrowDownRight, Package, Clock, Star, Filter
 } from 'lucide-react';
-import { listOrders } from '../../services/orderService';
-import { getAllProducts } from '../../services/productsService';
+import { getOrders } from '../../services/orderService';
+import { getProducts } from '../../services/productsService';
 
 const ShopSales = () => {
   const [salesData, setSalesData] = useState([]);

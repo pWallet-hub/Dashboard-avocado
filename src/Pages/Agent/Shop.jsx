@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { ShoppingCart, X, CheckCircle, Loader2, Minus, Plus, Trash2, Filter, Search, User, Users, Heart, Package } from 'lucide-react';
-import { getAllProducts } from '../../services/productsService';
-import { listFarmers } from '../../services/usersService';
+import { getProducts } from '../../services/productsService';
+import { getFarmers } from '../../services/usersService';
 import { getAgentInformation } from '../../services/agent-information';
 
 // Cart Service (same as HarvestingKit)
@@ -231,7 +231,7 @@ export default function Shop() {
       const fetchFarmers = async () => {
         setLoading(true);
         try {
-          const response = await listFarmers({ limit: 100 });
+          const response = await getFarmers({ limit: 100 });
           const farmersList = response.data || [];
           const territoryFilteredFarmers = filterFarmersByTerritory(farmersList, agentTerritories);
           setFarmers(territoryFilteredFarmers);

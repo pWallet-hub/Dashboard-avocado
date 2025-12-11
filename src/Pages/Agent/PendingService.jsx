@@ -11,58 +11,17 @@ export default function ModernPendingService() {
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [updatingStatus, setUpdatingStatus] = useState(false);
 
-  // Mock API call simulation - replace with your actual API
   useEffect(() => {
     const fetchPendingRequests = async () => {
       setLoading(true);
       setError(null);
       
       try {
-        // Simulate API delay
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        // Mock data - replace with your actual API call
-        const mockData = [
-          {
-            id: 1,
-            farmerName: 'John Uwimana',
-            email: 'john.uwimana@gmail.com',
-            phoneNumber: '+250788123456',
-            serviceRequested: 'Crop Consultation',
-            requestDate: '2024-12-15',
-            status: 'Pending',
-            location: 'Kigali, Rwanda',
-            farmSize: '2.5 hectares',
-            cropType: 'Maize'
-          },
-          {
-            id: 2,
-            farmerName: 'Marie Mukamana',
-            email: 'marie.mukamana@gmail.com',
-            phoneNumber: '+250789654321',
-            serviceRequested: 'Soil Testing',
-            requestDate: '2024-12-14',
-            status: 'In Progress',
-            location: 'Huye, Rwanda',
-            farmSize: '1.8 hectares',
-            cropType: 'Coffee'
-          },
-          {
-            id: 3,
-            farmerName: 'Paul Nzeyimana',
-            email: 'paul.nzeyimana@gmail.com',
-            phoneNumber: '+250787456123',
-            serviceRequested: 'Pest Control',
-            requestDate: '2024-12-13',
-            status: 'Pending',
-            location: 'Musanze, Rwanda',
-            farmSize: '3.2 hectares',
-            cropType: 'Potatoes'
-          }
-        ];
-        
-        setPendingRequests(mockData);
-        setFilteredRequests(mockData);
+        // Fetch pending service requests from API
+        // This should use the service requests API endpoints
+        // For now, we'll show empty state until proper API integration
+        setPendingRequests([]);
+        setFilteredRequests([]);
       } catch (error) {
         setError('Failed to fetch pending requests');
       } finally {

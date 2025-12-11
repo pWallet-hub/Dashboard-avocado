@@ -1,39 +1,51 @@
-import apiClient, { extractData } from './apiClient';
+import apiClient from './apiClient';
 
-/**
- * System Monitoring Service
- * Implements endpoints from API documentation:
- * Base Path: /monitoring
- */
+// Comprehensive health check
+export const getHealthCheck = async () => {
+  try {
+    const response = await apiClient.get('/monitoring/health');
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.message || 'Failed to fetch health check');
+  }
+};
 
-// Get system usage statistics (Admin only)
-export async function getSystemUsage(period = '24h') {
-    try {
-        const params = { period };
+// Get detailed system metrics
+export const getSystemMetrics = async () => {
+  try {
+    const response = await apiClient.get('/monitoring/metrics');
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.message || 'Failed to fetch system metrics');
+  }
+};
 
-        const response = await apiClient.get('/monitoring/usage', { params });
-        return extractData(response);
-    } catch (error) {
-        console.error('Error fetching system usage:', error);
-        throw error;
-    }
-}
+// Get system usage statistics
+export const getSystemUsage = async (params = {}) => {
+  try {
+    const response = await apiClient.get('/monitoring/usage', { params });
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.message || 'Failed to fetch system usage');
+  }
+};
 
-// Get recent system activity (Admin only)
-export async function getSystemActivity(options = {}) {
-    try {
-        const params = {};
-        if (options.limit) params.limit = options.limit;
+// Get recent system activity feed
+export const getSystemActivity = async (params = {}) => {
+  try {
+    const response = await apiClient.get('/monitoring/activity', { params });
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.message || 'Failed to fetch system activity');
+  }
+};
 
-        const response = await apiClient.get('/monitoring/activity', { params });
-        return extractData(response);
-    } catch (error) {
-        console.error('Error fetching system activity:', error);
-        throw error;
-    }
-}
-
-export default {
-    getSystemUsage,
-    getSystemActivity,
+// Clean up expired access keys and old logs
+export const performCleanup = async () => {
+  try {
+    const response = await apiClient.post('/monitoring/cleanup');
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.message || 'Failed to perform cleanup');
+  }
 };

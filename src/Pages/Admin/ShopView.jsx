@@ -4,18 +4,17 @@ import { ClipLoader } from 'react-spinners';
 import Select from 'react-select';
 import AddShopForm from '../../components/AddShopForm/AddShopForm';
 import {
-  getAllProducts,
+  getProducts,
   createProduct,
   updateProduct,
   deleteProduct,
   getProductsByCategory
 } from '../../services/productsService';
 import {
-  getAllShops,
+  getShops,
   getShopById,
   updateShop,
-  deleteShop,
-  exportShopsToExcel
+  deleteShop
 } from '../../services/shopService';
 
 export default function ShopView() {

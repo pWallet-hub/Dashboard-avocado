@@ -6,7 +6,7 @@ import {
   User, Phone, Mail, MapPin, Package, Leaf,
   TrendingUp, FileText, RefreshCw
 } from 'lucide-react';
-import { listHarvestRequests } from '../../services/serviceRequestsService';
+import { getHarvestRequests } from '../../services/serviceRequestsService';
 import { getAgentInformation } from '../../services/agent-information';
 import apiClient from '../../services/apiClient';
 

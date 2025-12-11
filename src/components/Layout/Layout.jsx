@@ -1,7 +1,7 @@
 import { Outlet, Navigate } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import TopBar from './TopBar';
-import { logout } from '../../services/authService'; // Import the logout function
+import { useAuth } from '../../hooks/useAuth.jsx'; // Import the auth hook
 
 const Layout = () => {
   const role = localStorage.getItem('role'); 

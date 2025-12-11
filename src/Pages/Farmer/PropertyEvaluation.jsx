@@ -3,9 +3,7 @@ import { CheckCircle } from 'lucide-react';
 import '../Styles/FarmerPropertyEvaluation.css';
 import DashboardHeader from "../../components/Header/DashboardHeader";
 import { 
-  createPropertyEvaluationRequest, 
-  updatePropertyEvaluationRequest,
-  getPropertyEvaluationRequestById 
+  createPropertyEvaluationRequest
 } from '../../services/serviceRequestsService';
 
 const PropertyEvaluationForm = ({ requestId = null, mode = 'create' }) => {

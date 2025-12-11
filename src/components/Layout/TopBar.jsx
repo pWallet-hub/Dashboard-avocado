@@ -4,7 +4,7 @@ import asr from '../../assets/image/pwallet-logo-new.png';
 import UserProfile from '../Profile/UserProfile';
 import SettingsModal from '../Settings/SettingsModal';
 import './TopBar.css';
-import { updateProfile } from '../../services/authService';
+import authService from '../../services/authService';
 
 const TopBar = ({ onLogout, user }) => {
   const [showProfileMenu, setShowProfileMenu] = useState(false);

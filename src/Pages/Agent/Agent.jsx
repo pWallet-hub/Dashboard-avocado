@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { User, Mail, Phone, MapPin, Calendar, Activity, Award, BarChart3, Briefcase, Edit3, Save, X, AlertCircle, TrendingUp, Target, CheckCircle2, Clock, FileText } from 'lucide-react';
 import { getAgentInformation, updateAgentInformation } from '../../services/agent-information';
-import { listHarvestRequests } from '../../services/serviceRequestsService';
+import { getHarvestRequests } from '../../services/serviceRequestsService';
 import { Link } from 'react-router-dom';
 
 // Enhanced Profile Section for Membership Card

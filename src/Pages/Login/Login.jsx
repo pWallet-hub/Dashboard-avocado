@@ -1,25 +1,26 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LogIn } from "lucide-react";
-import { login } from '../../services/authService'; // Import the authService
+import { useAuth } from '../../hooks/useAuth.jsx';
 
 function Login() {
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const navigate = useNavigate();
+  const { login } = useAuth();
   
   // Add form validation
   const validateForm = () => {
-    if (!username || !password) {
+    if (!email || !password) {
       setMessage('Please fill in all fields');
       return false;
     }
     
     // Basic email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(username)) {
+    if (!emailRegex.test(email)) {
       setMessage('Please enter a valid email address');
       return false;
     }
@@ -45,38 +46,32 @@ function Login() {
     }
     
     try {
-      // Actual API call to authenticate user
-      const credentials = {
-        email: username,
-        password: password
-      };
+      const result = await login(email, password);
       
-      const response = await login(credentials);
-      
-      // Store token and user data in localStorage
-      localStorage.setItem('token', response.token);
-      localStorage.setItem('user', JSON.stringify(response.user));
-      
-      // Store role and other user data with correct keys
-      localStorage.setItem('role', response.user.role);
-      localStorage.setItem('id', response.user.id);
-      localStorage.setItem('username', response.user.email); // Store email as username
-      
-      // If it's a shop manager, also store shop information
-      if (response.user.role === 'shop_manager') {
-        // In a real implementation, this would come from the user profile
-        const shopInfo = {
-          shopId: 'shop-001', // This would come from the API
-          shopName: 'Kigali Agricultural Shop' // This would come from the API
-        };
-        localStorage.setItem('shopInfo', JSON.stringify(shopInfo));
+      if (result.success) {
+        setMessage('Login successful! Redirecting...');
+        
+        // Redirect based on user role
+        const user = result.user;
+        switch (user.role) {
+          case 'admin':
+            navigate('/dashboard/admin');
+            break;
+          case 'agent':
+            navigate('/dashboard/agent');
+            break;
+          case 'farmer':
+            navigate('/dashboard/farmer');
+            break;
+          case 'shop_manager':
+            navigate('/dashboard/shop-manager');
+            break;
+          default:
+            navigate('/dashboard');
+        }
+      } else {
+        setMessage(result.message);
       }
-      
-      setMessage('Login successful! Redirecting...');
-      
-      // Redirect to role dashboard with standardized format
-      const rolePath = response.user.role.replace('_', '-');
-      navigate(`/dashboard/${rolePath}`);
     } catch (error) {
       setMessage(error.message || 'Login failed. Please check your credentials.');
     } finally {
@@ -100,10 +95,10 @@ function Login() {
           <h2 className="mb-5 text-2xl font-bold md:text-3xl">Login</h2>
           <div className="w-full">
             <input
-              type="text"
+              type="email"
               placeholder="Email"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               disabled={loading}
               className="w-full p-3 mb-4 border border-gray-300 rounded focus:outline-none focus:border-green-500"
             />

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Package, Plus, Search, AlertTriangle, Edit, Trash2, Eye, Filter, Leaf } from 'lucide-react';
-import { listInventory, getLowStockItems, getOutOfStockItems, adjustStock } from '../../services/inventoryService';
-import { getAllProducts, createProduct, updateProduct, deleteProduct } from '../../services/productsService';
+import { getInventory, getLowStockItems, getOutOfStockItems, adjustStock } from '../../services/inventoryService';
+import { getProducts, createProduct, updateProduct, deleteProduct } from '../../services/productsService';
 
 const ShopInventory = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -48,75 +48,7 @@ const ShopInventory = () => {
       // Set empty array as fallback
       setInventory([]);
       
-      // Create mock data for development/testing when API fails
-      const mockInventory = [
-        {
-          id: 'INV-001',
-          name: 'Hass Avocado - Premium Grade',
-          category: 'Hass Avocados',
-          quantity: 150,
-          unit: 'kg',
-          price: 2500,
-          minStock: 20,
-          supplier: 'Musanze Farm Cooperative',
-          harvestDate: '2024-09-15',
-          expiryDate: '2024-10-15',
-          cost: 2000,
-          status: 'in-stock',
-          sourceType: 'direct'
-        },
-        {
-          id: 'INV-002',
-          name: 'Fuerte Avocado - Grade A',
-          category: 'Fuerte Avocados',
-          quantity: 15,
-          unit: 'kg',
-          price: 2200,
-          minStock: 25,
-          supplier: 'Huye Agricultural Cooperative',
-          harvestDate: '2024-09-10',
-          expiryDate: '2024-10-10',
-          cost: 1800,
-          status: 'low-stock',
-          sourceType: 'direct'
-        },
-        {
-          id: 'INV-003',
-          name: 'Avocado Seedlings',
-          category: 'Avocado Seedlings',
-          quantity: 50,
-          unit: 'plants',
-          price: 15000,
-          minStock: 10,
-          supplier: 'Rwanda Agricultural Board',
-          harvestDate: '2024-08-01',
-          expiryDate: 'N/A',
-          cost: 12000,
-          status: 'in-stock',
-          sourceType: 'nursery'
-        },
-        {
-          id: 'INV-004',
-          name: 'Organic Fertilizer',
-          category: 'Fertilizers',
-          quantity: 0,
-          unit: 'bags',
-          price: 8000,
-          minStock: 5,
-          supplier: 'Kigali Agro Supplies',
-          harvestDate: 'N/A',
-          expiryDate: '2025-06-01',
-          cost: 6500,
-          status: 'out-of-stock',
-          sourceType: 'purchase'
-        }
-      ];
-      
-      // Use mock data when API fails (for development)
-      if (process.env.NODE_ENV === 'development') {
-        setInventory(mockInventory);
-        setError('Using mock data - API unavailable');
-      }
+      // No fallback data - show empty state when API fails
     } finally {
       setLoading(false);
     }

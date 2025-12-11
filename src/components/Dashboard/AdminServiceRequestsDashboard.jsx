@@ -5,9 +5,9 @@ import {
   Package, Trees, Bug, Home, Calendar, MapPin, Phone, Mail, Info
 } from 'lucide-react';
 import {
-  listServiceRequests, 
-  listHarvestRequests,
-  listPestManagementRequests,
+  getPestManagementRequests, 
+  getHarvestRequests,
+  getPropertyEvaluationRequests,
   approveHarvestRequest,
   rejectHarvestRequest,
   approvePropertyEvaluationRequest,
@@ -49,9 +49,9 @@ const AdminServiceRequestsDashboard = () => {
     
     try {
       const [propertyResponse, harvestResponse, pestResponse] = await Promise.allSettled([
-        listServiceRequests(),
-        listHarvestRequests(),
-        listPestManagementRequests()
+        getPropertyEvaluationRequests(),
+        getHarvestRequests(),
+        getPestManagementRequests()
       ]);
 
       if (propertyResponse.status === 'fulfilled') {

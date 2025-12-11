@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { User, Phone, Mail, MapPin, TreePine, Calendar, Search, Filter, Download, Plus, Eye, X, AlertCircle } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import { listFarmers, createFarmer } from '../../services/usersService';
+import { getFarmers, createFarmer } from '../../services/usersService';
 import { getAgentInformation } from '../../services/agent-information';
 
 
@@ -50,75 +50,7 @@ export default function FarmerList() {
     assistance: ''
   });
 
-  // Mock data for demonstration
-  const mockFarmers = [
-    {
-      id: 1,
-      full_name: "Jean Baptiste Uwimana",
-      email: "jean.uwimana@email.com",
-      telephone: "+250788123456",
-      province: "Kigali",
-      district: "Gasabo",
-      sector: "Remera",
-      farm_province: "Kigali",
-      farm_district: "Gasabo",
-      farm_sector: "Remera",
-      farm_cell: "Rukiri",
-      farm_village: "Karama",
-      farm_age: 5,
-      planted: "2019-03-15",
-      avocado_type: "Hass",
-      mixed_percentage: "80%",
-      farm_size: "2.5 hectares",
-      tree_count: 150,
-      upi_number: "UPI001234567",
-      assistance: ["Training", "Equipment", "Fertilizer"]
-    },
-    {
-      id: 2,
-      full_name: "Marie Claire Mukamana",
-      email: "marie.mukamana@email.com",
-      telephone: "+250788765432",
-      province: "Northern",
-      district: "Musanze",
-      sector: "Cyuve",
-      farm_province: "Northern",
-      farm_district: "Musanze",
-      farm_sector: "Cyuve",
-      farm_cell: "Rugengabari",
-      farm_village: "Nyange",
-      farm_age: 3,
-      planted: "2021-06-20",
-      avocado_type: "Fuerte",
-      mixed_percentage: "60%",
-      farm_size: "1.8 hectares",
-      tree_count: 95,
-      upi_number: "UPI002345678",
-      assistance: ["Seeds", "Training"]
-    },
-    {
-      id: 3,
-      full_name: "Paul Nzeyimana",
-      email: "paul.nzeyimana@email.com",
-      telephone: "+250788654321",
-      province: "Eastern",
-      district: "Nyagatare",
-      sector: "Karangazi",
-      farm_province: "Eastern",
-      farm_district: "Nyagatare",
-      farm_sector: "Karangazi",
-      farm_cell: "Nyagihanga",
-      farm_village: "Rugarama",
-      farm_age: 7,
-      planted: "2017-01-10",
-      avocado_type: "Mixed",
-      mixed_percentage: "45%",
-      farm_size: "3.2 hectares",
-      tree_count: 200,
-      upi_number: "UPI003456789",
-      assistance: ["Equipment", "Fertilizer", "Pesticides"]
-    }
-  ];
+
 
   // Fetch agent's territory information on mount
   useEffect(() => {
@@ -156,7 +88,7 @@ export default function FarmerList() {
           status: filterBy !== 'all' ? filterBy : undefined
         };
         
-        const response = await listFarmers(options);
+        const response = await getFarmers(options);
         
         if (response.data && Array.isArray(response.data)) {
           // Store all farmers from API
@@ -416,7 +348,7 @@ export default function FarmerList() {
           search: searchTerm || undefined,
           status: filterBy !== 'all' ? filterBy : undefined
         };
-        const refreshResponse = await listFarmers(refreshOptions);
+        const refreshResponse = await getFarmers(refreshOptions);
         if (refreshResponse.data) {
           setAllFarmers(refreshResponse.data);
           const filteredByTerritory = filterFarmersByTerritory(refreshResponse.data, agentTerritories);
