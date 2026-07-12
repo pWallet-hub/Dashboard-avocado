@@ -30,10 +30,10 @@ body {
     font-size: 2rem;
     margin-right: 2rem;
     font-weight: bold;
-    background: linear-gradient(to right, #2563eb, #4f46e5);
+    background: linear-gradient(to right, #16a34a, #15803d);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
-    
+
 }
 
 .action-buttons {
@@ -58,7 +58,7 @@ body {
 }
 
 .btn-primary {
-    background: linear-gradient(to right, #2563eb, #4f46e5);
+    background: linear-gradient(to right, #16a34a, #15803d);
     color: white;
 }
 
@@ -151,7 +151,7 @@ body {
     justify-content: center;
     font-weight: bold;
     color: white;
-    background: linear-gradient(to right, #3b82f6, #6366f1);
+    background: linear-gradient(to right, #16a34a, #15803d);
 }
 
 .table-cell {
@@ -165,15 +165,15 @@ body {
 }
 
 .btn-approve {
-    background-color: #dbeafe;
-    color: #2563eb;
+    background-color: #dcfce7;
+    color: #16a34a;
     padding: 0.25rem 0.75rem;
     border-radius: 0.375rem;
     transition: background-color 0.2s ease;
 }
 
 .btn-approve:hover {
-    background-color: #bfdbfe;
+    background-color: #bbf7d0;
 }
 
 .modal-overlay {
