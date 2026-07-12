@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ClipboardList, Clock, CheckCircle, XCircle, Eye, Calendar, User, MapPin, Bell } from 'lucide-react';
+import { ClipboardList, Clock, CheckCircle, XCircle, Eye, Calendar, User, MapPin, Bell, AlertTriangle } from 'lucide-react';
 import DashboardHeader from '../../components/Header/DashboardHeader';
 import { getServiceRequestsForFarmer, listHarvestRequests } from '../../services/serviceRequestsService';
 
@@ -12,6 +12,7 @@ export default function MyServiceRequests() {
   const [filterType, setFilterType] = useState('all');
   const [showNotifications, setShowNotifications] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     loadRequests();
@@ -20,6 +21,7 @@ export default function MyServiceRequests() {
 
   const loadRequests = async () => {
     setLoading(true);
+    setError(null);
     try {
       // Get authentication info first
       const authToken = localStorage.getItem('token') || localStorage.getItem('authToken');
@@ -31,8 +33,8 @@ export default function MyServiceRequests() {
       
       if (!authToken) {
         console.error('No authentication token found');
-        // Redirect to login or show authentication error
         setRequests([]);
+        setError('You are not logged in. Please log in again to see your service requests.');
         return;
       }
       
@@ -212,20 +214,26 @@ export default function MyServiceRequests() {
       } catch (apiError) {
         console.error('=== Critical API Error ===');
         console.error('Error details:', apiError);
-        
+
         // Fallback to localStorage
         const localRequests = JSON.parse(localStorage.getItem('farmerServiceRequests') || '[]');
         console.log('Using localStorage fallback:', localRequests.length, 'requests');
         setRequests(localRequests);
+        setError(localRequests.length === 0
+          ? 'Unable to load your service requests. Please check your connection and try again.'
+          : 'Showing your last saved requests — unable to refresh from the server right now.');
       }
-      
+
     } catch (error) {
       console.error('=== Function Error ===');
       console.error('Error in loadRequests:', error);
-      
+
       // Final fallback to localStorage
       const localRequests = JSON.parse(localStorage.getItem('farmerServiceRequests') || '[]');
       setRequests(localRequests);
+      setError(localRequests.length === 0
+        ? 'Unable to load your service requests. Please check your connection and try again.'
+        : 'Showing your last saved requests — unable to refresh from the server right now.');
     } finally {
       setLoading(false);
     }
@@ -434,6 +442,21 @@ export default function MyServiceRequests() {
             )}
           </div>
         </div>
+
+        {error && (
+          <div className="mb-6 flex items-start justify-between gap-4 rounded-lg border border-amber-300 bg-amber-50 p-4">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="h-5 w-5 flex-shrink-0 text-amber-500 mt-0.5" />
+              <p className="text-sm text-amber-800">{error}</p>
+            </div>
+            <button
+              onClick={loadRequests}
+              className="flex-shrink-0 text-sm font-medium text-amber-800 underline hover:text-amber-900"
+            >
+              Retry
+            </button>
+          </div>
+        )}
 
         {/* Filters */}
         <div className="bg-white rounded-lg shadow p-6 mb-6">
