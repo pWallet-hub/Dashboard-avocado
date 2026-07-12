@@ -90,7 +90,7 @@ apiClient.interceptors.response.use(
         // Clear tokens and redirect to login
         localStorage.removeItem('token');
         localStorage.removeItem('refreshToken');
-        window.location.href = '/login';
+        window.location.href = '/';
         return Promise.reject(new Error('Session expired. Please log in again.'));
       }
       
@@ -113,19 +113,19 @@ apiClient.interceptors.response.use(
       
       if (refreshToken) {
         try {
-          const response = await axios.post('https://dash-api-hnyp.onrender.com/api/auth/refresh', { refreshToken });
+          const response = await axios.post(`${getBaseURL()}/auth/refresh`, { refreshToken });
           const { token: newToken } = response.data.data;
-          
+
           localStorage.setItem('token', newToken);
           apiClient.defaults.headers.common['Authorization'] = 'Bearer ' + newToken;
           processQueue(null, newToken);
-          
+
           return apiClient(originalRequest);
         } catch (err) {
           processQueue(err, null);
           localStorage.removeItem('token');
           localStorage.removeItem('refreshToken');
-          window.location.href = '/login';
+          window.location.href = '/';
           return Promise.reject(new Error('Session expired. Please log in again.'));
         } finally {
           isRefreshing = false;
@@ -133,7 +133,7 @@ apiClient.interceptors.response.use(
       } else {
         localStorage.removeItem('token');
         localStorage.removeItem('refreshToken');
-        window.location.href = '/login';
+        window.location.href = '/';
         return Promise.reject(new Error('Session expired. Please log in again.'));
       }
     }

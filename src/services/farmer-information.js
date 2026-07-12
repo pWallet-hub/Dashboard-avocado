@@ -41,7 +41,7 @@ export const testFarmerRoutes = async () => {
  */
 export const getFarmerInformation = async () => {
   try {
-    const response = await apiClient.get(FARMER_INFO_ENDPOINT);
+    const response = await apiClient.get(`${FARMER_INFO_ENDPOINT}/me`);
     return response.data;
   } catch (error) {
     console.error('Get farmer information error:', error);
@@ -95,7 +95,7 @@ export const getFarmerInformation = async () => {
 export const updateFarmerInformation = async (updateData) => {
   try {
     console.log('Sending update data:', updateData);
-    const response = await apiClient.put(FARMER_INFO_ENDPOINT, updateData);
+    const response = await apiClient.put(`${FARMER_INFO_ENDPOINT}/me`, updateData);
     console.log('Update response:', response);
     return response.data;
   } catch (error) {
@@ -152,7 +152,7 @@ export const updateFarmerInformation = async (updateData) => {
  */
 export const createFarmerProfile = async (profileData) => {
   try {
-    const response = await apiClient.post(`${FARMER_INFO_ENDPOINT}/create`, profileData);
+    const response = await apiClient.post(FARMER_INFO_ENDPOINT, profileData);
     return response.data;
   } catch (error) {
     console.error('Create farmer profile error:', error);
@@ -174,17 +174,11 @@ export const createFarmerProfile = async (profileData) => {
  * console.log(updated.data.farmer_profile.tree_count); // 175
  */
 export const updateTreeCount = async (treeCount) => {
-  try {
-    if (typeof treeCount !== 'number' || treeCount < 0) {
-      throw new Error('Tree count must be a non-negative number');
-    }
-    
-    const response = await apiClient.put(`${FARMER_INFO_ENDPOINT}/tree-count`, { tree_count: treeCount });
-    return response.data;
-  } catch (error) {
-    console.error('Update tree count error:', error);
-    throw error;
+  if (typeof treeCount !== 'number' || treeCount < 0) {
+    throw new Error('Tree count must be a non-negative number');
   }
+
+  return updateFarmerInformation({ tree_count: treeCount });
 };
 
 /**

@@ -1,8 +1,9 @@
+import apiClient, { extractData } from './apiClient';
+
 // Save or update suppliers in backend API
 export async function saveSuppliers(suppliers) {
   if (!Array.isArray(suppliers)) throw new Error('Suppliers must be an array');
-  // This assumes a bulk update endpoint exists. Adjust as needed for your API.
-  const response = await apiClient.put('/market/suppliers/bulk', suppliers);
+  const response = await apiClient.put('/suppliers/bulk', { suppliers });
   return extractData(response);
 }
 export async function getProducts({ page, limit, category, supplier_id, status, price_min, price_max, in_stock, search } = {}) {
@@ -27,7 +28,7 @@ export function syncAllFarmerData() {
 }
 // Fetch market transactions from backend API
 export async function getMarketTransactions() {
-  const response = await apiClient.get('/market/transactions');
+  const response = await apiClient.get('/transactions');
   return extractData(response);
 }
 // Stub for initializeStorage to prevent import errors
@@ -35,12 +36,11 @@ export function initializeStorage() {
   // No initialization needed; API-based only
   return true;
 }
-import apiClient, { extractData } from './apiClient';
 
 // Supplier management
 export async function getSuppliers() {
   try {
-    const response = await apiClient.get('/market/suppliers');
+    const response = await apiClient.get('/suppliers');
     return extractData(response);
   } catch (error) {
     console.error('Error fetching suppliers:', error);
@@ -52,9 +52,9 @@ export async function createSupplier(supplierData) {
   if (!supplierData || typeof supplierData !== 'object') {
     throw new Error('Valid supplier data is required');
   }
-  
+
   try {
-    const response = await apiClient.post('/market/suppliers', supplierData);
+    const response = await apiClient.post('/suppliers', supplierData);
     return extractData(response);
   } catch (error) {
     console.error('Error creating supplier:', error);
@@ -66,13 +66,13 @@ export async function updateSupplier(supplierId, supplierData) {
   if (!supplierId) {
     throw new Error('Supplier ID is required');
   }
-  
+
   if (!supplierData || typeof supplierData !== 'object') {
     throw new Error('Valid supplier data is required');
   }
-  
+
   try {
-    const response = await apiClient.put(`/market/suppliers/${supplierId}`, supplierData);
+    const response = await apiClient.put(`/suppliers/${supplierId}`, supplierData);
     return extractData(response);
   } catch (error) {
     console.error('Error updating supplier:', error);
@@ -84,9 +84,9 @@ export async function deleteSupplier(supplierId) {
   if (!supplierId) {
     throw new Error('Supplier ID is required');
   }
-  
+
   try {
-    const response = await apiClient.delete(`/market/suppliers/${supplierId}`);
+    const response = await apiClient.delete(`/suppliers/${supplierId}`);
     return extractData(response);
   } catch (error) {
     console.error('Error deleting supplier:', error);
@@ -97,7 +97,7 @@ export async function deleteSupplier(supplierId) {
 // Shop inventory management
 export async function getShopInventory() {
   try {
-    const response = await apiClient.get('/market/inventory');
+    const response = await apiClient.get('/inventory');
     return extractData(response);
   } catch (error) {
     console.error('Error fetching shop inventory:', error);
@@ -109,9 +109,9 @@ export async function addToShopInventory(item) {
   if (!item || typeof item !== 'object') {
     throw new Error('Valid inventory item data is required');
   }
-  
+
   try {
-    const response = await apiClient.post('/market/inventory', item);
+    const response = await apiClient.post('/inventory', item);
     return extractData(response);
   } catch (error) {
     console.error('Error adding item to inventory:', error);
@@ -123,13 +123,13 @@ export async function updateShopInventory(id, item) {
   if (!id) {
     throw new Error('Inventory item ID is required');
   }
-  
+
   if (!item || typeof item !== 'object') {
     throw new Error('Valid inventory item data is required');
   }
-  
+
   try {
-    const response = await apiClient.put(`/market/inventory/${id}`, item);
+    const response = await apiClient.put(`/inventory/${id}`, item);
     return extractData(response);
   } catch (error) {
     console.error('Error updating inventory item:', error);
@@ -141,9 +141,9 @@ export async function deleteInventoryItem(id) {
   if (!id) {
     throw new Error('Inventory item ID is required');
   }
-  
+
   try {
-    const response = await apiClient.delete(`/market/inventory/${id}`);
+    const response = await apiClient.delete(`/inventory/${id}`);
     return extractData(response);
   } catch (error) {
     console.error('Error deleting inventory item:', error);
@@ -151,68 +151,11 @@ export async function deleteInventoryItem(id) {
   }
 }
 
-// Order management
-export async function getOrders() {
-  try {
-    const response = await apiClient.get('/market/orders');
-    return extractData(response);
-  } catch (error) {
-    console.error('Error fetching orders:', error);
-    throw error;
-  }
-}
-
-export async function createOrder(orderData) {
-  if (!orderData || typeof orderData !== 'object') {
-    throw new Error('Valid order data is required');
-  }
-  
-  try {
-    const response = await apiClient.post('/market/orders', orderData);
-    return extractData(response);
-  } catch (error) {
-    console.error('Error creating order:', error);
-    throw error;
-  }
-}
-
-export async function updateOrder(id, order) {
-  if (!id) {
-    throw new Error('Order ID is required');
-  }
-  
-  if (!order || typeof order !== 'object') {
-    throw new Error('Valid order data is required');
-  }
-  
-  try {
-    const response = await apiClient.put(`/market/orders/${id}`, order);
-    return extractData(response);
-  } catch (error) {
-    console.error('Error updating order:', error);
-    throw error;
-  }
-}
-
-export async function deleteOrder(id) {
-  if (!id) {
-    throw new Error('Order ID is required');
-  }
-  
-  try {
-    const response = await apiClient.delete(`/market/orders/${id}`);
-    return extractData(response);
-  } catch (error) {
-    console.error('Error deleting order:', error);
-    throw error;
-  }
-}
-
-// Farmer products
+// Farmer products (best-effort: Product records filtered by supplier_id)
 export async function getFarmerProducts(farmerId) {
   try {
-    const params = farmerId ? { farmerId } : {};
-    const response = await apiClient.get('/market/products', { params });
+    const params = farmerId ? { supplier_id: farmerId } : {};
+    const response = await apiClient.get('/products', { params });
     return extractData(response);
   } catch (error) {
     console.error('Error fetching farmer products:', error);
@@ -220,56 +163,10 @@ export async function getFarmerProducts(farmerId) {
   }
 }
 
-export async function addFarmerProduct(product) {
-  if (!product || typeof product !== 'object') {
-    throw new Error('Valid product data is required');
-  }
-  
-  try {
-    const response = await apiClient.post('/market/products', product);
-    return extractData(response);
-  } catch (error) {
-    console.error('Error adding farmer product:', error);
-    throw error;
-  }
-}
-
-export async function updateFarmerProduct(id, product) {
-  if (!id) {
-    throw new Error('Product ID is required');
-  }
-  
-  if (!product || typeof product !== 'object') {
-    throw new Error('Valid product data is required');
-  }
-  
-  try {
-    const response = await apiClient.put(`/market/products/${id}`, product);
-    return extractData(response);
-  } catch (error) {
-    console.error('Error updating farmer product:', error);
-    throw error;
-  }
-}
-
-export async function deleteFarmerProduct(id) {
-  if (!id) {
-    throw new Error('Product ID is required');
-  }
-  
-  try {
-    const response = await apiClient.delete(`/market/products/${id}`);
-    return extractData(response);
-  } catch (error) {
-    console.error('Error deleting farmer product:', error);
-    throw error;
-  }
-}
-
 // Transactions
 export async function getFarmerToShopTransactions() {
   try {
-    const response = await apiClient.get('/market/transactions');
+    const response = await apiClient.get('/transactions');
     return extractData(response);
   } catch (error) {
     console.error('Error fetching transactions:', error);
@@ -277,49 +174,10 @@ export async function getFarmerToShopTransactions() {
   }
 }
 
-export async function createTransaction(transactionData) {
-  if (!transactionData || typeof transactionData !== 'object') {
-    throw new Error('Valid transaction data is required');
-  }
-  
-  try {
-    const response = await apiClient.post('/market/transactions', transactionData);
-    return extractData(response);
-  } catch (error) {
-    console.error('Error creating transaction:', error);
-    throw error;
-  }
-}
-
-// Shop orders
-export async function getShopOrders() {
-  try {
-    const response = await apiClient.get('/market/shop-orders');
-    return extractData(response);
-  } catch (error) {
-    console.error('Error fetching shop orders:', error);
-    throw error;
-  }
-}
-
-export async function createShopOrder(orderData) {
-  if (!orderData || typeof orderData !== 'object') {
-    throw new Error('Valid order data is required');
-  }
-  
-  try {
-    const response = await apiClient.post('/market/shop-orders', orderData);
-    return extractData(response);
-  } catch (error) {
-    console.error('Error creating shop order:', error);
-    throw error;
-  }
-}
-
 // Shop customers
 export async function getShopCustomers() {
   try {
-    const response = await apiClient.get('/market/customers');
+    const response = await apiClient.get('/customers');
     return extractData(response);
   } catch (error) {
     console.error('Error fetching customers:', error);
@@ -331,9 +189,9 @@ export async function createCustomer(customerData) {
   if (!customerData || typeof customerData !== 'object') {
     throw new Error('Valid customer data is required');
   }
-  
+
   try {
-    const response = await apiClient.post('/market/customers', customerData);
+    const response = await apiClient.post('/customers', customerData);
     return extractData(response);
   } catch (error) {
     console.error('Error creating customer:', error);
@@ -345,13 +203,13 @@ export async function updateCustomer(id, customerData) {
   if (!id) {
     throw new Error('Customer ID is required');
   }
-  
+
   if (!customerData || typeof customerData !== 'object') {
     throw new Error('Valid customer data is required');
   }
-  
+
   try {
-    const response = await apiClient.put(`/market/customers/${id}`, customerData);
+    const response = await apiClient.put(`/customers/${id}`, customerData);
     return extractData(response);
   } catch (error) {
     console.error('Error updating customer:', error);
@@ -363,9 +221,9 @@ export async function deleteCustomer(id) {
   if (!id) {
     throw new Error('Customer ID is required');
   }
-  
+
   try {
-    const response = await apiClient.delete(`/market/customers/${id}`);
+    const response = await apiClient.delete(`/customers/${id}`);
     return extractData(response);
   } catch (error) {
     console.error('Error deleting customer:', error);
@@ -373,40 +231,33 @@ export async function deleteCustomer(id) {
   }
 }
 
-// Sales data
-export async function getSalesData() {
-  try {
-    const response = await apiClient.get('/market/sales');
-    return extractData(response);
-  } catch (error) {
-    console.error('Error fetching sales data:', error);
-    throw error;
+export async function getCustomerOrders(id) {
+  if (!id) {
+    throw new Error('Customer ID is required');
   }
+
+  const response = await apiClient.get(`/customers/${id}/orders`);
+  return extractData(response);
 }
 
-export async function addSalesData(salesData) {
-  if (!salesData || typeof salesData !== 'object') {
-    throw new Error('Valid sales data is required');
+export async function getCustomerStatistics(id) {
+  if (!id) {
+    throw new Error('Customer ID is required');
   }
-  
-  try {
-    const response = await apiClient.post('/market/sales', salesData);
-    return extractData(response);
-  } catch (error) {
-    console.error('Error adding sales data:', error);
-    throw error;
-  }
+
+  const response = await apiClient.get(`/customers/${id}/statistics`);
+  return extractData(response);
 }
 
 // Utility functions
 export function calculateExpiryDate(harvestDate, category) {
   if (!harvestDate) return '';
-  
+
   const date = new Date(harvestDate);
-  
+
   // Different expiry times based on category
   let daysToAdd = 7; // Default to 1 week
-  
+
   switch (category) {
     case 'Hass Avocados':
     case 'Fuerte Avocados':
@@ -426,7 +277,7 @@ export function calculateExpiryDate(harvestDate, category) {
     default:
       daysToAdd = 7; // 1 week default
   }
-  
+
   date.setDate(date.getDate() + daysToAdd);
   return date.toISOString().split('T')[0];
 }

@@ -58,13 +58,25 @@ export async function deleteNotification(notificationId) {
   return extractData(response);
 }
 
-// Admin: Create a notification for a user or broadcast
-// Example payload: { title, body, userId?, role?, type?, metadata? }
+// Admin: Create a notification for a user
+// Payload: { recipient_id, title, message, type? }
 export async function createNotification(notificationData) {
   if (!notificationData || typeof notificationData !== 'object') {
     throw new Error('Valid notification data is required');
   }
-  const response = await apiClient.post('/notifications', notificationData);
+
+  const payload = {
+    recipient_id: notificationData.recipient_id || notificationData.userId,
+    title: notificationData.title,
+    message: notificationData.message || notificationData.body,
+    type: notificationData.type,
+  };
+
+  if (!payload.recipient_id) throw new Error('recipient_id is required');
+  if (!payload.title) throw new Error('title is required');
+  if (!payload.message) throw new Error('message is required');
+
+  const response = await apiClient.post('/notifications', payload);
   return extractData(response);
 }
 

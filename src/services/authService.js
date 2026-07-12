@@ -55,7 +55,8 @@ export async function logout() {
     localStorage.removeItem('user');
     localStorage.removeItem('role');
     localStorage.removeItem('id');
-    
+    localStorage.removeItem('username');
+
     return extractData(response);
   } catch (error) {
     // Even if logout fails on the server, we should clear local data
@@ -64,6 +65,7 @@ export async function logout() {
     localStorage.removeItem('user');
     localStorage.removeItem('role');
     localStorage.removeItem('id');
+    localStorage.removeItem('username');
     
     // If it's a network error, we still consider logout successful locally
     if (error.message.includes('Network error')) {

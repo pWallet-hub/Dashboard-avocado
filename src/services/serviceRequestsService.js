@@ -43,70 +43,6 @@ export async function getServiceRequest(requestId) {
   return extractData(response);
 }
 
-// Create new service request
-export async function createServiceRequest(requestData) {
-  // Validate required fields
-  if (!requestData || typeof requestData !== 'object') {
-    throw new Error("Service request data is required");
-  }
-  
-  if (!requestData.service_type) {
-    throw new Error("Service type is required");
-  }
-  
-  if (!requestData.title) {
-    throw new Error("Title is required");
-  }
-  
-  if (!requestData.description) {
-    throw new Error("Description is required");
-  }
-  
-  if (!requestData.location) {
-    throw new Error("Location is required");
-  }
-  
-  // Validate location required fields
-  if (!requestData.location.street_address) {
-    throw new Error("Location street address is required");
-  }
-  
-  if (!requestData.location.city) {
-    throw new Error("Location city is required");
-  }
-  
-  if (!requestData.location.province) {
-    throw new Error("Location province is required");
-  }
-  
-  const response = await apiClient.post('/service-requests', requestData);
-  return extractData(response);
-}
-
-// Update service request
-export async function updateServiceRequest(requestId, requestData) {
-  if (!requestId) {
-    throw new Error("Service request ID is required");
-  }
-  
-  if (!requestData || typeof requestData !== 'object') {
-    throw new Error("Valid service request data is required");
-  }
-  
-  const response = await apiClient.put(`/service-requests/${requestId}`, requestData);
-  return extractData(response);
-}
-
-// Delete service request
-export async function deleteServiceRequest(requestId) {
-  if (!requestId) {
-    throw new Error("Service request ID is required");
-  }
-  
-  const response = await apiClient.delete(`/service-requests/${requestId}`);
-  return extractData(response);
-}
-
 // Assign agent to service request
 export async function assignAgentToServiceRequest(requestId, agentData) {
   if (!requestId) {
@@ -300,7 +236,7 @@ export async function approveHarvestRequest(requestId, approvalData) {
     throw new Error("Request ID is required");
   }
   
-  const response = await apiClient.put(`/service-requests/${requestId}/approve`, approvalData);
+  const response = await apiClient.put(`/service-requests/${requestId}/approve-harvest`, approvalData);
   return extractData(response);
 }
 
@@ -334,7 +270,7 @@ export async function completeHarvestRequest(requestId, completionData) {
     throw new Error("Request ID is required");
   }
   
-  const response = await apiClient.put(`/service-requests/${requestId}/complete`, completionData);
+  const response = await apiClient.put(`/service-requests/${requestId}/complete-harvest`, completionData);
   return extractData(response);
 }
 
@@ -634,7 +570,7 @@ export async function completePropertyEvaluation(requestId, completionData) {
     }
   };
 
-  const response = await apiClient.put(`/service-requests/${requestId}/complete`, apiData);
+  const response = await apiClient.put(`/service-requests/${requestId}/complete-property-evaluation`, apiData);
   return extractData(response);
 }
 
@@ -954,31 +890,10 @@ export async function getPestManagementRequestById(requestId) {
   }
   
   try {
-    const response = await apiClient.get(`/service-requests/pest-management/${requestId}`);
+    const response = await apiClient.get(`/service-requests/${requestId}`);
     return extractData(response);
   } catch (error) {
     console.error('Error fetching pest management request:', error);
-    throw error;
-  }
-}
-
-/**
- * Update pest management request (Farmers only, before approval)
- */
-export async function updatePestManagementRequest(requestId, requestData) {
-  if (!requestId) {
-    throw new Error('Request ID is required');
-  }
-  
-  if (!requestData || typeof requestData !== 'object') {
-    throw new Error('Request data is required and must be an object');
-  }
-  
-  try {
-    const response = await apiClient.put(`/service-requests/pest-management/${requestId}`, requestData);
-    return extractData(response);
-  } catch (error) {
-    console.error('Error updating pest management request:', error);
     throw error;
   }
 }
@@ -990,9 +905,9 @@ export async function approvePestManagementRequest(requestId, approvalData = {})
   if (!requestId) {
     throw new Error('Request ID is required');
   }
-  
+
   try {
-    const response = await apiClient.put(`/service-requests/pest-management/${requestId}/approve`, approvalData);
+    const response = await apiClient.put(`/service-requests/${requestId}/approve-pest-management`, approvalData);
     return extractData(response);
   } catch (error) {
     console.error('Error approving pest management request:', error);
@@ -1007,13 +922,13 @@ export async function rejectPestManagementRequest(requestId, rejectionData) {
   if (!requestId) {
     throw new Error('Request ID is required');
   }
-  
+
   if (!rejectionData || !rejectionData.rejection_reason) {
     throw new Error('Rejection reason is required');
   }
-  
+
   try {
-    const response = await apiClient.put(`/service-requests/pest-management/${requestId}/reject`, rejectionData);
+    const response = await apiClient.put(`/service-requests/${requestId}/reject`, rejectionData);
     return extractData(response);
   } catch (error) {
     console.error('Error rejecting pest management request:', error);
@@ -1028,13 +943,13 @@ export async function assignAgentToPestManagement(requestId, agentData) {
   if (!requestId) {
     throw new Error('Request ID is required');
   }
-  
+
   if (!agentData || !agentData.agent_id) {
     throw new Error('Agent ID is required');
   }
-  
+
   try {
-    const response = await apiClient.put(`/service-requests/pest-management/${requestId}/assign`, agentData);
+    const response = await apiClient.put(`/service-requests/${requestId}/assign`, agentData);
     return extractData(response);
   } catch (error) {
     console.error('Error assigning agent to pest management request:', error);
@@ -1049,9 +964,9 @@ export async function startPestManagementTreatment(requestId, startData = {}) {
   if (!requestId) {
     throw new Error('Request ID is required');
   }
-  
+
   try {
-    const response = await apiClient.put(`/service-requests/pest-management/${requestId}/start`, startData);
+    const response = await apiClient.put(`/service-requests/${requestId}/start`, startData);
     return extractData(response);
   } catch (error) {
     console.error('Error starting pest management treatment:', error);
@@ -1066,13 +981,13 @@ export async function completePestManagementTreatment(requestId, completionData)
   if (!requestId) {
     throw new Error('Request ID is required');
   }
-  
+
   if (!completionData || typeof completionData !== 'object') {
     throw new Error('Completion data is required');
   }
-  
+
   try {
-    const response = await apiClient.put(`/service-requests/pest-management/${requestId}/complete`, completionData);
+    const response = await apiClient.put(`/service-requests/${requestId}/complete-pest-management`, completionData);
     return extractData(response);
   } catch (error) {
     console.error('Error completing pest management treatment:', error);
@@ -1087,21 +1002,17 @@ export async function submitPestManagementFeedback(requestId, feedbackData) {
   if (!requestId) {
     throw new Error('Request ID is required');
   }
-  
+
   if (!feedbackData || typeof feedbackData !== 'object') {
     throw new Error('Feedback data is required');
   }
-  
+
   if (feedbackData.rating === undefined || feedbackData.rating === null) {
     throw new Error('Rating is required');
   }
-  
-  if (feedbackData.effectiveness_rating === undefined || feedbackData.effectiveness_rating === null) {
-    throw new Error('Effectiveness rating is required');
-  }
-  
+
   try {
-    const response = await apiClient.post(`/service-requests/pest-management/${requestId}/feedback`, feedbackData);
+    const response = await apiClient.post(`/service-requests/${requestId}/feedback`, feedbackData);
     return extractData(response);
   } catch (error) {
     console.error('Error submitting pest management feedback:', error);
@@ -1116,9 +1027,9 @@ export async function cancelPestManagementRequest(requestId, cancellationData) {
   if (!requestId) {
     throw new Error('Request ID is required');
   }
-  
+
   try {
-    const response = await apiClient.put(`/service-requests/pest-management/${requestId}/cancel`, cancellationData);
+    const response = await apiClient.put(`/service-requests/${requestId}/cancel`, cancellationData);
     return extractData(response);
   } catch (error) {
     console.error('Error cancelling pest management request:', error);
@@ -1305,6 +1216,38 @@ export async function createHarvestingPlanRequest(planData) {
   return extractData(response);
 }
 
+// Get all harvesting plan requests
+export async function getHarvestingPlanRequests(options = {}) {
+  const params = {};
+  if (options.page) params.page = options.page;
+  if (options.limit) params.limit = options.limit;
+  if (options.status) params.status = options.status;
+  if (options.priority) params.priority = options.priority;
+
+  const response = await apiClient.get('/service-requests/harvesting-plan', { params });
+  return extractData(response);
+}
+
+// Approve harvesting plan request (Admin only)
+export async function approveHarvestingPlanRequest(requestId, approvalData = {}) {
+  if (!requestId) {
+    throw new Error("Request ID is required");
+  }
+
+  const response = await apiClient.put(`/service-requests/${requestId}/approve-harvesting-plan`, approvalData);
+  return extractData(response);
+}
+
+// Complete harvesting plan request (Admin/Agent)
+export async function completeHarvestingPlanRequest(requestId, completionData) {
+  if (!requestId) {
+    throw new Error("Request ID is required");
+  }
+
+  const response = await apiClient.put(`/service-requests/${requestId}/complete-harvesting-plan`, completionData);
+  return extractData(response);
+}
+
 // IPM ROUTINE REQUEST FUNCTIONS
 // =============================================================================
 
@@ -1344,6 +1287,38 @@ export async function createIPMRoutineRequest(ipmData) {
   }
   
   const response = await apiClient.post('/service-requests/ipm-routine', ipmData);
+  return extractData(response);
+}
+
+// Get all IPM routine requests
+export async function getIPMRoutineRequests(options = {}) {
+  const params = {};
+  if (options.page) params.page = options.page;
+  if (options.limit) params.limit = options.limit;
+  if (options.status) params.status = options.status;
+  if (options.priority) params.priority = options.priority;
+
+  const response = await apiClient.get('/service-requests/ipm-routine', { params });
+  return extractData(response);
+}
+
+// Approve IPM routine request (Admin only)
+export async function approveIPMRoutineRequest(requestId, approvalData = {}) {
+  if (!requestId) {
+    throw new Error("Request ID is required");
+  }
+
+  const response = await apiClient.put(`/service-requests/${requestId}/approve-ipm-routine`, approvalData);
+  return extractData(response);
+}
+
+// Complete IPM routine request (Admin/Agent)
+export async function completeIPMRoutineRequest(requestId, completionData) {
+  if (!requestId) {
+    throw new Error("Request ID is required");
+  }
+
+  const response = await apiClient.put(`/service-requests/${requestId}/complete-ipm-routine`, completionData);
   return extractData(response);
 }
 

@@ -92,10 +92,14 @@ export async function createOrder(orderData) {
       throw new Error("Order data is required");
     }
     
+    if (!orderData.customer_id) {
+      throw new Error("Customer is required");
+    }
+
     if (!orderData.items || !Array.isArray(orderData.items) || orderData.items.length === 0) {
       throw new Error("At least one item is required in the order");
     }
-    
+
     if (!orderData.shipping_address) {
       throw new Error("Shipping address is required");
     }

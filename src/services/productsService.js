@@ -117,6 +117,13 @@ export async function getContainerProducts(options = {}) {
 }
 
 /**
+ * Get protection equipment products (boots, gloves, masks, etc.)
+ */
+export async function getProtectionProducts(options = {}) {
+  return await getProductsByCategory('protection', options);
+}
+
+/**
  * Get pest management products
  */
 export async function getPestManagementProducts(options = {}) {
@@ -203,11 +210,11 @@ export async function createProduct(productData) {
       throw new Error('Invalid unit');
     }
     
-    // Supplier ID is optional for now
-    // if (!productData.supplier_id) {
-    //   throw new Error('Supplier ID is required');
-    // }
-    
+    if (!productData.supplier_id) {
+      throw new Error('Supplier ID is required');
+    }
+
+
     console.log('📦 Sending product data to API:', JSON.stringify(productData, null, 2));
     const response = await apiClient.post('/products', productData);
     console.log('✅ Product created successfully:', response.data);

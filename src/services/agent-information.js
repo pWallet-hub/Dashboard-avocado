@@ -6,7 +6,7 @@ import apiClient, { extractData } from './apiClient';
  */
 export async function getAgentInformation() {
   try {
-    const response = await apiClient.get('/agent-information');
+    const response = await apiClient.get('/agent-information/me');
     return extractData(response);
   } catch (error) {
     console.error('Error fetching agent information:', error);
@@ -21,7 +21,7 @@ export async function getAgentInformation() {
  */
 export async function createAgentProfile(profileData) {
   try {
-    const response = await apiClient.post('/agent-information/create', profileData);
+    const response = await apiClient.post('/agent-information', profileData);
     return extractData(response);
   } catch (error) {
     console.error('Error creating agent profile:', error);
@@ -41,7 +41,7 @@ export async function updateAgentInformation(updateData) {
       throw new Error('Update data is required');
     }
 
-    const response = await apiClient.put('/agent-information', updateData);
+    const response = await apiClient.put('/agent-information/me', updateData);
     return extractData(response);
   } catch (error) {
     console.error('Error updating agent information:', error);
@@ -50,21 +50,24 @@ export async function updateAgentInformation(updateData) {
 }
 
 /**
- * Update agent performance metrics
+ * Update an agent's performance metrics (admin only)
+ * @param {string} agentUserId - The user id of the agent being updated
  * @param {Object} metricsData - Performance metrics to update
  * @param {number} metricsData.farmersAssisted - Number of farmers assisted
  * @param {number} metricsData.totalTransactions - Total transactions completed
  * @param {string} metricsData.performance - Performance percentage (e.g., "85%")
  * @returns {Promise<Object>} Updated agent profile with new metrics
  */
-export async function updateAgentPerformance(metricsData) {
+export async function updateAgentPerformance(agentUserId, metricsData) {
   try {
-    // Validate metrics data
+    if (!agentUserId) {
+      throw new Error('Agent user id is required');
+    }
     if (!metricsData || typeof metricsData !== 'object') {
       throw new Error('Metrics data is required');
     }
 
-    const response = await apiClient.put('/agent-information/performance', metricsData);
+    const response = await apiClient.put(`/agent-information/${agentUserId}/performance`, metricsData);
     return extractData(response);
   } catch (error) {
     console.error('Error updating agent performance:', error);
