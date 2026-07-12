@@ -7,11 +7,16 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'https://dash-api-hnyp.onrender.com',
+        target: 'http://localhost:5000',
         changeOrigin: true,
-        secure: true,
+        secure: false,
         rewrite: (path) => path
       }
     }
-  }
+  },
+  test: {
+    environment: 'jsdom',
+    globals: false,
+    setupFiles: './src/setupTests.js',
+  },
 })
