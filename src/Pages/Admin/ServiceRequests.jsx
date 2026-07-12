@@ -48,7 +48,7 @@ export default function ServiceRequests() {
         }),
         getPropertyEvaluationRequests().catch((err) => {
           console.error('Error fetching property evaluation requests:', err);
-          return { data: [] };
+          return [];
         })
       ]);
 
@@ -83,7 +83,7 @@ export default function ServiceRequests() {
           priority: req.priority || 'medium',
           notes: req.notes || ''
         })),
-        ...(propertyEvaluationRequests?.data || []).map(req => ({
+        ...(Array.isArray(propertyEvaluationRequests) ? propertyEvaluationRequests : propertyEvaluationRequests?.data || []).map(req => ({
           ...req,
           service_type: 'property_evaluation',
           type: 'Property Evaluation',
@@ -230,7 +230,7 @@ export default function ServiceRequests() {
   const getStatusColor = (status) => {
     switch (status) {
       case 'pending': return 'bg-amber-100 text-amber-800 border-amber-200';
-      case 'approved': return 'bg-emerald-100 text-emerald-800 border-emerald-200';
+      case 'approved': return 'bg-green-100 text-green-800 border-green-200';
       case 'rejected': return 'bg-rose-100 text-rose-800 border-rose-200';
       case 'completed': return 'bg-blue-100 text-blue-800 border-blue-200';
       case 'postponed': return 'bg-orange-100 text-orange-800 border-orange-200';
@@ -425,9 +425,9 @@ export default function ServiceRequests() {
             </div>
           </div>
 
-          <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-xl p-5 border border-emerald-100">
+          <div className="bg-gradient-to-br from-green-50 to-teal-50 rounded-xl p-5 border border-green-100">
             <h3 className="text-lg font-semibold text-slate-900 mb-4 flex items-center">
-              <div className="w-10 h-10 bg-emerald-500 rounded-lg flex items-center justify-center mr-3">
+              <div className="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center mr-3">
                 <Calendar className="w-5 h-5 text-white" />
               </div>
               Request Information
@@ -437,7 +437,7 @@ export default function ServiceRequests() {
               {request.service_type !== 'property_evaluation' && request.service_type !== 'harvest' && (
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium text-slate-600">Request ID:</span>
-                  <span className="text-sm font-mono bg-white px-2 py-1 rounded border border-emerald-200">
+                  <span className="text-sm font-mono bg-white px-2 py-1 rounded border border-green-200">
                     {request.requestNumber || 'N/A'}
                   </span>
                 </div>
@@ -625,7 +625,7 @@ export default function ServiceRequests() {
                   onClose();
                 }}
                 disabled={actionLoading[request.id]}
-                className="px-5 py-2.5 text-white bg-gradient-to-r from-emerald-500 to-green-600 rounded-xl hover:from-emerald-600 hover:to-green-700 font-semibold shadow-lg shadow-emerald-500/30 transition-all duration-200 disabled:opacity-50"
+                className="px-5 py-2.5 text-white bg-gradient-to-r from-green-500 to-green-600 rounded-xl hover:from-green-600 hover:to-green-700 font-semibold shadow-lg shadow-green-500/30 transition-all duration-200 disabled:opacity-50"
               >
                 {actionLoading[request.id] ? 'Processing...' : 'Approve'}
               </button>
@@ -657,7 +657,7 @@ export default function ServiceRequests() {
                   onClose();
                 }}
                 disabled={actionLoading[request.id]}
-                className="px-5 py-2.5 text-white bg-gradient-to-r from-emerald-500 to-green-600 rounded-xl hover:from-emerald-600 hover:to-green-700 font-semibold shadow-lg shadow-emerald-500/30 transition-all duration-200 disabled:opacity-50"
+                className="px-5 py-2.5 text-white bg-gradient-to-r from-green-500 to-green-600 rounded-xl hover:from-green-600 hover:to-green-700 font-semibold shadow-lg shadow-green-500/30 transition-all duration-200 disabled:opacity-50"
               >
                 {actionLoading[request.id] ? 'Processing...' : 'Approve Harvest'}
               </button>
@@ -682,7 +682,7 @@ export default function ServiceRequests() {
                   onClose();
                 }}
                 disabled={actionLoading[request.id]}
-                className="px-5 py-2.5 text-white bg-gradient-to-r from-emerald-500 to-green-600 rounded-xl hover:from-emerald-600 hover:to-green-700 font-semibold shadow-lg shadow-emerald-500/30 transition-all duration-200 disabled:opacity-50"
+                className="px-5 py-2.5 text-white bg-gradient-to-r from-green-500 to-green-600 rounded-xl hover:from-green-600 hover:to-green-700 font-semibold shadow-lg shadow-green-500/30 transition-all duration-200 disabled:opacity-50"
               >
                 {actionLoading[request.id] ? 'Processing...' : 'Approve Evaluation'}
               </button>
@@ -735,7 +735,7 @@ export default function ServiceRequests() {
                 onClose();
               }}
               disabled={actionLoading[request.id]}
-              className="px-5 py-2.5 text-white bg-gradient-to-r from-emerald-500 to-green-600 rounded-xl hover:from-emerald-600 hover:to-green-700 font-semibold shadow-lg shadow-emerald-500/30 transition-all duration-200 disabled:opacity-50"
+              className="px-5 py-2.5 text-white bg-gradient-to-r from-green-500 to-green-600 rounded-xl hover:from-green-600 hover:to-green-700 font-semibold shadow-lg shadow-green-500/30 transition-all duration-200 disabled:opacity-50"
             >
               {actionLoading[request.id] ? 'Processing...' : 'Approve'}
             </button>
@@ -772,7 +772,7 @@ export default function ServiceRequests() {
               value={rescheduleDate}
               onChange={(e) => setRescheduleDate(e.target.value)}
               min={new Date().toISOString().split('T')[0]}
-              className="w-full px-4 py-2.5 bg-slate-50 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all outline-none"
+              className="w-full px-4 py-2.5 bg-slate-50 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all outline-none"
             />
           </div>
           <div>
@@ -781,7 +781,7 @@ export default function ServiceRequests() {
               value={rescheduleReason}
               onChange={(e) => setRescheduleReason(e.target.value)}
               placeholder="Enter reason for rescheduling..."
-              className="w-full px-4 py-2.5 bg-slate-50 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all outline-none resize-none"
+              className="w-full px-4 py-2.5 bg-slate-50 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all outline-none resize-none"
               rows="4"
             />
           </div>
@@ -860,7 +860,7 @@ export default function ServiceRequests() {
             {[
               { label: 'Total', value: summary.total, gradient: 'from-slate-50 to-slate-100', text: 'slate', icon: '📊' },
               { label: 'Pending', value: summary.pending, gradient: 'from-amber-50 to-yellow-100', text: 'amber', icon: '⏳' },
-              { label: 'Approved', value: summary.approved, gradient: 'from-emerald-50 to-green-100', text: 'emerald', icon: '✅' },
+              { label: 'Approved', value: summary.approved, gradient: 'from-green-50 to-green-100', text: 'green', icon: '✅' },
               { label: 'Completed', value: summary.completed, gradient: 'from-blue-50 to-indigo-100', text: 'blue', icon: '🎉' },
               { label: 'Rejected', value: summary.rejected, gradient: 'from-rose-50 to-red-100', text: 'rose', icon: '❌' },
               { label: 'Postponed', value: summary.postponed, gradient: 'from-orange-50 to-amber-100', text: 'orange', icon: '📅' }
@@ -889,7 +889,7 @@ export default function ServiceRequests() {
                   placeholder="Name, phone, email, request #..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border-2 border-slate-200 rounded-xl text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all outline-none"
+                  className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border-2 border-slate-200 rounded-xl text-slate-900 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all outline-none"
                 />
               </div>
             </div>
@@ -902,7 +902,7 @@ export default function ServiceRequests() {
               <select
                 value={filterStatus}
                 onChange={(e) => setFilterStatus(e.target.value)}
-                className="w-full px-4 py-2.5 bg-slate-50 border-2 border-slate-200 rounded-xl text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all outline-none"
+                className="w-full px-4 py-2.5 bg-slate-50 border-2 border-slate-200 rounded-xl text-slate-900 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all outline-none"
               >
                 <option value="all">All Status</option>
                 <option value="pending">Pending</option>
@@ -921,7 +921,7 @@ export default function ServiceRequests() {
               <select
                 value={filterType}
                 onChange={(e) => setFilterType(e.target.value)}
-                className="w-full px-4 py-2.5 bg-slate-50 border-2 border-slate-200 rounded-xl text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all outline-none"
+                className="w-full px-4 py-2.5 bg-slate-50 border-2 border-slate-200 rounded-xl text-slate-900 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all outline-none"
               >
                 <option value="all">All Types</option>
                 <option value="pest_management">Pest Management</option>
@@ -950,7 +950,7 @@ export default function ServiceRequests() {
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
           {loading ? (
             <div className="text-center py-20">
-              <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-slate-200 border-t-emerald-500 mb-4"></div>
+              <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-slate-200 border-t-green-500 mb-4"></div>
               <p className="text-slate-600 font-medium">Loading service requests...</p>
             </div>
           ) : filteredRequests.length > 0 ? (
