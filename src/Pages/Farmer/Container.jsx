@@ -1,88 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ShoppingCart, X, CheckCircle, Loader2, Package, Heart, Minus, Plus, Trash2, Smartphone, Filter, Eye } from 'lucide-react';
-
-// Mock service for demonstration - replace with your actual service
-const getContainerProducts = async ({ page, limit, status }) => {
-  // Simulated API call
-  return {
-    data: [
-      {
-        id: 1,
-        name: "Premium Plastic Avocado Container - 50kg",
-        description: "Heavy-duty plastic container perfect for storing and transporting avocados",
-        price: 45000,
-        originalPrice: 50000,
-        images: ["https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=500"],
-        quantity: 50,
-        unit: "pieces",
-        status: "available",
-        category: "plastic"
-      },
-      {
-        id: 2,
-        name: "Wooden Crate for Avocados - Large",
-        description: "Traditional wooden crate with excellent ventilation",
-        price: 35000,
-        images: ["https://images.unsplash.com/photo-1615671524827-c1fe3973b648?w=500"],
-        quantity: 30,
-        unit: "pieces",
-        status: "available",
-        category: "wooden"
-      },
-      {
-        id: 3,
-        name: "Stackable Storage Box - 25kg",
-        description: "Space-saving stackable design for efficient storage",
-        price: 28000,
-        originalPrice: 32000,
-        images: ["https://images.unsplash.com/photo-1566576721346-d4a3b4eaeb55?w=500"],
-        quantity: 100,
-        unit: "pieces",
-        status: "available",
-        category: "storage"
-      },
-      {
-        id: 4,
-        name: "Transport Container - Industrial",
-        description: "Heavy-duty transport container for bulk shipping",
-        price: 120000,
-        images: ["https://images.unsplash.com/photo-1494412651409-8963ce7935a7?w=500"],
-        quantity: 0,
-        unit: "pieces",
-        status: "out_of_stock",
-        category: "transport"
-      },
-      {
-        id: 5,
-        name: "Ventilated Plastic Crate - 30kg",
-        description: "Breathable design keeps avocados fresh longer",
-        price: 38000,
-        images: ["https://images.unsplash.com/photo-1615671524870-1e14c4c2e42e?w=500"],
-        quantity: 75,
-        unit: "pieces",
-        status: "available",
-        category: "plastic"
-      },
-      {
-        id: 6,
-        name: "Premium Wooden Box Set",
-        description: "Set of 5 premium wooden boxes for farm storage",
-        price: 150000,
-        originalPrice: 180000,
-        images: ["https://images.unsplash.com/photo-1581783898377-1c85bf937427?w=500"],
-        quantity: 20,
-        unit: "sets",
-        status: "available",
-        category: "wooden"
-      }
-    ],
-    pagination: {
-      currentPage: page,
-      totalPages: 1,
-      totalItems: 6
-    }
-  };
-};
+import { getContainerProducts } from '../../services/productsService';
 
 const CartService = {
   cart: [],
@@ -213,7 +131,7 @@ function ProductDetailsModal({ product, onClose, addToCart, addingToCart, justAd
                 ? 'bg-green-600 shadow-green-200'
                 : addingToCart === product.id
                 ? 'bg-green-500'
-                : 'bg-gradient-to-r from-green-600 to-emerald-700 hover:from-green-700 hover:to-emerald-800 shadow-green-300 hover:shadow-xl hover:scale-105'
+                : 'bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 shadow-green-300 hover:shadow-xl hover:scale-105'
             }`}
           >
             {addingToCart === product.id ? (
@@ -504,7 +422,7 @@ export default function ContainerProducts() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 via-lime-50 to-emerald-100">
+    <div className="min-h-screen bg-gradient-to-br from-green-50 via-lime-50 to-green-100">
       <div className="bg-green-900 text-white py-3 px-4 flex items-center justify-between shadow-md">
         <div className="flex items-center space-x-2">
           <img src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c" alt="Avocado Society of Rwanda" className="h-8 w-8 rounded-full bg-white p-0.5" />
@@ -621,7 +539,7 @@ export default function ContainerProducts() {
                               ? 'bg-green-600'
                               : addingToCart === product.id
                               ? 'bg-green-500'
-                              : 'bg-gradient-to-r from-green-600 to-emerald-700 hover:from-green-700 hover:to-emerald-800 hover:scale-105'
+                              : 'bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 hover:scale-105'
                           }`}
                         >
                           {addingToCart === product.id ? (
@@ -676,7 +594,7 @@ export default function ContainerProducts() {
       {showPaymentModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden">
-            <div className="bg-gradient-to-r from-green-600 to-emerald-700 p-6 text-white relative">
+            <div className="bg-gradient-to-r from-green-600 to-green-700 p-6 text-white relative">
               <button 
                 onClick={closePaymentModal}
                 className="absolute top-4 right-4 p-2 hover:bg-white/20 rounded-full transition"
@@ -697,7 +615,7 @@ export default function ContainerProducts() {
                   <p className="text-gray-600 mb-6">Your order has been placed successfully.</p>
                   <button 
                     onClick={closePaymentModal}
-                    className="bg-gradient-to-r from-green-600 to-emerald-700 text-white px-8 py-3 rounded-xl font-semibold hover:from-green-700 hover:to-emerald-800 transition"
+                    className="bg-gradient-to-r from-green-600 to-green-700 text-white px-8 py-3 rounded-xl font-semibold hover:from-green-700 hover:to-green-800 transition"
                   >
                     Done
                   </button>
@@ -773,7 +691,7 @@ export default function ContainerProducts() {
                       </div>
                       <button
                         onClick={handlePhoneSubmit}
-                        className="w-full bg-gradient-to-r from-green-600 to-emerald-700 text-white py-3 rounded-xl font-semibold hover:from-green-700 hover:to-emerald-800 transition"
+                        className="w-full bg-gradient-to-r from-green-600 to-green-700 text-white py-3 rounded-xl font-semibold hover:from-green-700 hover:to-green-800 transition"
                       >
                         Continue
                       </button>
@@ -808,7 +726,7 @@ export default function ContainerProducts() {
                       <button
                         onClick={handlePaymentComplete}
                         disabled={paymentProcessing}
-                        className="w-full bg-gradient-to-r from-green-600 to-emerald-700 text-white py-4 rounded-xl font-bold text-lg hover:from-green-700 hover:to-emerald-800 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        className="w-full bg-gradient-to-r from-green-600 to-green-700 text-white py-4 rounded-xl font-bold text-lg hover:from-green-700 hover:to-green-800 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                       >
                         {paymentProcessing ? (
                           <>
