@@ -1,6 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
 import { ClipLoader } from 'react-spinners';
+import {
+  getPendingFarmers,
+  addPendingFarmer,
+  approvePendingFarmer,
+  rejectPendingFarmer,
+} from '../../services/pendingFarmersService';
 import '../Styles/Report.css';
 
 export default function Reports() {
@@ -10,7 +15,8 @@ export default function Reports() {
   const [selectedFarmer, setSelectedFarmer] = useState(null);
   const [isApproveModalOpen, setIsApproveModalOpen] = useState(false);
   const [isAddFarmerModalOpen, setIsAddFarmerModalOpen] = useState(false);
-  
+  const [approvedCredentials, setApprovedCredentials] = useState(null);
+
   // New state for add farmer form
   const [newFarmer, setNewFarmer] = useState({
     full_name: '',
@@ -18,21 +24,21 @@ export default function Reports() {
     telephone: ''
   });
 
-  useEffect(() => {
-    const fetchFarmers = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const response = await axios.get('https://pwallet-api.onrender.com/api/farmers/without-account');
-        setFarmers(response.data);
-      } catch (error) {
-        console.error('Error fetching farmers:', error);
-        setError('There was an error fetching the farmers!');
-      } finally {
-        setLoading(false);
-      }
-    };
+  const fetchFarmers = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await getPendingFarmers('pending');
+      setFarmers(response.success ? response.data : []);
+    } catch (error) {
+      console.error('Error fetching farmers:', error);
+      setError('There was an error fetching the farmers!');
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchFarmers();
   }, []);
 
@@ -40,13 +46,27 @@ export default function Reports() {
     setLoading(true);
     setError(null);
     try {
-      await axios.put(`https://pwallet-api.onrender.com/api/farmers/approve/${selectedFarmer.id}`);
+      const response = await approvePendingFarmer(selectedFarmer.id);
       setFarmers(farmers.filter(farmer => farmer.id !== selectedFarmer.id));
-      alert('Farmer approved successfully!');
+      setApprovedCredentials(response.data);
       setIsApproveModalOpen(false);
     } catch (error) {
       console.error('Error approving farmer:', error);
-      setError('There was an error approving the farmer!');
+      setError(error.message || 'There was an error approving the farmer!');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleReject = async (farmer) => {
+    setLoading(true);
+    setError(null);
+    try {
+      await rejectPendingFarmer(farmer.id);
+      setFarmers(farmers.filter(f => f.id !== farmer.id));
+    } catch (error) {
+      console.error('Error rejecting farmer:', error);
+      setError(error.message || 'There was an error rejecting the farmer!');
     } finally {
       setLoading(false);
     }
@@ -58,8 +78,12 @@ export default function Reports() {
     setLoading(true);
     setError(null);
     try {
-      const response = await axios.post('https://pwallet-api.onrender.com/api/farmers', newFarmer);
-      setFarmers([...farmers, response.data]);
+      const response = await addPendingFarmer({
+        full_name: newFarmer.full_name,
+        email: newFarmer.email,
+        phone: newFarmer.telephone,
+      });
+      setFarmers([response.data, ...farmers]);
       alert('Farmer added successfully!');
       setIsAddFarmerModalOpen(false);
       // Reset form
@@ -70,8 +94,8 @@ export default function Reports() {
       });
     } catch (error) {
       console.error('Error adding farmer:', error);
-      setError('There was an error adding the farmer!');
-      alert('Failed to add farmer. Please check the details and try again.');
+      setError(error.message || 'There was an error adding the farmer!');
+      alert(error.message || 'Failed to add farmer. Please check the details and try again.');
     } finally {
       setLoading(false);
     }
@@ -124,12 +148,6 @@ export default function Reports() {
               >
                 + Add New Farmer
               </button>
-              <button 
-                onClick={() => alert('Export to Excel')}
-                className="btn btn-export"
-              >
-                Export to Excel
-              </button>
             </div>
           </div>
 
@@ -141,6 +159,28 @@ export default function Reports() {
             </div>
           </div>
         </div>
+
+        {/* Approved credentials banner */}
+        {approvedCredentials && (
+          <div className="mb-4 p-4 rounded-lg bg-green-50 border border-green-200 text-green-800">
+            <p className="font-semibold">
+              {approvedCredentials.user.full_name} approved successfully.
+            </p>
+            <p className="text-sm mt-1">
+              Share these login details with the farmer:
+              <br />
+              Email: <span className="font-mono">{approvedCredentials.user.email}</span>
+              <br />
+              Temporary password: <span className="font-mono">{approvedCredentials.temp_password}</span>
+            </p>
+            <button
+              onClick={() => setApprovedCredentials(null)}
+              className="text-sm underline mt-2"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
 
         {/* Table Section */}
         <div className="table-container">
@@ -175,13 +215,20 @@ export default function Reports() {
                         </div>
                       </td>
                       <td className="table-cell">{farmer.email}</td>
-                      <td className="table-cell">{farmer.telephone}</td>
+                      <td className="table-cell">{farmer.phone}</td>
                       <td className="table-cell action-cell">
                         <button
                           onClick={() => openApproveModal(farmer)}
                           className="btn-approve"
                         >
                           Approve
+                        </button>
+                        <button
+                          onClick={() => handleReject(farmer)}
+                          className="btn-approve"
+                          style={{ backgroundColor: '#ef4444', marginLeft: '0.5rem' }}
+                        >
+                          Reject
                         </button>
                       </td>
                     </tr>
@@ -206,7 +253,7 @@ export default function Reports() {
             <div className="mt-4 overflow-y-auto max-h-96">
               {selectedFarmer && (
                 <p className="text-sm text-gray-500">
-                  Are you sure you want to approve <span className="font-bold">{selectedFarmer.full_name}</span>?
+                  Are you sure you want to approve <span className="font-bold">{selectedFarmer.full_name}</span>? This will create a real login account for them.
                 </p>
               )}
             </div>
