@@ -1,16 +1,20 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as analyticsService from './analyticsService';
 import apiClient from './apiClient';
 
 // Mock the apiClient
-jest.mock('./apiClient', () => ({
-  ...jest.requireActual('./apiClient'),
-  get: jest.fn(),
-}));
+vi.mock('./apiClient', () => {
+  const mockApiClient = { get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() };
+  return {
+    default: mockApiClient,
+    extractData: (response) => response.data.data,
+  };
+});
 
 describe('Analytics Service', () => {
   beforeEach(() => {
     // Clear all mocks before each test
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('getDashboardStatistics', () => {
