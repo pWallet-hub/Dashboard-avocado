@@ -474,7 +474,7 @@ const ProfessionalReportSystem = () => {
                   type="text"
                   value={formData.title}
                   onChange={(e) => handleInputChange("title", e.target.value)}
-                  className={`w-full px-4 py-3 text-gray-900 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200 ${
+                  className={`w-full px-4 py-3 text-gray-900 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 ${
                     formErrors.title ? "border-red-500" : ""
                   }`}
                   placeholder="Enter report title..."
@@ -489,7 +489,7 @@ const ProfessionalReportSystem = () => {
                 <select
                   value={formData.reportType}
                   onChange={(e) => handleInputChange("reportType", e.target.value)}
-                  className={`w-full px-4 py-3 text-gray-900 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200 ${
+                  className={`w-full px-4 py-3 text-gray-900 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 ${
                     formErrors.reportType ? "border-red-500" : ""
                   }`}
                 >
@@ -508,7 +508,7 @@ const ProfessionalReportSystem = () => {
                 <select
                   value={formData.priority}
                   onChange={(e) => handleInputChange("priority", e.target.value)}
-                  className={`w-full px-4 py-3 text-gray-900 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200 ${
+                  className={`w-full px-4 py-3 text-gray-900 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 ${
                     formErrors.priority ? "border-red-500" : ""
                   }`}
                 >
@@ -526,7 +526,7 @@ const ProfessionalReportSystem = () => {
                   value={formData.description}
                   onChange={(e) => handleInputChange("description", e.target.value)}
                   rows={4}
-                  className={`w-full px-4 py-3 text-gray-900 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200 resize-none ${
+                  className={`w-full px-4 py-3 text-gray-900 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 resize-none ${
                     formErrors.description ? "border-red-500" : ""
                   }`}
                   placeholder="Describe the purpose and scope of this report..."
@@ -540,7 +540,7 @@ const ProfessionalReportSystem = () => {
                   value={formData.notes}
                   onChange={(e) => handleInputChange("notes", e.target.value)}
                   rows={3}
-                  className="w-full px-4 py-3 text-gray-900 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200 resize-none"
+                  className="w-full px-4 py-3 text-gray-900 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 resize-none"
                   placeholder="Add any additional notes or comments..."
                 />
               </div>
@@ -577,7 +577,7 @@ const ProfessionalReportSystem = () => {
                     type="date"
                     value={formData.scheduledDate}
                     onChange={(e) => handleInputChange("scheduledDate", e.target.value)}
-                    className={`w-full pl-10 pr-4 py-3 text-gray-900 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200 ${
+                    className={`w-full pl-10 pr-4 py-3 text-gray-900 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 ${
                       formErrors.scheduledDate ? "border-red-500" : ""
                     }`}
                     required
@@ -593,7 +593,7 @@ const ProfessionalReportSystem = () => {
                     type="time"
                     value={formData.scheduledTime}
                     onChange={(e) => handleInputChange("scheduledTime", e.target.value)}
-                    className="w-full pl-10 pr-4 py-3 text-gray-900 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200"
+                    className="w-full pl-10 pr-4 py-3 text-gray-900 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200"
                   />
                 </div>
               </div>
@@ -605,7 +605,7 @@ const ProfessionalReportSystem = () => {
                   type="text"
                   value={formData.administrativeLocation}
                   onChange={(e) => handleInputChange("administrativeLocation", e.target.value)}
-                  className={`w-full px-4 py-3 text-gray-900 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200 ${
+                  className={`w-full px-4 py-3 text-gray-900 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 ${
                     formErrors.administrativeLocation ? "border-red-500" : ""
                   }`}
                   placeholder="e.g., Manufacturing District - Zone 3, Building A"
@@ -621,7 +621,7 @@ const ProfessionalReportSystem = () => {
                   type="text"
                   value={formData.volume}
                   onChange={(e) => handleInputChange("volume", e.target.value)}
-                  className={`w-full px-4 py-3 text-gray-900 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200 ${
+                  className={`w-full px-4 py-3 text-gray-900 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 ${
                     formErrors.volume ? "border-red-500" : ""
                   }`}
                   placeholder="e.g., 2,500 units, 15,000 sq ft"
@@ -634,7 +634,7 @@ const ProfessionalReportSystem = () => {
                   <select
                     value={formData.qualityGrade}
                     onChange={(e) => handleInputChange("qualityGrade", e.target.value)}
-                    className="w-full px-4 py-3 text-gray-900 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200 appearance-none"
+                    className="w-full px-4 py-3 text-gray-900 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 appearance-none"
                   >
                     <option value="">Select Quality Grade</option>
                     {qualityGrades.map((grade) => (
@@ -661,7 +661,7 @@ const ProfessionalReportSystem = () => {
             </div>
             <div className="bg-gray-50 rounded-xl p-6">
               <label className="block text-sm font-semibold text-gray-700 mb-4">Upload Files & Images</label>
-              <div className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center hover:border-emerald-400 transition-colors">
+              <div className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center hover:border-green-400 transition-colors">
                 <input
                   type="file"
                   multiple
@@ -692,7 +692,7 @@ const ProfessionalReportSystem = () => {
                                 className="w-12 h-12 object-cover rounded"
                               />
                             ) : (
-                              <IconComponent className="w-12 h-12 text-emerald-600" />
+                              <IconComponent className="w-12 h-12 text-green-600" />
                             )}
                             <div>
                               <p className="font-medium text-gray-900">{file.name}</p>
@@ -719,7 +719,7 @@ const ProfessionalReportSystem = () => {
                   type="button"
                   onClick={getCurrentLocation}
                   disabled={gpsStatus === "loading"}
-                  className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 disabled:opacity-50 transition-all duration-200"
+                  className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 transition-all duration-200"
                 >
                   {gpsStatus === "loading" ? (
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -730,13 +730,13 @@ const ProfessionalReportSystem = () => {
                 </button>
               </div>
               {location && (
-                <div className="bg-white rounded-lg p-4 border border-emerald-200">
+                <div className="bg-white rounded-lg p-4 border border-green-200">
                   <div className="flex items-center gap-2 mb-3">
-                    <MapPin className="w-5 h-5 text-emerald-600" />
+                    <MapPin className="w-5 h-5 text-green-600" />
                     <span className="font-medium text-gray-900">Location Details</span>
                   </div>
                   <div className="mb-2">
-                    <h4 className="text-base font-semibold text-emerald-700">{location.address}</h4>
+                    <h4 className="text-base font-semibold text-green-700">{location.address}</h4>
                   </div>
                   <p className="text-xs text-gray-500 mb-1">
                     Coordinates: {location.lat.toFixed(6)}, {location.lng.toFixed(6)}
@@ -755,12 +755,12 @@ const ProfessionalReportSystem = () => {
   }, [currentStep, formData, formErrors, handleInputChange, handleFileUpload, getFileIcon, removeFile, getCurrentLocation, gpsStatus, location]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-emerald-50 to-green-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-green-50 to-green-50">
       <div className="px-4 py-8 mx-auto max-w-7xl sm:px-6 lg:px-8">
         <div className="mb-8">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-emerald-800 via-green-700 to-emerald-600">
+              <h1 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-green-800 via-green-700 to-green-600">
                 Report Management System
               </h1>
               <p className="mt-3 text-lg text-gray-600 max-w-2xl">
@@ -788,7 +788,7 @@ const ProfessionalReportSystem = () => {
                 setCurrentStep(1);
                 setFormErrors({});
               }}
-              className="flex items-center gap-2 px-6 py-3 text-white rounded-xl bg-gradient-to-r from-emerald-700 to-green-600 hover:from-emerald-800 hover:to-green-700 transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-xl"
+              className="flex items-center gap-2 px-6 py-3 text-white rounded-xl bg-gradient-to-r from-green-700 to-green-600 hover:from-green-800 hover:to-green-700 transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-xl"
             >
               <Plus size={20} />
               {editingReport ? "Edit Report" : "New Report"}
@@ -826,7 +826,7 @@ const ProfessionalReportSystem = () => {
 
         {showForm && (
           <div className="mb-8 bg-white/90 backdrop-blur-sm rounded-2xl shadow-2xl border border-white/20 overflow-hidden">
-            <div className="px-8 py-6 bg-gradient-to-r from-emerald-50 to-green-50 border-b border-emerald-100">
+            <div className="px-8 py-6 bg-gradient-to-r from-green-50 to-green-50 border-b border-green-100">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-2xl font-bold text-gray-900">
                   {editingReport ? "Edit Report" : "Create New Report"}
@@ -843,7 +843,7 @@ const ProfessionalReportSystem = () => {
                   <div key={step} className="flex items-center">
                     <div
                       className={`w-10 h-10 rounded-full flex items-center justify-center text-base font-semibold transition-all duration-200 ${
-                        step <= currentStep ? "bg-emerald-600 text-white" : "bg-gray-200 text-gray-500"
+                        step <= currentStep ? "bg-green-600 text-white" : "bg-gray-200 text-gray-500"
                       }`}
                     >
                       {step}
@@ -851,14 +851,14 @@ const ProfessionalReportSystem = () => {
                     <div className="ml-3">
                       <p
                         className={`text-sm font-medium ${
-                          step <= currentStep ? "text-emerald-600" : "text-gray-500"
+                          step <= currentStep ? "text-green-600" : "text-gray-500"
                         }`}
                       >
                         {step === 1 ? "Basic Info" : step === 2 ? "Schedule & Data" : "Files & Location"}
                       </p>
                     </div>
                     {step < 3 && (
-                      <div className={`w-20 h-1 mx-4 ${step < currentStep ? "bg-emerald-600" : "bg-gray-200"}`} />
+                      <div className={`w-20 h-1 mx-4 ${step < currentStep ? "bg-green-600" : "bg-gray-200"}`} />
                     )}
                   </div>
                 ))}
@@ -882,8 +882,8 @@ const ProfessionalReportSystem = () => {
                         type="button"
                         onClick={nextStep}
                         disabled={!validateCurrentStep()}
-                        className={`px-6 py-3 text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 transition-all duration-200 ${
-                          validateCurrentStep() ? "bg-emerald-600 hover:bg-emerald-700" : "bg-gray-400 cursor-not-allowed"
+                        className={`px-6 py-3 text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-all duration-200 ${
+                          validateCurrentStep() ? "bg-green-600 hover:bg-green-700" : "bg-gray-400 cursor-not-allowed"
                         }`}
                       >
                         Next Step
@@ -892,8 +892,8 @@ const ProfessionalReportSystem = () => {
                       <button
                         type="submit"
                         disabled={loading}
-                        className={`flex items-center gap-2 px-6 py-3 text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 transition-all duration-200 ${
-                          loading ? "bg-emerald-400" : "bg-emerald-600 hover:bg-emerald-700"
+                        className={`flex items-center gap-2 px-6 py-3 text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-all duration-200 ${
+                          loading ? "bg-green-400" : "bg-green-600 hover:bg-green-700"
                         }`}
                       >
                         {loading ? (
@@ -915,12 +915,12 @@ const ProfessionalReportSystem = () => {
           <div className="px-8 py-6 bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-gradient-to-r from-emerald-600 to-green-600 rounded-lg">
+                <div className="p-2 bg-gradient-to-r from-green-600 to-green-600 rounded-lg">
                   <FileText className="text-white" size={24} />
                 </div>
                 <h2 className="text-2xl font-bold text-gray-900">Report Dashboard</h2>
               </div>
-              <span className="px-4 py-2 text-sm font-medium rounded-full bg-emerald-100 text-emerald-800">
+              <span className="px-4 py-2 text-sm font-medium rounded-full bg-green-100 text-green-800">
                 {reports.length} {reports.length === 1 ? "Report" : "Reports"}
               </span>
             </div>
@@ -928,8 +928,8 @@ const ProfessionalReportSystem = () => {
           <div className="overflow-auto max-h-[600px]">
             {fetchingReports ? (
               <div className="p-12 text-center">
-                <div className="inline-flex items-center justify-center w-16 h-16 bg-emerald-100 rounded-full mb-4">
-                  <div className="w-8 h-8 border-3 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
+                <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-4">
+                  <div className="w-8 h-8 border-3 border-green-600 border-t-transparent rounded-full animate-spin"></div>
                 </div>
                 <p className="text-gray-600">Loading reports...</p>
               </div>
@@ -944,8 +944,8 @@ const ProfessionalReportSystem = () => {
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <div className="flex items-center gap-3 mb-3">
-                            <div className="p-2 bg-emerald-100 rounded-lg">
-                              <ReportTypeIcon className="text-emerald-600" size={24} />
+                            <div className="p-2 bg-green-100 rounded-lg">
+                              <ReportTypeIcon className="text-green-600" size={24} />
                             </div>
                             <div>
                               <h3 className="text-lg font-semibold text-gray-900 mb-1">{report.title}</h3>
@@ -1049,7 +1049,7 @@ const ProfessionalReportSystem = () => {
                         <div className="ml-6 flex items-center gap-2">
                           <button
                             onClick={() => handleEdit(report)}
-                            className="p-2 text-gray-400 rounded-lg hover:text-emerald-600 hover:bg-emerald-50 transition-all duration-200"
+                            className="p-2 text-gray-400 rounded-lg hover:text-green-600 hover:bg-green-50 transition-all duration-200"
                           >
                             <Edit size={20} />
                           </button>
@@ -1060,7 +1060,7 @@ const ProfessionalReportSystem = () => {
                             <Trash2 size={20} />
                           </button>
                           <button
-                            className="p-2 text-gray-400 rounded-lg hover:text-emerald-600 hover:bg-emerald-50 transition-all duration-200"
+                            className="p-2 text-gray-400 rounded-lg hover:text-green-600 hover:bg-green-50 transition-all duration-200"
                           >
                             <Eye size={20} />
                           </button>
@@ -1072,14 +1072,14 @@ const ProfessionalReportSystem = () => {
               </div>
             ) : (
               <div className="p-12 text-center">
-                <div className="inline-flex items-center justify-center w-16 h-16 bg-emerald-100 rounded-full mb-4">
-                  <FileText className="text-emerald-600" size={32} />
+                <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-4">
+                  <FileText className="text-green-600" size={32} />
                 </div>
                 <h3 className="text-lg font-medium text-gray-900 mb-2">No reports available</h3>
                 <p className="text-gray-500 mb-4">Create your first professional report to get started</p>
                 <button
                   onClick={() => setShowForm(true)}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
                 >
                   <Plus size={16} />
                   Create Report
@@ -1121,7 +1121,7 @@ const ProfessionalReportSystem = () => {
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
             <div className="bg-white rounded-2xl p-6 max-w-md w-full m-4">
               <div className="flex items-center gap-2 mb-4">
-                <AlertCircle className="text-emerald-500" size={24} />
+                <AlertCircle className="text-green-500" size={24} />
                 <h3 className="text-lg font-semibold text-gray-900">Confirm Submission</h3>
               </div>
               <p className="text-gray-600 mb-6">
@@ -1136,7 +1136,7 @@ const ProfessionalReportSystem = () => {
                 </button>
                 <button
                   onClick={confirmSubmission}
-                  className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
                 >
                   Confirm Submission
                 </button>
