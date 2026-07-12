@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { createPestManagementRequest } from '../../services/serviceRequestsService';
+import { uploadSingle } from '../../services/uploadService';
 
 const diseases = [
   { disease: "Root Rot (Phytophthora Root Rot)", symptoms: "Wilting, leaf yellowing, twig dieback, root decay with brown/black rot, stunted trees" },
@@ -45,11 +47,14 @@ export default function App() {
   const [selectedPest, setSelectedPest] = useState('');
   const [selectedDamage, setSelectedDamage] = useState('');
   const [pestNoticed, setPestNoticed] = useState('');
+  const [severity, setSeverity] = useState('');
   const [controlMethods, setControlMethods] = useState('');
   const [primaryImage, setPrimaryImage] = useState(null);
   const [secondaryImage, setSecondaryImage] = useState(null);
   const [errors, setErrors] = useState({});
   const [submitted, setSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
 
   const handleDiseaseChange = (e) => {
     const index = e.target.value;
@@ -119,14 +124,70 @@ export default function App() {
       newErrors.primaryImage = 'Primary image is required';
     }
 
+    if (!severity) {
+      newErrors.severity = 'Please select a severity level';
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (validateForm()) {
+    if (!validateForm()) {
+      return;
+    }
+
+    setIsSubmitting(true);
+    setSubmitError('');
+
+    try {
+      const issueName = selectedDisease !== '' ? diseases[selectedDisease].disease : pests[selectedPest].pest;
+      const issueDetails = selectedDisease !== '' ? diseases[selectedDisease].symptoms : pests[selectedPest].damage;
+
+      const attachments = [];
+      const primaryUpload = await uploadSingle(primaryImage);
+      if (primaryUpload?.data?.url) attachments.push(primaryUpload.data.url);
+      if (secondaryImage) {
+        const secondaryUpload = await uploadSingle(secondaryImage);
+        if (secondaryUpload?.data?.url) attachments.push(secondaryUpload.data.url);
+      }
+
+      const location = {
+        province: localStorage.getItem('farmerProvince') || 'Eastern Province',
+        district: localStorage.getItem('farmerDistrict') || 'Gatsibo',
+        sector: localStorage.getItem('farmerSector') || 'Kageyo',
+        cell: localStorage.getItem('farmerCell') || 'Karangazi',
+        village: localStorage.getItem('farmerVillage') || 'Nyagatare',
+      };
+
+      await createPestManagementRequest({
+        service_type: 'pest_control',
+        title: `Pest & Disease Diagnostic: ${issueName}`,
+        description: `Farmer-reported diagnostic for ${issueName}. ${issueDetails}`,
+        location,
+        pest_management_details: {
+          pests_diseases: [{ name: issueName }],
+          first_noticed: pestNoticed,
+          damage_observed: issueDetails,
+          damage_details: issueDetails,
+          control_methods_tried: controlMethods,
+          severity_level: severity,
+        },
+        farmer_info: {
+          name: localStorage.getItem('farmerName') || 'Unknown Farmer',
+          phone: localStorage.getItem('farmerPhone') || '+250 000 000 000',
+          location,
+        },
+        priority: severity === 'critical' ? 'urgent' : severity,
+        attachments,
+      });
+
       setSubmitted(true);
+    } catch (error) {
+      setSubmitError(error.message || 'Failed to submit diagnosis. Please try again.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -187,10 +248,12 @@ export default function App() {
               setSelectedPest('');
               setSelectedDamage('');
               setPestNoticed('');
+              setSeverity('');
               setControlMethods('');
               setPrimaryImage(null);
               setSecondaryImage(null);
               setErrors({});
+              setSubmitError('');
             }}
             style={{
               padding: '14px 32px',
@@ -260,6 +323,20 @@ export default function App() {
               marginBottom: '24px'
             }}>
               {errors.general}
+            </div>
+          )}
+
+          {submitError && (
+            <div style={{
+              padding: '14px 16px',
+              background: '#fee',
+              border: '1px solid #fcc',
+              borderRadius: '8px',
+              color: '#c33',
+              fontSize: '14px',
+              marginBottom: '24px'
+            }}>
+              {submitError}
             </div>
           )}
 
@@ -569,9 +646,53 @@ export default function App() {
               Additional Details
             </h2>
 
-            <div style={{ 
-              display: 'grid', 
-              gridTemplateColumns: '1fr 1fr', 
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gap: '20px',
+              marginBottom: '20px'
+            }}>
+              <div>
+                <label style={{
+                  display: 'block',
+                  marginBottom: '8px',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  color: '#374151'
+                }}>
+                  Severity level <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+                <select
+                  value={severity}
+                  onChange={(e) => {
+                    setSeverity(e.target.value);
+                    setErrors(prev => ({ ...prev, severity: '' }));
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '12px 16px',
+                    fontSize: '15px',
+                    border: errors.severity ? '2px solid #ef4444' : '2px solid #d1d5db',
+                    borderRadius: '8px',
+                    background: 'white',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <option value="">-- Select severity --</option>
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                  <option value="critical">Critical</option>
+                </select>
+                {errors.severity && (
+                  <p style={{ color: '#ef4444', fontSize: '13px', marginTop: '6px' }}>{errors.severity}</p>
+                )}
+              </div>
+            </div>
+
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
               gap: '20px',
               marginBottom: '20px'
             }}>
@@ -679,6 +800,7 @@ export default function App() {
           {/* Submit Button */}
           <button
             type="submit"
+            disabled={isSubmitting}
             style={{
               width: '40%',
               padding: '16px',
@@ -688,7 +810,8 @@ export default function App() {
               borderRadius: '10px',
               fontSize: '17px',
               fontWeight: '700',
-              cursor: 'pointer',
+              cursor: isSubmitting ? 'not-allowed' : 'pointer',
+              opacity: isSubmitting ? 0.7 : 1,
               textTransform: 'uppercase',
               letterSpacing: '0.5px',
               boxShadow: '0 4px 14px rgba(39, 174, 96, 0.4)',
@@ -703,7 +826,7 @@ export default function App() {
               e.target.style.boxShadow = '0 4px 14px rgba(39, 174, 96, 0.4)';
             }}
           >
-            Submit Diagnosis
+            {isSubmitting ? 'Submitting...' : 'Submit Diagnosis'}
           </button>
         </form>
 
