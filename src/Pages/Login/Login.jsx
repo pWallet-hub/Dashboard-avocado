@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { LogIn } from "lucide-react";
 import { login } from '../../services/authService'; // Import the authService
 
@@ -129,6 +129,9 @@ function Login() {
             >
               {loading ? 'Logging in...' : <><LogIn className="mr-2 text-xl" />Sign In</>}
             </button>
+            <p className="mt-4 text-sm text-center text-gray-600">
+              Don't have an account? <Link to="/register" className="font-medium text-green-600 hover:underline">Sign up</Link>
+            </p>
           </div>
         </div>
       </div>
