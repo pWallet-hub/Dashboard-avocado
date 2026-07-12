@@ -12,6 +12,8 @@ import {
   Search, Eye, Building2, MapPinned, TrendingUp, CheckCircle2,
   XCircle, Filter, RefreshCw, Users, Globe
 } from 'lucide-react';
+import { useToast } from '../../components/Ui/Toast';
+import { useConfirm } from '../../components/Ui/ConfirmDialog';
 
 const customSelectStyles = {
   control: (base, state) => ({
@@ -41,6 +43,8 @@ const customSelectStyles = {
 };
 
 export default function ShopSuppliers() {
+  const toast = useToast();
+  const confirm = useConfirm();
   const [shops, setShops] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -150,33 +154,33 @@ export default function ShopSuppliers() {
     try {
       const response = await updateShop(selectedShop.id, editFormData);
       if (response.success) {
-        alert('Shop updated successfully!');
+        toast.success('Shop updated successfully!');
         setIsEditModalOpen(false);
         fetchShops();
       }
     } catch (error) {
-      alert(`Error: ${error.response?.data?.message || 'Failed to update shop'}`);
+      toast.error(`Error: ${error.response?.data?.message || 'Failed to update shop'}`);
     } finally {
       setLoading(false);
     }
   };
 
   const handleDeleteShop = async (shopId) => {
-    if (!window.confirm('Are you sure you want to delete this shop?')) return;
+    if (!(await confirm('Are you sure you want to delete this shop?'))) return;
     try {
       const response = await deleteShop(shopId);
       if (response.success) {
-        alert('Shop deleted successfully');
+        toast.success('Shop deleted successfully');
         fetchShops();
       }
     } catch (error) {
-      alert(`Error: ${error.response?.data?.message || 'Failed to delete shop'}`);
+      toast.error(`Error: ${error.response?.data?.message || 'Failed to delete shop'}`);
     }
   };
 
   const exportToExcel = () => {
     if (shops.length === 0) {
-      alert('No shops data to export');
+      toast.error('No shops data to export');
       return;
     }
     exportShopsToExcel(shops);
@@ -206,19 +210,19 @@ export default function ShopSuppliers() {
   };
 
   const statCards = [
-    { label: 'Total Shops', value: stats.total, icon: Store, gradient: 'from-green-600 to-emerald-700', bg: 'from-green-50 to-emerald-50', iconColor: 'text-green-700' },
+    { label: 'Total Shops', value: stats.total, icon: Store, gradient: 'from-green-600 to-green-700', bg: 'from-green-50 to-green-50', iconColor: 'text-green-700' },
     { label: 'Active Shops', value: stats.active, icon: CheckCircle2, gradient: 'from-teal-600 to-cyan-700', bg: 'from-teal-50 to-cyan-50', iconColor: 'text-teal-700' },
     { label: 'Provinces', value: stats.provinces, icon: Globe, gradient: 'from-amber-600 to-orange-700', bg: 'from-amber-50 to-orange-50', iconColor: 'text-amber-700' },
     { label: 'Districts', value: stats.districts, icon: MapPinned, gradient: 'from-purple-600 to-pink-700', bg: 'from-purple-50 to-pink-50', iconColor: 'text-purple-700' },
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 via-teal-50 to-emerald-50 py-8 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gradient-to-br from-green-50 via-teal-50 to-green-50 py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto space-y-6">
 
         {/* Header Section */}
         <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
-          <div className="bg-gradient-to-r from-green-600 to-emerald-700 px-8 py-6">
+          <div className="bg-gradient-to-r from-green-600 to-green-700 px-8 py-6">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div className="flex items-center gap-4">
                 <div className="w-14 h-14 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
@@ -419,7 +423,7 @@ export default function ShopSuppliers() {
           ) : filteredShops.length > 0 ? (
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gradient-to-r from-green-50 to-emerald-50 border-b-2 border-green-100">
+                <thead className="bg-gradient-to-r from-green-50 to-green-50 border-b-2 border-green-100">
                   <tr>
                     {[
                       { label: 'Shop Details', icon: Store },
@@ -443,7 +447,7 @@ export default function ShopSuppliers() {
                 <tbody className="divide-y divide-gray-100">
                   {filteredShops.map((shop, idx) => {
                     const colors = [
-                      'from-green-600 to-emerald-700',
+                      'from-green-600 to-green-700',
                       'from-teal-600 to-cyan-700',
                       'from-amber-600 to-orange-700',
                       'from-purple-600 to-pink-700',
@@ -489,7 +493,7 @@ export default function ShopSuppliers() {
                         {/* Owner */}
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-2.5">
-                            <div className="w-9 h-9 bg-gradient-to-br from-green-100 to-emerald-100 rounded-lg flex items-center justify-center">
+                            <div className="w-9 h-9 bg-gradient-to-br from-green-100 to-green-100 rounded-lg flex items-center justify-center">
                               <User className="w-5 h-5 text-green-700" />
                             </div>
                             <div>
@@ -518,7 +522,7 @@ export default function ShopSuppliers() {
                         <td className="px-6 py-4">
                           <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold ${
                             shop.canSell !== false
-                              ? 'bg-emerald-100 text-emerald-800'
+                              ? 'bg-green-100 text-green-800'
                               : 'bg-red-100 text-red-800'
                           }`}>
                             {shop.canSell !== false ? (
@@ -569,7 +573,7 @@ export default function ShopSuppliers() {
             </div>
           ) : (
             <div className="py-20 text-center">
-              <div className="w-20 h-20 bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl flex items-center justify-center mx-auto mb-6">
+              <div className="w-20 h-20 bg-gradient-to-br from-green-50 to-green-50 rounded-2xl flex items-center justify-center mx-auto mb-6">
                 <Store className="w-10 h-10 text-green-600" />
               </div>
               <h3 className="text-xl font-bold text-gray-900 mb-2">No shops found</h3>
@@ -596,7 +600,7 @@ export default function ShopSuppliers() {
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
             <div className="bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-2xl animate-in zoom-in-95 duration-200">
               {/* Header */}
-              <div className="bg-gradient-to-r from-green-600 to-emerald-700 px-8 py-6 flex items-center justify-between">
+              <div className="bg-gradient-to-r from-green-600 to-green-700 px-8 py-6 flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
                     <Eye className="w-6 h-6 text-white" />
@@ -716,7 +720,7 @@ export default function ShopSuppliers() {
                     setIsViewModalOpen(false);
                     handleEditShop(selectedShop);
                   }}
-                  className="px-6 py-2.5 bg-gradient-to-r from-green-600 to-emerald-700 text-white rounded-xl font-semibold hover:from-green-700 hover:to-emerald-800 transition-all shadow-lg flex items-center gap-2"
+                  className="px-6 py-2.5 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-xl font-semibold hover:from-green-700 hover:to-green-800 transition-all shadow-lg flex items-center gap-2"
                 >
                   <Edit className="w-4 h-4" />
                   Edit Shop
@@ -729,7 +733,7 @@ export default function ShopSuppliers() {
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
             <div className="bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-2xl animate-in zoom-in-95 duration-200">
               {/* Header – Green (same as View) */}
-              <div className="bg-gradient-to-r from-green-600 to-emerald-700 px-8 py-6 flex items-center justify-between">
+              <div className="bg-gradient-to-r from-green-600 to-green-700 px-8 py-6 flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
                     <Edit className="w-6 h-6 text-white" />
