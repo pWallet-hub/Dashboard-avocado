@@ -486,7 +486,7 @@ export default function PestManagement() {
                 disabled={!product.inStock}
                 className={`flex-1 py-3 px-6 rounded-2xl font-semibold transition-all duration-300 ${
                   product.inStock 
-                    ? 'bg-gradient-to-r from-green-600 to-emerald-600 text-white hover:scale-105' 
+                    ? 'bg-gradient-to-r from-green-600 to-green-600 text-white hover:scale-105' 
                     : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                 }`}
               >
@@ -517,7 +517,7 @@ export default function PestManagement() {
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 via-blue-50 to-emerald-50">
+    <div className="min-h-screen bg-gradient-to-br from-green-50 via-blue-50 to-green-50">
       {/* Header Section */}
       <div className="bg-white shadow-sm border-b border-gray-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
@@ -537,7 +537,7 @@ export default function PestManagement() {
           </div>
           
           <div className="text-center">
-            <h1 className="text-2xl md:text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-green-600 via-blue-600 to-emerald-600 mb-2 animate-fadeIn">
+            <h1 className="text-2xl md:text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-green-600 via-blue-600 to-green-600 mb-2 animate-fadeIn">
               Pest Management Solutions
             </h1>
             <p className="text-sm text-gray-600 max-w-3xl mx-auto animate-slideUp">
@@ -604,7 +604,7 @@ export default function PestManagement() {
                         />
                         
                         {product.discount && (
-                          <div className="absolute top-2 left-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white px-2 py-0.5 rounded-full text-xs font-semibold">
+                          <div className="absolute top-2 left-2 bg-gradient-to-r from-green-500 to-green-500 text-white px-2 py-0.5 rounded-full text-xs font-semibold">
                             {product.discount}% OFF
                           </div>
                         )}
@@ -672,7 +672,7 @@ export default function PestManagement() {
                                 ? 'bg-green-700 text-white'
                                 : addingToCart === product._id
                                 ? 'bg-green-500 text-white'
-                                : 'bg-gradient-to-r from-green-600 to-emerald-600 text-white hover:scale-105 shadow-md'
+                                : 'bg-gradient-to-r from-green-600 to-green-600 text-white hover:scale-105 shadow-md'
                               : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                           }`}
                         >
