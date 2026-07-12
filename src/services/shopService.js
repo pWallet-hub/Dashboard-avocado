@@ -3,10 +3,10 @@ import apiClient from './apiClient';
 /**
  * Shop Management Service
  * Handles all shop-related API operations
- * Base URL: /api/addshops
+ * Base URL: /api/shops
  */
 
-const SHOP_API_BASE = '/addshops';
+const SHOP_API_BASE = '/shops';
 
 /**
  * Helper function to retry API calls with exponential backoff
@@ -119,6 +119,22 @@ export const deleteShop = async (id) => {
     return response.data;
   } catch (error) {
     console.error('Error deleting shop:', error);
+    throw error;
+  }
+};
+
+/**
+ * Enable or disable a shop's ability to sell (Admin only)
+ * @param {string} shopId - Shop UUID
+ * @param {boolean} canSell - Whether the shop can sell
+ * @returns {Promise<Object>} Updated shop data
+ */
+export const updateShopSellingPermission = async (shopId, canSell) => {
+  try {
+    const response = await apiClient.put(`${SHOP_API_BASE}/${shopId}/selling-permission`, { can_sell: canSell });
+    return response.data;
+  } catch (error) {
+    console.error('Error updating shop selling permission:', error);
     throw error;
   }
 };
