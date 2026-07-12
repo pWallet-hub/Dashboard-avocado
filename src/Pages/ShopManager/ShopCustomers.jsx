@@ -1,13 +1,48 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { 
-  Users, Plus, Search, Eye, Edit, Trash2, Download, Upload, Phone, Mail, MapPin, 
-  Calendar, DollarSign, ShoppingCart, TrendingUp, MessageCircle, CheckCircle, X, 
-  Save, FileText, Zap, Heart, Package, Clock 
+import {
+  Users, Plus, Search, Eye, Edit, Trash2, Download, Upload, Phone, Mail, MapPin,
+  Calendar, DollarSign, ShoppingCart, TrendingUp, MessageCircle, CheckCircle, X,
+  Save, FileText, Zap, Heart, Package, Clock
 } from 'lucide-react';
+import { getShopCustomers, createCustomer, updateCustomer as updateCustomerApi, deleteCustomer as deleteCustomerApi, getCustomerOrders, getCustomerStatistics } from '../../services/marketStorageService';
+import { useToast } from '../../components/Ui/Toast';
+import { useConfirm } from '../../components/Ui/ConfirmDialog';
 // import './CustomerManagement.css';
 
+function mapCustomerFromApi(customer) {
+  const [firstName = '', ...lastParts] = (customer.name || '').split(' ');
+  return {
+    id: customer.id,
+    firstName: customer.first_name || firstName,
+    lastName: customer.last_name || lastParts.join(' '),
+    email: customer.email,
+    phone: customer.phone,
+    type: customer.type || 'individual',
+    status: customer.status || 'active',
+    avatar: '',
+    company: customer.company || '',
+    address: customer.address_details || { street: customer.address || '', city: '', state: '', zipCode: '', country: 'Rwanda' },
+    preferences: customer.preferences || { organic: false, local: false, deliveryMethod: 'delivery', communicationMethod: 'email' },
+    stats: {
+      totalOrders: customer.total_orders || 0,
+      totalSpent: customer.total_spent || 0,
+      avgOrderValue: customer.total_orders ? customer.total_spent / customer.total_orders : 0,
+      lastOrderDate: customer.last_order_date,
+      memberSince: customer.created_at,
+      loyaltyPoints: 0,
+    },
+    tags: customer.tags || [],
+    notes: customer.notes || '',
+    paymentMethods: [],
+    orders: [],
+    communications: [],
+  };
+}
+
 const CustomerManagement = () => {
+  const toast = useToast();
+  const confirm = useConfirm();
   const [activeView, setActiveView] = useState('list');
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [showModal, setShowModal] = useState(false);
@@ -41,348 +76,26 @@ const CustomerManagement = () => {
     notes: ''
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [loadError, setLoadError] = useState(null);
 
-  const [customers, setCustomers] = useState([
-    {
-      id: 'CUST-001',
-      firstName: 'Jean-Paul',
-      lastName: 'Mugisha',
-      email: 'jeanpaul.mugisha@email.com',
-      phone: '+250-788-123456',
-      type: 'individual',
-      status: 'active',
-      avatar: '',
-      company: '',
-      address: {
-        street: 'KN 123 St',
-        city: 'Kigali',
-        state: 'Kigali City',
-        zipCode: '',
-        country: 'Rwanda'
-      },
-      preferences: {
-        organic: true,
-        local: true,
-        deliveryMethod: 'delivery',
-        communicationMethod: 'email'
-      },
-      stats: {
-        totalOrders: 24,
-        totalSpent: 1250750,
-        avgOrderValue: 52110,
-        lastOrderDate: '2025-08-20',
-        memberSince: '2024-03-15',
-        loyaltyPoints: 625
-      },
-      tags: ['premium', 'organic-avocado-lover', 'regular'],
-      notes: 'Prefers organic avocados, always orders on Fridays',
-      paymentMethods: [
-        {
-          id: 'pm-001',
-          type: 'credit_card',
-          last4: '4567',
-          brand: 'Visa',
-          isDefault: true
-        }
-      ],
-      orders: [
-        {
-          id: 'ORD-124',
-          date: '2025-08-20',
-          total: 67500,
-          status: 'delivered',
-          items: 8
-        },
-        {
-          id: 'ORD-118',
-          date: '2025-08-13',
-          total: 45250,
-          status: 'delivered',
-          items: 6
-        },
-        {
-          id: 'ORD-112',
-          date: '2025-08-06',
-          total: 82000,
-          status: 'delivered',
-          items: 12
-        }
-      ],
-      communications: [
-        {
-          id: 'comm-001',
-          type: 'email',
-          subject: 'Welcome to our organic avocado selection',
-          date: '2025-08-15',
-          status: 'sent'
-        },
-        {
-          id: 'comm-002',
-          type: 'phone',
-          subject: 'Avocado order delivery confirmation',
-          date: '2025-08-20',
-          status: 'completed'
-        }
-      ]
-    },
-    {
-      id: 'CUST-002',
-      firstName: 'Aline',
-      lastName: 'Uwera',
-      email: 'aline.uwera@email.com',
-      phone: '+250-788-234567',
-      type: 'individual',
-      status: 'active',
-      avatar: '',
-      company: '',
-      address: {
-        street: 'KG 456 Ave',
-        city: 'Musanze',
-        state: 'Northern Province',
-        zipCode: '',
-        country: 'Rwanda'
-      },
-      preferences: {
-        organic: false,
-        local: true,
-        deliveryMethod: 'pickup',
-        communicationMethod: 'phone'
-      },
-      stats: {
-        totalOrders: 18,
-        totalSpent: 892300,
-        avgOrderValue: 49570,
-        lastOrderDate: '2025-08-22',
-        memberSince: '2024-07-20',
-        loyaltyPoints: 446
-      },
-      tags: ['local-avocado-supporter', 'pickup-preferred'],
-      notes: 'Prefers local avocados, usually picks up orders',
-      paymentMethods: [
-        {
-          id: 'pm-002',
-          type: 'debit_card',
-          last4: '8901',
-          brand: 'Mastercard',
-          isDefault: true
-        }
-      ],
-      orders: [
-        {
-          id: 'ORD-126',
-          date: '2025-08-22',
-          total: 38750,
-          status: 'ready',
-          items: 5
-        },
-        {
-          id: 'ORD-120',
-          date: '2025-08-15',
-          total: 56500,
-          status: 'completed',
-          items: 9
-        }
-      ],
-      communications: []
-    },
-    {
-      id: 'CUST-003',
-      firstName: 'Eric',
-      lastName: 'Niyitegeka',
-      email: 'eric.niyitegeka@restaurant.com',
-      phone: '+250-788-345678',
-      type: 'business',
-      status: 'active',
-      avatar: '',
-      company: 'Avocado Bistro',
-      address: {
-        street: 'KK 789 Rd',
-        city: 'Huye',
-        state: 'Southern Province',
-        zipCode: '',
-        country: 'Rwanda'
-      },
-      preferences: {
-        organic: true,
-        local: true,
-        deliveryMethod: 'delivery',
-        communicationMethod: 'email'
-      },
-      stats: {
-        totalOrders: 45,
-        totalSpent: 3250800,
-        avgOrderValue: 72240,
-        lastOrderDate: '2025-08-21',
-        memberSince: '2023-11-10',
-        loyaltyPoints: 1625
-      },
-      tags: ['bulk-avocado-buyer', 'restaurant', 'high-value'],
-      notes: 'Restaurant client, orders avocados 2-3 times per week, focuses on fresh avocados',
-      paymentMethods: [
-        {
-          id: 'pm-003',
-          type: 'business_account',
-          last4: '2345',
-          brand: 'American Express',
-          isDefault: true
-        }
-      ],
-      orders: [
-        {
-          id: 'ORD-125',
-          date: '2025-08-21',
-          total: 125000,
-          status: 'delivered',
-          items: 15
-        },
-        {
-          id: 'ORD-123',
-          date: '2025-08-19',
-          total: 98500,
-          status: 'delivered',
-          items: 12
-        }
-      ],
-      communications: [
-        {
-          id: 'comm-003',
-          type: 'email',
-          subject: 'Weekly avocado availability',
-          date: '2025-08-19',
-          status: 'sent'
-        }
-      ]
-    },
-    {
-      id: 'CUST-004',
-      firstName: 'Marie',
-      lastName: 'Kanyange',
-      email: 'marie.kanyange@email.com',
-      phone: '+250-788-456789',
-      type: 'individual',
-      status: 'inactive',
-      avatar: '',
-      company: '',
-      address: {
-        street: 'KN 321 St',
-        city: 'Rwamagana',
-        state: 'Eastern Province',
-        zipCode: '',
-        country: 'Rwanda'
-      },
-      preferences: {
-        organic: true,
-        local: false,
-        deliveryMethod: 'delivery',
-        communicationMethod: 'email'
-      },
-      stats: {
-        totalOrders: 8,
-        totalSpent: 320450,
-        avgOrderValue: 40060,
-        lastOrderDate: '2025-06-15',
-        memberSince: '2025-02-28',
-        loyaltyPoints: 160
-      },
-      tags: ['inactive', 'potential-win-back'],
-      notes: 'Has not ordered avocados in over 2 months, potential win-back candidate',
-      paymentMethods: [
-        {
-          id: 'pm-004',
-          type: 'credit_card',
-          last4: '6789',
-          brand: 'Visa',
-          isDefault: true
-        }
-      ],
-      orders: [
-        {
-          id: 'ORD-089',
-          date: '2025-06-15',
-          total: 42300,
-          status: 'delivered',
-          items: 7
-        }
-      ],
-      communications: [
-        {
-          id: 'comm-004',
-          type: 'email',
-          subject: 'We miss you! Special avocado offer inside',
-          date: '2025-07-20',
-          status: 'sent'
-        }
-      ]
-    },
-    {
-      id: 'CUST-005',
-      firstName: 'Patrick',
-      lastName: 'Habimana',
-      email: 'patrick.habimana@email.com',
-      phone: '+250-788-567890',
-      type: 'individual',
-      status: 'new',
-      avatar: '',
-      company: '',
-      address: {
-        street: 'KG 654 Ave',
-        city: 'Rubavu',
-        state: 'Western Province',
-        zipCode: '',
-        country: 'Rwanda'
-      },
-      preferences: {
-        organic: false,
-        local: true,
-        deliveryMethod: 'pickup',
-        communicationMethod: 'phone'
-      },
-      stats: {
-        totalOrders: 2,
-        totalSpent: 75500,
-        avgOrderValue: 37750,
-        lastOrderDate: '2025-08-18',
-        memberSince: '2025-08-10',
-        loyaltyPoints: 38
-      },
-      tags: ['new-customer', 'onboarding'],
-      notes: 'New customer, second avocado order placed recently',
-      paymentMethods: [
-        {
-          id: 'pm-005',
-          type: 'credit_card',
-          last4: '1234',
-          brand: 'Mastercard',
-          isDefault: true
-        }
-      ],
-      orders: [
-        {
-          id: 'ORD-119',
-          date: '2025-08-18',
-          total: 43250,
-          status: 'delivered',
-          items: 6
-        },
-        {
-          id: 'ORD-115',
-          date: '2025-08-12',
-          total: 32250,
-          status: 'delivered',
-          items: 4
-        }
-      ],
-      communications: [
-        {
-          id: 'comm-005',
-          type: 'email',
-          subject: 'Welcome to our farm fresh avocado community!',
-          date: '2025-08-10',
-          status: 'sent'
-        }
-      ]
+  const [customers, setCustomers] = useState([]);
+
+  const loadCustomers = useCallback(async () => {
+    setLoadError(null);
+    try {
+      const data = await getShopCustomers();
+      const list = Array.isArray(data) ? data : [];
+      setCustomers(list.map(mapCustomerFromApi));
+    } catch (error) {
+      console.error('Error loading customers:', error);
+      setLoadError(error.message || 'Failed to load customers');
+      setCustomers([]);
     }
-  ]);
+  }, []);
+
+  useEffect(() => {
+    loadCustomers();
+  }, [loadCustomers]);
 
   // Initialize formData when adding a new customer
   const handleAddClick = useCallback(() => {
@@ -479,12 +192,12 @@ const CustomerManagement = () => {
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'active': return 'bg-emerald-100 text-emerald-800 border-emerald-200';
+      case 'active': return 'bg-green-100 text-green-800 border-green-200';
       case 'inactive': return 'bg-amber-100 text-amber-800 border-amber-200';
       case 'new': return 'bg-indigo-100 text-indigo-800 border-indigo-200';
       case 'blocked': return 'bg-rose-100 text-rose-800 border-rose-200';
-      case 'sent': return 'bg-emerald-100 text-emerald-800 border-emerald-200';
-      case 'completed': return 'bg-emerald-100 text-emerald-800 border-emerald-200';
+      case 'sent': return 'bg-green-100 text-green-800 border-green-200';
+      case 'completed': return 'bg-green-100 text-green-800 border-green-200';
       default: return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
@@ -501,9 +214,9 @@ const CustomerManagement = () => {
 
   const getOrderStatusColor = (status) => {
     switch (status) {
-      case 'delivered': return 'text-emerald-600';
+      case 'delivered': return 'text-green-600';
       case 'ready': return 'text-indigo-600';
-      case 'completed': return 'text-emerald-600';
+      case 'completed': return 'text-green-600';
       case 'pending': return 'text-amber-600';
       case 'cancelled': return 'text-rose-600';
       default: return 'text-gray-600';
@@ -513,55 +226,70 @@ const CustomerManagement = () => {
   const handleFormSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 500));
-    if (modalType === 'add') {
-      const newCustomer = {
-        ...formData,
-        id: `CUST-${String(customers.length + 1).padStart(3, '0')}`,
-        stats: {
-          totalOrders: 0,
-          totalSpent: 0,
-          avgOrderValue: 0,
-          lastOrderDate: null,
-          memberSince: new Date().toISOString().split('T')[0],
-          loyaltyPoints: 0
-        },
-        orders: [],
-        communications: [],
-        paymentMethods: []
-      };
-      setCustomers([...customers, newCustomer]);
-    } else if (modalType === 'edit') {
-      setCustomers(customers.map(c => 
-        c.id === selectedCustomer.id ? formData : c
-      ));
-      setSelectedCustomer(formData);
+
+    // Backend CustomerStatus only supports active/inactive
+    const statusMap = { new: 'active', blocked: 'inactive', active: 'active', inactive: 'inactive' };
+
+    const payload = {
+      first_name: formData.firstName,
+      last_name: formData.lastName,
+      name: `${formData.firstName} ${formData.lastName}`.trim(),
+      email: formData.email,
+      phone: formData.phone,
+      type: formData.type,
+      status: statusMap[formData.status] || 'active',
+      company: formData.company,
+      address_details: formData.address,
+      preferences: formData.preferences,
+      tags: formData.tags,
+      notes: formData.notes,
+    };
+
+    try {
+      if (modalType === 'add') {
+        await createCustomer(payload);
+      } else if (modalType === 'edit') {
+        await updateCustomerApi(selectedCustomer.id, payload);
+      }
+      await loadCustomers();
+      setShowModal(false);
+      toast.success(`Customer ${modalType === 'add' ? 'added' : 'updated'} successfully!`);
+    } catch (error) {
+      console.error('Error saving customer:', error);
+      toast.error('Error saving customer: ' + error.message);
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
-    setShowModal(false);
   };
 
-  const handleDelete = (customerId) => {
-    if (window.confirm('Are you sure you want to delete this customer? This action cannot be undone.')) {
-      setCustomers(customers.filter(c => c.id !== customerId));
+  const handleDelete = async (customerId) => {
+    if (!(await confirm('Are you sure you want to delete this customer? This action cannot be undone.'))) return;
+
+    try {
+      await deleteCustomerApi(customerId);
+      await loadCustomers();
       if (selectedCustomer && selectedCustomer.id === customerId) {
         setActiveView('list');
         setSelectedCustomer(null);
       }
+      toast.success('Customer deleted successfully!');
+    } catch (error) {
+      console.error('Error deleting customer:', error);
+      toast.error('Error deleting customer: ' + error.message);
     }
   };
 
   const CustomerModal = useMemo(() => (
     <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 animate-fadeIn">
       <div className="bg-white rounded-2xl w-full max-w-4xl sm:h-[90vh] overflow-y-auto shadow-2xl transform transition-all animate-slideUp">
-        <div className="p-6 border-b border-emerald-100 bg-gradient-to-r from-emerald-50 to-lime-50">
+        <div className="p-6 border-b border-green-100 bg-gradient-to-r from-green-50 to-lime-50">
           <div className="flex justify-between items-center">
-            <h3 className="text-2xl font-bold text-emerald-800 font-poppins">
+            <h3 className="text-2xl font-bold text-green-800 font-poppins">
               {modalType === 'add' ? 'Add New Avocado Customer' : 'Edit Avocado Customer'}
             </h3>
             <button 
               onClick={() => setShowModal(false)}
-              className="text-emerald-500 hover:text-emerald-700 transition-colors"
+              className="text-green-500 hover:text-green-700 transition-colors"
               aria-label="Close modal"
             >
               <X className="h-6 w-6" />
@@ -572,7 +300,7 @@ const CustomerManagement = () => {
         <form onSubmit={handleFormSubmit} className="p-6 bg-white">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-4">
-              <h4 className="text-lg font-semibold text-emerald-800 font-poppins">Personal Information</h4>
+              <h4 className="text-lg font-semibold text-green-800 font-poppins">Personal Information</h4>
               
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -582,7 +310,7 @@ const CustomerManagement = () => {
                     required
                     value={formData.firstName}
                     onChange={(e) => handleInputChange('firstName', e.target.value)}
-                    className="w-full px-3 py-2 border border-emerald-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-300"
+                    className="w-full px-3 py-2 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-300"
                     aria-required="true"
                   />
                 </div>
@@ -593,7 +321,7 @@ const CustomerManagement = () => {
                     required
                     value={formData.lastName}
                     onChange={(e) => handleInputChange('lastName', e.target.value)}
-                    className="w-full px-3 py-2 border border-emerald-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-300"
+                    className="w-full px-3 py-2 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-300"
                     aria-required="true"
                   />
                 </div>
@@ -606,7 +334,7 @@ const CustomerManagement = () => {
                   required
                   value={formData.email}
                   onChange={(e) => handleInputChange('email', e.target.value)}
-                  className="w-full px-3 py-2 border border-emerald-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-300"
+                  className="w-full px-3 py-2 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-300"
                   aria-required="true"
                 />
               </div>
@@ -617,7 +345,7 @@ const CustomerManagement = () => {
                   type="tel"
                   value={formData.phone}
                   onChange={(e) => handleInputChange('phone', e.target.value)}
-                  className="w-full px-3 py-2 border border-emerald-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-300"
+                  className="w-full px-3 py-2 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-300"
                 />
               </div>
 
@@ -627,7 +355,7 @@ const CustomerManagement = () => {
                   <select
                     value={formData.type}
                     onChange={(e) => handleInputChange('type', e.target.value)}
-                    className="w-full px-3 py-2 border border-emerald-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-300"
+                    className="w-full px-3 py-2 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-300"
                   >
                     <option value="individual">Individual</option>
                     <option value="business">Business</option>
@@ -638,7 +366,7 @@ const CustomerManagement = () => {
                   <select
                     value={formData.status}
                     onChange={(e) => handleInputChange('status', e.target.value)}
-                    className="w-full px-3 py-2 border border-emerald-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-300"
+                    className="w-full px-3 py-2 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-300"
                   >
                     <option value="new">New</option>
                     <option value="active">Active</option>
@@ -655,14 +383,14 @@ const CustomerManagement = () => {
                     type="text"
                     value={formData.company}
                     onChange={(e) => handleInputChange('company', e.target.value)}
-                    className="w-full px-3 py-2 border border-emerald-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-300"
+                    className="w-full px-3 py-2 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-300"
                   />
                 </div>
               )}
             </div>
 
             <div className="space-y-4">
-              <h4 className="text-lg font-semibold text-emerald-800 font-poppins">Address</h4>
+              <h4 className="text-lg font-semibold text-green-800 font-poppins">Address</h4>
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1 font-poppins">Street Address</label>
@@ -670,7 +398,7 @@ const CustomerManagement = () => {
                   type="text"
                   value={formData.address?.street || ''}
                   onChange={(e) => handleNestedInputChange('address', 'street', e.target.value)}
-                  className="w-full px-3 py-2 border border-emerald-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-300"
+                  className="w-full px-3 py-2 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-300"
                 />
               </div>
 
@@ -681,7 +409,7 @@ const CustomerManagement = () => {
                     type="text"
                     value={formData.address?.city || ''}
                     onChange={(e) => handleNestedInputChange('address', 'city', e.target.value)}
-                    className="w-full px-3 py-2 border border-emerald-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-300"
+                    className="w-full px-3 py-2 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-300"
                   />
                 </div>
                 <div>
@@ -690,7 +418,7 @@ const CustomerManagement = () => {
                     type="text"
                     value={formData.address?.state || ''}
                     onChange={(e) => handleNestedInputChange('address', 'state', e.target.value)}
-                    className="w-full px-3 py-2 border border-emerald-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-300"
+                    className="w-full px-3 py-2 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-300"
                   />
                 </div>
               </div>
@@ -702,7 +430,7 @@ const CustomerManagement = () => {
                     type="text"
                     value={formData.address?.zipCode || ''}
                     onChange={(e) => handleNestedInputChange('address', 'zipCode', e.target.value)}
-                    className="w-full px-3 py-2 border border-emerald-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-300"
+                    className="w-full px-3 py-2 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-300"
                   />
                 </div>
                 <div>
@@ -710,7 +438,7 @@ const CustomerManagement = () => {
                   <select
                     value={formData.address?.country || 'Rwanda'}
                     onChange={(e) => handleNestedInputChange('address', 'country', e.target.value)}
-                    className="w-full px-3 py-2 border border-emerald-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-300"
+                    className="w-full px-3 py-2 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-300"
                   >
                     <option value="Rwanda">Rwanda</option>
                     <option value="Uganda">Uganda</option>
@@ -720,7 +448,7 @@ const CustomerManagement = () => {
               </div>
 
               <div className="mt-6">
-                <h4 className="text-lg font-semibold text-emerald-800 mb-4 font-poppins">Avocado Preferences</h4>
+                <h4 className="text-lg font-semibold text-green-800 mb-4 font-poppins">Avocado Preferences</h4>
                 
                 <div className="space-y-3">
                   <div className="flex items-center space-x-4">
@@ -729,7 +457,7 @@ const CustomerManagement = () => {
                         type="checkbox"
                         checked={formData.preferences?.organic || false}
                         onChange={(e) => handleNestedInputChange('preferences', 'organic', e.target.checked)}
-                        className="mr-2 accent-emerald-500 h-5 w-5"
+                        className="mr-2 accent-green-500 h-5 w-5"
                       />
                       <span className="text-sm font-poppins">Prefers Organic Avocados</span>
                     </label>
@@ -738,7 +466,7 @@ const CustomerManagement = () => {
                         type="checkbox"
                         checked={formData.preferences?.local || false}
                         onChange={(e) => handleNestedInputChange('preferences', 'local', e.target.checked)}
-                        className="mr-2 accent-emerald-500 h-5 w-5"
+                        className="mr-2 accent-green-500 h-5 w-5"
                       />
                       <span className="text-sm font-poppins">Prefers Local Avocados</span>
                     </label>
@@ -750,7 +478,7 @@ const CustomerManagement = () => {
                       <select
                         value={formData.preferences?.deliveryMethod || 'delivery'}
                         onChange={(e) => handleNestedInputChange('preferences', 'deliveryMethod', e.target.value)}
-                        className="w-full px-3 py-2 border border-emerald-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-300"
+                        className="w-full px-3 py-2 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-300"
                       >
                         <option value="delivery">Delivery</option>
                         <option value="pickup">Pickup</option>
@@ -762,7 +490,7 @@ const CustomerManagement = () => {
                       <select
                         value={formData.preferences?.communicationMethod || 'email'}
                         onChange={(e) => handleNestedInputChange('preferences', 'communicationMethod', e.target.value)}
-                        className="w-full px-3 py-2 border border-emerald-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-300"
+                        className="w-full px-3 py-2 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-300"
                       >
                         <option value="email">Email</option>
                         <option value="phone">Phone</option>
@@ -780,24 +508,24 @@ const CustomerManagement = () => {
                 rows={4}
                 value={formData.notes}
                 onChange={(e) => handleInputChange('notes', e.target.value)}
-                className="w-full px-3 py-2 border border-emerald-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-300"
+                className="w-full px-3 py-2 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-300"
                 placeholder="Any additional notes about this avocado customer..."
               />
             </div>
           </div>
 
-          <div className="flex justify-end space-x-4 mt-6 pt-6 border-t border-emerald-100">
+          <div className="flex justify-end space-x-4 mt-6 pt-6 border-t border-green-100">
             <button
               type="button"
               onClick={() => setShowModal(false)}
-              className="px-6 py-2 border border-emerald-300 rounded-lg text-emerald-700 hover:bg-emerald-50 transition-all duration-300 font-poppins"
+              className="px-6 py-2 border border-green-300 rounded-lg text-green-700 hover:bg-green-50 transition-all duration-300 font-poppins"
               disabled={isLoading}
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-6 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 flex items-center transition-all duration-300 shadow-md hover:shadow-lg font-poppins"
+              className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center transition-all duration-300 shadow-md hover:shadow-lg font-poppins"
               disabled={isLoading}
             >
               {isLoading ? (
@@ -827,29 +555,29 @@ const CustomerManagement = () => {
     }
     return (
       <div className="bg-white rounded-2xl shadow-lg h-full overflow-y-auto transition-all duration-300 hover:shadow-xl animate-fadeIn">
-        <div className="p-6 bg-gradient-to-r from-emerald-50 to-lime-50">
+        <div className="p-6 bg-gradient-to-r from-green-50 to-lime-50">
           <div className="flex justify-between items-center mb-6">
             <div className="flex items-center space-x-4">
               <button 
                 onClick={() => setActiveView('list')}
-                className="text-emerald-600 hover:text-emerald-800 transition-colors font-medium font-poppins"
+                className="text-green-600 hover:text-green-800 transition-colors font-medium font-poppins"
                 aria-label="Back to customer list"
               >
                 ← Back to List
               </button>
-              <h2 className="text-2xl font-bold text-emerald-800 font-poppins">
+              <h2 className="text-2xl font-bold text-green-800 font-poppins">
                 {selectedCustomer.firstName} {selectedCustomer.lastName}
               </h2>
             </div>
             <div className="space-x-2">
               <button
                 onClick={() => handleEditClick(selectedCustomer)}
-                className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all duration-300 shadow-md hover:shadow-lg font-poppins relative group"
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all duration-300 shadow-md hover:shadow-lg font-poppins relative group"
                 aria-label="Edit customer"
               >
                 <Edit className="h-4 w-4 inline mr-2" />
                 Edit
-                <span className="absolute hidden group-hover:block -top-8 left-1/2 transform -translate-x-1/2 bg-emerald-800 text-white text-xs rounded py-1 px-2">
+                <span className="absolute hidden group-hover:block -top-8 left-1/2 transform -translate-x-1/2 bg-green-800 text-white text-xs rounded py-1 px-2">
                   Edit Customer
                 </span>
               </button>
@@ -868,8 +596,8 @@ const CustomerManagement = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div className="border border-emerald-200 rounded-lg p-4 bg-white hover:shadow-md transition-shadow duration-300">
-              <h3 className="text-lg font-semibold text-emerald-800 mb-4 font-poppins">Customer Information</h3>
+            <div className="border border-green-200 rounded-lg p-4 bg-white hover:shadow-md transition-shadow duration-300">
+              <h3 className="text-lg font-semibold text-green-800 mb-4 font-poppins">Customer Information</h3>
               <div className="space-y-3 text-gray-700">
                 <p><strong>Email:</strong> {selectedCustomer.email}</p>
                 <p><strong>Phone:</strong> {selectedCustomer.phone}</p>
@@ -885,46 +613,46 @@ const CustomerManagement = () => {
               </div>
             </div>
 
-            <div className="border border-emerald-200 rounded-lg p-4 bg-white hover:shadow-md transition-shadow duration-300">
-              <h3 className="text-lg font-semibold text-emerald-800 mb-4 font-poppins">Customer Stats</h3>
+            <div className="border border-green-200 rounded-lg p-4 bg-white hover:shadow-md transition-shadow duration-300">
+              <h3 className="text-lg font-semibold text-green-800 mb-4 font-poppins">Customer Stats</h3>
               <div className="space-y-3 text-gray-700">
-                <p><DollarSign className="inline h-4 w-4 mr-1 text-emerald-600" /> Total Spent: {selectedCustomer.stats.totalSpent.toLocaleString()} RWF</p>
-                <p><ShoppingCart className="inline h-4 w-4 mr-1 text-emerald-600" /> Total Orders: {selectedCustomer.stats.totalOrders}</p>
-                <p><TrendingUp className="inline h-4 w-4 mr-1 text-emerald-600" /> Avg Order: {selectedCustomer.stats.avgOrderValue.toLocaleString()} RWF</p>
-                <p><Calendar className="inline h-4 w-4 mr-1 text-emerald-600" /> Last Order: {selectedCustomer.stats.lastOrderDate}</p>
-                <p><Zap className="inline h-4 w-4 mr-1 text-emerald-600" /> Loyalty Points: {selectedCustomer.stats.loyaltyPoints}</p>
-                <p><Clock className="inline h-4 w-4 mr-1 text-emerald-600" /> Member Since: {selectedCustomer.stats.memberSince}</p>
+                <p><DollarSign className="inline h-4 w-4 mr-1 text-green-600" /> Total Spent: {selectedCustomer.stats.totalSpent.toLocaleString()} RWF</p>
+                <p><ShoppingCart className="inline h-4 w-4 mr-1 text-green-600" /> Total Orders: {selectedCustomer.stats.totalOrders}</p>
+                <p><TrendingUp className="inline h-4 w-4 mr-1 text-green-600" /> Avg Order: {selectedCustomer.stats.avgOrderValue.toLocaleString()} RWF</p>
+                <p><Calendar className="inline h-4 w-4 mr-1 text-green-600" /> Last Order: {selectedCustomer.stats.lastOrderDate}</p>
+                <p><Zap className="inline h-4 w-4 mr-1 text-green-600" /> Loyalty Points: {selectedCustomer.stats.loyaltyPoints}</p>
+                <p><Clock className="inline h-4 w-4 mr-1 text-green-600" /> Member Since: {selectedCustomer.stats.memberSince}</p>
               </div>
             </div>
 
-            <div className="border border-emerald-200 rounded-lg p-4 bg-white hover:shadow-md transition-shadow duration-300">
-              <h3 className="text-lg font-semibold text-emerald-800 mb-4 font-poppins">Avocado Preferences</h3>
+            <div className="border border-green-200 rounded-lg p-4 bg-white hover:shadow-md transition-shadow duration-300">
+              <h3 className="text-lg font-semibold text-green-800 mb-4 font-poppins">Avocado Preferences</h3>
               <div className="space-y-3 text-gray-700">
-                <p><Heart className="inline h-4 w-4 mr-1 text-emerald-600" /> Organic: {selectedCustomer.preferences.organic ? 'Yes' : 'No'}</p>
-                <p><MapPin className="inline h-4 w-4 mr-1 text-emerald-600" /> Local: {selectedCustomer.preferences.local ? 'Yes' : 'No'}</p>
-                <p><Package className="inline h-4 w-4 mr-1 text-emerald-600" /> Delivery: {selectedCustomer.preferences.deliveryMethod}</p>
-                <p><MessageCircle className="inline h-4 w-4 mr-1 text-emerald-600" /> Communication: {selectedCustomer.preferences.communicationMethod}</p>
-                <p><FileText className="inline h-4 w-4 mr-1 text-emerald-600" /> Notes: {selectedCustomer.notes || 'None'}</p>
+                <p><Heart className="inline h-4 w-4 mr-1 text-green-600" /> Organic: {selectedCustomer.preferences.organic ? 'Yes' : 'No'}</p>
+                <p><MapPin className="inline h-4 w-4 mr-1 text-green-600" /> Local: {selectedCustomer.preferences.local ? 'Yes' : 'No'}</p>
+                <p><Package className="inline h-4 w-4 mr-1 text-green-600" /> Delivery: {selectedCustomer.preferences.deliveryMethod}</p>
+                <p><MessageCircle className="inline h-4 w-4 mr-1 text-green-600" /> Communication: {selectedCustomer.preferences.communicationMethod}</p>
+                <p><FileText className="inline h-4 w-4 mr-1 text-green-600" /> Notes: {selectedCustomer.notes || 'None'}</p>
               </div>
             </div>
           </div>
 
           <div className="mt-6">
-            <h3 className="text-lg font-semibold text-emerald-800 mb-4 font-poppins">Recent Avocado Orders</h3>
-            <div className="overflow-x-auto border border-emerald-200 rounded-lg">
-              <table className="min-w-full divide-y divide-emerald-100">
-                <thead className="bg-emerald-50">
+            <h3 className="text-lg font-semibold text-green-800 mb-4 font-poppins">Recent Avocado Orders</h3>
+            <div className="overflow-x-auto border border-green-200 rounded-lg">
+              <table className="min-w-full divide-y divide-green-100">
+                <thead className="bg-green-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-emerald-700 uppercase font-poppins">Order ID</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-emerald-700 uppercase font-poppins">Date</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-emerald-700 uppercase font-poppins">Total</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-emerald-700 uppercase font-poppins">Items</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-emerald-700 uppercase font-poppins">Status</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-green-700 uppercase font-poppins">Order ID</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-green-700 uppercase font-poppins">Date</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-green-700 uppercase font-poppins">Total</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-green-700 uppercase font-poppins">Items</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-green-700 uppercase font-poppins">Status</th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-emerald-100">
+                <tbody className="bg-white divide-y divide-green-100">
                   {selectedCustomer.orders.map((order, index) => (
-                    <tr key={order.id} className={`transition-colors duration-200 ${index % 2 === 0 ? 'bg-white' : 'bg-emerald-25'}`}>
+                    <tr key={order.id} className={`transition-colors duration-200 ${index % 2 === 0 ? 'bg-white' : 'bg-green-25'}`}>
                       <td className="px-6 py-4 whitespace-nowrap">{order.id}</td>
                       <td className="px-6 py-4 whitespace-nowrap">{order.date}</td>
                       <td className="px-6 py-4 whitespace-nowrap">{order.total.toLocaleString()} RWF</td>
@@ -942,27 +670,27 @@ const CustomerManagement = () => {
           </div>
 
           <div className="mt-6">
-            <h3 className="text-lg font-semibold text-emerald-800 mb-4 font-poppins">Communication History</h3>
-            <div className="overflow-x-auto border border-emerald-200 rounded-lg">
-              <table className="min-w-full divide-y divide-emerald-100">
-                <thead className="bg-emerald-50">
+            <h3 className="text-lg font-semibold text-green-800 mb-4 font-poppins">Communication History</h3>
+            <div className="overflow-x-auto border border-green-200 rounded-lg">
+              <table className="min-w-full divide-y divide-green-100">
+                <thead className="bg-green-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-emerald-700 uppercase font-poppins">ID</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-emerald-700 uppercase font-poppins">Type</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-emerald-700 uppercase font-poppins">Subject</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-emerald-700 uppercase font-poppins">Date</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-emerald-700 uppercase font-poppins">Status</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-green-700 uppercase font-poppins">ID</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-green-700 uppercase font-poppins">Type</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-green-700 uppercase font-poppins">Subject</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-green-700 uppercase font-poppins">Date</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-green-700 uppercase font-poppins">Status</th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-emerald-100">
+                <tbody className="bg-white divide-y divide-green-100">
                   {selectedCustomer.communications.map((comm, index) => (
-                    <tr key={comm.id} className={`transition-colors duration-200 ${index % 2 === 0 ? 'bg-white' : 'bg-emerald-25'}`}>
+                    <tr key={comm.id} className={`transition-colors duration-200 ${index % 2 === 0 ? 'bg-white' : 'bg-green-25'}`}>
                       <td className="px-6 py-4 whitespace-nowrap">{comm.id}</td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className="inline-flex items-center">
-                          {comm.type === 'email' ? <Mail className="h-4 w-4 mr-2 text-emerald-600" /> : 
-                           comm.type === 'phone' ? <Phone className="h-4 w-4 mr-2 text-emerald-600" /> : 
-                           <MessageCircle className="h-4 w-4 mr-2 text-emerald-600" />}
+                          {comm.type === 'email' ? <Mail className="h-4 w-4 mr-2 text-green-600" /> : 
+                           comm.type === 'phone' ? <Phone className="h-4 w-4 mr-2 text-green-600" /> : 
+                           <MessageCircle className="h-4 w-4 mr-2 text-green-600" />}
                           {comm.type}
                         </span>
                       </td>
@@ -987,20 +715,26 @@ const CustomerManagement = () => {
   const CustomerListView = () => (
     <div className="h-full overflow-y-auto">
       <div className="bg-white rounded-2xl shadow-lg p-6 transition-all duration-300 hover:shadow-xl">
+        {loadError && (
+          <div className="mb-4 p-3 bg-rose-100 border border-rose-300 rounded-lg text-sm text-rose-700 flex justify-between items-center">
+            <span>⚠️ {loadError}</span>
+            <button onClick={loadCustomers} className="underline font-medium">Retry</button>
+          </div>
+        )}
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6">
-          <h2 className="text-2xl font-bold text-emerald-800 flex items-center mb-4 lg:mb-0 font-poppins">
-            <Users className="h-7 w-7 mr-3 text-emerald-600" />
+          <h2 className="text-2xl font-bold text-green-800 flex items-center mb-4 lg:mb-0 font-poppins">
+            <Users className="h-7 w-7 mr-3 text-green-600" />
             Avocado Customer Management
           </h2>
           <div className="flex flex-wrap gap-2">
             <button 
               onClick={handleAddClick}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg flex items-center transition-all duration-300 shadow-md hover:shadow-lg font-poppins relative group"
+              className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center transition-all duration-300 shadow-md hover:shadow-lg font-poppins relative group"
               aria-label="Add new customer"
             >
               <Plus className="h-4 w-4 mr-2" />
               Add Customer
-              <span className="absolute hidden group-hover:block -top-8 left-1/2 transform -translate-x-1/2 bg-emerald-800 text-white text-xs rounded py-1 px-2">
+              <span className="absolute hidden group-hover:block -top-8 left-1/2 transform -translate-x-1/2 bg-green-800 text-white text-xs rounded py-1 px-2">
                 Add New Customer
               </span>
             </button>
@@ -1015,12 +749,12 @@ const CustomerManagement = () => {
               </span>
             </button>
             <button 
-              className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg flex items-center transition-all duration-300 shadow-md hover:shadow-lg font-poppins relative group"
+              className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center transition-all duration-300 shadow-md hover:shadow-lg font-poppins relative group"
               aria-label="Export CSV"
             >
               <Download className="h-4 w-4 mr-2" />
               Export CSV
-              <span className="absolute hidden group-hover:block -top-8 left-1/2 transform -translate-x-1/2 bg-emerald-800 text-white text-xs rounded py-1 px-2">
+              <span className="absolute hidden group-hover:block -top-8 left-1/2 transform -translate-x-1/2 bg-green-800 text-white text-xs rounded py-1 px-2">
                 Export Customer Data
               </span>
             </button>
@@ -1029,13 +763,13 @@ const CustomerManagement = () => {
 
         <div className="flex flex-col md:flex-row gap-4 mb-6">
           <div className="flex-1 relative">
-            <Search className="h-5 w-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-emerald-400" />
+            <Search className="h-5 w-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-green-400" />
             <input
               type="text"
               placeholder="Search avocado customers..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-emerald-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-300 font-poppins"
+              className="w-full pl-10 pr-4 py-2 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-300 font-poppins"
               aria-label="Search customers"
             />
           </div>
@@ -1043,7 +777,7 @@ const CustomerManagement = () => {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-4 py-2 border border-emerald-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-300 font-poppins"
+              className="px-4 py-2 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-300 font-poppins"
               aria-label="Filter by status"
             >
               <option value="all">All Status</option>
@@ -1055,7 +789,7 @@ const CustomerManagement = () => {
             <select
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value)}
-              className="px-4 py-2 border border-emerald-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-300 font-poppins"
+              className="px-4 py-2 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-300 font-poppins"
               aria-label="Filter by type"
             >
               <option value="all">All Types</option>
@@ -1065,7 +799,7 @@ const CustomerManagement = () => {
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
-              className="px-4 py-2 border border-emerald-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-300 font-poppins"
+              className="px-4 py-2 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-300 font-poppins"
               aria-label="Sort customers"
             >
               <option value="name">Sort by Name</option>
@@ -1076,28 +810,28 @@ const CustomerManagement = () => {
           </div>
         </div>
 
-        <div className="overflow-x-auto border border-emerald-200 rounded-lg">
-          <table className="min-w-full divide-y divide-emerald-100">
-            <thead className="bg-emerald-50">
+        <div className="overflow-x-auto border border-green-200 rounded-lg">
+          <table className="min-w-full divide-y divide-green-100">
+            <thead className="bg-green-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-emerald-700 uppercase font-poppins">Name</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-emerald-700 uppercase font-poppins">Email</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-emerald-700 uppercase font-poppins">Type</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-emerald-700 uppercase font-poppins">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-emerald-700 uppercase font-poppins">Total Spent</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-emerald-700 uppercase font-poppins">Actions</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-green-700 uppercase font-poppins">Name</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-green-700 uppercase font-poppins">Email</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-green-700 uppercase font-poppins">Type</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-green-700 uppercase font-poppins">Status</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-green-700 uppercase font-poppins">Total Spent</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-green-700 uppercase font-poppins">Actions</th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-emerald-100">
+            <tbody className="bg-white divide-y divide-green-100">
               {filteredCustomers.map((customer, index) => (
-                <tr key={customer.id} className={`transition-colors duration-200 ${index % 2 === 0 ? 'bg-white' : 'bg-emerald-25'}`}>
+                <tr key={customer.id} className={`transition-colors duration-200 ${index % 2 === 0 ? 'bg-white' : 'bg-green-25'}`}>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
-                      <div className="h-10 w-10 rounded-full bg-emerald-200 flex items-center justify-center">
+                      <div className="h-10 w-10 rounded-full bg-green-200 flex items-center justify-center">
                         {customer.avatar ? (
                           <img src={customer.avatar} alt={`${customer.firstName} ${customer.lastName}`} className="h-10 w-10 rounded-full" />
                         ) : (
-                          <span className="text-emerald-600 font-medium">
+                          <span className="text-green-600 font-medium">
                             {customer.firstName[0]}{customer.lastName[0]}
                           </span>
                         )}
@@ -1129,25 +863,50 @@ const CustomerManagement = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <button
-                      onClick={() => {
+                      onClick={async () => {
                         setSelectedCustomer(customer);
                         setActiveView('detail');
+                        try {
+                          const [orders, statistics] = await Promise.all([
+                            getCustomerOrders(customer.id),
+                            getCustomerStatistics(customer.id),
+                          ]);
+                          setSelectedCustomer(prev => (prev && prev.id === customer.id) ? {
+                            ...prev,
+                            orders: (Array.isArray(orders) ? orders : []).map(o => ({
+                              id: o.order_number || o.id,
+                              date: o.order_date || o.created_at,
+                              total: o.total_amount,
+                              status: o.status,
+                              items: Array.isArray(o.items) ? o.items.length : 0,
+                            })),
+                            stats: {
+                              ...prev.stats,
+                              totalOrders: statistics?.total_orders ?? prev.stats.totalOrders,
+                              totalSpent: statistics?.total_spent ?? prev.stats.totalSpent,
+                              avgOrderValue: statistics?.average_order_value ?? prev.stats.avgOrderValue,
+                              lastOrderDate: statistics?.last_order_date ?? prev.stats.lastOrderDate,
+                            },
+                          } : prev);
+                        } catch (error) {
+                          console.error('Error loading customer order history:', error);
+                        }
                       }}
-                      className="text-emerald-600 hover:text-emerald-800 mr-4 transition-colors relative group"
+                      className="text-green-600 hover:text-green-800 mr-4 transition-colors relative group"
                       aria-label="View customer details"
                     >
                       <Eye className="h-5 w-5" />
-                      <span className="absolute hidden group-hover:block -top-8 left-1/2 transform -translate-x-1/2 bg-emerald-800 text-white text-xs rounded py-1 px-2">
+                      <span className="absolute hidden group-hover:block -top-8 left-1/2 transform -translate-x-1/2 bg-green-800 text-white text-xs rounded py-1 px-2">
                         View Details
                       </span>
                     </button>
                     <button
                       onClick={() => handleEditClick(customer)}
-                      className="text-emerald-600 hover:text-emerald-800 mr-4 transition-colors relative group"
+                      className="text-green-600 hover:text-green-800 mr-4 transition-colors relative group"
                       aria-label="Edit customer"
                     >
                       <Edit className="h-5 w-5" />
-                      <span className="absolute hidden group-hover:block -top-8 left-1/2 transform -translate-x-1/2 bg-emerald-800 text-white text-xs rounded py-1 px-2">
+                      <span className="absolute hidden group-hover:block -top-8 left-1/2 transform -translate-x-1/2 bg-green-800 text-white text-xs rounded py-1 px-2">
                         Edit Customer
                       </span>
                     </button>
@@ -1172,7 +931,7 @@ const CustomerManagement = () => {
   );
 
   return (
-    <div className="w-full h-screen overflow-hidden bg-gradient-to-b from-lime-50 to-emerald-50">
+    <div className="w-full h-screen overflow-hidden bg-gradient-to-b from-lime-50 to-green-50">
       {showModal && CustomerModal}
       {activeView === 'list' ? <CustomerListView /> : <CustomerDetailView />}
     </div>
