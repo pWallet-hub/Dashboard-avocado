@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import axios from 'axios';
 import { ClipLoader } from 'react-spinners';
 import Select from 'react-select';
 import AddShopForm from '../../components/AddShopForm/AddShopForm';
@@ -15,10 +14,16 @@ import {
   getShopById,
   updateShop,
   deleteShop,
+  updateShopSellingPermission,
   exportShopsToExcel
 } from '../../services/shopService';
+import { getSuppliers } from '../../services/marketStorageService';
+import { useToast } from '../../components/Ui/Toast';
+import { useConfirm } from '../../components/Ui/ConfirmDialog';
 
 export default function ShopView() {
+  const toast = useToast();
+  const confirm = useConfirm();
   const [shops, setShops] = useState([]);
   const [selectedShop, setSelectedShop] = useState(null);
   const [products, setProducts] = useState([]);
@@ -49,6 +54,11 @@ export default function ShopView() {
     unit: 'piece', supplier_id: '', status: 'available', sku: '',
     brand: '', images: [], specifications: {}, harvest_date: '', expiry_date: ''
   });
+  const [suppliers, setSuppliers] = useState([]);
+
+  useEffect(() => {
+    getSuppliers().then(data => setSuppliers(Array.isArray(data) ? data : [])).catch(err => console.error('Error loading suppliers:', err));
+  }, []);
 
   useEffect(() => {
     const fetchShops = async () => {
@@ -119,10 +129,10 @@ export default function ShopView() {
       setProducts(response.data || []);
       setFilteredProducts(response.data || []);
       closeModal();
-      alert('Product created successfully!');
+      toast.success('Product created successfully!');
     } catch (error) {
       console.error('Error creating product:', error);
-      alert(`Error: ${error.message}`);
+      toast.error(`Error: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -136,27 +146,27 @@ export default function ShopView() {
       setProducts(response.data || []);
       setFilteredProducts(response.data || []);
       closeModal();
-      alert('Product updated successfully!');
+      toast.success('Product updated successfully!');
     } catch (error) {
       console.error('Error updating product:', error);
-      alert(`Error: ${error.message}`);
+      toast.error(`Error: ${error.message}`);
     } finally {
       setLoading(false);
     }
   };
 
   const handleDeleteProduct = async (productId) => {
-    if (!window.confirm('Are you sure you want to delete this product?')) return;
+    if (!(await confirm('Are you sure you want to delete this product?'))) return;
     try {
       setLoading(true);
       await deleteProduct(productId);
       const response = await getAllProducts({ page: currentPage, limit: itemsPerPage });
       setProducts(response.data || []);
       setFilteredProducts(response.data || []);
-      alert('Product deleted successfully!');
+      toast.success('Product deleted successfully!');
     } catch (error) {
       console.error('Error deleting product:', error);
-      alert(`Error: ${error.message}`);
+      toast.error(`Error: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -164,11 +174,16 @@ export default function ShopView() {
 
   const toggleSellingPermission = async (shopId, canSell) => {
     try {
-      await axios.put(`https://api.example.com/shops/${shopId}`, { canSell });
-      const updated = shops.map(shop => shop.id === shopId ? { ...shop, canSell } : shop);
+      await updateShopSellingPermission(shopId, canSell);
+      const updated = shops.map(shop => shop.id === shopId ? { ...shop, can_sell: canSell } : shop);
       setShops(updated);
+      if (selectedShopData?.id === shopId) {
+        setSelectedShopData(prev => ({ ...prev, can_sell: canSell }));
+      }
+      toast.success(`Shop selling permission ${canSell ? 'enabled' : 'disabled'}!`);
     } catch (error) {
       console.error('Error updating selling permission:', error);
+      toast.error(`Error: ${error.message}`);
     }
   };
 
@@ -230,7 +245,7 @@ export default function ShopView() {
 
   const exportToExcel = () => {
     if (shops.length === 0) {
-      alert('No shops data to export');
+      toast.error('No shops data to export');
       return;
     }
     exportShopsToExcel(shops);
@@ -250,13 +265,13 @@ export default function ShopView() {
   };
 
   const handleDeleteShop = async (shopId) => {
-    if (!window.confirm('Are you sure you want to delete this shop?')) {
+    if (!(await confirm('Are you sure you want to delete this shop?'))) {
       return;
     }
     try {
       const response = await deleteShop(shopId);
       if (response.success) {
-        alert('Shop deleted successfully');
+        toast.success('Shop deleted successfully');
         const refreshResponse = await getAllShops();
         if (refreshResponse.success) {
           setShops(refreshResponse.data || []);
@@ -265,7 +280,7 @@ export default function ShopView() {
     } catch (error) {
       console.error('Error deleting shop:', error);
       const errorMessage = error.response?.data?.message || 'Failed to delete shop';
-      alert(`Error: ${errorMessage}`);
+      toast.error(`Error: ${errorMessage}`);
     }
   };
 
@@ -295,19 +310,19 @@ export default function ShopView() {
   const handleUpdateShop = async () => {
     if (!selectedShopData) return;
     if (!editShopFormData.shopName || !editShopFormData.ownerName || !editShopFormData.ownerEmail) {
-      alert('Please fill in all required fields');
+      toast.error('Please fill in all required fields');
       return;
     }
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(editShopFormData.ownerEmail)) {
-      alert('Please enter a valid email address');
+      toast.error('Please enter a valid email address');
       return;
     }
     try {
       setLoading(true);
       const response = await updateShop(selectedShopData.id, editShopFormData);
       if (response.success) {
-        alert('Shop updated successfully');
+        toast.success('Shop updated successfully');
         setIsEditShopModalOpen(false);
         setSelectedShopData(null);
         const refreshResponse = await getAllShops();
@@ -318,7 +333,7 @@ export default function ShopView() {
     } catch (error) {
       console.error('Error updating shop:', error);
       const errorMessage = error.response?.data?.message || error.message || 'Failed to update shop';
-      alert(`Error: ${errorMessage}`);
+      toast.error(`Error: ${errorMessage}`);
     } finally {
       setLoading(false);
     }
@@ -788,7 +803,7 @@ export default function ShopView() {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
                 {[
                   { label: 'Total Shops', value: shops.length, gradient: 'linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)', color: '#1e40af', icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4', iconBg: '#3b82f6' },
-                  { label: 'Active Shops', value: shops.filter(s => s.canSell !== false).length, gradient: 'linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)', color: '#065f46', icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z', iconBg: '#10b981' },
+                  { label: 'Active Shops', value: shops.filter(s => s.can_sell !== false).length, gradient: 'linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)', color: '#065f46', icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z', iconBg: '#10b981' },
                   { label: 'Provinces', value: new Set(shops.map(s => s.province).filter(Boolean)).size, gradient: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)', color: '#92400e', icon: 'M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z M15 11a3 3 0 11-6 0 3 3 0 016 0z', iconBg: '#f59e0b' },
                   { label: 'Districts', value: new Set(shops.map(s => s.district).filter(Boolean)).size, gradient: 'linear-gradient(135deg, #e9d5ff 0%, #d8b4fe 100%)', color: '#6b21a8', icon: 'M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7', iconBg: '#a855f7' }
                 ].map((stat, i) => (
@@ -1198,12 +1213,28 @@ export default function ShopView() {
                     </p>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <svg style={{ width: '1.25rem', height: '1.25rem', color: selectedShopData.canSell !== false ? '#10b981' : '#ef4444' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={selectedShopData.canSell !== false ? 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' : 'M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z'} />
+                    <svg style={{ width: '1.25rem', height: '1.25rem', color: selectedShopData.can_sell !== false ? '#10b981' : '#ef4444' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={selectedShopData.can_sell !== false ? 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' : 'M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z'} />
                     </svg>
                     <p style={{ fontSize: '0.875rem', color: '#475569' }}>
-                      <span style={{ fontWeight: 600 }}>Status:</span> {selectedShopData.canSell !== false ? 'Active' : 'Inactive'}
+                      <span style={{ fontWeight: 600 }}>Status:</span> {selectedShopData.can_sell !== false ? 'Active' : 'Inactive'}
                     </p>
+                    <button
+                      onClick={() => toggleSellingPermission(selectedShopData.id, selectedShopData.can_sell === false)}
+                      style={{
+                        marginLeft: 'auto',
+                        padding: '0.375rem 0.875rem',
+                        background: selectedShopData.can_sell !== false ? '#fef2f2' : '#f0fdf4',
+                        color: selectedShopData.can_sell !== false ? '#b91c1c' : '#15803d',
+                        border: `1px solid ${selectedShopData.can_sell !== false ? '#fecaca' : '#bbf7d0'}`,
+                        borderRadius: '0.5rem',
+                        fontWeight: 600,
+                        fontSize: '0.8125rem',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {selectedShopData.can_sell !== false ? 'Disable Selling' : 'Enable Selling'}
+                    </button>
                   </div>
                 </div>
                 <div style={{ marginTop: '1rem', padding: '1rem', background: '#f8fafc', borderRadius: '0.75rem', border: '1px solid #e2e8f0' }}>
@@ -1459,23 +1490,26 @@ export default function ShopView() {
                   />
                 </div>
 
-                {/* Supplier ID */}
+                {/* Supplier */}
                 <div>
                   <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#475569', marginBottom: '0.5rem' }}>
-                    Supplier ID
+                    Supplier
                   </label>
-                  <input
-                    type="text"
+                  <select
                     value={productFormData.supplier_id}
                     onChange={(e) => setProductFormData({ ...productFormData, supplier_id: e.target.value })}
                     disabled={modalMode === 'view'}
-                    placeholder="SUP123456"
                     style={{
                       width: '100%', padding: '0.625rem', background: modalMode === 'view' ? '#f8fafc' : 'white',
                       border: '1px solid #e2e8f0', borderRadius: '0.75rem', color: '#0f172a',
                       outline: 'none', transition: 'all 0.2s'
                     }}
-                  />
+                  >
+                    <option value="">Select supplier</option>
+                    {suppliers.map(supplier => (
+                      <option key={supplier.id} value={supplier.id}>{supplier.name}</option>
+                    ))}
+                  </select>
                 </div>
 
                 {/* Harvest Date */}
