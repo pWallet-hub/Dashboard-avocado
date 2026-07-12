@@ -308,7 +308,7 @@ export default function ModernHarvestingKits() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 via-lime-50 to-emerald-100">
+    <div className="min-h-screen bg-gradient-to-br from-green-50 via-lime-50 to-green-100">
       <div className="bg-green-900 text-white py-3 px-4 flex items-center justify-between shadow-md">
         <div className="flex items-center space-x-2">
           <img src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c" alt="Avocado Society of Rwanda" className="h-8 w-8 rounded-full bg-white p-0.5" />
