@@ -184,7 +184,7 @@ const RwandaAvocadoManager = () => {
   const DashboardSection = () => (
     <div className="space-y-8">
       {/* Dashboard Header */}
-      <div className="bg-gradient-to-r from-green-600 via-emerald-700 to-green-800 rounded-xl p-8 text-white shadow-xl">
+      <div className="bg-gradient-to-r from-green-600 via-green-700 to-green-800 rounded-xl p-8 text-white shadow-xl">
         <div className="flex items-center justify-between">
           <div className="flex items-center">
             <div className="bg-white/20 backdrop-blur-sm rounded-full p-3 mr-6">
@@ -288,12 +288,12 @@ const RwandaAvocadoManager = () => {
           </div>
         </div>
 
-        <div className="group bg-gradient-to-br from-emerald-500 to-green-600 rounded-xl shadow-lg p-6 text-white hover:shadow-2xl transform hover:-translate-y-2 transition-all duration-300 cursor-pointer">
+        <div className="group bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-6 text-white hover:shadow-2xl transform hover:-translate-y-2 transition-all duration-300 cursor-pointer">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-emerald-100 text-sm font-medium">Harvest Ready</p>
+              <p className="text-green-100 text-sm font-medium">Harvest Ready</p>
               <p className="text-3xl font-bold mb-1">{dashboardData.harvestReady || 0}</p>
-              <p className="text-emerald-100 text-xs flex items-center">
+              <p className="text-green-100 text-xs flex items-center">
                 <Clock className="h-3 w-3 mr-1" />
                 Trees ready to harvest
               </p>
@@ -316,7 +316,7 @@ const RwandaAvocadoManager = () => {
           </h3>
           <div className="space-y-4">
             {(dashboardData.recentOrders || []).map(order => (
-              <div key={order.id} className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-green-50 rounded-lg hover:from-green-50 hover:to-emerald-50 transition-all duration-300 cursor-pointer border border-gray-100 hover:border-green-200">
+              <div key={order.id} className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-green-50 rounded-lg hover:from-green-50 hover:to-green-50 transition-all duration-300 cursor-pointer border border-gray-100 hover:border-green-200">
                 <div>
                   <p className="font-semibold text-gray-800">{order.customer}</p>
                   <p className="text-sm text-gray-600 flex items-center mt-1">
@@ -348,7 +348,7 @@ const RwandaAvocadoManager = () => {
           </h3>
           <div className="space-y-4">
             {(dashboardData.topVarieties || []).map((variety, index) => (
-              <div key={index} className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-green-50 rounded-lg hover:from-green-50 hover:to-emerald-50 transition-all duration-300 cursor-pointer border border-gray-100 hover:border-green-200">
+              <div key={index} className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-green-50 rounded-lg hover:from-green-50 hover:to-green-50 transition-all duration-300 cursor-pointer border border-gray-100 hover:border-green-200">
                 <div className="flex items-center">
                   <div className="bg-gradient-to-br from-green-500 to-green-600 text-white rounded-full w-10 h-10 flex items-center justify-center text-sm font-bold mr-4 shadow-md">
                     {index + 1}
@@ -410,7 +410,7 @@ const RwandaAvocadoManager = () => {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {inventory.map((item) => (
-                <tr key={item.id} className="hover:bg-gradient-to-r hover:from-green-50 hover:to-emerald-50 transition-all duration-200">
+                <tr key={item.id} className="hover:bg-gradient-to-r hover:from-green-50 hover:to-green-50 transition-all duration-200">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm font-semibold text-gray-900">{item.name}</div>
                   </td>
@@ -620,7 +620,7 @@ const RwandaAvocadoManager = () => {
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {avocadoFarms.map((farm) => (
-              <div key={farm.id} className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-6 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2 border-l-4 border-green-500 hover:border-green-600">
+              <div key={farm.id} className="bg-gradient-to-br from-green-50 to-green-50 rounded-xl p-6 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2 border-l-4 border-green-500 hover:border-green-600">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-xl font-bold text-gray-800">{farm.farmName}</h3>
                   <div className="flex items-center space-x-2">
@@ -709,7 +709,7 @@ const RwandaAvocadoManager = () => {
         </h2>
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-gradient-to-br from-green-500 via-green-600 to-emerald-700 rounded-xl p-6 text-white shadow-lg hover:shadow-xl transform hover:-translate-y-2 transition-all duration-300">
+          <div className="bg-gradient-to-br from-green-500 via-green-600 to-green-700 rounded-xl p-6 text-white shadow-lg hover:shadow-xl transform hover:-translate-y-2 transition-all duration-300">
             <h3 className="text-lg font-semibold mb-2 flex items-center">
               <TrendingUp className="h-5 w-5 mr-2" />
               Seasonal Revenue
@@ -784,7 +784,7 @@ const RwandaAvocadoManager = () => {
               </div>
               <div className="flex justify-between items-center p-3 bg-white rounded-lg shadow-sm border border-gray-100">
                 <span className="text-gray-700 font-medium">Organic Certified Farms</span>
-                <span className="font-bold text-emerald-600">8 Farms</span>
+                <span className="font-bold text-green-600">8 Farms</span>
               </div>
               <div className="flex justify-between items-center p-3 bg-white rounded-lg shadow-sm border border-gray-100">
                 <span className="text-gray-700 font-medium">Average Yield per Tree</span>
@@ -820,7 +820,7 @@ const RwandaAvocadoManager = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-green-50 to-emerald-50">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-green-50 to-green-50">
      
 
       {/* Main Content */}

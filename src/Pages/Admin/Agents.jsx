@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { ClipLoader } from 'react-spinners';
 import '../Styles/Agent.css';
-import { listAgents, deleteUser, createUser, createAgent } from '../../services/usersService';
+import { listAgents, deleteUser, createAgent } from '../../services/usersService';
+import { useConfirm } from '../../components/Ui/ConfirmDialog';
 
 export default function Agents() {
+  const confirm = useConfirm();
   const [agents, setAgents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -46,7 +48,7 @@ export default function Agents() {
   }, [filters]);
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this agent?')) return;
+    if (!(await confirm('Are you sure you want to delete this agent?'))) return;
 
     try {
       await deleteUser(id);
@@ -106,59 +108,7 @@ export default function Agents() {
       setSubmitLoading(true);
       setResponseMessage('');
       setError(null);
-      const handleSubmit = async (e) => {
-  e.preventDefault();
-  const validationError = validateForm();
-  if (validationError) {
-    setResponseMessage(validationError);
-    return;
-  }
 
-  try {
-    setSubmitLoading(true);
-    setResponseMessage('');
-    setError(null);
-
-    // Agent data matching the API structure
-    const agentData = {
-      full_name: formData.full_name.trim(),
-      email: formData.email.trim(),
-      phone: formData.phone.trim(),
-      province: formData.province.trim(),
-      district: formData.district.trim(),
-      sector: formData.sector.trim()
-    };
-
-    console.log('Submitting agent data:', agentData);
-
-    // Use the dedicated createAgent function
-    await createAgent(agentData);
-
-    // Refresh the agents list after creation
-    const response = await listAgents();
-    setAgents(response || []);
-
-    setResponseMessage('Agent created successfully');
-
-    setFormData({
-      full_name: '',
-      email: '',
-      phone: '',
-      province: '',
-      district: '',
-      sector: ''
-    });
-    setTimeout(closeModal, 2000);
-  } catch (error) {
-    console.error('Error creating agent:', error);
-    console.error('Error details:', error.response?.data);
-    setResponseMessage(error.message || 'Error creating agent');
-  } finally {
-    setSubmitLoading(false);
-  }
-};
-
-      // FIXED: Match the API endpoint structure - flat structure, not nested under profile
       const agentData = {
         full_name: formData.full_name.trim(),
         email: formData.email.trim(),
@@ -166,12 +116,10 @@ export default function Agents() {
         province: formData.province.trim(),
         district: formData.district.trim(),
         sector: formData.sector.trim()
-        // Note: role is not needed as the API endpoint is specifically for agents
       };
 
-      await createUser(agentData);
+      await createAgent(agentData);
 
-      // FIXED: Refresh the agents list after creation
       const response = await listAgents();
       setAgents(response || []); // Match the structure from useEffect
 

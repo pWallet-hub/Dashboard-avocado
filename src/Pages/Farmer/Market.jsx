@@ -73,7 +73,7 @@ function CartSidebar({ isOpen, onClose, cartItems, onUpdateQuantity, onRemoveIte
   return (
     <div className={`fixed inset-y-0 right-0 w-96 bg-white shadow-2xl transform transition-transform duration-300 ease-in-out z-50 ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}>
       <div className="h-full flex flex-col">
-        <div className="bg-gradient-to-r from-green-600 to-emerald-700 p-6 text-white">
+        <div className="bg-gradient-to-r from-green-600 to-green-700 p-6 text-white">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <ShoppingCart className="w-6 h-6" />
@@ -138,7 +138,7 @@ function CartSidebar({ isOpen, onClose, cartItems, onUpdateQuantity, onRemoveIte
                 <span className="font-bold text-green-600 text-lg">{summary.total.toLocaleString()} RWF</span>
               </div>
             </div>
-            <button onClick={onCheckout} className="w-full bg-gradient-to-r from-green-600 to-emerald-700 text-white py-3 rounded-xl font-semibold hover:from-green-700 hover:to-emerald-800 transition shadow-lg">
+            <button onClick={onCheckout} className="w-full bg-gradient-to-r from-green-600 to-green-700 text-white py-3 rounded-xl font-semibold hover:from-green-700 hover:to-green-800 transition shadow-lg">
               Proceed to Checkout
             </button>
           </div>
@@ -418,7 +418,7 @@ export default function Market() {
       {showPaymentModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-hidden flex flex-col">
-            <div className="bg-gradient-to-r from-green-600 to-emerald-700 p-4 text-white relative flex-shrink-0">
+            <div className="bg-gradient-to-r from-green-600 to-green-700 p-4 text-white relative flex-shrink-0">
               {/* Back Button - Show on all steps except details and success */}
               {!paymentSuccess && paymentStep !== 'details' && (
                 <button 
@@ -459,7 +459,7 @@ export default function Market() {
                   <p className="text-gray-600 mb-6">Your order has been placed successfully.</p>
                   <button 
                     onClick={closePaymentModal}
-                    className="bg-gradient-to-r from-green-600 to-emerald-700 text-white px-8 py-3 rounded-xl font-semibold hover:from-green-700 hover:to-emerald-800 transition"
+                    className="bg-gradient-to-r from-green-600 to-green-700 text-white px-8 py-3 rounded-xl font-semibold hover:from-green-700 hover:to-green-800 transition"
                   >
                     Done
                   </button>
@@ -496,7 +496,7 @@ export default function Market() {
                       </div>
 
                       {/* Order Summary */}
-                      <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg p-3 space-y-1.5 border border-green-100">
+                      <div className="bg-gradient-to-br from-green-50 to-green-50 rounded-lg p-3 space-y-1.5 border border-green-100">
                         <div className="flex justify-between text-xs">
                           <span className="text-gray-600">Subtotal</span>
                           <span className="font-semibold text-gray-900">
@@ -520,7 +520,7 @@ export default function Market() {
 
                       <button
                         onClick={() => setPaymentStep('provider')}
-                        className="w-full bg-gradient-to-r from-green-600 to-emerald-700 text-white py-2.5 rounded-lg font-semibold hover:from-green-700 hover:to-emerald-800 transition text-sm shadow-md"
+                        className="w-full bg-gradient-to-r from-green-600 to-green-700 text-white py-2.5 rounded-lg font-semibold hover:from-green-700 hover:to-green-800 transition text-sm shadow-md"
                       >
                         Proceed to Payment
                       </button>
@@ -608,7 +608,7 @@ export default function Market() {
                       </div>
                       <button
                         onClick={handlePhoneSubmit}
-                        className="w-full bg-gradient-to-r from-green-600 to-emerald-700 text-white py-3 rounded-xl font-semibold hover:from-green-700 hover:to-emerald-800 transition"
+                        className="w-full bg-gradient-to-r from-green-600 to-green-700 text-white py-3 rounded-xl font-semibold hover:from-green-700 hover:to-green-800 transition"
                       >
                         Continue
                       </button>
@@ -637,7 +637,7 @@ export default function Market() {
                       <button
                         onClick={handlePaymentComplete}
                         disabled={paymentProcessing}
-                        className="w-full bg-gradient-to-r from-green-600 to-emerald-700 text-white py-4 rounded-xl font-bold text-lg hover:from-green-700 hover:to-emerald-800 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        className="w-full bg-gradient-to-r from-green-600 to-green-700 text-white py-4 rounded-xl font-bold text-lg hover:from-green-700 hover:to-green-800 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                       >
                         {paymentProcessing ? (
                           <>

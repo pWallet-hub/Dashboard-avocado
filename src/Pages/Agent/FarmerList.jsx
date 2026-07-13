@@ -459,7 +459,7 @@ export default function FarmerList() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-green-50 to-emerald-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-green-50 to-green-50">
       <div className="px-4 py-8 mx-auto max-w-7xl sm:px-6 lg:px-8">
         {/* Modern Header */}
         <div className="mb-8">
@@ -484,7 +484,7 @@ export default function FarmerList() {
               </button>
               <button 
                 onClick={exportToExcel}
-                className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white font-medium rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-300 hover:from-green-700 hover:to-emerald-700"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-green-600 to-green-600 text-white font-medium rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-300 hover:from-green-700 hover:to-green-700"
                 disabled={filteredFarmers.length === 0}
               >
                 <Download size={20} />

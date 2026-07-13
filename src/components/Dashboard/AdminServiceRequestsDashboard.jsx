@@ -226,7 +226,7 @@ const AdminServiceRequestsDashboard = () => {
   const getStatusColor = (status) => {
     switch (status) {
       case 'pending': return 'bg-amber-50 text-amber-700 border border-amber-200';
-      case 'approved': return 'bg-emerald-50 text-emerald-700 border border-emerald-200';
+      case 'approved': return 'bg-green-50 text-green-700 border border-green-200';
       case 'in_progress': return 'bg-blue-50 text-blue-700 border border-blue-200';
       case 'completed': return 'bg-green-50 text-green-700 border border-green-200';
       case 'rejected': return 'bg-rose-50 text-rose-700 border border-rose-200';
@@ -330,7 +330,7 @@ const AdminServiceRequestsDashboard = () => {
             <button
               onClick={() => handleApproveRequest(request, type)}
               disabled={isLoading}
-              className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded transition-colors disabled:opacity-50"
+              className="p-1.5 text-green-600 hover:bg-green-50 rounded transition-colors disabled:opacity-50"
               title="Approve"
             >
               {isLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}

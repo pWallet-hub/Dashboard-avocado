@@ -34,13 +34,13 @@ export default function Service() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 font-poppins">
+    <div className="min-h-screen bg-gradient-to-br from-green-50 to-green-100 font-poppins">
       {/* Dashboard Header */}
       <DashboardHeader />
 
       {/* Page Content */}
       <div className="relative bg-white shadow-2xl overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-green-600/10 to-emerald-600/10" />
+        <div className="absolute inset-0 bg-gradient-to-r from-green-600/10 to-green-600/10" />
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 text-center animate-fade-in-down">
           <h1 className="text-4xl sm:text-5xl font-bold bg-gradient-to-r from-green-600 to-teal-600 bg-clip-text text-transparent mb-6">
             Our Services
@@ -61,7 +61,7 @@ export default function Service() {
               style={{ animationDelay: `${index * 150}ms` }}
             >
               <div className="text-center">
-                <div className="flex items-center justify-center w-16 h-16 mx-auto mb-6 bg-emerald-100 rounded-full text-3xl group-hover:scale-110 transition-transform duration-300">
+                <div className="flex items-center justify-center w-16 h-16 mx-auto mb-6 bg-green-100 rounded-full text-3xl group-hover:scale-110 transition-transform duration-300">
                   {service.icon}
                 </div>
                 <h3 className="text-2xl font-semibold text-gray-900 mb-4 group-hover:text-green-600 transition-colors duration-300">

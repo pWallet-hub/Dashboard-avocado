@@ -139,7 +139,7 @@ const ShopSales = () => {
           {error}
           <button
             onClick={loadSalesData}
-            className="mt-4 px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all duration-300 shadow-md"
+            className="mt-4 px-4 py-2 bg-gradient-to-r from-green-600 to-green-600 text-white rounded-lg hover:from-green-700 hover:to-green-700 transition-all duration-300 shadow-md"
           >
             Retry
           </button>
@@ -148,7 +148,7 @@ const ShopSales = () => {
     }
     return (
       <div className="space-y-6">
-        <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl shadow-xl p-6 transition-all duration-300 hover:shadow-2xl">
+        <div className="bg-gradient-to-r from-green-50 to-green-50 rounded-2xl shadow-xl p-6 transition-all duration-300 hover:shadow-2xl">
           <div className="flex flex-col md:flex-row gap-4 mb-6">
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-green-500" />
@@ -160,14 +160,14 @@ const ShopSales = () => {
                 className="w-full pl-10 pr-4 py-2 border border-green-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-300 bg-white/90 shadow-sm"
               />
             </div>
-            <button className="bg-gradient-to-r from-green-50 to-emerald-50 hover:from-green-100 hover:to-emerald-100 text-green-800 px-4 py-2 rounded-lg flex items-center transition-all duration-300 shadow-md hover:shadow-lg">
+            <button className="bg-gradient-to-r from-green-50 to-green-50 hover:from-green-100 hover:to-green-100 text-green-800 px-4 py-2 rounded-lg flex items-center transition-all duration-300 shadow-md hover:shadow-lg">
               <Filter className="h-4 w-4 mr-2" />
               Advanced Filter
             </button>
           </div>
           <div className="overflow-x-auto border border-green-200 rounded-lg shadow-sm">
             <table className="w-full divide-y divide-green-100">
-              <thead className="bg-gradient-to-r from-green-100 to-emerald-100">
+              <thead className="bg-gradient-to-r from-green-100 to-green-100">
                 <tr>
                   <th className="text-left py-3 px-4 font-medium text-green-700 uppercase text-xs">Order ID</th>
                   <th className="text-left py-3 px-4 font-medium text-green-700 uppercase text-xs">Customer</th>
@@ -231,11 +231,11 @@ const ShopSales = () => {
             </table>
           </div>
           {filteredSales.length === 0 && (
-            <div className="text-center py-8 text-gray-500 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg shadow-sm">
+            <div className="text-center py-8 text-gray-500 bg-gradient-to-r from-green-50 to-green-50 rounded-lg shadow-sm">
               No sales found matching your criteria.
               <button
                 onClick={() => setActiveView('overview')}
-                className="mt-4 px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all duration-300 shadow-md"
+                className="mt-4 px-4 py-2 bg-gradient-to-r from-green-600 to-green-600 text-white rounded-lg hover:from-green-700 hover:to-green-700 transition-all duration-300 shadow-md"
               >
                 Back to Overview
               </button>
@@ -291,7 +291,7 @@ const ShopSales = () => {
     ];
     return (
       <div className="space-y-6">
-        <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl shadow-xl p-6 transition-all duration-300 hover:shadow-2xl hover:scale-[1.02]">
+        <div className="bg-gradient-to-r from-green-50 to-green-50 rounded-2xl shadow-xl p-6 transition-all duration-300 hover:shadow-2xl hover:scale-[1.02]">
           <h3 className="text-lg font-semibold text-green-800 mb-4">Farmer Market Integration</h3>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="text-center p-4 bg-white/90 rounded-lg transition-all duration-300 hover:shadow-lg hover:scale-105">
@@ -317,7 +317,7 @@ const ShopSales = () => {
           </div>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl shadow-xl p-6 transition-all duration-300 hover:shadow-2xl hover:scale-[1.02]">
+          <div className="bg-gradient-to-r from-green-50 to-green-50 rounded-2xl shadow-xl p-6 transition-all duration-300 hover:shadow-2xl hover:scale-[1.02]">
             <h3 className="text-lg font-semibold text-green-800 mb-4">Sales Performance</h3>
             <div className="space-y-3">
               <div className="flex justify-between">
@@ -381,14 +381,14 @@ const ShopSales = () => {
             </div>
           </div>
         </div>
-        <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl shadow-xl p-6 transition-all duration-300 hover:shadow-2xl hover:scale-[1.02]">
+        <div className="bg-gradient-to-r from-green-50 to-green-50 rounded-2xl shadow-xl p-6 transition-all duration-300 hover:shadow-2xl hover:scale-[1.02]">
           <h3 className="text-lg font-semibold text-green-800 mb-6">Monthly Sales Trend</h3>
           <div className="grid grid-cols-6 gap-4">
             {monthlySales.map((month, index) => (
               <div key={month.month} className="text-center">
                 <div className="mb-2">
                   <div 
-                    className="bg-gradient-to-t from-green-500 to-emerald-500 rounded-t mx-auto transition-all duration-300 hover:scale-105"
+                    className="bg-gradient-to-t from-green-500 to-green-500 rounded-t mx-auto transition-all duration-300 hover:scale-105"
                     style={{ height: `${(month.revenue / 25000000) * 100}px`, width: '40px' }}
                   ></div>
                   <div className="text-xs text-gray-600 mt-1">{(month.revenue / 1000000).toFixed(0)}M RWF</div>
@@ -430,7 +430,7 @@ const ShopSales = () => {
     return (
       <div className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl shadow-xl p-6 transition-all duration-300 hover:shadow-2xl hover:scale-[1.02] border border-green-100">
+          <div className="bg-gradient-to-r from-green-50 to-green-50 rounded-2xl shadow-xl p-6 transition-all duration-300 hover:shadow-2xl hover:scale-[1.02] border border-green-100">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Total Revenue</p>
@@ -478,24 +478,24 @@ const ShopSales = () => {
               <span className="text-sm text-gray-500 ml-2">vs last period</span>
             </div>
           </div>
-          <div className="bg-gradient-to-r from-emerald-50 to-lime-50 rounded-2xl shadow-xl p-6 transition-all duration-300 hover:shadow-2xl hover:scale-[1.02] border border-emerald-100">
+          <div className="bg-gradient-to-r from-green-50 to-lime-50 rounded-2xl shadow-xl p-6 transition-all duration-300 hover:shadow-2xl hover:scale-[1.02] border border-green-100">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Profit Margin</p>
                 <p className="text-2xl font-bold text-gray-900">{metrics.profitMargin.toFixed(1)}%</p>
               </div>
-              <div className="bg-emerald-100 p-3 rounded-full">
-                <BarChart3 className="h-6 w-6 text-emerald-600" />
+              <div className="bg-green-100 p-3 rounded-full">
+                <BarChart3 className="h-6 w-6 text-green-600" />
               </div>
             </div>
             <div className="mt-4 flex items-center">
-              <ArrowUpRight className="h-4 w-4 text-emerald-500 mr-1" />
-              <span className="text-sm text-emerald-600 font-medium">+2.1%</span>
+              <ArrowUpRight className="h-4 w-4 text-green-500 mr-1" />
+              <span className="text-sm text-green-600 font-medium">+2.1%</span>
               <span className="text-sm text-gray-500 ml-2">vs last period</span>
             </div>
           </div>
         </div>
-        <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl shadow-xl p-6 transition-all duration-300 hover:shadow-2xl">
+        <div className="bg-gradient-to-r from-green-50 to-green-50 rounded-2xl shadow-xl p-6 transition-all duration-300 hover:shadow-2xl">
           <div className="flex justify-between items-center mb-6">
             <h3 className="text-lg font-semibold text-green-800">Recent Sales</h3>
             <button 
@@ -507,7 +507,7 @@ const ShopSales = () => {
           </div>
           <div className="overflow-x-auto border border-green-200 rounded-lg shadow-sm">
             <table className="w-full divide-y divide-green-100">
-              <thead className="bg-gradient-to-r from-green-100 to-emerald-100">
+              <thead className="bg-gradient-to-r from-green-100 to-green-100">
                 <tr>
                   <th className="text-left py-3 px-4 font-medium text-green-700 uppercase text-xs">Order ID</th>
                   <th className="text-left py-3 px-4 font-medium text-green-700 uppercase text-xs">Customer</th>
@@ -538,11 +538,11 @@ const ShopSales = () => {
             </table>
           </div>
           {getFilteredSales().length === 0 && (
-            <div className="text-center py-8 text-gray-500 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg shadow-sm">
+            <div className="text-center py-8 text-gray-500 bg-gradient-to-r from-green-50 to-green-50 rounded-lg shadow-sm">
               No recent sales available.
               <button
                 onClick={() => setActiveView('list')}
-                className="mt-4 px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all duration-300 shadow-md"
+                className="mt-4 px-4 py-2 bg-gradient-to-r from-green-600 to-green-600 text-white rounded-lg hover:from-green-700 hover:to-green-700 transition-all duration-300 shadow-md"
               >
                 View Sales List
               </button>
@@ -558,7 +558,7 @@ const ShopSales = () => {
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 animate-fadeIn">
         <div className="bg-gradient-to-br from-white to-green-50 rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl transform transition-all animate-slideUp">
-          <div className="bg-gradient-to-r from-green-600 to-emerald-600 text-white p-6 rounded-t-2xl">
+          <div className="bg-gradient-to-r from-green-600 to-green-600 text-white p-6 rounded-t-2xl">
             <div className="flex justify-between items-center">
               <h2 className="text-xl font-bold">Sale Details - Order #{selectedSale.id}</h2>
               <button
@@ -624,7 +624,7 @@ const ShopSales = () => {
               <h3 className="font-semibold text-green-800 mb-3">Order Items</h3>
               <div className="overflow-x-auto border border-green-200 rounded-lg shadow-sm">
                 <table className="w-full divide-y divide-green-100">
-                  <thead className="bg-gradient-to-r from-green-100 to-emerald-100">
+                  <thead className="bg-gradient-to-r from-green-100 to-green-100">
                     <tr>
                       <th className="text-left py-3 px-4 font-medium text-green-700 uppercase text-xs">Product</th>
                       <th className="text-left py-3 px-4 font-medium text-green-700 uppercase text-xs">Quantity</th>
@@ -683,7 +683,7 @@ const ShopSales = () => {
               >
                 Close
               </button>
-              <button className="px-6 py-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all duration-300 shadow-md hover:shadow-lg">
+              <button className="px-6 py-2 bg-gradient-to-r from-green-600 to-green-600 text-white rounded-lg hover:from-green-700 hover:to-green-700 transition-all duration-300 shadow-md hover:shadow-lg">
                 Print Receipt
               </button>
               <button className="px-6 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all duration-300 shadow-md hover:shadow-lg">
@@ -699,7 +699,7 @@ const ShopSales = () => {
   return (
     <div className="min-h-screen bg-gradient-to-b from-lime-50 to-cyan-50">
       <div className="space-y-6 p-4 md:p-6 max-w-7xl mx-auto">
-        <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl shadow-xl p-6 transition-all duration-300 hover:shadow-2xl">
+        <div className="bg-gradient-to-r from-green-50 to-green-50 rounded-2xl shadow-xl p-6 transition-all duration-300 hover:shadow-2xl">
           <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center">
             <div className="mb-4 lg:mb-0">
               <h1 className="text-2xl font-bold text-green-800 flex items-center">
@@ -719,13 +719,13 @@ const ShopSales = () => {
                 <option value="90days">Last 90 Days</option>
                 <option value="1year">Last Year</option>
               </select>
-              <button className="bg-gradient-to-r from-green-600 to-emerald-600 text-white px-4 py-2 rounded-lg flex items-center transition-all duration-300 shadow-md hover:shadow-lg hover:from-green-700 hover:to-emerald-700">
+              <button className="bg-gradient-to-r from-green-600 to-green-600 text-white px-4 py-2 rounded-lg flex items-center transition-all duration-300 shadow-md hover:shadow-lg hover:from-green-700 hover:to-green-700">
                 <Download className="h-4 w-4 mr-2" />
                 Export
               </button>
             </div>
           </div>
-          <div className="flex space-x-1 mt-6 bg-gradient-to-r from-green-100 to-emerald-100 p-1 rounded-lg shadow-sm">
+          <div className="flex space-x-1 mt-6 bg-gradient-to-r from-green-100 to-green-100 p-1 rounded-lg shadow-sm">
             <button
               onClick={() => setActiveView('overview')}
               className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-300 ${

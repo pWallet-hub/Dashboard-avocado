@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import Login from './Pages/Login/Login'
+import Register from './Pages/Register/Register'
 import Dashboard from './Pages/Dashboard/Dashboard'
 import Admin from './Pages/Admin/Admin'
 import Agent from './Pages/Agent/Agent'
@@ -15,6 +16,8 @@ import Protection from './Pages/Farmer/Protection'
 import Container from './Pages/Farmer/Container'
 import Pest from './Pages/Farmer/Pest'
 import Profile from './Pages/Farmer/Profile'
+import AdminProfile from './Pages/Admin/Profile'
+import AgentProfile from './Pages/Agent/Profile'
 import Service from './Pages/Farmer/Service'
 import PestManagement from './Pages/Farmer/PestManagement'
 import HarvestingDay from './Pages/Farmer/HarvestingDay'
@@ -47,18 +50,26 @@ import ShopProducts from './Pages/ShopManager/ShopProducts'
 import ProtectedRoute from './components/Layout/ProtectedRoute';
 import RoleBasedRoute from './components/Layout/RoleBasedRoute';
 import AdminServiceRequestsDashboard from './components/Dashboard/AdminServiceRequestsDashboard';
+import ErrorBoundary from './components/ErrorBoundary';
+import { ToastProvider } from './components/Ui/Toast';
+import { ConfirmProvider } from './components/Ui/ConfirmDialog';
 
 function App() {
   return (
+    <ErrorBoundary>
+    <ToastProvider>
+    <ConfirmProvider>
     <Router>
       <Routes>
         <Route path="/" element={<Login />} />
+        <Route path="/register" element={<Register />} />
         <Route path="/dashboard" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
         <Route path="/dashboard/admin/service-requests" element={<AdminServiceRequestsDashboard />} />
           <Route index element={<Home />} />
           
           {/* Admin Routes */}
           <Route path="admin" element={<RoleBasedRoute allowedRoles={['admin']}><Admin /></RoleBasedRoute>} />
+          <Route path="admin/profile" element={<RoleBasedRoute allowedRoles={['admin']}><AdminProfile /></RoleBasedRoute>} />
           <Route path="admin/users" element={<RoleBasedRoute allowedRoles={['admin']}><Users /></RoleBasedRoute>} />
           <Route path="admin/agents" element={<RoleBasedRoute allowedRoles={['admin']}><Agents/></RoleBasedRoute>} />
           <Route path="admin/reports" element={<RoleBasedRoute allowedRoles={['admin']}><Reports/></RoleBasedRoute>} />
@@ -70,6 +81,7 @@ function App() {
           
           {/* Agent Routes */}
           <Route path="agent" element={<RoleBasedRoute allowedRoles={['agent']}><Agent /></RoleBasedRoute>} />
+          <Route path="agent/profile" element={<RoleBasedRoute allowedRoles={['agent']}><AgentProfile /></RoleBasedRoute>} />
           <Route path='agent/FarmerList' element={<RoleBasedRoute allowedRoles={['agent']}><FarmerList/></RoleBasedRoute>}/>
           <Route path='agent/HarvestingPlan' element={<RoleBasedRoute allowedRoles={['agent']}><HarvestingPlan/></RoleBasedRoute>}/>
           <Route path='agent/IPMRoutine' element={<RoleBasedRoute allowedRoles={['agent']}><IPMRoutine/></RoleBasedRoute>}/>
@@ -108,6 +120,9 @@ function App() {
         <Route path="*" element={<h1>Not Found</h1>} />
       </Routes>
     </Router>
+    </ConfirmProvider>
+    </ToastProvider>
+    </ErrorBoundary>
   );
 }
 

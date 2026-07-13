@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { User, Mail, Phone, MapPin, Calendar, Activity, Award, BarChart3, Briefcase, Edit3, Save, X, AlertCircle, TrendingUp, Target, CheckCircle2, Clock, FileText } from 'lucide-react';
 import { getAgentInformation, updateAgentInformation } from '../../services/agent-information';
+import { updateProfile } from '../../services/authService';
 import { listHarvestRequests } from '../../services/serviceRequestsService';
 import { Link } from 'react-router-dom';
 
@@ -117,7 +118,7 @@ const AgentMembershipCard = ({
         style={{ cursor: 'pointer' }}
       >
         {/* Enhanced Background */}
-        <div className="absolute inset-0 bg-gradient-to-br from-green-900 via-green-800 to-emerald-900"></div>
+        <div className="absolute inset-0 bg-gradient-to-br from-green-900 via-green-800 to-green-900"></div>
         <div className="absolute -top-10 -right-10 w-96 h-96 bg-gradient-radial from-white/15 via-white/5 to-transparent rounded-full blur-3xl"></div>
         <div className="absolute -bottom-10 -left-10 w-80 h-80 bg-gradient-radial from-yellow-500/20 via-yellow-500/5 to-transparent rounded-full blur-3xl"></div>
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.08)_0%,transparent_50%),radial-gradient(circle_at_70%_80%,rgba(255,255,255,0.05)_0%,transparent_40%)] pointer-events-none"></div>
@@ -288,28 +289,28 @@ export default function AgentProfile() {
     setError(null);
     
     try {
-      const updateData = {
-        name: editedProfile.full_name,
+      // The backend splits basic account fields (full_name/phone, on User)
+      // from agent-specific fields (province/territory/etc, on AgentProfile)
+      // across two different endpoints — update both.
+      const user_info = await updateProfile({
+        full_name: editedProfile.full_name,
         phone: editedProfile.phone,
-        agent_profile: {
-          province: editedProfile.profile?.province || '',
-          territory: editedProfile.profile?.territory || [],
-          specialization: editedProfile.profile?.specialization || '',
-          experience: editedProfile.profile?.experience || '',
-          certification: editedProfile.profile?.certification || '',
-          profileImage: editedProfile.profile?.profileImage || ''
-        }
-      };
-      
-      const response = await updateAgentInformation(updateData);
-      const { user_info, agent_profile } = response;
-      
+      });
+
+      const agent_profile = await updateAgentInformation({
+        province: editedProfile.profile?.province || '',
+        territory: editedProfile.profile?.territory || [],
+        specialization: editedProfile.profile?.specialization || '',
+        experience: editedProfile.profile?.experience || '',
+        certification: editedProfile.profile?.certification || '',
+      });
+
       // Extract primary territory
       const primaryTerritory = agent_profile?.territory?.find(t => t.isPrimary) || agent_profile?.territory?.[0];
-      
+
       // Build territory string from coverage
       const territoryString = agent_profile?.territoryCoverage?.districts?.join(', ') || 'N/A';
-      
+
       const updatedProfile = {
         id: user_info.id,
         full_name: user_info.full_name,
@@ -323,7 +324,7 @@ export default function AgentProfile() {
           agentId: agent_profile.agentId,
           province: agent_profile.province,
           territory: agent_profile.territory,
-          territoryCoverage: agent_profile.territoryCoverage,
+          territoryCoverage: agent_profile.territoryCoverage || editedProfile.profile?.territoryCoverage,
           primaryDistrict: primaryTerritory?.district || '',
           primarySector: primaryTerritory?.sector || '',
           territoryString: territoryString,
@@ -331,20 +332,19 @@ export default function AgentProfile() {
           experience: agent_profile.experience,
           certification: agent_profile.certification,
           statistics: agent_profile.statistics,
-          profileImage: agent_profile.profileImage
+          profileImage: editedProfile.profile?.profileImage || null
         }
       };
-      
+
       const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
       const updatedUser = {
         ...currentUser,
         full_name: user_info.full_name,
         phone: user_info.phone,
         email: user_info.email,
-        profile: agent_profile
       };
       localStorage.setItem('user', JSON.stringify(updatedUser));
-      
+
       setAgentProfile(updatedProfile);
       setEditedProfile(updatedProfile);
       setIsEditing(false);
@@ -542,7 +542,7 @@ export default function AgentProfile() {
                       key={index}
                       className={`p-4 rounded-lg border-2 transition-all duration-300 ${
                         terr.isPrimary 
-                          ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-300 shadow-md' 
+                          ? 'bg-gradient-to-r from-green-50 to-green-50 border-green-300 shadow-md' 
                           : 'bg-gray-50 border-gray-200 hover:border-gray-300'
                       }`}
                     >

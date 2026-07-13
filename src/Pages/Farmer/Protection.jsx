@@ -1,5 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ShoppingCart, Star, CheckCircle, Shield, Heart, Filter, X, Smartphone } from 'lucide-react';
+import { getProtectionProducts } from '../../services/productsService';
+
+// The backend only tracks a single "protection" product category — it has no
+// notion of body-part sub-categories. Derive one from the product name so the
+// existing Feet/Hands/Head/etc filter still means something for real data.
+function inferBodyPartCategory(name = '') {
+  const n = name.toLowerCase();
+  if (n.includes('boot') || n.includes('shoe')) return 'feet';
+  if (n.includes('glove')) return 'hands';
+  if (n.includes('mask') || n.includes('respirat')) return 'respiratory';
+  if (n.includes('hat') || n.includes('helmet') || n.includes('cap')) return 'head';
+  return 'clothing';
+}
 
 // Cart Service
 const CartService = {
@@ -264,15 +277,46 @@ export default function SafetyProtectionEquipment() {
   const [pendingOrder, setPendingOrder] = useState(null);
   const [justAdded, setJustAdded] = useState(null);
   const [addingToCart, setAddingToCart] = useState(null);
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const products = [
-    { _id: '1', name: 'Boots', price: 25000, originalPrice: 30000, image: 'https://www.workmasterboots.com/application/files/thumbnails/image_and_text3/8715/9612/1959/Farmlite_Agriculture_Boots_Lower.jpg', rating: 4.8, reviews: 150, features: ['Mud & sharp object protection', 'Chemical resistant', 'Durable'], description: 'Protect feet from hazards in orchards.', category: 'feet', inStock: true, discount: 17, capacity: 'Heavy-duty' },
-    { _id: '2', name: 'Cape / Overalls', price: 22000, originalPrice: 26000, image: 'https://tse2.mm.bing.net/th/id/OIP.WizHn3kiW7BjO0LS9JWyzQHaHa?pid=Api&P=0&h=220', rating: 4.7, reviews: 120, features: ['Full-body coverage', 'Scratch resistant', 'Durable'], description: 'Full-body protection from dirt and chemicals.', category: 'clothing', inStock: true, discount: 15, capacity: 'Full coverage' },
-    { _id: '3', name: 'Protective Hat', price: 10000, originalPrice: 12000, image: 'https://tse1.mm.bing.net/th/id/OIP._ag1eDJVKljH8wwoIKxSAQHaHa?pid=Api&P=0&h=220', rating: 4.6, reviews: 100, features: ['UV protection', 'Lightweight', 'Comfortable'], description: 'Shields from sun and heat.', category: 'head', inStock: true, discount: 17, capacity: 'UV protection' },
-    { _id: '4', name: 'Protective Gloves', price: 8500, originalPrice: 10000, image: 'https://tse3.mm.bing.net/th/id/OIP.c0nQsPidHUbAcBb5UK7FjAHaHa?pid=Api&P=0&h=220', rating: 4.8, reviews: 140, features: ['Chemical resistant', 'Flexible grip', 'Injury prevention'], description: 'Safeguards hands during tool use.', category: 'hands', inStock: true, discount: 15, capacity: 'Chemical resistant' },
-    { _id: '5', name: 'Protective Mask', price: 12000, originalPrice: 15000, image: 'https://www.thisisitoriginal.com/cdn/shop/products/front_6_3f4ea60c-426e-4a40-bdec-9484cc4608cc_compact.jpg?v=1590276666', rating: 4.7, reviews: 130, features: ['Chemical inhalation protection', 'Reusable', 'Comfort fit'], description: 'Protects during spraying.', category: 'respiratory', inStock: true, discount: 20, capacity: 'Inhalation protection' },
-    { _id: '6', name: 'General Protective Clothing', price: 25000, originalPrice: 30000, image: 'https://tse4.mm.bing.net/th/id/OIP.AD_g0rD-5ntOwbrMkcV3UQHaHa?pid=Api&P=0&h=220', rating: 4.9, reviews: 160, features: ['Global GAP compliant', 'Full coverage', 'Professional'], description: 'Required for certifications.', category: 'clothing', inStock: true, discount: 17, capacity: 'Certification compliant' },
-  ];
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const response = await getProtectionProducts({ status: 'available' });
+        const productsData = Array.isArray(response?.data) ? response.data : Array.isArray(response) ? response : [];
+
+        setProducts(productsData.map(product => ({
+          _id: String(product.id),
+          name: product.name || 'Unknown Product',
+          description: product.description || 'No description available',
+          price: Number(product.price) || 0,
+          originalPrice: null,
+          image: (product.images && product.images.length > 0)
+            ? product.images[0]
+            : product.image_url || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTUwIiBoZWlnaHQ9IjE1MCIgdmlld0JveD0iMCAwIDE1MCAxNTAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxNTAiIGhlaWdodD0iMTUwIiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik03NSA0NUw5MCA2MEw3NSA3NUw2MCA2MEw3NSA0NVoiIGZpbGw9IiM5Q0EzQUYiLz4KPC9zdmc+',
+          rating: 4.5,
+          reviews: 0,
+          features: [product.description || 'Protective equipment for avocado farming'],
+          category: inferBodyPartCategory(product.name),
+          inStock: product.status === 'available' && (product.quantity || 0) > 0,
+          discount: 0,
+          capacity: `${product.quantity || 0} ${product.unit || 'piece'}`
+        })));
+      } catch (err) {
+        console.error('Error fetching protection products:', err);
+        setError('Failed to load protection equipment. Please try again later.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProducts();
+  }, []);
 
   const filteredProducts = filterType === 'all' ? products : products.filter(p => p.category === filterType);
 
@@ -380,7 +424,7 @@ export default function SafetyProtectionEquipment() {
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100">
+    <div className="min-h-screen bg-gradient-to-br from-green-50 to-green-100">
       {/* Header */}
       <header className="bg-green-900 text-white py-3 px-4 shadow-md">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
@@ -419,6 +463,13 @@ export default function SafetyProtectionEquipment() {
         </div>
 
         {/* Product Grid - 3 per row */}
+        {loading ? (
+          <div className="text-center py-12 text-gray-500">Loading protection equipment...</div>
+        ) : error ? (
+          <div className="text-center py-12 text-red-600">{error}</div>
+        ) : filteredProducts.length === 0 ? (
+          <div className="text-center py-12 text-gray-500">No protection equipment available right now.</div>
+        ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {filteredProducts.map((product) => (
             <div key={product._id} className="bg-white rounded-lg overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 border border-green-200 group">
@@ -464,6 +515,7 @@ export default function SafetyProtectionEquipment() {
             </div>
           ))}
         </div>
+        )}
       </main>
 
       {selectedProduct && <ProductModal product={selectedProduct} onClose={() => setSelectedProduct(null)} />}

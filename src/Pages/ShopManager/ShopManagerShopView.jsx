@@ -9,8 +9,12 @@ import {
   exportShopsToExcel 
 } from '../../services/shopService';
 import { Store, MapPin, User, Phone, Mail, Edit, Trash2, Download } from 'lucide-react';
+import { useToast } from '../../components/Ui/Toast';
+import { useConfirm } from '../../components/Ui/ConfirmDialog';
 
 export default function ShopManagerShopView() {
+  const toast = useToast();
+  const confirm = useConfirm();
   const [shops, setShops] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -104,40 +108,40 @@ export default function ShopManagerShopView() {
     try {
       const response = await updateShop(selectedShop.id, editFormData);
       if (response.success) {
-        alert('Shop updated successfully!');
+        toast.success('Shop updated successfully!');
         setIsEditModalOpen(false);
         fetchShops(); // Refresh the list
       }
     } catch (error) {
       console.error('Error updating shop:', error);
       const errorMessage = error.response?.data?.message || 'Failed to update shop';
-      alert(`Error: ${errorMessage}`);
+      toast.error(`Error: ${errorMessage}`);
     } finally {
       setLoading(false);
     }
   };
 
   const handleDeleteShop = async (shopId) => {
-    if (!window.confirm('Are you sure you want to delete this shop?')) {
+    if (!(await confirm('Are you sure you want to delete this shop?'))) {
       return;
     }
 
     try {
       const response = await deleteShop(shopId);
       if (response.success) {
-        alert('Shop deleted successfully');
+        toast.success('Shop deleted successfully');
         fetchShops(); // Refresh the list
       }
     } catch (error) {
       console.error('Error deleting shop:', error);
       const errorMessage = error.response?.data?.message || 'Failed to delete shop';
-      alert(`Error: ${errorMessage}`);
+      toast.error(`Error: ${errorMessage}`);
     }
   };
 
   const exportToExcel = () => {
     if (shops.length === 0) {
-      alert('No shops data to export');
+      toast.error('No shops data to export');
       return;
     }
     exportShopsToExcel(shops);

@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { Store, MapPin, User, Phone, Mail } from 'lucide-react';
 import { createShop } from '../../services/shopService';
+import { useToast } from '../Ui/Toast';
 
 export default function AddShopForm({ onClose, onSuccess }) {
+  const toast = useToast();
   const [formData, setFormData] = useState({
     shopName: '',
     description: '',
@@ -70,8 +72,8 @@ export default function AddShopForm({ onClose, onSuccess }) {
       console.log('Create shop response:', response);
       
       if (response.success) {
-        alert(`Shop "${formData.shopName}" created successfully!`);
-        
+        toast.success(`Shop "${formData.shopName}" created successfully!`);
+
         // Reset form
         setFormData({
           shopName: '',
@@ -95,14 +97,11 @@ export default function AddShopForm({ onClose, onSuccess }) {
       } else {
         const errorMsg = response.message || 'Failed to create shop';
         setError(errorMsg);
-        alert(`Error: ${errorMsg}`);
       }
     } catch (error) {
       console.error('Error creating shop:', error);
-      console.error('Error response:', error.response);
       const errorMessage = error.response?.data?.message || error.response?.data?.errors?.[0]?.msg || 'Failed to create shop. Please try again.';
       setError(errorMessage);
-      alert(`Error: ${errorMessage}`);
     } finally {
       setLoading(false);
     }

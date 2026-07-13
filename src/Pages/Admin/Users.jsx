@@ -4,9 +4,13 @@ import { CiLogout } from "react-icons/ci";
 import Select from 'react-select';
 import { ClipLoader } from "react-spinners";
 import '../Styles/Growers.css';
-import { listUsers, createFarmer, updateUser, deleteUser } from '../../services/usersService';
+import { listFarmers, createFarmer, updateUser, deleteUser } from '../../services/usersService';
+import { useToast } from '../../components/Ui/Toast';
+import { useConfirm } from '../../components/Ui/ConfirmDialog';
 
 const Users = () => {
+  const toast = useToast();
+  const confirm = useConfirm();
   const [users, setUsers] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -65,8 +69,8 @@ const Users = () => {
       setLoading(true);
       setError(null);
       try {
-        const response = await listUsers();
-        setUsers(response || []);
+        const response = await listFarmers();
+        setUsers(response?.data || []);
       } catch (error) {
         console.error('Error fetching farmers:', error);
         setError('Failed to load farmers.');
@@ -174,7 +178,7 @@ const Users = () => {
       const response = await createFarmer(farmerData);
       setUsers(prev => [...prev, response]);
       closeAddModal();
-      alert('Farmer added successfully!');
+      toast.success('Farmer added successfully!');
     } catch (error) {
       const msg = error.response?.data?.message || error.message || 'Failed to add farmer.';
       setError(msg);
@@ -194,10 +198,11 @@ const Users = () => {
   };
 
   const handleDeleteUser = async (userId) => {
-    if (window.confirm('Are you sure you want to delete this farmer?')) {
+    if (await confirm('Are you sure you want to delete this farmer?')) {
       try {
         await deleteUser(userId);
         setUsers(prev => prev.filter(user => user.id !== userId));
+        toast.success('Farmer deleted successfully');
       } catch (error) {
         setError('Failed to delete farmer.');
       }

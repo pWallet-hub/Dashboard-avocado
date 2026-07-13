@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { X, Camera, User, Mail, Shield, Calendar, Edit2, Save, Phone, MapPin } from 'lucide-react';
-import { updateProfile, changePassword } from '../../services/authService';
+import { updateProfile, changePassword, getProfile } from '../../services/authService';
 import ProfilePictureUploader from './ProfilePictureUploader';
 
 const UserProfile = ({ user, isOpen, onClose, onUpdate }) => {
@@ -22,18 +22,41 @@ const UserProfile = ({ user, isOpen, onClose, onUpdate }) => {
   const [passwordError, setPasswordError] = useState(null);
   const [passwordSuccess, setPasswordSuccess] = useState(false);
 
-  // Initialize profile data when user prop changes
+  // Initialize immediately from whatever the caller passed in (avoids a blank flash)
   useEffect(() => {
     if (user) {
-      setProfileData({
-        full_name: user.full_name || '',
-        email: user.email || '',
-        role: user.role || '',
-        phone: user.phone || '',
-        profile: user.profile || {}
-      });
+      setProfileData(prev => ({
+        full_name: user.full_name || prev.full_name || '',
+        email: user.email || prev.email || '',
+        role: user.role || prev.role || '',
+        phone: user.phone || prev.phone || '',
+        profile: user.profile || prev.profile || {}
+      }));
     }
   }, [user]);
+
+  // The caller (e.g. TopBar) often only has a partial user object cached in
+  // localStorage. Fetch the authoritative profile from the backend whenever
+  // the modal opens so full_name/phone/profile are never stale or blank.
+  useEffect(() => {
+    if (!isOpen) return;
+    setError(null);
+    getProfile()
+      .then((freshUser) => {
+        if (!freshUser) return;
+        setProfileData({
+          full_name: freshUser.full_name || '',
+          email: freshUser.email || '',
+          role: freshUser.role || '',
+          phone: freshUser.phone || '',
+          profile: freshUser.profile || {}
+        });
+      })
+      .catch((err) => {
+        console.error('Failed to load profile:', err);
+        setError('Failed to load the latest profile data');
+      });
+  }, [isOpen]);
 
   const handleInputChange = (field, value) => {
     setProfileData(prev => ({

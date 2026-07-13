@@ -21,15 +21,18 @@ import {
   BarChart3,
   RefreshCw
 } from 'lucide-react';
-import { 
-  getAllProducts, 
-  createProduct, 
-  updateProduct, 
+import {
+  getAllProducts,
+  createProduct,
+  updateProduct,
   deleteProduct,
-  getProductById 
+  getProductById
 } from '../../services/productsService';
+import { getSuppliers } from '../../services/marketStorageService';
+import { useConfirm } from '../../components/Ui/ConfirmDialog';
 
 const ShopProducts = () => {
+  const confirm = useConfirm();
   const [activeView, setActiveView] = useState('list');
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [showModal, setShowModal] = useState(false);
@@ -61,9 +64,15 @@ const ShopProducts = () => {
   const units = ['kg', 'g', 'lb', 'oz', 'ton', 'liter', 'ml', 'gallon', 'piece', 'dozen', 'box', 'bag', 'bottle', 'can', 'packet'];
   const statuses = ['available', 'out_of_stock', 'discontinued'];
 
+  const [suppliers, setSuppliers] = useState([]);
+
   useEffect(() => {
     loadProducts();
   }, [pagination.page, categoryFilter, statusFilter, sortBy]);
+
+  useEffect(() => {
+    getSuppliers().then(data => setSuppliers(Array.isArray(data) ? data : [])).catch(err => console.error('Error loading suppliers:', err));
+  }, []);
 
   const loadProducts = async () => {
     setLoading(true);
@@ -277,7 +286,7 @@ const ShopProducts = () => {
       return;
     }
 
-    if (!window.confirm('Are you sure you want to delete this product? This action cannot be undone.')) {
+    if (!(await confirm('Are you sure you want to delete this product? This action cannot be undone.'))) {
       return;
     }
 
@@ -512,18 +521,20 @@ const ShopProducts = () => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Supplier ID <span className="text-red-500">*</span>
+                  Supplier <span className="text-red-500">*</span>
                 </label>
-                <input
-                  type="text"
+                <select
                   required={!isViewMode}
                   value={formData.supplier_id || ''}
                   onChange={(e) => setFormData({...formData, supplier_id: e.target.value})}
                   className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-transparent ${isViewMode ? 'bg-gray-50' : ''}`}
-                  placeholder="e.g., SUP123456"
                   disabled={loading || isViewMode}
-                  readOnly={isViewMode}
-                />
+                >
+                  <option value="">Select supplier</option>
+                  {suppliers.map(supplier => (
+                    <option key={supplier.id} value={supplier.id}>{supplier.name}</option>
+                  ))}
+                </select>
               </div>
 
               <div>
@@ -695,52 +706,16 @@ const ShopProducts = () => {
               Product Management
             </h2>
             <div className="flex flex-wrap gap-2">
-              <button 
+              <button
                 onClick={() => {
-                  alert('TEST: Button clicks are working!');
-                  console.log('🧪 TEST BUTTON CLICKED - This proves buttons work!');
-                }}
-                className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg"
-              >
-                🧪 Test Click
-              </button>
-              
-              <button 
-                onClick={() => {
-                  console.log('🔄 Resetting loading state...');
-                  setLoading(false);
-                  console.log('✅ Loading reset to false');
-                }}
-                className="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg"
-              >
-                🔄 Reset Loading
-              </button>
-              
-              <button 
-                onClick={(e) => {
-                  console.log('🔘 Add Product button clicked!');
-                  console.log('Event:', e);
-                  console.log('Current loading state:', loading);
-                  console.log('Current showModal:', showModal);
-                  console.log('Current modalType:', modalType);
-                  console.log('Button disabled?', loading);
-                  
-                  if (loading) {
-                    console.log('⚠️ Button is disabled because loading is true');
-                    alert('Button is disabled because loading=true. Click "Reset Loading" first.');
-                    return;
-                  }
-                  
                   setModalType('add');
                   setShowModal(true);
-                  console.log('✅ Modal state updated - should show now');
                 }}
                 className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center transition disabled:opacity-50"
                 disabled={loading}
-                style={{ pointerEvents: 'auto', cursor: loading ? 'not-allowed' : 'pointer' }}
               >
                 <Plus className="h-4 w-4 mr-2" />
-                Add Product {loading && '(Disabled)'}
+                Add Product
               </button>
               <button 
                 onClick={loadProducts}

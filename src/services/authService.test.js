@@ -1,9 +1,20 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as authService from './authService';
 import apiClient from './apiClient';
 
 // Mock the apiClient
-vi.mock('./apiClient');
+vi.mock('./apiClient', () => {
+  const mockApiClient = { get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() };
+  return {
+    default: mockApiClient,
+    extractData: (response) => {
+      if (response && response.data && response.data.success) {
+        return response.data.data;
+      }
+      return response;
+    },
+  };
+});
 
 // Mock localStorage
 const localStorageMock = (() => {
@@ -53,20 +64,13 @@ describe('authService', () => {
     const result = await authService.register(userData);
 
     expect(apiClient.post).toHaveBeenCalledWith('/auth/register', userData);
-    expect(result).toEqual(mockResponse.data);
+    expect(result).toEqual(mockResponse.data.data);
   });
 
   it('should handle register error with message', async () => {
-    const errorResponse = {
-      response: {
-        data: {
-          message: 'User already exists'
-        },
-        status: 409
-      }
-    };
-
-    apiClient.post.mockRejectedValue(errorResponse);
+    // apiClient's response interceptor already converts axios errors into
+    // plain Error objects with a friendly message before authService sees them.
+    apiClient.post.mockRejectedValue(new Error('User already exists'));
 
     const userData = {
       email: 'test@example.com',
@@ -118,16 +122,7 @@ describe('authService', () => {
   });
 
   it('should handle login error with message', async () => {
-    const errorResponse = {
-      response: {
-        data: {
-          message: 'Invalid credentials'
-        },
-        status: 401
-      }
-    };
-
-    apiClient.post.mockRejectedValue(errorResponse);
+    apiClient.post.mockRejectedValue(new Error('Invalid credentials. Please check your email and password.'));
 
     const credentials = {
       email: 'test@example.com',
@@ -138,11 +133,7 @@ describe('authService', () => {
   });
 
   it('should handle network error during login', async () => {
-    const errorResponse = {
-      code: 'ERR_NETWORK'
-    };
-
-    apiClient.post.mockRejectedValue(errorResponse);
+    apiClient.post.mockRejectedValue(new Error('Network error. Please check your internet connection.'));
 
     const credentials = {
       email: 'test@example.com',
@@ -153,13 +144,7 @@ describe('authService', () => {
   });
 
   it('should handle server error during login', async () => {
-    const errorResponse = {
-      response: {
-        status: 500
-      }
-    };
-
-    apiClient.post.mockRejectedValue(errorResponse);
+    apiClient.post.mockRejectedValue(new Error('Server error. Please try again later.'));
 
     const credentials = {
       email: 'test@example.com',
@@ -217,7 +202,7 @@ describe('authService', () => {
     const result = await authService.logout();
 
     expect(apiClient.post).toHaveBeenCalledWith('/auth/logout');
-    expect(result).toEqual(mockResponse.data);
+    expect(result).toEqual(mockResponse.data.data);
     // Check that localStorage items are cleared
     expect(localStorage.getItem('token')).toBeNull();
     expect(localStorage.getItem('user')).toBeNull();
@@ -234,16 +219,7 @@ describe('authService', () => {
     localStorage.setItem('id', '1');
     localStorage.setItem('username', 'test@example.com');
 
-    const errorResponse = {
-      response: {
-        data: {
-          message: 'Logout failed'
-        },
-        status: 500
-      }
-    };
-
-    apiClient.post.mockRejectedValue(errorResponse);
+    apiClient.post.mockRejectedValue(new Error('Logout failed'));
 
     await expect(authService.logout()).rejects.toThrow('Logout failed');
     // Check that localStorage items are still cleared even when server request fails
@@ -278,20 +254,11 @@ describe('authService', () => {
     const result = await authService.getProfile();
 
     expect(apiClient.get).toHaveBeenCalledWith('/auth/profile');
-    expect(result).toEqual(mockResponse.data);
+    expect(result).toEqual(mockResponse.data.data);
   });
 
   it('should handle profile error with message', async () => {
-    const errorResponse = {
-      response: {
-        data: {
-          message: 'Failed to fetch profile'
-        },
-        status: 500
-      }
-    };
-
-    apiClient.get.mockRejectedValue(errorResponse);
+    apiClient.get.mockRejectedValue(new Error('Failed to fetch profile. Please try again later.'));
 
     await expect(authService.getProfile()).rejects.toThrow('Failed to fetch profile. Please try again later.');
   });
@@ -325,24 +292,15 @@ describe('authService', () => {
     const result = await authService.updateProfile(profileData);
 
     expect(apiClient.put).toHaveBeenCalledWith('/auth/profile', profileData);
-    expect(result).toEqual(mockResponse.data);
+    expect(result).toEqual(mockResponse.data.data);
   });
 
   it('should handle update profile error with message', async () => {
-    const errorResponse = {
-      response: {
-        data: {
-          message: 'Failed to update profile'
-        },
-        status: 500
-      }
-    };
-
     const profileData = {
       full_name: 'Updated User'
     };
 
-    apiClient.put.mockRejectedValue(errorResponse);
+    apiClient.put.mockRejectedValue(new Error('Failed to update profile. Please try again later.'));
 
     await expect(authService.updateProfile(profileData)).rejects.toThrow('Failed to update profile. Please try again later.');
   });
@@ -357,8 +315,8 @@ describe('authService', () => {
     };
 
     const passwordData = {
-      current_password: 'oldpassword',
-      new_password: 'newpassword123'
+      currentPassword: 'oldpassword',
+      newPassword: 'newpassword123'
     };
 
     apiClient.put.mockResolvedValue(mockResponse);
@@ -366,25 +324,16 @@ describe('authService', () => {
     const result = await authService.changePassword(passwordData);
 
     expect(apiClient.put).toHaveBeenCalledWith('/auth/password', passwordData);
-    expect(result).toEqual(mockResponse.data);
+    expect(result).toEqual(mockResponse.data.data);
   });
 
   it('should handle change password error with message', async () => {
-    const errorResponse = {
-      response: {
-        data: {
-          message: 'Current password is incorrect'
-        },
-        status: 400
-      }
-    };
-
     const passwordData = {
-      current_password: 'wrongpassword',
-      new_password: 'newpassword123'
+      currentPassword: 'wrongpassword',
+      newPassword: 'newpassword123'
     };
 
-    apiClient.put.mockRejectedValue(errorResponse);
+    apiClient.put.mockRejectedValue(new Error('Current password is incorrect'));
 
     await expect(authService.changePassword(passwordData)).rejects.toThrow('Current password is incorrect');
   });

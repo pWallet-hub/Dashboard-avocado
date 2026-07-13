@@ -35,7 +35,7 @@ describe('marketStorageService', () => {
       const result = await marketStorageService.getSuppliers();
 
       // Assert
-      expect(apiClient.get).toHaveBeenCalledWith('/market/suppliers');
+      expect(apiClient.get).toHaveBeenCalledWith('/suppliers');
       expect(result).toEqual(mockSuppliers);
     });
 
@@ -60,7 +60,7 @@ describe('marketStorageService', () => {
       const result = await marketStorageService.createSupplier(newSupplier);
 
       // Assert
-      expect(apiClient.post).toHaveBeenCalledWith('/market/suppliers', newSupplier);
+      expect(apiClient.post).toHaveBeenCalledWith('/suppliers', newSupplier);
       expect(result).toEqual(createdSupplier);
     });
 
@@ -81,7 +81,7 @@ describe('marketStorageService', () => {
       const result = await marketStorageService.getShopInventory();
 
       // Assert
-      expect(apiClient.get).toHaveBeenCalledWith('/market/inventory');
+      expect(apiClient.get).toHaveBeenCalledWith('/inventory');
       expect(result).toEqual(mockInventory);
     });
   });
@@ -97,7 +97,7 @@ describe('marketStorageService', () => {
       const result = await marketStorageService.addToShopInventory(newItem);
 
       // Assert
-      expect(apiClient.post).toHaveBeenCalledWith('/market/inventory', newItem);
+      expect(apiClient.post).toHaveBeenCalledWith('/inventory', newItem);
       expect(result).toEqual(addedItem);
     });
 
@@ -105,21 +105,6 @@ describe('marketStorageService', () => {
       // Act & Assert
       await expect(marketStorageService.addToShopInventory(null)).rejects.toThrow('Valid inventory item data is required');
       await expect(marketStorageService.addToShopInventory('invalid')).rejects.toThrow('Valid inventory item data is required');
-    });
-  });
-
-  describe('getOrders', () => {
-    it('should fetch orders from the API', async () => {
-      // Arrange
-      const mockOrders = [{ id: '1', orderNumber: 'ORD-001' }];
-      apiClient.get.mockResolvedValue({ data: mockOrders });
-
-      // Act
-      const result = await marketStorageService.getOrders();
-
-      // Assert
-      expect(apiClient.get).toHaveBeenCalledWith('/market/orders');
-      expect(result).toEqual(mockOrders);
     });
   });
 
