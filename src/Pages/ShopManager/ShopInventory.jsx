@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Package, Plus, Search, AlertTriangle, Edit, Trash2, Eye, Filter, Leaf, PackagePlus, History } from 'lucide-react';
-import { initializeStorage, getShopInventory, addToShopInventory, updateShopInventory, deleteInventoryItem, calculateExpiryDate, getSuppliers, getLowStockInventory, getOutOfStockInventory, getInventorySummary, getInventoryItemById, getInventoryItemHistory, restockInventoryItem } from '../../services/marketStorageService';
+import { initializeStorage, addToShopInventory, updateShopInventory, deleteInventoryItem, calculateExpiryDate, getSuppliers, getInventoryItemById, getInventoryItemHistory, restockInventoryItem } from '../../services/marketStorageService';
+import { getAllShops, getShopInventory as getShopInventoryByNumber } from '../../services/shopService';
 import { useToast } from '../../components/Ui/Toast';
 import { useConfirm } from '../../components/Ui/ConfirmDialog';
 
@@ -35,16 +36,13 @@ const ShopInventory = () => {
   const [editingItem, setEditingItem] = useState(null);
   const [error, setError] = useState(null);
 
-  // Stock tabs: 'all' | 'low-stock' | 'out-of-stock'
+  // Stock tabs: 'all' | 'low-stock' | 'out-of-stock'. `/inventory/low-stock` and
+  // `/inventory/summary` are admin-only, so tabs are derived client-side from the
+  // already-loaded `inventory` (each item's `status` is computed in
+  // mapProductToInventoryItem) rather than hitting those endpoints.
   const [stockTab, setStockTab] = useState('all');
-  const [tabInventory, setTabInventory] = useState(null); // null = use `inventory` as-is (composed with client-side filters)
-  const [tabLoading, setTabLoading] = useState(false);
 
-  // Summary stat cards
-  // Raw response from getInventorySummary(), fetched to have the function wired up.
-  // Its shape isn't guaranteed by the API, so it isn't used to drive the UI directly
-  // (see totalItemsCount/lowStockCount/outOfStockCount below, derived from `inventory`).
-  const [, setSummary] = useState(null);
+  const [shopNumber, setShopNumber] = useState(null);
 
   // Restock modal
   const [showRestockModal, setShowRestockModal] = useState(false);
@@ -63,17 +61,29 @@ const ShopInventory = () => {
   useEffect(() => {
     initializeStorage();
     loadSuppliers();
-    loadInventory();
-    loadSummary();
+    loadOwnShopNumber();
   }, []);
 
-  const loadSummary = async () => {
+  useEffect(() => {
+    if (shopNumber) loadInventory();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shopNumber]);
+
+  const loadOwnShopNumber = async () => {
     try {
-      const result = await getInventorySummary();
-      setSummary(result && typeof result === 'object' ? result : null);
+      const response = await getAllShops();
+      const shops = response?.data || [];
+      const ownShop = shops[0];
+      if (ownShop) {
+        setShopNumber(ownShop.shop_number ?? ownShop.shopNumber);
+      } else {
+        setError('No shop found for this account.');
+        setLoading(false);
+      }
     } catch (error) {
-      console.error('Error loading inventory summary:', error);
-      setSummary(null);
+      console.error('Error resolving own shop number:', error);
+      setError(error.message || 'Failed to identify your shop');
+      setLoading(false);
     }
   };
 
@@ -112,10 +122,12 @@ const ShopInventory = () => {
   };
 
   const loadInventory = async () => {
+    if (!shopNumber) return;
     setLoading(true);
     setError(null);
     try {
-      const inventoryData = await getShopInventory();
+      const response = await getShopInventoryByNumber(shopNumber);
+      const inventoryData = response?.data || [];
       const validInventory = Array.isArray(inventoryData) ? inventoryData.map(mapProductToInventoryItem) : [];
       setInventory(validInventory);
     } catch (error) {
@@ -127,26 +139,8 @@ const ShopInventory = () => {
     }
   };
 
-  const handleStockTabChange = async (tab) => {
+  const handleStockTabChange = (tab) => {
     setStockTab(tab);
-
-    if (tab === 'all') {
-      setTabInventory(null);
-      return;
-    }
-
-    setTabLoading(true);
-    try {
-      const rawList = tab === 'low-stock' ? await getLowStockInventory() : await getOutOfStockInventory();
-      const mapped = Array.isArray(rawList) ? rawList.map(mapProductToInventoryItem) : [];
-      setTabInventory(mapped);
-    } catch (error) {
-      console.error(`Error loading ${tab} inventory:`, error);
-      toast.error(error.message || `Failed to load ${tab === 'low-stock' ? 'low stock' : 'out of stock'} items`);
-      setTabInventory([]);
-    } finally {
-      setTabLoading(false);
-    }
   };
 
   const openRestockModal = (item) => {
@@ -240,9 +234,11 @@ const ShopInventory = () => {
   // Ensure inventory is always an array before filtering
   const safeInventory = Array.isArray(inventory) ? inventory : [];
 
-  // When a "Low Stock" / "Out of Stock" tab is active, list from that dedicated
-  // endpoint (tabInventory); otherwise fall back to the full loaded inventory.
-  const baseInventory = stockTab === 'all' ? safeInventory : (Array.isArray(tabInventory) ? tabInventory : []);
+  // "Low Stock" / "Out of Stock" tabs filter the already-loaded inventory client-side
+  // by each item's computed `status` (see mapProductToInventoryItem above).
+  const baseInventory = stockTab === 'all'
+    ? safeInventory
+    : safeInventory.filter(item => item.status === stockTab);
 
   const filteredInventory = baseInventory.filter(item => {
     if (!item) return false;
@@ -435,12 +431,10 @@ const ShopInventory = () => {
                   ? 'bg-green-600 text-white'
                   : 'bg-green-50 text-green-700 hover:bg-green-100'
               }`}
-              disabled={tabLoading}
             >
               {tab.label}
             </button>
           ))}
-          {tabLoading && <span className="text-sm text-green-600 self-center">Loading...</span>}
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="relative">
@@ -473,7 +467,7 @@ const ShopInventory = () => {
               Total Items: <span className="font-semibold">{filteredInventory.length}</span>
             </span>
             <button
-              onClick={() => { loadInventory(); loadSummary(); if (stockTab !== 'all') handleStockTabChange(stockTab); }}
+              onClick={() => loadInventory()}
               className="px-3 py-1 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-all text-sm"
               disabled={loading}
             >
@@ -485,7 +479,7 @@ const ShopInventory = () => {
 
       {/* Inventory Table */}
       <div className="bg-white rounded-xl shadow-lg overflow-hidden ring-1 ring-green-100">
-        {loading || tabLoading ? (
+        {loading ? (
           <div className="p-8 text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto"></div>
             <p className="mt-2 text-green-600">Loading inventory...</p>

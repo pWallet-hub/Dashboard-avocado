@@ -1,9 +1,13 @@
+import axios from 'axios';
 import apiClient, { extractData } from './apiClient';
 
-// Service health check (public)
+// Service health check (public). This endpoint lives at the bare `/health`
+// path, outside the `/api` prefix apiClient's baseURL always adds, so it
+// needs its own request against the API's origin rather than apiClient.
 export async function getServiceHealth() {
   try {
-    const response = await apiClient.get('/health');
+    const origin = apiClient.defaults.baseURL.replace(/\/api\/?$/, '');
+    const response = await axios.get(`${origin}/health`);
     return extractData(response);
   } catch (error) {
     console.error('Error in getServiceHealth:', error);

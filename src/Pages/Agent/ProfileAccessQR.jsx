@@ -67,7 +67,7 @@ const ProfileAccessQR = () => {
   const loadFarmers = async () => {
     setFarmersLoading(true);
     try {
-      const response = await listFarmers({ limit: 200 });
+      const response = await listFarmers({ limit: 100 });
       const farmersList = response?.data || [];
       setFarmers(Array.isArray(farmersList) ? farmersList : []);
     } catch (err) {

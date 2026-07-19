@@ -19,6 +19,14 @@ const pick = (obj, keys, fallback = null) => {
   return fallback;
 };
 
+// The API returns numeric fields as pre-formatted strings (e.g. "23°C", "68%",
+// "14 km/h"). Only append a unit when the value looks like a bare number.
+const withUnit = (value, unit) => {
+  if (value === null || value === undefined || value === '') return null;
+  const str = String(value);
+  return /[^\d.\-]/.test(str) ? str : `${str}${unit}`;
+};
+
 const conditionIcon = (conditionText) => {
   const text = (conditionText || '').toLowerCase();
   if (text.includes('storm') || text.includes('thunder')) return CloudLightning;
@@ -176,7 +184,7 @@ export default function Weather() {
 
   const temperature = pick(current, ['temperature', 'temp', 'temp_c']);
   const feelsLike = pick(current, ['feels_like', 'feelsLike', 'apparent_temperature']);
-  const conditionText = pick(current, ['condition', 'description', 'weather_condition', 'summary'], 'Unknown');
+  const conditionText = pick(current, ['conditions', 'condition', 'description', 'weather_condition', 'summary'], 'Unknown');
   const humidity = pick(current, ['humidity', 'humidity_percent']);
   const windSpeed = pick(current, ['wind_speed', 'wind', 'windSpeed']);
   const ConditionIcon = conditionIcon(conditionText);
@@ -328,11 +336,11 @@ export default function Weather() {
                   <ConditionIcon className="h-16 w-16 text-green-500" />
                   <div>
                     <p className="text-4xl font-bold text-green-900">
-                      {temperature !== null ? `${temperature}°C` : 'N/A'}
+                      {temperature !== null ? withUnit(temperature, '°C') : 'N/A'}
                     </p>
                     <p className="text-green-600 capitalize">{conditionText}</p>
                     {feelsLike !== null && (
-                      <p className="text-xs text-green-500">Feels like {feelsLike}°C</p>
+                      <p className="text-xs text-green-500">Feels like {withUnit(feelsLike, '°C')}</p>
                     )}
                   </div>
                 </div>
@@ -341,14 +349,14 @@ export default function Weather() {
                     <Droplets className="h-5 w-5 text-blue-500" />
                     <div>
                       <p className="text-xs text-green-600">Humidity</p>
-                      <p className="text-sm font-semibold text-green-900">{humidity !== null ? `${humidity}%` : 'N/A'}</p>
+                      <p className="text-sm font-semibold text-green-900">{humidity !== null ? withUnit(humidity, '%') : 'N/A'}</p>
                     </div>
                   </div>
                   <div className="bg-green-50 rounded-lg p-3 flex items-center gap-2">
                     <Wind className="h-5 w-5 text-gray-500" />
                     <div>
                       <p className="text-xs text-green-600">Wind</p>
-                      <p className="text-sm font-semibold text-green-900">{windSpeed !== null ? `${windSpeed} km/h` : 'N/A'}</p>
+                      <p className="text-sm font-semibold text-green-900">{windSpeed !== null ? withUnit(windSpeed, ' km/h') : 'N/A'}</p>
                     </div>
                   </div>
                 </div>
@@ -373,10 +381,11 @@ export default function Weather() {
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
                 {forecast.map((day, index) => {
-                  const dayCondition = pick(day, ['condition', 'description', 'summary'], '');
+                  const dayCondition = pick(day, ['conditions', 'condition', 'description', 'summary'], '');
                   const DayIcon = conditionIcon(dayCondition);
                   const high = pick(day, ['temp_max', 'high', 'max_temp', 'temperature_max']);
                   const low = pick(day, ['temp_min', 'low', 'min_temp', 'temperature_min']);
+                  const single = pick(day, ['temperature', 'temp']);
                   const date = pick(day, ['date', 'day', 'forecast_date']);
                   return (
                     <div key={index} className="bg-green-50 rounded-lg p-3 text-center ring-1 ring-green-100">
@@ -384,7 +393,9 @@ export default function Weather() {
                       <DayIcon className="h-8 w-8 text-green-500 mx-auto my-2" />
                       <p className="text-xs text-green-600 capitalize truncate">{dayCondition || 'N/A'}</p>
                       <p className="text-sm font-semibold text-green-900 mt-1">
-                        {high !== null ? `${high}°` : '--'} / {low !== null ? `${low}°` : '--'}
+                        {high !== null || low !== null
+                          ? `${high !== null ? withUnit(high, '°') : '--'} / ${low !== null ? withUnit(low, '°') : '--'}`
+                          : single !== null ? withUnit(single, '°C') : '--'}
                       </p>
                     </div>
                   );
