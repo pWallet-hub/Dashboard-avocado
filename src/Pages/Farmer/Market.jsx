@@ -5,9 +5,11 @@ import './Market.css';
 import DashboardHeader from "../../components/Header/DashboardHeader";
 import { Link } from 'react-router-dom';
 import product from '../../assets/image/product.jpg';
-import { ShoppingCart, X, CheckCircle, Loader2, Package, Minus, Plus, Trash2, Smartphone } from 'lucide-react';
+import { ShoppingCart, ShoppingBag, X, CheckCircle, Loader2, Package, Minus, Plus, Trash2, Smartphone } from 'lucide-react';
 
 import { getAllProducts } from '../../services/productsService';
+import { addCartItem } from '../../services/cartService';
+import { useToast } from '../../components/Ui/Toast';
 
 // Cart Service Singleton
 const CartService = {
@@ -149,11 +151,13 @@ function CartSidebar({ isOpen, onClose, cartItems, onUpdateQuantity, onRemoveIte
 }
 
 export default function Market() {
+  const toast = useToast();
   const [allProducts, setAllProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [cartItems, setCartItems] = useState(CartService.getCartItems());
   const [cartCount, setCartCount] = useState(CartService.getCartCount());
+  const [addingToBackendCart, setAddingToBackendCart] = useState(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentPhone, setPhoneNumber] = useState('');
   const [mobileProvider, setMobileProvider] = useState('');
@@ -217,6 +221,20 @@ export default function Market() {
     CartService.removeFromCart(productId);
     setCartItems(CartService.getCartItems());
     setCartCount(CartService.getCartCount());
+  };
+
+  // Add a product to the real backend cart (in addition to the local quick-cart above)
+  const addToBackendCart = async (productId) => {
+    setAddingToBackendCart(productId);
+    try {
+      await addCartItem(productId, 1);
+      toast.success('Added to cart');
+    } catch (error) {
+      console.error('Error adding to backend cart:', error);
+      toast.error(error.message || 'Failed to add item to cart');
+    } finally {
+      setAddingToBackendCart(null);
+    }
   };
 
   const handleCheckout = () => {
@@ -322,18 +340,28 @@ export default function Market() {
           <div className="all-products-section">
             <div className="flex items-center justify-between mb-4">
               <h2 className="section-titles mb-0">All Products</h2>
-              <button 
-                onClick={() => setIsCartOpen(true)} 
-                className="relative px-4 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-all flex items-center gap-2"
-              >
-                <ShoppingCart className="w-5 h-5" />
-                <span>Cart</span>
-                {cartCount > 0 && (
-                  <span className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full px-2 py-0.5 text-xs font-bold">
-                    {cartCount}
-                  </span>
-                )}
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setIsCartOpen(true)}
+                  className="relative px-4 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-all flex items-center gap-2"
+                >
+                  <ShoppingCart className="w-5 h-5" />
+                  <span>Cart</span>
+                  {cartCount > 0 && (
+                    <span className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full px-2 py-0.5 text-xs font-bold">
+                      {cartCount}
+                    </span>
+                  )}
+                </button>
+                <Link
+                  to="/dashboard/farmer/cart"
+                  title="Go to your order cart and checkout"
+                  className="px-4 py-2 border-2 border-green-600 text-green-700 rounded-lg font-semibold hover:bg-green-50 transition-all flex items-center gap-2"
+                >
+                  <ShoppingBag className="w-5 h-5" />
+                  <span>My Cart</span>
+                </Link>
+              </div>
             </div>
             {loading ? (
               <div className="loader-container">
@@ -395,6 +423,19 @@ export default function Market() {
                         ) : (
                           'Add to Cart'
                         )}
+                      </button>
+                      <button
+                        onClick={() => addToBackendCart(String(productItem.id || productItem._id))}
+                        disabled={addingToBackendCart === (productItem.id || productItem._id)}
+                        title="Add to your order cart (checkout later)"
+                        className="add-to-cart-btn mt-2 bg-white border-2 border-green-600 text-green-700 hover:bg-green-50 flex items-center justify-center gap-2"
+                      >
+                        {addingToBackendCart === (productItem.id || productItem._id) ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <ShoppingBag className="w-4 h-4" />
+                        )}
+                        Add to My Cart
                       </button>
                     </div>
                   </div>

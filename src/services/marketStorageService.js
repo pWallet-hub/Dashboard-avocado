@@ -27,9 +27,77 @@ export function syncAllFarmerData() {
   return true;
 }
 // Fetch market transactions from backend API
-export async function getMarketTransactions() {
-  const response = await apiClient.get('/transactions');
+export async function getMarketTransactions(params = {}) {
+  const response = await apiClient.get('/transactions', { params });
   return extractData(response);
+}
+
+// Create a transaction
+export async function createTransaction(transactionData) {
+  if (!transactionData || typeof transactionData !== 'object') {
+    throw new Error('Valid transaction data is required');
+  }
+  const required = ['payer_id', 'payee_id', 'amount', 'type', 'payment_method'];
+  const missing = required.filter((field) => transactionData[field] === undefined || transactionData[field] === null || transactionData[field] === '');
+  if (missing.length > 0) {
+    throw new Error(`Missing required transaction fields: ${missing.join(', ')}`);
+  }
+
+  try {
+    const response = await apiClient.post('/transactions', transactionData);
+    return extractData(response);
+  } catch (error) {
+    console.error('Error creating transaction:', error);
+    throw error;
+  }
+}
+
+// Financial summary (admin)
+export async function getTransactionsSummary(params = {}) {
+  try {
+    const response = await apiClient.get('/transactions/summary', { params });
+    return extractData(response);
+  } catch (error) {
+    console.error('Error fetching transactions summary:', error);
+    throw error;
+  }
+}
+
+// Get a single transaction by ID
+export async function getTransactionById(transactionId) {
+  if (!transactionId) {
+    throw new Error('Transaction ID is required');
+  }
+
+  try {
+    const response = await apiClient.get(`/transactions/${transactionId}`);
+    return extractData(response);
+  } catch (error) {
+    console.error('Error fetching transaction:', error);
+    throw error;
+  }
+}
+
+// Update transaction status (admin)
+export async function updateTransactionStatus(transactionId, status) {
+  if (!transactionId) {
+    throw new Error('Transaction ID is required');
+  }
+  if (!status) {
+    throw new Error('Status is required');
+  }
+  const validStatuses = ['pending', 'completed', 'failed', 'cancelled', 'processing'];
+  if (!validStatuses.includes(status)) {
+    throw new Error(`Invalid status. Must be one of: ${validStatuses.join(', ')}`);
+  }
+
+  try {
+    const response = await apiClient.put(`/transactions/${transactionId}/status`, { status });
+    return extractData(response);
+  } catch (error) {
+    console.error('Error updating transaction status:', error);
+    throw error;
+  }
 }
 // Stub for initializeStorage to prevent import errors
 export function initializeStorage() {
@@ -94,6 +162,84 @@ export async function deleteSupplier(supplierId) {
   }
 }
 
+export async function getSupplierById(supplierId) {
+  if (!supplierId) {
+    throw new Error('Supplier ID is required');
+  }
+
+  try {
+    const response = await apiClient.get(`/suppliers/${supplierId}`);
+    return extractData(response);
+  } catch (error) {
+    console.error('Error fetching supplier:', error);
+    throw error;
+  }
+}
+
+export async function getSupplierProducts(supplierId) {
+  if (!supplierId) {
+    throw new Error('Supplier ID is required');
+  }
+
+  try {
+    const response = await apiClient.get(`/suppliers/${supplierId}/products`);
+    return extractData(response);
+  } catch (error) {
+    console.error('Error fetching supplier products:', error);
+    throw error;
+  }
+}
+
+export async function getSupplierEvaluations(supplierId) {
+  if (!supplierId) {
+    throw new Error('Supplier ID is required');
+  }
+
+  try {
+    const response = await apiClient.get(`/suppliers/${supplierId}/evaluations`);
+    return extractData(response);
+  } catch (error) {
+    console.error('Error fetching supplier evaluations:', error);
+    throw error;
+  }
+}
+
+export async function createSupplierEvaluation(supplierId, evaluationData) {
+  if (!supplierId) {
+    throw new Error('Supplier ID is required');
+  }
+
+  if (!evaluationData || typeof evaluationData !== 'object') {
+    throw new Error('Valid evaluation data is required');
+  }
+
+  if (!evaluationData.rating || evaluationData.rating < 1 || evaluationData.rating > 5) {
+    throw new Error('Rating is required and must be between 1 and 5');
+  }
+
+  try {
+    const response = await apiClient.post(`/suppliers/${supplierId}/evaluations`, evaluationData);
+    return extractData(response);
+  } catch (error) {
+    console.error('Error submitting supplier evaluation:', error);
+    throw error;
+  }
+}
+
+export async function getSupplierHistory(supplierId) {
+  if (!supplierId) {
+    throw new Error('Supplier ID is required');
+  }
+
+  try {
+    const response = await apiClient.get(`/suppliers/${supplierId}/history`);
+    return extractData(response);
+  } catch (error) {
+    console.error('Error fetching supplier history:', error);
+    throw error;
+  }
+}
+
 // Shop inventory management
 export async function getShopInventory() {
   try {
@@ -151,6 +297,85 @@ export async function deleteInventoryItem(id) {
   }
 }
 
+export async function getLowStockInventory(threshold) {
+  try {
+    const params = {};
+    if (threshold !== undefined && threshold !== null) params.threshold = threshold;
+    const response = await apiClient.get('/inventory/low-stock', { params });
+    return extractData(response);
+  } catch (error) {
+    console.error('Error fetching low-stock inventory:', error);
+    throw error;
+  }
+}
+
+export async function getOutOfStockInventory() {
+  try {
+    const response = await apiClient.get('/inventory/out-of-stock');
+    return extractData(response);
+  } catch (error) {
+    console.error('Error fetching out-of-stock inventory:', error);
+    throw error;
+  }
+}
+
+export async function getInventorySummary() {
+  try {
+    const response = await apiClient.get('/inventory/summary');
+    return extractData(response);
+  } catch (error) {
+    console.error('Error fetching inventory summary:', error);
+    throw error;
+  }
+}
+
+export async function getInventoryItemById(id) {
+  if (!id) {
+    throw new Error('Inventory item ID is required');
+  }
+
+  try {
+    const response = await apiClient.get(`/inventory/${id}`);
+    return extractData(response);
+  } catch (error) {
+    console.error('Error fetching inventory item:', error);
+    throw error;
+  }
+}
+
+export async function getInventoryItemHistory(id, params = {}) {
+  if (!id) {
+    throw new Error('Inventory item ID is required');
+  }
+
+  try {
+    const response = await apiClient.get(`/inventory/${id}/history`, { params });
+    return extractData(response);
+  } catch (error) {
+    console.error('Error fetching inventory item history:', error);
+    throw error;
+  }
+}
+
+export async function restockInventoryItem(id, quantity, notes) {
+  if (!id) {
+    throw new Error('Inventory item ID is required');
+  }
+  if (!quantity || !Number.isInteger(quantity) || quantity < 1) {
+    throw new Error('Quantity is required and must be a positive integer');
+  }
+
+  try {
+    const payload = { quantity };
+    if (notes) payload.notes = notes;
+    const response = await apiClient.put(`/inventory/${id}/restock`, payload);
+    return extractData(response);
+  } catch (error) {
+    console.error('Error restocking inventory item:', error);
+    throw error;
+  }
+}
+
 // Farmer products (best-effort: Product records filtered by supplier_id)
 export async function getFarmerProducts(farmerId) {
   try {
@@ -181,6 +406,20 @@ export async function getShopCustomers() {
     return extractData(response);
   } catch (error) {
     console.error('Error fetching customers:', error);
+    throw error;
+  }
+}
+
+export async function getCustomerById(id) {
+  if (!id) {
+    throw new Error('Customer ID is required');
+  }
+
+  try {
+    const response = await apiClient.get(`/customers/${id}`);
+    return extractData(response);
+  } catch (error) {
+    console.error('Error fetching customer:', error);
     throw error;
   }
 }

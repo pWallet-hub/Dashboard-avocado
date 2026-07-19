@@ -166,6 +166,48 @@ export async function changePassword(passwordData) {
   return extractData(response);
 }
 
+// Verify token validity
+export async function verifyToken() {
+  try {
+    const response = await apiClient.get('/auth/verify');
+    return extractData(response);
+  } catch (error) {
+    throw new Error(error.response?.data?.message || error.message || 'Failed to verify token');
+  }
+}
+
+// Request a password reset email
+export async function forgotPassword(email) {
+  if (!email) {
+    throw new Error("Email is required");
+  }
+
+  try {
+    const response = await apiClient.post('/auth/forgot-password', { email });
+    return extractData(response);
+  } catch (error) {
+    throw new Error(error.response?.data?.message || error.message || 'Failed to request password reset');
+  }
+}
+
+// Reset password with a valid token
+export async function resetPassword(token, newPassword) {
+  if (!token || !newPassword) {
+    throw new Error("Token and new password are required");
+  }
+
+  if (newPassword.length < 8) {
+    throw new Error("New password must be at least 8 characters long");
+  }
+
+  try {
+    const response = await apiClient.post('/auth/reset-password', { token, newPassword });
+    return extractData(response);
+  } catch (error) {
+    throw new Error(error.response?.data?.message || error.message || 'Failed to reset password');
+  }
+}
+
 // Refresh token
 export async function refreshToken() {
   const refreshToken = localStorage.getItem('refreshToken');

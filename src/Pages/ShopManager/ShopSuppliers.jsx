@@ -8,9 +8,18 @@ import {
   exportShopsToExcel
 } from '../../services/shopService';
 import {
+  getSuppliers,
+  getSupplierById,
+  getSupplierProducts,
+  getSupplierEvaluations,
+  createSupplierEvaluation,
+  getSupplierHistory,
+} from '../../services/marketStorageService';
+import {
   Store, MapPin, User, Phone, Mail, Edit, Trash2, Download,
   Search, Eye, Building2, MapPinned, TrendingUp, CheckCircle2,
-  XCircle, Filter, RefreshCw, Users, Globe
+  XCircle, Filter, RefreshCw, Users, Globe, Package, Star,
+  ClipboardList, History as HistoryIcon,
 } from 'lucide-react';
 import { useToast } from '../../components/Ui/Toast';
 import { useConfirm } from '../../components/Ui/ConfirmDialog';
@@ -64,6 +73,24 @@ export default function ShopSuppliers() {
     ownerPhone: '',
   });
 
+  // ── Suppliers section state (additive, does not touch shop logic) ──
+  const [suppliers, setSuppliers] = useState([]);
+  const [suppliersLoading, setSuppliersLoading] = useState(false);
+  const [suppliersError, setSuppliersError] = useState(null);
+  const [selectedSupplier, setSelectedSupplier] = useState(null);
+  const [isSupplierViewModalOpen, setIsSupplierViewModalOpen] = useState(false);
+  const [supplierDetail, setSupplierDetail] = useState(null);
+  const [supplierDetailLoading, setSupplierDetailLoading] = useState(false);
+  const [supplierProducts, setSupplierProducts] = useState([]);
+  const [supplierProductsLoading, setSupplierProductsLoading] = useState(false);
+  const [supplierEvaluations, setSupplierEvaluations] = useState([]);
+  const [supplierEvaluationsLoading, setSupplierEvaluationsLoading] = useState(false);
+  const [supplierHistory, setSupplierHistory] = useState([]);
+  const [supplierHistoryLoading, setSupplierHistoryLoading] = useState(false);
+  const [newEvaluationRating, setNewEvaluationRating] = useState(5);
+  const [newEvaluationComment, setNewEvaluationComment] = useState('');
+  const [submittingEvaluation, setSubmittingEvaluation] = useState(false);
+
   const provinces = [
     'Kigali',
     'Eastern Province',
@@ -82,6 +109,7 @@ export default function ShopSuppliers() {
 
   useEffect(() => {
     fetchShops();
+    fetchSuppliers();
   }, []);
 
   const fetchShops = async () => {
@@ -118,6 +146,120 @@ export default function ShopSuppliers() {
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  // ── Suppliers section handlers (additive, does not touch shop logic) ──
+  const fetchSuppliers = async () => {
+    setSuppliersLoading(true);
+    setSuppliersError(null);
+    try {
+      const response = await getSuppliers();
+      const data = Array.isArray(response) ? response : response?.data || [];
+      setSuppliers(Array.isArray(data) ? data : []);
+    } catch (error) {
+      setSuppliers([]);
+      setSuppliersError(error.message || 'Failed to load suppliers.');
+    } finally {
+      setSuppliersLoading(false);
+    }
+  };
+
+  const refreshSupplierEvaluations = async (supplierId) => {
+    setSupplierEvaluationsLoading(true);
+    try {
+      const evaluations = await getSupplierEvaluations(supplierId);
+      setSupplierEvaluations(Array.isArray(evaluations) ? evaluations : evaluations?.data || []);
+    } catch {
+      setSupplierEvaluations([]);
+    } finally {
+      setSupplierEvaluationsLoading(false);
+    }
+  };
+
+  const handleViewSupplier = async (supplier) => {
+    setSelectedSupplier(supplier);
+    setIsSupplierViewModalOpen(true);
+    setSupplierDetail(null);
+    setSupplierProducts([]);
+    setSupplierEvaluations([]);
+    setSupplierHistory([]);
+    setNewEvaluationRating(5);
+    setNewEvaluationComment('');
+
+    setSupplierDetailLoading(true);
+    setSupplierProductsLoading(true);
+    setSupplierEvaluationsLoading(true);
+    setSupplierHistoryLoading(true);
+
+    const results = await Promise.allSettled([
+      getSupplierById(supplier.id),
+      getSupplierProducts(supplier.id),
+      getSupplierEvaluations(supplier.id),
+      getSupplierHistory(supplier.id),
+    ]);
+
+    const [detailResult, productsResult, evaluationsResult, historyResult] = results;
+
+    if (detailResult.status === 'fulfilled') {
+      setSupplierDetail(detailResult.value);
+    } else {
+      setSupplierDetail(null);
+    }
+    setSupplierDetailLoading(false);
+
+    if (productsResult.status === 'fulfilled') {
+      const data = productsResult.value;
+      setSupplierProducts(Array.isArray(data) ? data : data?.data || []);
+    } else {
+      setSupplierProducts([]);
+    }
+    setSupplierProductsLoading(false);
+
+    if (evaluationsResult.status === 'fulfilled') {
+      const data = evaluationsResult.value;
+      setSupplierEvaluations(Array.isArray(data) ? data : data?.data || []);
+    } else {
+      setSupplierEvaluations([]);
+    }
+    setSupplierEvaluationsLoading(false);
+
+    if (historyResult.status === 'fulfilled') {
+      const data = historyResult.value;
+      setSupplierHistory(Array.isArray(data) ? data : data?.data || []);
+    } else {
+      setSupplierHistory([]);
+    }
+    setSupplierHistoryLoading(false);
+  };
+
+  const closeSupplierModal = () => {
+    setIsSupplierViewModalOpen(false);
+    setSelectedSupplier(null);
+    setSupplierDetail(null);
+    setSupplierProducts([]);
+    setSupplierEvaluations([]);
+    setSupplierHistory([]);
+    setNewEvaluationRating(5);
+    setNewEvaluationComment('');
+  };
+
+  const handleSubmitEvaluation = async () => {
+    if (!selectedSupplier) return;
+    setSubmittingEvaluation(true);
+    try {
+      await createSupplierEvaluation(selectedSupplier.id, {
+        rating: Number(newEvaluationRating),
+        comment: newEvaluationComment,
+      });
+      toast.success('Evaluation submitted');
+      setNewEvaluationRating(5);
+      setNewEvaluationComment('');
+      await refreshSupplierEvaluations(selectedSupplier.id);
+    } catch (error) {
+      toast.error(error.message || 'Failed to submit evaluation');
+    } finally {
+      setSubmittingEvaluation(false);
     }
   };
 
@@ -594,6 +736,365 @@ export default function ShopSuppliers() {
             </div>
           )}
         </div>
+
+        {/* ────────────────────────  SUPPLIERS SECTION  ──────────────────────── */}
+        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
+          <div className="bg-gradient-to-r from-green-600 to-green-700 px-8 py-6">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
+                <Users className="w-8 h-8 text-white" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-white flex items-center gap-3">
+                  Suppliers
+                </h2>
+                <p className="text-green-100 mt-1">View supplier details, products, history and evaluations</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="max-h-[32rem] overflow-y-auto">
+            {suppliersLoading ? (
+              <div className="flex flex-col items-center justify-center py-16">
+                <ClipLoader color="#0f4c3a" loading={suppliersLoading} size={50} />
+                <p className="mt-4 text-gray-600 font-medium">Loading suppliers...</p>
+              </div>
+            ) : suppliersError ? (
+              <div className="py-16 text-center">
+                <XCircle className="w-14 h-14 mx-auto mb-4 text-red-400" />
+                <p className="text-red-600 font-semibold">{suppliersError}</p>
+                <button
+                  onClick={fetchSuppliers}
+                  className="mt-4 px-6 py-2.5 bg-green-700 text-white rounded-xl font-semibold hover:bg-green-800 transition-colors inline-flex items-center gap-2"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  Retry
+                </button>
+              </div>
+            ) : suppliers.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gradient-to-r from-green-50 to-green-50 border-b-2 border-green-100 sticky top-0">
+                    <tr>
+                      {['Name', 'Category', 'Contact Person', 'Email', 'Phone', 'Actions'].map((label) => (
+                        <th key={label} className="px-6 py-4 text-left">
+                          <span className="text-xs font-bold text-gray-700 uppercase tracking-wider">
+                            {label}
+                          </span>
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {suppliers.map((supplier) => (
+                      <tr key={supplier.id} className="hover:bg-green-50 transition-all duration-200">
+                        <td className="px-6 py-4 font-semibold text-gray-900">{supplier.name || 'N/A'}</td>
+                        <td className="px-6 py-4">
+                          <span className="px-2.5 py-1 bg-amber-100 text-amber-800 rounded-lg text-xs font-semibold">
+                            {supplier.category || 'N/A'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-700">{supplier.contact_person || 'N/A'}</td>
+                        <td className="px-6 py-4 text-sm text-gray-600">{supplier.email || 'N/A'}</td>
+                        <td className="px-6 py-4 text-sm text-gray-600">{supplier.phone || 'N/A'}</td>
+                        <td className="px-6 py-4">
+                          <button
+                            onClick={() => handleViewSupplier(supplier)}
+                            className="p-2 bg-green-100 text-green-800 rounded-lg hover:bg-green-200 transition-colors"
+                            title="View Supplier"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="py-16 text-center">
+                <div className="w-20 h-20 bg-gradient-to-br from-green-50 to-green-50 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                  <Users className="w-10 h-10 text-green-600" />
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">No suppliers found</h3>
+                <p className="text-gray-600">There are currently no suppliers registered.</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ──────────────────────  SUPPLIER DETAIL MODAL  ────────────────────── */}
+        {isSupplierViewModalOpen && selectedSupplier && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+            <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl animate-in zoom-in-95 duration-200">
+              {/* Header */}
+              <div className="bg-gradient-to-r from-green-600 to-green-700 px-8 py-6 flex items-center justify-between sticky top-0 z-10">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
+                    <Eye className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-bold text-white">Supplier Details</h2>
+                    <p className="text-green-100 text-sm">{selectedSupplier.name}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={closeSupplierModal}
+                  className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center text-white hover:bg-white/30 transition-colors"
+                >
+                  <XCircle className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="p-8 space-y-8">
+                {/* Supplier detail */}
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                    <Building2 className="w-5 h-5 text-green-700" />
+                    Details
+                  </h3>
+                  {supplierDetailLoading ? (
+                    <div className="flex items-center justify-center py-8">
+                      <ClipLoader color="#0f4c3a" loading={supplierDetailLoading} size={36} />
+                    </div>
+                  ) : supplierDetail ? (
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1.5">Name</label>
+                        <div className="px-4 py-2.5 bg-white border border-gray-300 rounded-lg text-sm">
+                          {supplierDetail.name || 'N/A'}
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1.5">Category</label>
+                        <div className="px-4 py-2.5 bg-white border border-gray-300 rounded-lg text-sm">
+                          {supplierDetail.category || 'N/A'}
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1.5">Contact Person</label>
+                        <div className="px-4 py-2.5 bg-white border border-gray-300 rounded-lg text-sm">
+                          {supplierDetail.contact_person || 'N/A'}
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1.5">Phone</label>
+                        <div className="px-4 py-2.5 bg-white border border-gray-300 rounded-lg text-sm flex items-center gap-2">
+                          <Phone className="w-4 h-4 text-gray-400" />
+                          {supplierDetail.phone || 'N/A'}
+                        </div>
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-1.5">Email</label>
+                        <div className="px-4 py-2.5 bg-white border border-gray-300 rounded-lg text-sm flex items-center gap-2">
+                          <Mail className="w-4 h-4 text-gray-400" />
+                          {supplierDetail.email || 'N/A'}
+                        </div>
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-1.5">Address</label>
+                        <div className="px-4 py-2.5 bg-white border border-gray-300 rounded-lg text-sm flex items-center gap-2">
+                          <MapPin className="w-4 h-4 text-gray-400" />
+                          {[
+                            supplierDetail.address?.street_address,
+                            supplierDetail.address?.city,
+                            supplierDetail.address?.province,
+                            supplierDetail.address?.country,
+                          ].filter(Boolean).join(', ') || 'N/A'}
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-500">Unable to load supplier details.</p>
+                  )}
+                </div>
+
+                {/* Products */}
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                    <Package className="w-5 h-5 text-green-700" />
+                    Products
+                  </h3>
+                  {supplierProductsLoading ? (
+                    <div className="flex items-center justify-center py-8">
+                      <ClipLoader color="#0f4c3a" loading={supplierProductsLoading} size={36} />
+                    </div>
+                  ) : supplierProducts.length > 0 ? (
+                    <div className="overflow-x-auto border border-gray-200 rounded-xl">
+                      <table className="w-full text-sm">
+                        <thead className="bg-green-50">
+                          <tr>
+                            <th className="px-4 py-2.5 text-left font-semibold text-gray-700">Product</th>
+                            <th className="px-4 py-2.5 text-left font-semibold text-gray-700">Price</th>
+                            <th className="px-4 py-2.5 text-left font-semibold text-gray-700">Quantity</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                          {supplierProducts.map((product, idx) => (
+                            <tr key={product.id || idx}>
+                              <td className="px-4 py-2.5">{product.name || product.productName || 'N/A'}</td>
+                              <td className="px-4 py-2.5">{product.price ?? 'N/A'}</td>
+                              <td className="px-4 py-2.5">{product.quantity ?? product.stock ?? 'N/A'}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-500">No products found for this supplier.</p>
+                  )}
+                </div>
+
+                {/* Order / Procurement History */}
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                    <HistoryIcon className="w-5 h-5 text-green-700" />
+                    Order History
+                  </h3>
+                  {supplierHistoryLoading ? (
+                    <div className="flex items-center justify-center py-8">
+                      <ClipLoader color="#0f4c3a" loading={supplierHistoryLoading} size={36} />
+                    </div>
+                  ) : supplierHistory.length > 0 ? (
+                    <div className="overflow-x-auto border border-gray-200 rounded-xl">
+                      <table className="w-full text-sm">
+                        <thead className="bg-green-50">
+                          <tr>
+                            <th className="px-4 py-2.5 text-left font-semibold text-gray-700">Order #</th>
+                            <th className="px-4 py-2.5 text-left font-semibold text-gray-700">Date</th>
+                            <th className="px-4 py-2.5 text-left font-semibold text-gray-700">Amount</th>
+                            <th className="px-4 py-2.5 text-left font-semibold text-gray-700">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                          {supplierHistory.map((entry, idx) => (
+                            <tr key={entry.id || idx}>
+                              <td className="px-4 py-2.5">{entry.order_number || entry.orderNumber || 'N/A'}</td>
+                              <td className="px-4 py-2.5">
+                                {entry.date
+                                  ? new Date(entry.date).toLocaleDateString()
+                                  : entry.created_at
+                                  ? new Date(entry.created_at).toLocaleDateString()
+                                  : 'N/A'}
+                              </td>
+                              <td className="px-4 py-2.5">{entry.amount ?? entry.total ?? 'N/A'}</td>
+                              <td className="px-4 py-2.5">{entry.status || 'N/A'}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-500">No order history found for this supplier.</p>
+                  )}
+                </div>
+
+                {/* Evaluations */}
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                    <ClipboardList className="w-5 h-5 text-green-700" />
+                    Evaluations
+                  </h3>
+                  {supplierEvaluationsLoading ? (
+                    <div className="flex items-center justify-center py-8">
+                      <ClipLoader color="#0f4c3a" loading={supplierEvaluationsLoading} size={36} />
+                    </div>
+                  ) : supplierEvaluations.length > 0 ? (
+                    <div className="space-y-3 mb-6">
+                      {supplierEvaluations.map((evaluation, idx) => (
+                        <div key={evaluation.id || idx} className="p-4 bg-green-50 border border-green-100 rounded-xl">
+                          <div className="flex items-center justify-between mb-1.5">
+                            <div className="flex items-center gap-1">
+                              {Array.from({ length: 5 }).map((_, starIdx) => (
+                                <Star
+                                  key={starIdx}
+                                  className={`w-4 h-4 ${
+                                    starIdx < (evaluation.rating || 0)
+                                      ? 'text-amber-500 fill-amber-500'
+                                      : 'text-gray-300'
+                                  }`}
+                                />
+                              ))}
+                              <span className="ml-1 text-sm font-semibold text-gray-700">
+                                {evaluation.rating ?? 'N/A'}/5
+                              </span>
+                            </div>
+                            <span className="text-xs text-gray-500">
+                              {evaluation.date || evaluation.created_at
+                                ? new Date(evaluation.date || evaluation.created_at).toLocaleDateString()
+                                : 'N/A'}
+                            </span>
+                          </div>
+                          {evaluation.comment && (
+                            <p className="text-sm text-gray-700">{evaluation.comment}</p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-500 mb-6">No evaluations yet for this supplier.</p>
+                  )}
+
+                  {/* New evaluation form */}
+                  <div className="p-5 bg-white border border-gray-200 rounded-xl">
+                    <h4 className="text-sm font-bold text-gray-900 mb-3">Submit New Evaluation</h4>
+                    <div className="grid md:grid-cols-3 gap-4 mb-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1.5">Rating</label>
+                        <select
+                          value={newEvaluationRating}
+                          onChange={(e) => setNewEvaluationRating(e.target.value)}
+                          className="w-full px-4 py-2.5 bg-white border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all"
+                        >
+                          {[5, 4, 3, 2, 1].map((r) => (
+                            <option key={r} value={r}>{r} / 5</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-1.5">Comment</label>
+                        <textarea
+                          value={newEvaluationComment}
+                          onChange={(e) => setNewEvaluationComment(e.target.value)}
+                          rows={2}
+                          className="w-full px-4 py-2.5 bg-white border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all resize-vertical"
+                          placeholder="Optional comment about this supplier"
+                        />
+                      </div>
+                    </div>
+                    <button
+                      onClick={handleSubmitEvaluation}
+                      disabled={submittingEvaluation}
+                      className="px-6 py-2.5 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-xl font-semibold hover:from-green-700 hover:to-green-800 transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                    >
+                      {submittingEvaluation ? (
+                        <>
+                          <ClipLoader color="#fff" size={16} />
+                          Submitting...
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle2 className="w-4 h-4" />
+                          Submit Evaluation
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="px-8 py-6 bg-green-50 border-t border-gray-200 flex justify-end gap-3">
+                <button
+                  onClick={closeSupplierModal}
+                  className="px-6 py-2.5 bg-white text-gray-700 rounded-xl font-semibold hover:bg-gray-100 transition-colors border border-gray-200"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
               {/* ────────────────────────  VIEW SHOP MODAL  ──────────────────────── */}
         {isViewModalOpen && selectedShop && (

@@ -160,6 +160,24 @@ export async function listAgents(options = {}) {
   }
 }
 
+// Get all shop managers
+export async function getShopManagers(options = {}) {
+  try {
+    const params = {};
+    if (options.page) params.page = options.page;
+    if (options.limit) params.limit = options.limit;
+
+    console.log('Fetching shop managers from /users/shop-managers');
+    const response = await apiClient.get('/users/shop-managers', { params });
+    console.log('Shop managers response:', response);
+    return extractData(response);
+  } catch (error) {
+    console.error('Error fetching shop managers:', error);
+    console.error('Error response:', error.response?.data);
+    throw error;
+  }
+}
+
 // Update user status
 export async function updateUserStatus(userId, status) {
   if (!userId) {

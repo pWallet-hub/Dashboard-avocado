@@ -2,14 +2,37 @@ import { useEffect, useState } from 'react';
 import { ClipLoader } from 'react-spinners';
 import '../Styles/Agent.css';
 import { listAgents, deleteUser, createAgent } from '../../services/usersService';
+import { getAgentProfileById, updateAgentProfileById } from '../../services/agent-information';
 import { useConfirm } from '../../components/Ui/ConfirmDialog';
+import { useToast } from '../../components/Ui/Toast';
 
 export default function Agents() {
   const confirm = useConfirm();
+  const toast = useToast();
   const [agents, setAgents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // Extended agent profile (agent-information) view/edit modal state
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [profileEditMode, setProfileEditMode] = useState(false);
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [profileError, setProfileError] = useState(null);
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [activeAgent, setActiveAgent] = useState(null);
+  const [agentProfile, setAgentProfile] = useState(null);
+  const [profileForm, setProfileForm] = useState({
+    territory: '',
+    province: '',
+    district: '',
+    sector: '',
+    cell: '',
+    village: '',
+    specialization: '',
+    experience: '',
+    certification: ''
+  });
   const [formData, setFormData] = useState({
     full_name: '',
     email: '',
@@ -82,6 +105,92 @@ export default function Agents() {
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
     setFilters(prev => ({ ...prev, [name]: value, page: 1 }));
+  };
+
+  // Normalize the agent-information response into a flat profile object,
+  // since the API may return { user_info, agent_profile } or a flat shape.
+  const extractProfile = (data) => {
+    if (!data) return {};
+    return data.agent_profile || data.profile || data;
+  };
+
+  const populateProfileForm = (profile) => {
+    setProfileForm({
+      territory: Array.isArray(profile?.territory) ? profile.territory.join(', ') : (profile?.territory || ''),
+      province: profile?.province || '',
+      district: profile?.district || '',
+      sector: profile?.sector || '',
+      cell: profile?.cell || '',
+      village: profile?.village || '',
+      specialization: profile?.specialization || '',
+      experience: profile?.experience || '',
+      certification: profile?.certification || ''
+    });
+  };
+
+  const openProfileModal = async (agent, editMode = false) => {
+    setActiveAgent(agent);
+    setProfileEditMode(editMode);
+    setIsProfileModalOpen(true);
+    setProfileError(null);
+    setAgentProfile(null);
+    setProfileLoading(true);
+
+    try {
+      const data = await getAgentProfileById(agent.id);
+      setAgentProfile(data);
+      populateProfileForm(extractProfile(data));
+    } catch (err) {
+      console.error('Error fetching agent profile:', err);
+      setProfileError(err.response?.data?.message || err.message || 'Failed to load agent profile');
+    } finally {
+      setProfileLoading(false);
+    }
+  };
+
+  const closeProfileModal = () => {
+    setIsProfileModalOpen(false);
+    setProfileEditMode(false);
+    setActiveAgent(null);
+    setAgentProfile(null);
+    setProfileError(null);
+  };
+
+  const handleProfileFormChange = (e) => {
+    const { name, value } = e.target;
+    setProfileForm(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSaveProfile = async () => {
+    if (!activeAgent) return;
+
+    setProfileSaving(true);
+    try {
+      const updateData = {
+        territory: profileForm.territory
+          ? profileForm.territory.split(',').map(t => t.trim()).filter(Boolean)
+          : [],
+        province: profileForm.province.trim(),
+        district: profileForm.district.trim(),
+        sector: profileForm.sector.trim(),
+        cell: profileForm.cell.trim(),
+        village: profileForm.village.trim(),
+        specialization: profileForm.specialization.trim(),
+        experience: profileForm.experience.trim(),
+        certification: profileForm.certification.trim()
+      };
+
+      const updated = await updateAgentProfileById(activeAgent.id, updateData);
+      setAgentProfile(updated);
+      populateProfileForm(extractProfile(updated));
+      setProfileEditMode(false);
+      toast.success('Agent profile updated successfully');
+    } catch (err) {
+      console.error('Error updating agent profile:', err);
+      toast.error(err.response?.data?.message || err.message || 'Failed to update agent profile');
+    } finally {
+      setProfileSaving(false);
+    }
   };
 
   const validateForm = () => {
@@ -245,8 +354,8 @@ export default function Agents() {
                     </td>
                     <td>
                       <div className="action-buttons">
-                        <button className="btn btn-view">View</button>
-                        <button className="btn btn-edit">Edit</button>
+                        <button className="btn btn-view" onClick={() => openProfileModal(agent, false)}>View</button>
+                        <button className="btn btn-edit" onClick={() => openProfileModal(agent, true)}>Edit</button>
                         <button className="btn btn-delete" onClick={() => handleDelete(agent.id)}>
                           Delete
                         </button>
@@ -350,6 +459,219 @@ export default function Agents() {
                 {responseMessage}
               </p>
             )}
+          </div>
+        </div>
+      )}
+
+      {isProfileModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-semibold text-gray-800">
+                {profileEditMode ? 'Edit Agent Profile' : 'Agent Profile'}
+                {activeAgent?.full_name ? ` - ${activeAgent.full_name}` : ''}
+              </h3>
+              <button
+                onClick={closeProfileModal}
+                className="text-gray-400 hover:text-gray-600 text-2xl leading-none"
+                aria-label="Close"
+              >
+                ×
+              </button>
+            </div>
+
+            {profileLoading ? (
+              <div className="py-10 flex justify-center">
+                <ClipLoader color="#3498db" loading={true} size={40} />
+              </div>
+            ) : profileError ? (
+              <div className="text-red-600 text-sm bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
+                {profileError}
+              </div>
+            ) : profileEditMode ? (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Territory (comma-separated)</label>
+                    <input
+                      type="text"
+                      name="territory"
+                      value={profileForm.territory}
+                      onChange={handleProfileFormChange}
+                      className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="e.g. Sector A, Sector B"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Specialization</label>
+                    <input
+                      type="text"
+                      name="specialization"
+                      value={profileForm.specialization}
+                      onChange={handleProfileFormChange}
+                      className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="e.g. Pest Management"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Province</label>
+                    <input
+                      type="text"
+                      name="province"
+                      value={profileForm.province}
+                      onChange={handleProfileFormChange}
+                      className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">District</label>
+                    <input
+                      type="text"
+                      name="district"
+                      value={profileForm.district}
+                      onChange={handleProfileFormChange}
+                      className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Sector</label>
+                    <input
+                      type="text"
+                      name="sector"
+                      value={profileForm.sector}
+                      onChange={handleProfileFormChange}
+                      className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Cell</label>
+                    <input
+                      type="text"
+                      name="cell"
+                      value={profileForm.cell}
+                      onChange={handleProfileFormChange}
+                      className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Village</label>
+                    <input
+                      type="text"
+                      name="village"
+                      value={profileForm.village}
+                      onChange={handleProfileFormChange}
+                      className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Experience</label>
+                    <input
+                      type="text"
+                      name="experience"
+                      value={profileForm.experience}
+                      onChange={handleProfileFormChange}
+                      className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="e.g. 5 years"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Certification</label>
+                    <input
+                      type="text"
+                      name="certification"
+                      value={profileForm.certification}
+                      onChange={handleProfileFormChange}
+                      className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <span className="block text-xs font-semibold text-gray-500 uppercase">Territory</span>
+                    <span className="text-sm text-gray-800">
+                      {Array.isArray(extractProfile(agentProfile)?.territory)
+                        ? extractProfile(agentProfile).territory.join(', ') || 'N/A'
+                        : extractProfile(agentProfile)?.territory || 'N/A'}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="block text-xs font-semibold text-gray-500 uppercase">Specialization</span>
+                    <span className="text-sm text-gray-800">{extractProfile(agentProfile)?.specialization || 'N/A'}</span>
+                  </div>
+                  <div>
+                    <span className="block text-xs font-semibold text-gray-500 uppercase">Province</span>
+                    <span className="text-sm text-gray-800">{extractProfile(agentProfile)?.province || 'N/A'}</span>
+                  </div>
+                  <div>
+                    <span className="block text-xs font-semibold text-gray-500 uppercase">District</span>
+                    <span className="text-sm text-gray-800">{extractProfile(agentProfile)?.district || 'N/A'}</span>
+                  </div>
+                  <div>
+                    <span className="block text-xs font-semibold text-gray-500 uppercase">Sector</span>
+                    <span className="text-sm text-gray-800">{extractProfile(agentProfile)?.sector || 'N/A'}</span>
+                  </div>
+                  <div>
+                    <span className="block text-xs font-semibold text-gray-500 uppercase">Cell</span>
+                    <span className="text-sm text-gray-800">{extractProfile(agentProfile)?.cell || 'N/A'}</span>
+                  </div>
+                  <div>
+                    <span className="block text-xs font-semibold text-gray-500 uppercase">Village</span>
+                    <span className="text-sm text-gray-800">{extractProfile(agentProfile)?.village || 'N/A'}</span>
+                  </div>
+                  <div>
+                    <span className="block text-xs font-semibold text-gray-500 uppercase">Experience</span>
+                    <span className="text-sm text-gray-800">{extractProfile(agentProfile)?.experience || 'N/A'}</span>
+                  </div>
+                  <div>
+                    <span className="block text-xs font-semibold text-gray-500 uppercase">Certification</span>
+                    <span className="text-sm text-gray-800">{extractProfile(agentProfile)?.certification || 'N/A'}</span>
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="text-sm font-semibold text-gray-700 mb-2">Performance Metrics</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-gray-50 rounded-lg p-4">
+                    <div>
+                      <span className="block text-xs font-semibold text-gray-500 uppercase">Farmers Assisted</span>
+                      <span className="text-sm text-gray-800">
+                        {extractProfile(agentProfile)?.farmersAssisted ?? extractProfile(agentProfile)?.statistics?.farmersAssisted ?? 'N/A'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="block text-xs font-semibold text-gray-500 uppercase">Total Transactions</span>
+                      <span className="text-sm text-gray-800">
+                        {extractProfile(agentProfile)?.totalTransactions ?? extractProfile(agentProfile)?.statistics?.totalTransactions ?? 'N/A'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="block text-xs font-semibold text-gray-500 uppercase">Performance</span>
+                      <span className="text-sm text-gray-800">{extractProfile(agentProfile)?.performance || 'N/A'}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="flex justify-end gap-3 mt-6">
+              <button
+                onClick={closeProfileModal}
+                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-all"
+              >
+                Close
+              </button>
+              {profileEditMode && !profileLoading && !profileError && (
+                <button
+                  onClick={handleSaveProfile}
+                  disabled={profileSaving}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all disabled:opacity-50"
+                >
+                  {profileSaving ? 'Saving...' : 'Save Changes'}
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}

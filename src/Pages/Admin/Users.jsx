@@ -3,8 +3,10 @@ import * as XLSX from 'xlsx';
 import { CiLogout } from "react-icons/ci";
 import Select from 'react-select';
 import { ClipLoader } from "react-spinners";
+import { CheckCircle2, XCircle, Edit2, X } from 'lucide-react';
 import '../Styles/Growers.css';
 import { listFarmers, createFarmer, updateUser, deleteUser } from '../../services/usersService';
+import { getFarmerProfileById, updateFarmerProfileById, verifyFarmerProfile } from '../../services/farmer-information';
 import { useToast } from '../../components/Ui/Toast';
 import { useConfirm } from '../../components/Ui/ConfirmDialog';
 
@@ -24,6 +26,17 @@ const Users = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [itemsPerPage, setItemsPerPage] = useState(12);
   const [currentPage, setCurrentPage] = useState(1);
+
+  // Extended farmer profile (FarmerInformation) state
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [profileError, setProfileError] = useState(null);
+  const [profileUser, setProfileUser] = useState(null); // the basic user row that triggered the modal
+  const [extendedProfile, setExtendedProfile] = useState(null); // { user, farmer_profile } normalized
+  const [isProfileEditMode, setIsProfileEditMode] = useState(false);
+  const [profileForm, setProfileForm] = useState({});
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [verifyingStatus, setVerifyingStatus] = useState(null); // 'verified' | 'rejected' | null
 
   // Get logged-in user info
   const loggedInUser = JSON.parse(localStorage.getItem('user') || '{}');
@@ -92,6 +105,124 @@ const Users = () => {
     setIsModalOpen(false);
     setSelectedUser(null);
     setIsEditMode(false);
+  };
+
+  // Normalize the various possible shapes the extended profile endpoint may return
+  // (either { data: { user, farmer_profile } } or a flatter object) into a consistent shape.
+  const normalizeExtendedProfile = (response) => {
+    const payload = response?.data ?? response ?? {};
+    const farmerProfile = payload.farmer_profile || payload.data?.farmer_profile || payload;
+    const userInfo = payload.user || payload.data?.user || null;
+    return { user: userInfo, farmer_profile: farmerProfile };
+  };
+
+  const openExtendedProfile = async (user) => {
+    setProfileUser(user);
+    setIsProfileModalOpen(true);
+    setIsProfileEditMode(false);
+    setProfileError(null);
+    setExtendedProfile(null);
+    setProfileLoading(true);
+    try {
+      const response = await getFarmerProfileById(user.id);
+      const normalized = normalizeExtendedProfile(response);
+      setExtendedProfile(normalized);
+      setProfileForm({ ...normalized.farmer_profile });
+    } catch (err) {
+      console.error('Error fetching extended farmer profile:', err);
+      setProfileError(err.message || 'Failed to load extended profile.');
+    } finally {
+      setProfileLoading(false);
+    }
+  };
+
+  const closeExtendedProfile = () => {
+    setIsProfileModalOpen(false);
+    setProfileUser(null);
+    setExtendedProfile(null);
+    setIsProfileEditMode(false);
+    setProfileForm({});
+    setProfileError(null);
+  };
+
+  const handleProfileFormChange = (e) => {
+    const { name, value } = e.target;
+    setProfileForm(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSaveExtendedProfile = async () => {
+    if (!profileUser) return;
+    setProfileSaving(true);
+    try {
+      const updateData = { ...profileForm };
+      // Numeric fields should not be sent as empty strings
+      ['age', 'farm_age', 'mixed_percentage', 'farm_size', 'tree_count'].forEach(field => {
+        if (updateData[field] === '' || updateData[field] === undefined) {
+          delete updateData[field];
+        } else if (['age', 'farm_age', 'tree_count'].includes(field)) {
+          updateData[field] = parseInt(updateData[field], 10);
+        } else {
+          updateData[field] = parseFloat(updateData[field]);
+        }
+      });
+      delete updateData.id;
+      delete updateData.user_id;
+      delete updateData.verification_status;
+
+      const response = await updateFarmerProfileById(profileUser.id, updateData);
+      const normalized = normalizeExtendedProfile(response);
+      setExtendedProfile(prev => ({
+        user: normalized.user || prev?.user,
+        farmer_profile: normalized.farmer_profile || { ...prev?.farmer_profile, ...updateData },
+      }));
+      setIsProfileEditMode(false);
+      toast.success('Farmer profile updated successfully');
+    } catch (err) {
+      console.error('Error updating extended farmer profile:', err);
+      toast.error(err.message || 'Failed to update farmer profile.');
+    } finally {
+      setProfileSaving(false);
+    }
+  };
+
+  const handleVerifyFarmerProfile = async (status) => {
+    const profileRecordId = extendedProfile?.farmer_profile?.id;
+    if (!profileRecordId) {
+      toast.error('Unable to determine farmer profile record. Please reopen the profile and try again.');
+      return;
+    }
+
+    const confirmed = await confirm(
+      status === 'verified'
+        ? 'Are you sure you want to verify this farmer profile?'
+        : 'Are you sure you want to reject this farmer profile?',
+      {
+        title: status === 'verified' ? 'Verify Farmer Profile' : 'Reject Farmer Profile',
+        confirmLabel: status === 'verified' ? 'Verify' : 'Reject',
+        danger: status !== 'verified',
+      }
+    );
+    if (!confirmed) return;
+
+    setVerifyingStatus(status);
+    try {
+      const response = await verifyFarmerProfile(profileRecordId, status);
+      const normalized = normalizeExtendedProfile(response);
+      setExtendedProfile(prev => ({
+        user: normalized.user || prev?.user,
+        farmer_profile: {
+          ...prev?.farmer_profile,
+          ...normalized.farmer_profile,
+          verification_status: normalized.farmer_profile?.verification_status || status,
+        },
+      }));
+      toast.success(status === 'verified' ? 'Farmer profile verified successfully' : 'Farmer profile rejected');
+    } catch (err) {
+      console.error('Error verifying farmer profile:', err);
+      toast.error(err.message || 'Failed to update verification status.');
+    } finally {
+      setVerifyingStatus(null);
+    }
   };
 
   const openAddModal = () => {
@@ -417,6 +548,7 @@ const Users = () => {
                           <div className="actions-dropdown">
                             <button onClick={() => openModal(user, false)}>View Details</button>
                             <button onClick={() => openModal(user, true)}>Edit Farmer</button>
+                            <button onClick={() => openExtendedProfile(user)}>Extended Profile</button>
                             <button onClick={() => handleDeleteUser(user.id)} className="delete-action">Delete</button>
                           </div>
                         </div>
@@ -1006,6 +1138,202 @@ const Users = () => {
     `}</style>
   </div>
 )}
+
+      {/* Extended Farmer Profile Modal (FarmerInformation) */}
+      {isProfileModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-8 w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-2xl ring-1 ring-green-200">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-semibold text-green-800">
+                Extended Profile - {profileUser?.full_name || 'Farmer'}
+              </h3>
+              <button
+                onClick={closeExtendedProfile}
+                className="text-green-400 hover:text-green-600 text-2xl"
+                aria-label="Close"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            {profileLoading ? (
+              <div className="flex justify-center py-12">
+                <ClipLoader color="#4F46E5" size={40} />
+              </div>
+            ) : profileError ? (
+              <div className="modern-error-message">{profileError}</div>
+            ) : extendedProfile?.farmer_profile ? (
+              <>
+                {/* Verification status + actions */}
+                <div className="flex flex-wrap items-center justify-between gap-3 mb-6 p-4 bg-gray-50 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-gray-600">Verification Status:</span>
+                    {(() => {
+                      const status = extendedProfile.farmer_profile.verification_status || 'pending';
+                      const colorClass = status === 'verified'
+                        ? 'bg-green-100 text-green-700'
+                        : status === 'rejected'
+                          ? 'bg-red-100 text-red-700'
+                          : 'bg-yellow-100 text-yellow-700';
+                      return (
+                        <span className={`px-3 py-1 text-xs font-semibold rounded-full ${colorClass}`}>
+                          {status.charAt(0).toUpperCase() + status.slice(1)}
+                        </span>
+                      );
+                    })()}
+                  </div>
+                  <div className="flex gap-2">
+                    {extendedProfile.farmer_profile.verification_status !== 'verified' && (
+                      <button
+                        onClick={() => handleVerifyFarmerProfile('verified')}
+                        disabled={verifyingStatus !== null}
+                        className="flex items-center gap-1 px-3 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 disabled:opacity-60"
+                      >
+                        <CheckCircle2 size={16} />
+                        {verifyingStatus === 'verified' ? 'Verifying...' : 'Verify'}
+                      </button>
+                    )}
+                    {extendedProfile.farmer_profile.verification_status !== 'rejected' && (
+                      <button
+                        onClick={() => handleVerifyFarmerProfile('rejected')}
+                        disabled={verifyingStatus !== null}
+                        className="flex items-center gap-1 px-3 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 disabled:opacity-60"
+                      >
+                        <XCircle size={16} />
+                        {verifyingStatus === 'rejected' ? 'Rejecting...' : 'Reject'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex justify-end mb-4">
+                  {!isProfileEditMode ? (
+                    <button
+                      onClick={() => setIsProfileEditMode(true)}
+                      className="flex items-center gap-1 px-4 py-2 text-sm font-medium text-indigo-600 border border-indigo-300 rounded-lg hover:bg-indigo-50"
+                    >
+                      <Edit2 size={16} /> Edit Profile
+                    </button>
+                  ) : (
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => {
+                          setIsProfileEditMode(false);
+                          setProfileForm({ ...extendedProfile.farmer_profile });
+                        }}
+                        className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleSaveExtendedProfile}
+                        disabled={profileSaving}
+                        className="px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-60"
+                      >
+                        {profileSaving ? 'Saving...' : 'Save Changes'}
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {!isProfileEditMode ? (
+                  <div className="modal-grid">
+                    {[
+                      { label: 'Age', value: extendedProfile.farmer_profile.age },
+                      { label: 'ID Number', value: extendedProfile.farmer_profile.id_number },
+                      { label: 'Gender', value: extendedProfile.farmer_profile.gender },
+                      { label: 'Marital Status', value: extendedProfile.farmer_profile.marital_status },
+                      { label: 'Education Level', value: extendedProfile.farmer_profile.education_level },
+                      { label: 'Province', value: extendedProfile.farmer_profile.province },
+                      { label: 'District', value: extendedProfile.farmer_profile.district },
+                      { label: 'Sector', value: extendedProfile.farmer_profile.sector },
+                      { label: 'Cell', value: extendedProfile.farmer_profile.cell },
+                      { label: 'Village', value: extendedProfile.farmer_profile.village },
+                      { label: 'Farm Province', value: extendedProfile.farmer_profile.farm_province },
+                      { label: 'Farm District', value: extendedProfile.farmer_profile.farm_district },
+                      { label: 'Farm Sector', value: extendedProfile.farmer_profile.farm_sector },
+                      { label: 'Farm Cell', value: extendedProfile.farmer_profile.farm_cell },
+                      { label: 'Farm Village', value: extendedProfile.farmer_profile.farm_village },
+                      { label: 'Farm Age', value: extendedProfile.farmer_profile.farm_age ? `${extendedProfile.farmer_profile.farm_age} years` : null },
+                      { label: 'Planted', value: extendedProfile.farmer_profile.planted },
+                      { label: 'Avocado Type', value: extendedProfile.farmer_profile.avocado_type },
+                      { label: 'Mixed Percentage', value: extendedProfile.farmer_profile.mixed_percentage },
+                      { label: 'Farm Size', value: extendedProfile.farmer_profile.farm_size },
+                      { label: 'Tree Count', value: extendedProfile.farmer_profile.tree_count },
+                      { label: 'UPI Number', value: extendedProfile.farmer_profile.upi_number },
+                      {
+                        label: 'Assistance',
+                        value: Array.isArray(extendedProfile.farmer_profile.assistance)
+                          ? extendedProfile.farmer_profile.assistance.join(', ')
+                          : extendedProfile.farmer_profile.assistance,
+                      },
+                    ].map((field, i) => field.value && (
+                      <div key={i} className="modal-field">
+                        <span className="modal-field-label">{field.label}</span>
+                        <span className="modal-field-value">{field.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {[
+                      { name: 'age', label: 'Age', type: 'number' },
+                      { name: 'id_number', label: 'ID Number', type: 'text' },
+                      { name: 'gender', label: 'Gender', type: 'select', options: ['Male', 'Female', 'Other'] },
+                      { name: 'marital_status', label: 'Marital Status', type: 'select', options: ['Single', 'Married', 'Divorced', 'Widowed'] },
+                      { name: 'education_level', label: 'Education Level', type: 'select', options: ['Primary', 'Secondary', 'University', 'None'] },
+                      { name: 'province', label: 'Province', type: 'text' },
+                      { name: 'district', label: 'District', type: 'text' },
+                      { name: 'sector', label: 'Sector', type: 'text' },
+                      { name: 'cell', label: 'Cell', type: 'text' },
+                      { name: 'village', label: 'Village', type: 'text' },
+                      { name: 'farm_province', label: 'Farm Province', type: 'text' },
+                      { name: 'farm_district', label: 'Farm District', type: 'text' },
+                      { name: 'farm_sector', label: 'Farm Sector', type: 'text' },
+                      { name: 'farm_cell', label: 'Farm Cell', type: 'text' },
+                      { name: 'farm_village', label: 'Farm Village', type: 'text' },
+                      { name: 'farm_age', label: 'Farm Age (Years)', type: 'number' },
+                      { name: 'planted', label: 'Planted', type: 'text' },
+                      { name: 'avocado_type', label: 'Avocado Type', type: 'text' },
+                      { name: 'mixed_percentage', label: 'Mixed Percentage (%)', type: 'number' },
+                      { name: 'farm_size', label: 'Farm Size', type: 'number' },
+                      { name: 'tree_count', label: 'Tree Count', type: 'number' },
+                      { name: 'upi_number', label: 'UPI Number', type: 'text' },
+                    ].map((field) => (
+                      <div key={field.name} className="flex flex-col">
+                        <label className="text-sm font-semibold text-gray-700 mb-2">{field.label}</label>
+                        {field.type === 'select' ? (
+                          <select
+                            name={field.name}
+                            value={profileForm[field.name] || ''}
+                            onChange={handleProfileFormChange}
+                            className="px-4 py-3 border-2 border-gray-300 rounded-lg text-sm outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 bg-white"
+                          >
+                            <option value="">Select {field.label}</option>
+                            {field.options.map(opt => (
+                              <option key={opt} value={opt}>{opt}</option>
+                            ))}
+                          </select>
+                        ) : (
+                          <input
+                            type={field.type}
+                            name={field.name}
+                            value={profileForm[field.name] ?? ''}
+                            onChange={handleProfileFormChange}
+                            className="px-4 py-3 border-2 border-gray-300 rounded-lg text-sm outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100"
+                          />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="modern-no-data">No extended profile found for this farmer.</div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Logout Button */}
       <button onClick={handleLogout} className="logout-btn">

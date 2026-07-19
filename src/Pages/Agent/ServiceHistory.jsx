@@ -1,14 +1,31 @@
-﻿import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { 
-  Search, Calendar, Filter, Eye, 
-  CheckCircle, Clock, XCircle, AlertCircle, 
-  User, Phone, Mail, MapPin, Package, Leaf,
+import {
+  Search, Eye,
+  CheckCircle, Clock, XCircle, AlertCircle,
+  User, Package, Leaf, Sprout, Bug,
   TrendingUp, FileText, RefreshCw
 } from 'lucide-react';
-import { listHarvestRequests } from '../../services/serviceRequestsService';
+import {
+  getHarvestRequestsForCurrentAgent,
+  getHarvestingPlanRequestsForCurrentAgent,
+  getIPMRoutineRequestsForCurrentAgent
+} from '../../services/serviceRequestsService';
 import { getAgentInformation } from '../../services/agent-information';
-import apiClient from '../../services/apiClient';
+import { useToast } from '../../components/Ui/Toast';
+
+const SERVICE_TYPE_META = {
+  harvest: { label: 'Harvest Request', icon: Leaf },
+  harvesting_plan: { label: 'Harvesting Plan', icon: Sprout },
+  ipm_routine: { label: 'IPM Routine', icon: Bug }
+};
+
+// Normalize a variety of response shapes into a plain array
+const toArray = (result) => {
+  if (Array.isArray(result)) return result;
+  if (Array.isArray(result?.data)) return result.data;
+  return [];
+};
 
 export default function ServiceHistory() {
   const [requests, setRequests] = useState([]);
@@ -17,10 +34,10 @@ export default function ServiceHistory() {
   const [agentInfo, setAgentInfo] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [dateFilter, setDateFilter] = useState('all');
+  const [typeFilter, setTypeFilter] = useState('all');
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [showModal, setShowModal] = useState(false);
-  const [debugInfo, setDebugInfo] = useState(null);
+  const toast = useToast();
 
   // Helper function to get agent ID from multiple sources
   const getAgentId = () => {
@@ -34,12 +51,10 @@ export default function ServiceHistory() {
 
     for (const source of sources) {
       if (source) {
-        console.log('✅ Found agent ID:', source);
         return source;
       }
     }
 
-    console.warn('⚠️ No agent ID found');
     return null;
   };
 
@@ -48,10 +63,9 @@ export default function ServiceHistory() {
     const fetchAgentInfo = async () => {
       try {
         const data = await getAgentInformation();
-        console.log('📋 Agent Info Response:', data);
         setAgentInfo(data);
       } catch (error) {
-        console.error('❌ Error fetching agent info:', error);
+        console.error('Error fetching agent info:', error);
         const fallbackInfo = {
           agent_profile: { id: localStorage.getItem('userId') }
         };
@@ -61,40 +75,48 @@ export default function ServiceHistory() {
     fetchAgentInfo();
   }, []);
 
-  // Fetch service requests
+  // Fetch service requests (harvest, harvesting plan, IPM routine) assigned to the agent
   useEffect(() => {
     const fetchRequests = async () => {
       setLoading(true);
       try {
         const currentAgentId = getAgentId();
-        
+
         if (!currentAgentId) {
-          console.error('❌ No agent ID available');
+          console.error('No agent ID available');
           setRequests([]);
           setFilteredRequests([]);
           setLoading(false);
           return;
         }
-        
-        console.log('🔍 Fetching requests for agent ID:', currentAgentId);
-        
-        // USE NEW ENDPOINT: /service-requests/harvest/agent/me
-        // This endpoint automatically filters by the authenticated agent's ID from JWT
-        console.log('📤 Calling new agent-specific endpoint...');
-        
-        const response = await apiClient.get('/service-requests/harvest/agent/me', {
-          params: { limit: 100 }
-        });
-        
-        console.log('📥 API Response:', response.data);
-        
-        const requestsData = response.data?.data || [];
-        console.log(`✅ Received ${requestsData.length} requests for current agent`);
-        
-        setRequests(requestsData);
-        setFilteredRequests(requestsData);
+
+        const [harvestResult, planResult, ipmResult] = await Promise.allSettled([
+          getHarvestRequestsForCurrentAgent({ limit: 100 }),
+          getHarvestingPlanRequestsForCurrentAgent({ limit: 100 }),
+          getIPMRoutineRequestsForCurrentAgent({ limit: 100 })
+        ]);
+
+        const harvestRequests = harvestResult.status === 'fulfilled' ? toArray(harvestResult.value) : [];
+        const planRequests = planResult.status === 'fulfilled' ? toArray(planResult.value) : [];
+        const ipmRequests = ipmResult.status === 'fulfilled' ? toArray(ipmResult.value) : [];
+
+        const failures = [harvestResult, planResult, ipmResult].filter(r => r.status === 'rejected');
+        if (failures.length > 0) {
+          console.error('Some service request types failed to load:', failures.map(f => f.reason?.message));
+          toast.error('Some service requests could not be loaded. Showing available data.');
+        }
+
+        const combined = [
+          ...harvestRequests.map(req => ({ ...req, _serviceType: 'harvest' })),
+          ...planRequests.map(req => ({ ...req, _serviceType: 'harvesting_plan' })),
+          ...ipmRequests.map(req => ({ ...req, _serviceType: 'ipm_routine' }))
+        ];
+
+        setRequests(combined);
+        setFilteredRequests(combined);
       } catch (error) {
-        console.error('❌ Error fetching history:', error);
+        console.error('Error fetching service history:', error);
+        toast.error(error.message || 'Failed to load service history');
         setRequests([]);
         setFilteredRequests([]);
       } finally {
@@ -111,6 +133,10 @@ export default function ServiceHistory() {
   useEffect(() => {
     let filtered = requests;
 
+    if (typeFilter !== 'all') {
+      filtered = filtered.filter(req => req._serviceType === typeFilter);
+    }
+
     if (statusFilter !== 'all') {
       filtered = filtered.filter(req => req.status === statusFilter);
     }
@@ -123,7 +149,7 @@ export default function ServiceHistory() {
     }
 
     setFilteredRequests(filtered);
-  }, [requests, statusFilter, searchTerm]);
+  }, [requests, statusFilter, typeFilter, searchTerm]);
 
   const getStatusBadge = (status) => {
     const config = {
@@ -140,7 +166,7 @@ export default function ServiceHistory() {
     return (
       <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${c.bg} ${c.text}`}>
         <Icon className="w-3.5 h-3.5" />
-        {status.replace('_', ' ').toUpperCase()}
+        {(status || 'pending').replace('_', ' ').toUpperCase()}
       </span>
     );
   };
@@ -153,6 +179,13 @@ export default function ServiceHistory() {
     inProgress: requests.filter(r => r.status === 'in_progress').length
   };
 
+  const typeTabs = [
+    { value: 'all', label: 'All Requests' },
+    { value: 'harvest', label: 'Harvest' },
+    { value: 'harvesting_plan', label: 'Harvesting Plan' },
+    { value: 'ipm_routine', label: 'IPM Routine' }
+  ];
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-6">
       <div className="max-w-7xl mx-auto">
@@ -162,7 +195,7 @@ export default function ServiceHistory() {
             Service Request History
           </h1>
           <p className="text-gray-600 mt-2">
-            Track all service requests you've created on behalf of farmers
+            Track all service requests (harvest, harvesting plan, and IPM routine) assigned to you
           </p>
         </div>
 
@@ -225,6 +258,23 @@ export default function ServiceHistory() {
           </div>
         </div>
 
+        {/* Type Tabs */}
+        <div className="flex flex-wrap gap-2 mb-6">
+          {typeTabs.map(tab => (
+            <button
+              key={tab.value}
+              onClick={() => setTypeFilter(tab.value)}
+              className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                typeFilter === tab.value
+                  ? 'bg-green-600 text-white border-green-600'
+                  : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
         {/* Filters */}
         <div className="bg-white p-4 rounded-xl shadow-sm border mb-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -265,42 +315,12 @@ export default function ServiceHistory() {
           <div className="bg-white rounded-xl shadow-sm border p-12 text-center">
             <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
             <p className="text-gray-600 text-lg mb-2">No service requests found</p>
-            
-            {/* Simplified message while waiting for backend */}
-            <div className="mt-6 p-6 bg-blue-50 rounded-lg border-2 border-blue-300 max-w-3xl mx-auto">
-              <p className="text-sm font-bold text-blue-900 mb-4">ℹ️ Backend Endpoint Required</p>
-              
-              <div className="text-left space-y-3 text-sm text-blue-800">
-                <p>The agent service history feature requires a new backend endpoint:</p>
-                <code className="block bg-white px-3 py-2 rounded border border-blue-200 text-xs">
-                  GET /service-requests/harvest/agent/me
-                </code>
-                
-                <div className="bg-white p-4 rounded border border-blue-200 mt-4">
-                  <p className="font-semibold mb-2">📋 Next Steps:</p>
-                  <ol className="list-decimal list-inside space-y-1 text-xs">
-                    <li>Share <code className="bg-gray-100 px-1">AGENT_ENDPOINT_GUIDE.md</code> with backend team</li>
-                    <li>Backend team implements the endpoint</li>
-                    <li>Test with Postman/cURL</li>
-                    <li>Frontend will automatically work once endpoint is live</li>
-                  </ol>
-                </div>
-                
-                <div className="bg-yellow-50 p-3 rounded border border-yellow-200 mt-4">
-                  <p className="font-semibold text-yellow-900 mb-1">⚠️ Important:</p>
-                  <p className="text-xs text-yellow-800">
-                    The backend must also save <code className="bg-white px-1">agent_id</code> when creating harvest requests via POST endpoint.
-                  </p>
-                </div>
-                
-                <p className="text-xs text-gray-600 mt-4">
-                  Your Agent ID: <code className="bg-white px-2 py-1 rounded border">{getAgentId()}</code>
-                </p>
-              </div>
-            </div>
-            
+            <p className="text-sm text-gray-500 mb-6">
+              You have not been assigned any harvest, harvesting plan, or IPM routine requests matching these filters.
+            </p>
+
             <div className="mt-6">
-              <Link 
+              <Link
                 to="/dashboard/agent/HarvestingPlan"
                 className="inline-flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold"
               >
@@ -323,48 +343,52 @@ export default function ServiceHistory() {
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {filteredRequests.map((request) => (
-                  <tr key={request.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4">
-                      <span className="text-sm font-medium">{request.request_number || 'N/A'}</span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
-                          <User className="w-5 h-5 text-green-600" />
+                {filteredRequests.map((request) => {
+                  const meta = SERVICE_TYPE_META[request._serviceType] || SERVICE_TYPE_META.harvest;
+                  const TypeIcon = meta.icon;
+                  return (
+                    <tr key={`${request._serviceType}-${request.id}`} className="hover:bg-gray-50">
+                      <td className="px-6 py-4">
+                        <span className="text-sm font-medium">{request.request_number || 'N/A'}</span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
+                            <User className="w-5 h-5 text-green-600" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium">{request.farmer_info?.name || request.farmer_id?.full_name || 'N/A'}</p>
+                            <p className="text-xs text-gray-500">{request.farmer_info?.phone || request.farmer_id?.phone || 'N/A'}</p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="text-sm font-medium">{request.farmer_info?.name || 'N/A'}</p>
-                          <p className="text-xs text-gray-500">{request.farmer_info?.phone || 'N/A'}</p>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-2">
+                          <TypeIcon className="w-4 h-4 text-green-600" />
+                          <span className="text-sm">{meta.label}</span>
                         </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
-                        <Leaf className="w-4 h-4 text-green-600" />
-                        <span className="text-sm">Harvest Request</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="text-sm text-gray-600">
-                        {new Date(request.requested_date || request.created_at).toLocaleDateString()}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">{getStatusBadge(request.status)}</td>
-                    <td className="px-6 py-4">
-                      <button
-                        onClick={() => {
-                          setSelectedRequest(request);
-                          setShowModal(true);
-                        }}
-                        className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-green-600 hover:bg-green-50 rounded-lg"
-                      >
-                        <Eye className="w-4 h-4" />
-                        View
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="text-sm text-gray-600">
+                          {new Date(request.requested_date || request.created_at).toLocaleDateString()}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">{getStatusBadge(request.status)}</td>
+                      <td className="px-6 py-4">
+                        <button
+                          onClick={() => {
+                            setSelectedRequest(request);
+                            setShowModal(true);
+                          }}
+                          className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-green-600 hover:bg-green-50 rounded-lg"
+                        >
+                          <Eye className="w-4 h-4" />
+                          View
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -388,16 +412,20 @@ export default function ServiceHistory() {
                   <p className="text-base mt-1">{selectedRequest.request_number}</p>
                 </div>
                 <div>
+                  <label className="text-sm font-medium text-gray-600">Service Type</label>
+                  <p className="text-base mt-1">{(SERVICE_TYPE_META[selectedRequest._serviceType] || SERVICE_TYPE_META.harvest).label}</p>
+                </div>
+                <div>
                   <label className="text-sm font-medium text-gray-600">Status</label>
                   <div className="mt-1">{getStatusBadge(selectedRequest.status)}</div>
                 </div>
                 <div>
                   <label className="text-sm font-medium text-gray-600">Farmer Name</label>
-                  <p className="text-base mt-1">{selectedRequest.farmer_info?.name || 'N/A'}</p>
+                  <p className="text-base mt-1">{selectedRequest.farmer_info?.name || selectedRequest.farmer_id?.full_name || 'N/A'}</p>
                 </div>
                 <div>
                   <label className="text-sm font-medium text-gray-600">Phone</label>
-                  <p className="text-base mt-1">{selectedRequest.farmer_info?.phone || 'N/A'}</p>
+                  <p className="text-base mt-1">{selectedRequest.farmer_info?.phone || selectedRequest.farmer_id?.phone || 'N/A'}</p>
                 </div>
               </div>
             </div>

@@ -140,6 +140,106 @@ export const updateShopSellingPermission = async (shopId, canSell) => {
 };
 
 /**
+ * Get a shop's products/inventory (Products whose supplier_id equals this shop's id)
+ * @param {number|string} shopNumber - Shop number
+ * @param {Object} params - Optional query params (page, limit, etc.)
+ * @returns {Promise<Object>} Response with inventory data
+ */
+export const getShopInventory = async (shopNumber, params = {}) => {
+  if (!shopNumber) {
+    throw new Error('Shop number is required');
+  }
+  try {
+    const response = await apiClient.get(`${SHOP_API_BASE}/${shopNumber}/inventory`, { params });
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching shop inventory:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get orders containing the shop's products
+ * @param {number|string} shopNumber - Shop number
+ * @param {Object} params - Optional query params (page, limit, status, etc.)
+ * @returns {Promise<Object>} Response with orders data
+ */
+export const getShopOrders = async (shopNumber, params = {}) => {
+  if (!shopNumber) {
+    throw new Error('Shop number is required');
+  }
+  try {
+    const response = await apiClient.get(`${SHOP_API_BASE}/${shopNumber}/orders`, { params });
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching shop orders:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get shop analytics summary (totals, revenue, stock levels)
+ * @param {number|string} shopNumber - Shop number
+ * @returns {Promise<Object>} Response with analytics data
+ */
+export const getShopAnalytics = async (shopNumber) => {
+  if (!shopNumber) {
+    throw new Error('Shop number is required');
+  }
+  try {
+    const response = await apiClient.get(`${SHOP_API_BASE}/${shopNumber}/analytics`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching shop analytics:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get a shop's wallet balance and top-up/adjustment transaction history
+ * @param {number|string} shopNumber - Shop number
+ * @param {Object} params - Optional query params (page, limit, etc.)
+ * @returns {Promise<Object>} Response with wallet data
+ */
+export const getShopWallet = async (shopNumber, params = {}) => {
+  if (!shopNumber) {
+    throw new Error('Shop number is required');
+  }
+  try {
+    const response = await apiClient.get(`${SHOP_API_BASE}/${shopNumber}/wallet`, { params });
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching shop wallet:', error);
+    throw error;
+  }
+};
+
+/**
+ * Add balance to a shop's wallet (Admin only)
+ * @param {number|string} shopNumber - Shop number
+ * @param {Object} topupData - { amount, description, payment_method }
+ * @returns {Promise<Object>} Response with updated wallet data
+ */
+export const topUpShopWallet = async (shopNumber, topupData) => {
+  if (!shopNumber) {
+    throw new Error('Shop number is required');
+  }
+  if (!topupData || typeof topupData !== 'object') {
+    throw new Error('Valid top-up data is required');
+  }
+  if (topupData.amount === undefined || topupData.amount === null || Number(topupData.amount) <= 0) {
+    throw new Error('A valid top-up amount is required');
+  }
+  try {
+    const response = await apiClient.post(`${SHOP_API_BASE}/${shopNumber}/wallet/topup`, topupData);
+    return response.data;
+  } catch (error) {
+    console.error('Error topping up shop wallet:', error);
+    throw error;
+  }
+};
+
+/**
  * Export shops data to Excel format
  * @param {Array} shops - Shops data to export
  * @returns {void}

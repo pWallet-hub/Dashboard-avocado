@@ -19,14 +19,16 @@ import {
   TrendingUp,
   ShoppingCart,
   BarChart3,
-  RefreshCw
+  RefreshCw,
+  History
 } from 'lucide-react';
 import {
   getAllProducts,
   createProduct,
   updateProduct,
   deleteProduct,
-  getProductById
+  getProductById,
+  getProductStockHistory
 } from '../../services/productsService';
 import { getSuppliers } from '../../services/marketStorageService';
 import { useConfirm } from '../../components/Ui/ConfirmDialog';
@@ -46,12 +48,21 @@ const ShopProducts = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [successMessage, setSuccessMessage] = useState('');
-  const [pagination, setPagination] = useState({ 
-    page: 1, 
-    limit: 20, 
-    total: 0, 
-    pages: 0 
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 20,
+    total: 0,
+    pages: 0
   });
+
+  // Stock history modal state
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [historyProduct, setHistoryProduct] = useState(null);
+  const [stockHistory, setStockHistory] = useState([]);
+  const [historyPagination, setHistoryPagination] = useState({});
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState(null);
 
   console.log('🔄 ShopProducts component rendering...');
   console.log('State:', { loading, showModal, modalType, productsCount: products.length });
@@ -73,6 +84,59 @@ const ShopProducts = () => {
   useEffect(() => {
     getSuppliers().then(data => setSuppliers(Array.isArray(data) ? data : [])).catch(err => console.error('Error loading suppliers:', err));
   }, []);
+
+  useEffect(() => {
+    if (!showHistoryModal || !historyProduct) return;
+
+    const productId = historyProduct.id || historyProduct._id;
+    if (!productId) {
+      setHistoryError('Product ID is missing. Cannot load stock history.');
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadStockHistory = async () => {
+      setHistoryLoading(true);
+      setHistoryError(null);
+
+      try {
+        const result = await getProductStockHistory(productId, {
+          page: historyPage,
+          limit: 10
+        });
+
+        if (cancelled) return;
+
+        setStockHistory(Array.isArray(result?.data) ? result.data : []);
+        setHistoryPagination(result?.pagination || {});
+      } catch (err) {
+        if (cancelled) return;
+        console.error('Error loading stock history:', err);
+        setHistoryError(err.message || 'Failed to load stock history');
+        setStockHistory([]);
+      } finally {
+        if (!cancelled) {
+          setHistoryLoading(false);
+        }
+      }
+    };
+
+    loadStockHistory();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [showHistoryModal, historyProduct, historyPage]);
+
+  const handleCloseHistoryModal = () => {
+    setShowHistoryModal(false);
+    setHistoryProduct(null);
+    setStockHistory([]);
+    setHistoryPagination({});
+    setHistoryPage(1);
+    setHistoryError(null);
+  };
 
   const loadProducts = async () => {
     setLoading(true);
@@ -626,6 +690,162 @@ const ShopProducts = () => {
     );
   };
 
+  const StockHistoryModal = () => {
+    const entries = Array.isArray(stockHistory) ? stockHistory : [];
+    const totalPages = historyPagination.pages || historyPagination.totalPages || 1;
+    const currentPage = historyPagination.page || historyPage || 1;
+
+    const renderValue = (value) => {
+      if (value === null || value === undefined || value === '') return 'N/A';
+      if (typeof value === 'object') {
+        try {
+          return JSON.stringify(value);
+        } catch {
+          return 'N/A';
+        }
+      }
+      return String(value);
+    };
+
+    const formatDate = (value) => {
+      if (!value) return 'N/A';
+      const date = new Date(value);
+      if (isNaN(date.getTime())) return renderValue(value);
+      return date.toLocaleString();
+    };
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto">
+        <div className="bg-white rounded-lg w-full max-w-3xl my-8">
+          <div className="p-6 border-b sticky top-0 bg-white z-10 rounded-t-lg">
+            <div className="flex justify-between items-center">
+              <h3 className="text-xl font-bold">
+                Stock History — {historyProduct?.name || 'Product'}
+              </h3>
+              <button
+                onClick={handleCloseHistoryModal}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+          </div>
+
+          <div className="p-6">
+            {historyLoading ? (
+              <div className="text-center py-12 text-gray-500">
+                <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-2 text-green-600" />
+                <p>Loading stock history...</p>
+              </div>
+            ) : historyError ? (
+              <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-800 flex items-start">
+                <AlertTriangle className="h-5 w-5 mr-2 flex-shrink-0 mt-0.5" />
+                <div>
+                  <strong className="font-semibold">Error:</strong> {historyError}
+                </div>
+              </div>
+            ) : entries.length === 0 ? (
+              <div className="text-center py-12 text-gray-500">
+                <Clock className="h-12 w-12 mx-auto mb-2 text-gray-400" />
+                <p className="text-lg font-medium">No stock history found</p>
+                <p className="text-sm mt-1">Stock changes for this product will appear here</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Previous</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">New</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Change</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reason</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Changed By</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {entries.map((entry, idx) => {
+                      const hasKnownFields = entry && typeof entry === 'object' && (
+                        'previous_quantity' in entry ||
+                        'new_quantity' in entry ||
+                        'quantity_change' in entry ||
+                        'reason' in entry ||
+                        'notes' in entry ||
+                        'changed_by' in entry ||
+                        'created_at' in entry
+                      );
+
+                      if (!hasKnownFields && entry && typeof entry === 'object') {
+                        return (
+                          <tr key={entry.id || idx}>
+                            <td colSpan="6" className="px-4 py-2 text-xs text-gray-600">
+                              {Object.entries(entry).map(([key, value]) => (
+                                <div key={key}>
+                                  <span className="font-medium">{key}:</span> {renderValue(value)}
+                                </div>
+                              ))}
+                            </td>
+                          </tr>
+                        );
+                      }
+
+                      return (
+                        <tr key={entry?.id || idx} className="hover:bg-gray-50 transition">
+                          <td className="px-4 py-2 text-sm text-gray-700 whitespace-nowrap">
+                            {formatDate(entry?.created_at)}
+                          </td>
+                          <td className="px-4 py-2 text-sm text-gray-700">
+                            {renderValue(entry?.previous_quantity)}
+                          </td>
+                          <td className="px-4 py-2 text-sm text-gray-700">
+                            {renderValue(entry?.new_quantity)}
+                          </td>
+                          <td className="px-4 py-2 text-sm text-gray-700">
+                            {renderValue(entry?.quantity_change)}
+                          </td>
+                          <td className="px-4 py-2 text-sm text-gray-700">
+                            {renderValue(entry?.reason ?? entry?.notes)}
+                          </td>
+                          <td className="px-4 py-2 text-sm text-gray-700">
+                            {renderValue(entry?.changed_by)}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {!historyLoading && !historyError && entries.length > 0 && (
+              <div className="mt-6 flex justify-between items-center">
+                <div className="text-sm text-gray-600">
+                  Page {currentPage} of {totalPages}
+                </div>
+                <div className="flex space-x-2">
+                  <button
+                    onClick={() => setHistoryPage(prev => Math.max(1, prev - 1))}
+                    disabled={currentPage <= 1 || historyLoading}
+                    className="px-3 py-2 border border-gray-300 rounded-md text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                  >
+                    Previous
+                  </button>
+                  <button
+                    onClick={() => setHistoryPage(prev => Math.min(totalPages, prev + 1))}
+                    disabled={currentPage >= totalPages || historyLoading}
+                    className="px-3 py-2 border border-gray-300 rounded-md text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   // Calculate statistics
   const stats = {
     totalProducts: products.length,
@@ -637,7 +857,8 @@ const ShopProducts = () => {
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       {showModal && <ProductModal />}
-      
+      {showHistoryModal && historyProduct && <StockHistoryModal />}
+
       <div className="space-y-6">
         {/* Statistics Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -911,6 +1132,18 @@ const ShopProducts = () => {
                             disabled={loading}
                           >
                             <Edit className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => {
+                              setHistoryProduct(product);
+                              setHistoryPage(1);
+                              setShowHistoryModal(true);
+                            }}
+                            className="text-purple-600 hover:text-purple-900 transition"
+                            title="View Stock History"
+                            disabled={loading}
+                          >
+                            <History className="h-4 w-4" />
                           </button>
                           {isAdmin && (
                             <button 
