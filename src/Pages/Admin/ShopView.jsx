@@ -15,7 +15,8 @@ import {
   updateShop,
   deleteShop,
   updateShopSellingPermission,
-  exportShopsToExcel
+  exportShopsToExcel,
+  topUpShopWallet
 } from '../../services/shopService';
 import { getSuppliers } from '../../services/marketStorageService';
 import { useToast } from '../../components/Ui/Toast';
@@ -45,6 +46,10 @@ export default function ShopView() {
   const [isEditShopModalOpen, setIsEditShopModalOpen] = useState(false);
   const [isViewShopModalOpen, setIsViewShopModalOpen] = useState(false);
   const [selectedShopData, setSelectedShopData] = useState(null);
+  const [topupAmount, setTopupAmount] = useState('');
+  const [topupDescription, setTopupDescription] = useState('');
+  const [topupMethod, setTopupMethod] = useState('cash');
+  const [topupLoading, setTopupLoading] = useState(false);
   const [editShopFormData, setEditShopFormData] = useState({
     shopName: '', description: '', province: '', district: '',
     ownerName: '', ownerEmail: '', ownerPhone: ''
@@ -184,6 +189,35 @@ export default function ShopView() {
     } catch (error) {
       console.error('Error updating selling permission:', error);
       toast.error(`Error: ${error.message}`);
+    }
+  };
+
+  const handleTopUpWallet = async () => {
+    const amount = Number(topupAmount);
+    if (!topupAmount || isNaN(amount) || amount <= 0) {
+      toast.error('Please enter a valid amount greater than 0');
+      return;
+    }
+    const shopNumber = selectedShopData.shop_number ?? selectedShopData.shopNumber ?? selectedShopData.id;
+    if (!(await confirm(`Top up ${selectedShopData.shopName}'s wallet by ${amount} RWF?`))) {
+      return;
+    }
+    try {
+      setTopupLoading(true);
+      await topUpShopWallet(shopNumber, {
+        amount,
+        description: topupDescription || undefined,
+        payment_method: topupMethod
+      });
+      toast.success('Wallet topped up successfully');
+      setTopupAmount('');
+      setTopupDescription('');
+      setTopupMethod('cash');
+    } catch (error) {
+      console.error('Error topping up wallet:', error);
+      toast.error(error.message || 'Failed to top up wallet');
+    } finally {
+      setTopupLoading(false);
     }
   };
 
@@ -1234,6 +1268,88 @@ export default function ShopView() {
                       }}
                     >
                       {selectedShopData.can_sell !== false ? 'Disable Selling' : 'Enable Selling'}
+                    </button>
+                  </div>
+                </div>
+                <div style={{ marginTop: '1rem', padding: '1rem', background: '#f8fafc', borderRadius: '0.75rem', border: '1px solid #e2e8f0' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                    <svg style={{ width: '1.25rem', height: '1.25rem', color: '#3b82f6' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h16a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                    <p style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a' }}>Top Up Wallet</p>
+                  </div>
+                  <div style={{ display: 'grid', gap: '0.75rem' }}>
+                    <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                      <input
+                        type="number"
+                        min="0.01"
+                        step="0.01"
+                        placeholder="Amount (RWF)"
+                        value={topupAmount}
+                        onChange={(e) => setTopupAmount(e.target.value)}
+                        style={{
+                          flex: '1 1 140px',
+                          padding: '0.5rem 0.75rem',
+                          borderRadius: '0.5rem',
+                          border: '1px solid #cbd5e1',
+                          fontSize: '0.875rem',
+                          color: '#0f172a'
+                        }}
+                      />
+                      <select
+                        value={topupMethod}
+                        onChange={(e) => setTopupMethod(e.target.value)}
+                        style={{
+                          flex: '1 1 160px',
+                          padding: '0.5rem 0.75rem',
+                          borderRadius: '0.5rem',
+                          border: '1px solid #cbd5e1',
+                          fontSize: '0.875rem',
+                          color: '#0f172a',
+                          background: 'white'
+                        }}
+                      >
+                        <option value="cash">Cash</option>
+                        <option value="mobile_money">Mobile Money</option>
+                        <option value="bank_transfer">Bank Transfer</option>
+                        <option value="credit_card">Credit Card</option>
+                        <option value="debit_card">Debit Card</option>
+                        <option value="check">Check</option>
+                      </select>
+                    </div>
+                    <input
+                      type="text"
+                      placeholder="Description (optional)"
+                      value={topupDescription}
+                      onChange={(e) => setTopupDescription(e.target.value)}
+                      style={{
+                        padding: '0.5rem 0.75rem',
+                        borderRadius: '0.5rem',
+                        border: '1px solid #cbd5e1',
+                        fontSize: '0.875rem',
+                        color: '#0f172a'
+                      }}
+                    />
+                    <button
+                      onClick={handleTopUpWallet}
+                      disabled={topupLoading}
+                      style={{
+                        padding: '0.625rem 1.25rem',
+                        background: 'linear-gradient(135deg, #3b82f6 0%, #6366f1 100%)',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '0.5rem',
+                        fontWeight: 600,
+                        fontSize: '0.875rem',
+                        cursor: topupLoading ? 'not-allowed' : 'pointer',
+                        opacity: topupLoading ? 0.7 : 1,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '0.5rem'
+                      }}
+                    >
+                      {topupLoading ? 'Processing...' : 'Top Up Wallet'}
                     </button>
                   </div>
                 </div>

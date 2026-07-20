@@ -176,6 +176,28 @@ export async function createHarvestRequest(harvestData) {
   return extractData(response);
 }
 
+// Get the authenticated agent's assigned harvest requests
+export async function getHarvestRequestsForCurrentAgent(options = {}) {
+  try {
+    const params = {};
+    if (options.page) params.page = options.page;
+    if (options.limit) params.limit = options.limit;
+    if (options.status) params.status = options.status;
+
+    const response = await apiClient.get('/service-requests/harvest/agent/me', { params });
+    return extractData(response);
+  } catch (error) {
+    console.error('API Error in getHarvestRequestsForCurrentAgent:', error.response?.status, error.message);
+
+    if (error.response?.status === 404) {
+      console.warn('Harvest agent/me endpoint not found. Using fallback data.');
+      return [];
+    }
+
+    throw error;
+  }
+}
+
 // Get all harvest requests with improved error handling
 export async function listHarvestRequests(options = {}) {
   try {
@@ -1228,6 +1250,28 @@ export async function getHarvestingPlanRequests(options = {}) {
   return extractData(response);
 }
 
+// Get the authenticated agent's assigned harvesting plan requests
+export async function getHarvestingPlanRequestsForCurrentAgent(options = {}) {
+  try {
+    const params = {};
+    if (options.page) params.page = options.page;
+    if (options.limit) params.limit = options.limit;
+    if (options.status) params.status = options.status;
+
+    const response = await apiClient.get('/service-requests/harvesting-plan/agent/me', { params });
+    return extractData(response);
+  } catch (error) {
+    console.error('API Error in getHarvestingPlanRequestsForCurrentAgent:', error.response?.status, error.message);
+
+    if (error.response?.status === 404) {
+      console.warn('Harvesting plan agent/me endpoint not found. Using fallback data.');
+      return [];
+    }
+
+    throw error;
+  }
+}
+
 // Approve harvesting plan request (Admin only)
 export async function approveHarvestingPlanRequest(requestId, approvalData = {}) {
   if (!requestId) {
@@ -1300,6 +1344,28 @@ export async function getIPMRoutineRequests(options = {}) {
 
   const response = await apiClient.get('/service-requests/ipm-routine', { params });
   return extractData(response);
+}
+
+// Get the authenticated agent's assigned IPM routine requests
+export async function getIPMRoutineRequestsForCurrentAgent(options = {}) {
+  try {
+    const params = {};
+    if (options.page) params.page = options.page;
+    if (options.limit) params.limit = options.limit;
+    if (options.status) params.status = options.status;
+
+    const response = await apiClient.get('/service-requests/ipm-routine/agent/me', { params });
+    return extractData(response);
+  } catch (error) {
+    console.error('API Error in getIPMRoutineRequestsForCurrentAgent:', error.response?.status, error.message);
+
+    if (error.response?.status === 404) {
+      console.warn('IPM routine agent/me endpoint not found. Using fallback data.');
+      return [];
+    }
+
+    throw error;
+  }
 }
 
 // Approve IPM routine request (Admin only)

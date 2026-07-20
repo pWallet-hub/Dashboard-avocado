@@ -1,5 +1,7 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import Login from './Pages/Login/Login'
+import ForgotPassword from './Pages/Login/ForgotPassword'
+import ResetPassword from './Pages/Login/ResetPassword'
 import Register from './Pages/Register/Register'
 import Dashboard from './Pages/Dashboard/Dashboard'
 import Admin from './Pages/Admin/Admin'
@@ -35,6 +37,30 @@ import Reports from './Pages/Admin/Reports'
 import ShopView from './Pages/Admin/ShopView'
 import Statistics from './Pages/Admin/Statistics'
 import ServiceRequests from './Pages/Admin/ServiceRequests'
+import ShopManagers from './Pages/Admin/ShopManagers'
+import Transactions from './Pages/Admin/Transactions'
+
+// New feature area imports (Farms/Trees/Geography, Diseases/Forecasting, Visits/Weather,
+// Documents/ProfileAccess, Procurement/Settings/Logs/Monitoring, Training/Cart)
+import AgentFarms from './Pages/Agent/Farms'
+import AdminFarms from './Pages/Admin/Farms'
+import AdminGeography from './Pages/Admin/Geography'
+import AdminDiseases from './Pages/Admin/Diseases'
+import AgentDiseaseCases from './Pages/Agent/DiseaseCases'
+import AgentForecasting from './Pages/Agent/Forecasting'
+import AdminForecasting from './Pages/Admin/Forecasting'
+import AgentVisits from './Pages/Agent/Visits'
+import FarmerWeather from './Pages/Farmer/Weather'
+import AgentDocuments from './Pages/Agent/Documents'
+import AdminDocumentReview from './Pages/Admin/DocumentReview'
+import AgentProfileAccessQR from './Pages/Agent/ProfileAccessQR'
+import ShopProcurement from './Pages/ShopManager/Procurement'
+import AdminSettings from './Pages/Admin/Settings'
+import AdminLogs from './Pages/Admin/Logs'
+import AdminMonitoring from './Pages/Admin/Monitoring'
+import AdminTraining from './Pages/Admin/Training'
+import FarmerTraining from './Pages/Farmer/Training'
+import FarmerCart from './Pages/Farmer/Cart'
 
 // New Shop Manager imports
 import ShopInventory from './Pages/ShopManager/ShopInventory'
@@ -63,6 +89,8 @@ function App() {
       <Routes>
         <Route path="/" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/dashboard" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
         <Route path="/dashboard/admin/service-requests" element={<AdminServiceRequestsDashboard />} />
           <Route index element={<Home />} />
@@ -77,6 +105,17 @@ function App() {
           <Route path="admin/statistics" element={<RoleBasedRoute allowedRoles={['admin']}><Statistics/></RoleBasedRoute>} />
           <Route path="admin/service-requests" element={<RoleBasedRoute allowedRoles={['admin']}><ServiceRequests/></RoleBasedRoute>} />
           <Route path="/dashboard/admin/service-requests" element={<AdminServiceRequestsDashboard />} />
+          <Route path="admin/shop-managers" element={<RoleBasedRoute allowedRoles={['admin']}><ShopManagers/></RoleBasedRoute>} />
+          <Route path="admin/transactions" element={<RoleBasedRoute allowedRoles={['admin']}><Transactions/></RoleBasedRoute>} />
+          <Route path="admin/farms" element={<RoleBasedRoute allowedRoles={['admin']}><AdminFarms/></RoleBasedRoute>} />
+          <Route path="admin/geography" element={<RoleBasedRoute allowedRoles={['admin']}><AdminGeography/></RoleBasedRoute>} />
+          <Route path="admin/diseases" element={<RoleBasedRoute allowedRoles={['admin']}><AdminDiseases/></RoleBasedRoute>} />
+          <Route path="admin/forecasting" element={<RoleBasedRoute allowedRoles={['admin']}><AdminForecasting/></RoleBasedRoute>} />
+          <Route path="admin/DocumentReview" element={<RoleBasedRoute allowedRoles={['admin']}><AdminDocumentReview/></RoleBasedRoute>} />
+          <Route path="admin/settings" element={<RoleBasedRoute allowedRoles={['admin']}><AdminSettings/></RoleBasedRoute>} />
+          <Route path="admin/logs" element={<RoleBasedRoute allowedRoles={['admin']}><AdminLogs/></RoleBasedRoute>} />
+          <Route path="admin/monitoring" element={<RoleBasedRoute allowedRoles={['admin']}><AdminMonitoring/></RoleBasedRoute>} />
+          <Route path="admin/training" element={<RoleBasedRoute allowedRoles={['admin']}><AdminTraining/></RoleBasedRoute>} />
           
           
           {/* Agent Routes */}
@@ -88,6 +127,12 @@ function App() {
           <Route path='agent/ServiceHistory' element={<RoleBasedRoute allowedRoles={['agent']}><ServiceHistory/></RoleBasedRoute>}/>
           <Route path='agent/Report' element={<RoleBasedRoute allowedRoles={['agent']}><Report/></RoleBasedRoute>}/>
           <Route path='agent/Shop' element={<RoleBasedRoute allowedRoles={['agent']}><Shop/></RoleBasedRoute>}/>
+          <Route path='agent/farms' element={<RoleBasedRoute allowedRoles={['agent']}><AgentFarms/></RoleBasedRoute>}/>
+          <Route path='agent/DiseaseCases' element={<RoleBasedRoute allowedRoles={['agent']}><AgentDiseaseCases/></RoleBasedRoute>}/>
+          <Route path='agent/Forecasting' element={<RoleBasedRoute allowedRoles={['agent']}><AgentForecasting/></RoleBasedRoute>}/>
+          <Route path='agent/Visits' element={<RoleBasedRoute allowedRoles={['agent']}><AgentVisits/></RoleBasedRoute>}/>
+          <Route path='agent/Documents' element={<RoleBasedRoute allowedRoles={['agent']}><AgentDocuments/></RoleBasedRoute>}/>
+          <Route path='agent/ProfileAccessQR' element={<RoleBasedRoute allowedRoles={['agent']}><AgentProfileAccessQR/></RoleBasedRoute>}/>
           
           {/* Farmer Routes */}
           <Route path="farmer" element={<RoleBasedRoute allowedRoles={['farmer']}><Farmer /></RoleBasedRoute>} />
@@ -104,6 +149,9 @@ function App() {
           <Route path='farmer/my-service-requests' element={<RoleBasedRoute allowedRoles={['farmer']}><MyServiceRequests/></RoleBasedRoute>}/>
           <Route path='farmer/profile' element={<RoleBasedRoute allowedRoles={['farmer']}><Profile/></RoleBasedRoute>}/>
           <Route path='farmer/product' element={<RoleBasedRoute allowedRoles={['farmer']}><Product/></RoleBasedRoute>}/>
+          <Route path='farmer/Weather' element={<RoleBasedRoute allowedRoles={['farmer']}><FarmerWeather/></RoleBasedRoute>}/>
+          <Route path='farmer/training' element={<RoleBasedRoute allowedRoles={['farmer']}><FarmerTraining/></RoleBasedRoute>}/>
+          <Route path='farmer/cart' element={<RoleBasedRoute allowedRoles={['farmer']}><FarmerCart/></RoleBasedRoute>}/>
           
           {/* Shop Manager Routes */}
           <Route path="shop-manager" element={<RoleBasedRoute allowedRoles={['shop_manager']}><ShopManager /></RoleBasedRoute>} />
@@ -115,6 +163,7 @@ function App() {
           <Route path='shop-manager/suppliers' element={<RoleBasedRoute allowedRoles={['shop_manager']}><ShopSuppliers/></RoleBasedRoute>}/>
           <Route path='shop-manager/analytics' element={<RoleBasedRoute allowedRoles={['shop_manager']}><ShopAnalytics/></RoleBasedRoute>}/>
           <Route path='shop-manager/profile' element={<RoleBasedRoute allowedRoles={['shop_manager']}><ShopProfile/></RoleBasedRoute>}/>
+          <Route path='shop-manager/procurement' element={<RoleBasedRoute allowedRoles={['shop_manager', 'admin']}><ShopProcurement/></RoleBasedRoute>}/>
           
         </Route>
         <Route path="*" element={<h1>Not Found</h1>} />

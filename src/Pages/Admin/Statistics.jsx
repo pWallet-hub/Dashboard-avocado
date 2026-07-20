@@ -1,7 +1,111 @@
 import React, { useEffect, useState } from "react";
-import { Users, Activity, ShoppingBag, DollarSign, UserPlus, Store } from "lucide-react";
+import { Users, Activity, ShoppingBag, DollarSign, UserPlus, Store, MapPin, UserCheck, Sprout } from "lucide-react";
 import "../Styles/Statistics.css";
-import { getDashboardStatistics } from '../../services/analyticsService';
+import { getDashboardStatistics, getRegionalAnalytics, getAgentAnalytics, getFarmerAnalytics } from '../../services/analyticsService';
+import { useToast } from '../../components/Ui/Toast';
+
+// Turn a camelCase / snake_case key into a readable label, e.g. "farm_size" -> "Farm Size"
+function humanizeKey(key) {
+  return key
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+// Format a raw value for display
+function formatValue(value) {
+  if (value === null || value === undefined || value === '') return 'N/A';
+  if (typeof value === 'number') {
+    return Number.isInteger(value) ? value.toLocaleString() : value.toLocaleString(undefined, { maximumFractionDigits: 2 });
+  }
+  if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+  if (Array.isArray(value)) return `${value.length} item${value.length === 1 ? '' : 's'}`;
+  if (typeof value === 'object') return 'N/A';
+  return String(value);
+}
+
+// The exact response shape of these three endpoints can vary, so pull out the first
+// array we can find (rows) and the top-level scalar fields (summary metrics) generically.
+function findArray(data) {
+  if (!data) return [];
+  if (Array.isArray(data)) return data;
+  if (typeof data !== 'object') return [];
+  const candidateKeys = ['data', 'items', 'results', 'regions', 'provinces', 'districts', 'agents', 'farmers', 'list', 'records', 'rows'];
+  for (const key of candidateKeys) {
+    if (Array.isArray(data[key])) return data[key];
+  }
+  const arrProp = Object.values(data).find((v) => Array.isArray(v));
+  return arrProp || [];
+}
+
+function scalarEntries(data) {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return [];
+  return Object.entries(data).filter(([, v]) => v !== null && v !== undefined && typeof v !== 'object');
+}
+
+function SummaryCards({ entries }) {
+  if (!entries || entries.length === 0) return null;
+  return (
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-6">
+      {entries.map(([key, value]) => (
+        <div key={key} className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+          <p className="text-xs font-medium text-gray-500">{humanizeKey(key)}</p>
+          <p className="text-lg font-bold text-gray-800 mt-1">{formatValue(value)}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function DataTable({ rows }) {
+  if (!rows || rows.length === 0) {
+    return <p className="text-gray-500 text-sm">No data available.</p>;
+  }
+  const columns = Object.keys(rows[0]).filter((k) => typeof rows[0][k] !== 'object' || rows[0][k] === null);
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b border-gray-200">
+            {columns.map((col) => (
+              <th key={col} className="text-left py-2 px-3 font-semibold text-gray-700 whitespace-nowrap">
+                {humanizeKey(col)}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, idx) => (
+            <tr key={row.id ?? row._id ?? idx} className="border-b border-gray-100 hover:bg-gray-50">
+              {columns.map((col) => (
+                <td key={col} className="py-2 px-3 whitespace-nowrap">{formatValue(row[col])}</td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function AnalyticsSection({ icon: Icon, title, loading, data }) {
+  return (
+    <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100 mt-8">
+      <div className="flex items-center gap-2 mb-6">
+        <Icon className="w-6 h-6 text-green-600" />
+        <h2 className="text-xl font-bold text-gray-800">{title}</h2>
+      </div>
+      {loading ? (
+        <p className="text-gray-500 text-sm">Loading...</p>
+      ) : (
+        <>
+          <SummaryCards entries={scalarEntries(data)} />
+          <DataTable rows={findArray(data)} />
+        </>
+      )}
+    </div>
+  );
+}
 
 export default function Statistics() {
   const [stats, setStats] = useState({
@@ -13,6 +117,15 @@ export default function Statistics() {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  const [regionalData, setRegionalData] = useState(null);
+  const [regionalLoading, setRegionalLoading] = useState(true);
+  const [agentData, setAgentData] = useState(null);
+  const [agentLoading, setAgentLoading] = useState(true);
+  const [farmerData, setFarmerData] = useState(null);
+  const [farmerLoading, setFarmerLoading] = useState(true);
+
+  const toast = useToast();
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -28,6 +141,49 @@ export default function Statistics() {
     };
 
     fetchStats();
+  }, []);
+
+  useEffect(() => {
+    const fetchRegional = async () => {
+      try {
+        const data = await getRegionalAnalytics();
+        setRegionalData(data);
+      } catch (err) {
+        console.error('Error fetching regional analytics:', err);
+        toast.error(err.message || 'Failed to load regional analytics');
+      } finally {
+        setRegionalLoading(false);
+      }
+    };
+
+    const fetchAgents = async () => {
+      try {
+        const data = await getAgentAnalytics();
+        setAgentData(data);
+      } catch (err) {
+        console.error('Error fetching agent analytics:', err);
+        toast.error(err.message || 'Failed to load agent analytics');
+      } finally {
+        setAgentLoading(false);
+      }
+    };
+
+    const fetchFarmers = async () => {
+      try {
+        const data = await getFarmerAnalytics();
+        setFarmerData(data);
+      } catch (err) {
+        console.error('Error fetching farmer analytics:', err);
+        toast.error(err.message || 'Failed to load farmer analytics');
+      } finally {
+        setFarmerLoading(false);
+      }
+    };
+
+    fetchRegional();
+    fetchAgents();
+    fetchFarmers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (loading) {
@@ -151,6 +307,30 @@ export default function Statistics() {
             </div>
           </div>
         </div>
+
+        {/* Regional Analytics */}
+        <AnalyticsSection
+          icon={MapPin}
+          title="Regional Analytics"
+          loading={regionalLoading}
+          data={regionalData}
+        />
+
+        {/* Agent Performance Analytics */}
+        <AnalyticsSection
+          icon={UserCheck}
+          title="Agent Performance"
+          loading={agentLoading}
+          data={agentData}
+        />
+
+        {/* Farmer Engagement Analytics */}
+        <AnalyticsSection
+          icon={Sprout}
+          title="Farmer Engagement"
+          loading={farmerLoading}
+          data={farmerData}
+        />
       </div>
     </div>
   );

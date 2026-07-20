@@ -2,7 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
 import { DollarSign, ShoppingCart, Users, Package, Eye, AlertTriangle, Download, RefreshCw, Target } from 'lucide-react';
 import { getSalesAnalytics, getProductAnalytics, getMonthlyOrderTrends } from '../../services/analyticsService';
-import { getShopInventory, getShopCustomers } from '../../services/marketStorageService';
+import { getShopCustomers } from '../../services/marketStorageService';
+import { getAllShops, getShopInventory } from '../../services/shopService';
 
 const CATEGORY_COLORS = ['#10B981', '#3B82F6', '#F59E0B', '#EF4444', '#8B5CF6', '#F97316', '#06B6D4', '#EC4899'];
 
@@ -34,20 +35,36 @@ const ShopAnalyticsManagement = () => {
   const [analyticsData, setAnalyticsData] = useState(EMPTY_ANALYTICS);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [shopNumber, setShopNumber] = useState(null);
+
+  useEffect(() => {
+    const resolveOwnShopNumber = async () => {
+      try {
+        const response = await getAllShops();
+        const shops = response?.data || [];
+        if (shops[0]) setShopNumber(shops[0].shop_number ?? shops[0].shopNumber);
+      } catch (err) {
+        console.error('Error resolving own shop number:', err);
+      }
+    };
+    resolveOwnShopNumber();
+  }, []);
 
   const loadAnalytics = useCallback(async () => {
+    if (!shopNumber) return;
     setLoading(true);
     setError(null);
     try {
       const { start_date, end_date } = rangeToDates(timeRange);
 
-      const [sales, products, monthly, inventory, customers] = await Promise.all([
+      const [sales, products, monthly, inventoryResponse, customers] = await Promise.all([
         getSalesAnalytics({ start_date, end_date }),
         getProductAnalytics({ start_date, end_date }),
         getMonthlyOrderTrends(),
-        getShopInventory(),
+        getShopInventory(shopNumber),
         getShopCustomers(),
       ]);
+      const inventory = inventoryResponse?.data || [];
 
       const dailySales = (sales?.trend || []).map(t => ({
         date: new Date(t.date).toLocaleDateString('en-US', { weekday: 'short' }),
@@ -116,7 +133,7 @@ const ShopAnalyticsManagement = () => {
     } finally {
       setLoading(false);
     }
-  }, [timeRange]);
+  }, [timeRange, shopNumber]);
 
   useEffect(() => {
     loadAnalytics();

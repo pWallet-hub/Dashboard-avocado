@@ -21,7 +21,17 @@ import {
   Calendar,
   Bug,
   MapPin,
-  Wrench
+  Wrench,
+  Receipt,
+  Trees,
+  CalendarClock,
+  Cloud,
+  FileCheck2,
+  QrCode,
+  Activity,
+  GraduationCap,
+  Map,
+  Globe2
 } from 'lucide-react';
 import asr from '../../assets/image/pwallet-logo-new.png';
 import './Sidebar.css';
@@ -116,9 +126,20 @@ const Sidebar = ({ role: propRole }) => {
     { to: "/dashboard/admin/users", icon: Users, text: "Manage Growers" },
     { to: "/dashboard/admin/agents", icon: UserCheck, text: "Manage Agents" },
     { to: "/dashboard/admin/reports", icon: FileText, text: "Manage Account" },
-    { to: "/dashboard/admin/shops", icon: ShoppingCart, text: "Manage Shops" }, 
+    { to: "/dashboard/admin/shops", icon: ShoppingCart, text: "Manage Shops" },
+    { to: "/dashboard/admin/shop-managers", icon: Store, text: "Shop Managers" },
+    { to: "/dashboard/admin/transactions", icon: Receipt, text: "Transactions" },
     { to: "/dashboard/admin/statistics", icon: BarChart2, text: "System Usage" },
     { to: "/dashboard/admin/service-requests", icon: ClipboardList, text: "Service Requests" },
+    { to: "/dashboard/admin/farms", icon: Trees, text: "Farms" },
+    { to: "/dashboard/admin/geography", icon: Globe2, text: "Geography" },
+    { to: "/dashboard/admin/diseases", icon: Bug, text: "Disease Management" },
+    { to: "/dashboard/admin/forecasting", icon: Map, text: "Regional Forecasting" },
+    { to: "/dashboard/admin/DocumentReview", icon: FileCheck2, text: "Document Review" },
+    { to: "/dashboard/admin/training", icon: GraduationCap, text: "Training Content" },
+    { to: "/dashboard/admin/settings", icon: Settings, text: "Settings" },
+    { to: "/dashboard/admin/logs", icon: FileText, text: "System Logs" },
+    { to: "/dashboard/admin/monitoring", icon: Activity, text: "Monitoring" },
   ];
 
   const agentLinks = [
@@ -129,6 +150,12 @@ const Sidebar = ({ role: propRole }) => {
     { to: "/dashboard/agent/ServiceHistory", icon: ClipboardList, text: "Service History" },
     { to: "/dashboard/agent/Shop", icon: ShoppingBag, text: "My Shop" },
     { to: "/dashboard/agent/Report", icon: FileText, text: "Reports" },
+    { to: "/dashboard/agent/farms", icon: Trees, text: "Farms" },
+    { to: "/dashboard/agent/DiseaseCases", icon: Bug, text: "Disease Cases" },
+    { to: "/dashboard/agent/Forecasting", icon: TrendingUp, text: "Harvest Forecasting" },
+    { to: "/dashboard/agent/Visits", icon: CalendarClock, text: "Farm Visits" },
+    { to: "/dashboard/agent/Documents", icon: FileText, text: "My Documents" },
+    { to: "/dashboard/agent/ProfileAccessQR", icon: QrCode, text: "Farmer QR Access" },
   ];
 
   const farmerLinks = [
@@ -139,6 +166,9 @@ const Sidebar = ({ role: propRole }) => {
     { to: "/dashboard/farmer/PropertyEvaluation", icon: MapPin, text: "Book your Propery Evaluation Day" },
     { to: "/dashboard/farmer/market", icon: ShoppingCart, text: "Farm Market" },
     { to: "/dashboard/farmer/my-service-requests", icon: ClipboardList, text: "My Requests" },
+    { to: "/dashboard/farmer/cart", icon: ShoppingBag, text: "My Cart" },
+    { to: "/dashboard/farmer/Weather", icon: Cloud, text: "Weather" },
+    { to: "/dashboard/farmer/training", icon: GraduationCap, text: "Training" },
     { to: "/dashboard/farmer/profile", icon: User, text: "Profile" },
   ];
 
@@ -149,6 +179,7 @@ const Sidebar = ({ role: propRole }) => {
     { to: "/dashboard/shop-manager/products", icon: ShoppingBag, text: "Products" },
     { to: "/dashboard/shop-manager/customers", icon: Users, text: "Customers" },
     { to: "/dashboard/shop-manager/suppliers", icon: Truck, text: "Suppliers" },
+    { to: "/dashboard/shop-manager/procurement", icon: ClipboardList, text: "Procurement" },
     { to: "/dashboard/shop-manager/sales", icon: TrendingUp, text: "Sales" },
     { to: "/dashboard/shop-manager/analytics", icon: BarChart2, text: "Analytics" },
     { to: "/dashboard/shop-manager/profile", icon: User, text: "Shop Profile" },

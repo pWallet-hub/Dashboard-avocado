@@ -323,6 +323,128 @@ export const updateFarmerImage = async (imageUrl) => {
 };
 
 /**
+ * List farmers with extended profiles (admin/agent only)
+ *
+ * @param {Object} [options] - Optional query params (e.g. pagination/filtering)
+ * @param {number} [options.page] - Page number
+ * @param {number} [options.limit] - Page size
+ * @param {string} [options.search] - Search term
+ * @param {string} [options.verification_status] - Filter by verification status
+ * @param {string} [options.province] - Filter by province
+ * @param {string} [options.district] - Filter by district
+ * @returns {Promise<Object>} List response containing farmers with extended profiles
+ *
+ * @example
+ * const result = await listFarmerProfiles({ verification_status: 'pending' });
+ * console.log(result.data);
+ */
+export const listFarmerProfiles = async (options = {}) => {
+  try {
+    const params = {};
+    if (options.page) params.page = options.page;
+    if (options.limit) params.limit = options.limit;
+    if (options.search) params.search = options.search;
+    if (options.verification_status) params.verification_status = options.verification_status;
+    if (options.province) params.province = options.province;
+    if (options.district) params.district = options.district;
+
+    const response = await apiClient.get(FARMER_INFO_ENDPOINT, { params });
+    return response.data;
+  } catch (error) {
+    console.error('List farmer profiles error:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get a single farmer's extended profile by ID (admin/agent only)
+ *
+ * @param {string} id - Farmer (user) ID
+ * @returns {Promise<Object>} Farmer information response
+ * @throws {Error} If id is not provided
+ *
+ * @example
+ * const farmer = await getFarmerProfileById('123');
+ * console.log(farmer.data.farmer_profile);
+ */
+export const getFarmerProfileById = async (id) => {
+  if (!id) {
+    throw new Error('Farmer ID is required');
+  }
+
+  try {
+    const response = await apiClient.get(`${FARMER_INFO_ENDPOINT}/${id}`);
+    return response.data;
+  } catch (error) {
+    console.error('Get farmer profile by id error:', error);
+    throw error;
+  }
+};
+
+/**
+ * Update a farmer's extended profile by ID (agent/admin only)
+ *
+ * @param {string} id - Farmer (user) ID
+ * @param {Object} updateData - Farmer profile data to update (see updateFarmerInformation for shape)
+ * @returns {Promise<Object>} Updated farmer information
+ * @throws {Error} If id or updateData is missing/invalid
+ *
+ * @example
+ * const updated = await updateFarmerProfileById('123', { tree_count: 200 });
+ */
+export const updateFarmerProfileById = async (id, updateData) => {
+  if (!id) {
+    throw new Error('Farmer ID is required');
+  }
+
+  if (!updateData || typeof updateData !== 'object') {
+    throw new Error('Valid update data is required');
+  }
+
+  try {
+    const response = await apiClient.put(`${FARMER_INFO_ENDPOINT}/${id}`, updateData);
+    return response.data;
+  } catch (error) {
+    console.error('Update farmer profile by id error:', error);
+    console.error('Error response:', error.response?.data);
+    throw error;
+  }
+};
+
+/**
+ * Verify or reject a farmer profile (admin only)
+ * Note: {id} here is the FarmerProfile record ID, not the user ID
+ *
+ * @param {string} id - FarmerProfile record ID
+ * @param {('verified'|'rejected')} verificationStatus - New verification status
+ * @returns {Promise<Object>} Updated farmer profile
+ * @throws {Error} If id is missing or verificationStatus is invalid
+ *
+ * @example
+ * const result = await verifyFarmerProfile('456', 'verified');
+ */
+export const verifyFarmerProfile = async (id, verificationStatus) => {
+  if (!id) {
+    throw new Error('Farmer profile ID is required');
+  }
+
+  if (!['verified', 'rejected'].includes(verificationStatus)) {
+    throw new Error('Verification status must be either "verified" or "rejected"');
+  }
+
+  try {
+    const response = await apiClient.put(`${FARMER_INFO_ENDPOINT}/${id}/verify`, {
+      verification_status: verificationStatus,
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Verify farmer profile error:', error);
+    console.error('Error response:', error.response?.data);
+    throw error;
+  }
+};
+
+/**
  * Check if farmer has a profile
  * 
  * @returns {Promise<boolean>} True if profile exists, false otherwise
@@ -409,6 +531,10 @@ export default {
   getFarmerInformation,
   updateFarmerInformation,
   createFarmerProfile,
+  listFarmerProfiles,
+  getFarmerProfileById,
+  updateFarmerProfileById,
+  verifyFarmerProfile,
   updateTreeCount,
   updateSpecificFields,
   updateUserInfo,

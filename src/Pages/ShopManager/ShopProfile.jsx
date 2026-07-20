@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { User, Mail, Phone, MapPin, Calendar, Store, Edit3, Save, X, Award, Package, Users } from 'lucide-react';
+import { User, Mail, Phone, MapPin, Calendar, Store, Edit3, Save, X, Award, Package, Users, Wallet, History } from 'lucide-react';
 import { getProfile, updateProfile } from '../../services/authService';
+import { getAllShops, getShopWallet } from '../../services/shopService';
 import MembershipCard from '../../components/Profile/MembershipCard';
 import '../Styles/Shop.css';
 
@@ -10,6 +11,11 @@ export default function ShopProfile() {
   const [error, setError] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editedProfile, setEditedProfile] = useState({});
+
+  const [shopNumber, setShopNumber] = useState(null);
+  const [wallet, setWallet] = useState(null);
+  const [walletLoading, setWalletLoading] = useState(false);
+  const [walletError, setWalletError] = useState(null);
 
   useEffect(() => {
     const fetchShopProfile = async () => {
@@ -29,6 +35,45 @@ export default function ShopProfile() {
 
     fetchShopProfile();
   }, []);
+
+  useEffect(() => {
+    const fetchOwnShopNumber = async () => {
+      try {
+        const response = await getAllShops();
+        const shops = response?.data || [];
+        const ownShop = shops[0];
+        if (ownShop) {
+          const number = ownShop.shop_number ?? ownShop.shopNumber;
+          setShopNumber(number);
+        }
+      } catch (err) {
+        console.error('Error fetching shop for wallet lookup:', err);
+        setWalletError('Unable to load wallet information.');
+      }
+    };
+
+    fetchOwnShopNumber();
+  }, []);
+
+  useEffect(() => {
+    if (!shopNumber) return;
+
+    const fetchWallet = async () => {
+      setWalletLoading(true);
+      setWalletError(null);
+      try {
+        const response = await getShopWallet(shopNumber);
+        setWallet(response?.data || null);
+      } catch (err) {
+        console.error('Error fetching shop wallet:', err);
+        setWalletError('Unable to load wallet information.');
+      } finally {
+        setWalletLoading(false);
+      }
+    };
+
+    fetchWallet();
+  }, [shopNumber]);
 
   const handleEditProfile = () => {
     setEditedProfile({ ...shopProfile });
@@ -301,6 +346,88 @@ export default function ShopProfile() {
               subtitle={null}
             />
           </div>
+        </div>
+
+        {/* Wallet Section */}
+        <div className="mb-8">
+          <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center">
+            <Wallet className="w-5 h-5 mr-2 text-blue-600" aria-hidden="true" />
+            Wallet
+          </h3>
+
+          {walletError && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-sm text-red-700">{walletError}</p>
+            </div>
+          )}
+
+          {walletLoading ? (
+            <div className="p-6 bg-white rounded-xl shadow-md border border-gray-100 flex items-center justify-center">
+              <div className="w-6 h-6 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin mr-3"></div>
+              <p className="text-gray-600">Loading wallet...</p>
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+                <ProfileCard
+                  icon={Wallet}
+                  title="Wallet Balance"
+                  value={
+                    wallet && wallet.balance !== undefined && wallet.balance !== null
+                      ? `${Number(wallet.balance).toLocaleString()} RWF`
+                      : null
+                  }
+                  subtitle="Current balance"
+                />
+              </div>
+
+              <div className="bg-white rounded-xl shadow-md border border-gray-100 p-6">
+                <h4 className="text-md font-semibold text-gray-800 mb-4 flex items-center">
+                  <History className="w-5 h-5 mr-2 text-blue-600" aria-hidden="true" />
+                  Transaction History
+                </h4>
+
+                {wallet && Array.isArray(wallet.transactions) && wallet.transactions.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead>
+                        <tr>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type / Description</th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payment Method</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {wallet.transactions.map((tx, index) => (
+                          <tr key={tx.id ?? index} className="hover:bg-gray-50">
+                            <td className="px-4 py-3 text-sm text-gray-700">
+                              {tx.date || tx.created_at
+                                ? new Date(tx.date || tx.created_at).toLocaleDateString()
+                                : 'N/A'}
+                            </td>
+                            <td className="px-4 py-3 text-sm font-semibold text-gray-800">
+                              {tx.amount !== undefined && tx.amount !== null
+                                ? `${Number(tx.amount).toLocaleString()} RWF`
+                                : 'N/A'}
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-700">
+                              {tx.type || tx.description || 'N/A'}
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-700">
+                              {tx.payment_method || 'N/A'}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-500">No wallet transactions yet.</p>
+                )}
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>

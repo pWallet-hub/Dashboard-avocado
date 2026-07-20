@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { LogIn } from "lucide-react";
 import { login } from '../../services/authService'; // Import the authService
 
@@ -7,7 +7,10 @@ function Login() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState('');
+  const [searchParams] = useSearchParams();
+  const [message, setMessage] = useState(
+    searchParams.get('resetSuccess') ? 'Password reset successful! Please log in with your new password.' : ''
+  );
   const navigate = useNavigate();
   
   // Add form validation
@@ -115,6 +118,9 @@ function Login() {
               disabled={loading}
               className="w-full p-3 mb-4 border border-gray-300 rounded focus:outline-none focus:border-green-500"
             />
+            <p className="mb-4 -mt-2 text-sm text-right">
+              <Link to="/forgot-password" className="font-medium text-green-600 hover:underline">Forgot password?</Link>
+            </p>
             {message && (
               <div className={`w-full p-2 mb-4 text-center rounded ${
                 message.includes('successful') ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'

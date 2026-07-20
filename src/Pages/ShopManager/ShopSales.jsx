@@ -30,7 +30,7 @@ const ShopSales = () => {
       const orders = ordersResponse.data || [];
       
       // Fetch products to calculate costs
-      const productsResponse = await getAllProducts({ limit: 1000 });
+      const productsResponse = await getAllProducts({ limit: 100 });
       const products = productsResponse.data || [];
       
       // Map orders to sales data

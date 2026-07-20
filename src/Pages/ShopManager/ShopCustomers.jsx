@@ -5,7 +5,7 @@ import {
   Calendar, DollarSign, ShoppingCart, TrendingUp, MessageCircle, CheckCircle, X,
   Save, FileText, Zap, Heart, Package, Clock
 } from 'lucide-react';
-import { getShopCustomers, createCustomer, updateCustomer as updateCustomerApi, deleteCustomer as deleteCustomerApi, getCustomerOrders, getCustomerStatistics } from '../../services/marketStorageService';
+import { getShopCustomers, createCustomer, updateCustomer as updateCustomerApi, deleteCustomer as deleteCustomerApi, getCustomerOrders, getCustomerStatistics, getCustomerById } from '../../services/marketStorageService';
 import { useToast } from '../../components/Ui/Toast';
 import { useConfirm } from '../../components/Ui/ConfirmDialog';
 // import './CustomerManagement.css';
@@ -867,12 +867,28 @@ const CustomerManagement = () => {
                         setSelectedCustomer(customer);
                         setActiveView('detail');
                         try {
-                          const [orders, statistics] = await Promise.all([
+                          const [ordersResult, statisticsResult, customerResult] = await Promise.allSettled([
                             getCustomerOrders(customer.id),
                             getCustomerStatistics(customer.id),
+                            getCustomerById(customer.id),
                           ]);
+                          const orders = ordersResult.status === 'fulfilled' ? ordersResult.value : [];
+                          const statistics = statisticsResult.status === 'fulfilled' ? statisticsResult.value : null;
+                          if (ordersResult.status === 'rejected') {
+                            console.error('Error loading customer orders:', ordersResult.reason);
+                          }
+                          if (statisticsResult.status === 'rejected') {
+                            console.error('Error loading customer statistics:', statisticsResult.reason);
+                          }
+                          let freshCustomer = null;
+                          if (customerResult.status === 'fulfilled' && customerResult.value) {
+                            freshCustomer = mapCustomerFromApi(customerResult.value);
+                          } else if (customerResult.status === 'rejected') {
+                            console.error('Error loading customer details:', customerResult.reason);
+                          }
                           setSelectedCustomer(prev => (prev && prev.id === customer.id) ? {
                             ...prev,
+                            ...(freshCustomer || {}),
                             orders: (Array.isArray(orders) ? orders : []).map(o => ({
                               id: o.order_number || o.id,
                               date: o.order_date || o.created_at,
@@ -882,10 +898,11 @@ const CustomerManagement = () => {
                             })),
                             stats: {
                               ...prev.stats,
-                              totalOrders: statistics?.total_orders ?? prev.stats.totalOrders,
-                              totalSpent: statistics?.total_spent ?? prev.stats.totalSpent,
-                              avgOrderValue: statistics?.average_order_value ?? prev.stats.avgOrderValue,
-                              lastOrderDate: statistics?.last_order_date ?? prev.stats.lastOrderDate,
+                              ...(freshCustomer ? freshCustomer.stats : {}),
+                              totalOrders: statistics?.total_orders ?? (freshCustomer ? freshCustomer.stats.totalOrders : prev.stats.totalOrders),
+                              totalSpent: statistics?.total_spent ?? (freshCustomer ? freshCustomer.stats.totalSpent : prev.stats.totalSpent),
+                              avgOrderValue: statistics?.average_order_value ?? (freshCustomer ? freshCustomer.stats.avgOrderValue : prev.stats.avgOrderValue),
+                              lastOrderDate: statistics?.last_order_date ?? (freshCustomer ? freshCustomer.stats.lastOrderDate : prev.stats.lastOrderDate),
                             },
                           } : prev);
                         } catch (error) {

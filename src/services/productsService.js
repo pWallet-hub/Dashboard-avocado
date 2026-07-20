@@ -302,6 +302,32 @@ export async function updateProductStock(productId, quantity) {
 }
 
 /**
+ * Get paginated stock change history for a product
+ */
+export async function getProductStockHistory(productId, options = {}) {
+  if (!productId) {
+    throw new Error('Product ID is required');
+  }
+
+  try {
+    console.log(`🔄 Fetching stock history for product: ${productId}`);
+
+    const params = {};
+    if (options.page) params.page = options.page;
+    if (options.limit) params.limit = options.limit;
+    if (options.sort) params.sort = options.sort;
+
+    const response = await apiClient.get(`/products/${productId}/stock-history`, { params });
+    console.log('✅ Stock history fetched successfully:', response.data);
+
+    return extractPaginatedData(response);
+  } catch (error) {
+    console.error('❌ Error fetching product stock history:', error);
+    throw error;
+  }
+}
+
+/**
  * Search products
  */
 export async function searchProducts(query, options = {}) {

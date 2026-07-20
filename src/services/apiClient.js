@@ -7,7 +7,7 @@ const getBaseURL = () => {
   
   // In production, use the environment variable or fallback to the default backend URL
   if (import.meta.env.PROD) {
-    return envBaseURL || 'https://dash-api-hnyp.onrender.com/api';
+    return envBaseURL || 'https://api.rwandaavocados.rw/api';
   }
   
   // In development, use the Vite proxy

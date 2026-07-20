@@ -250,4 +250,67 @@ describe('Analytics Service', () => {
       expect(result).toEqual(mockResponse.data.data);
     });
   });
+
+  describe('getRegionalAnalytics', () => {
+    it('should fetch regional analytics', async () => {
+      const mockResponse = {
+        data: {
+          success: true,
+          data: {
+            provinces: [],
+          },
+          message: 'Regional analytics retrieved successfully',
+        },
+      };
+
+      apiClient.get.mockResolvedValue(mockResponse);
+
+      const result = await analyticsService.getRegionalAnalytics();
+
+      expect(apiClient.get).toHaveBeenCalledWith('/analytics/regional');
+      expect(result).toEqual(mockResponse.data.data);
+    });
+  });
+
+  describe('getAgentAnalytics', () => {
+    it('should fetch agent performance analytics', async () => {
+      const mockResponse = {
+        data: {
+          success: true,
+          data: {
+            agents: [],
+          },
+          message: 'Agent analytics retrieved successfully',
+        },
+      };
+
+      apiClient.get.mockResolvedValue(mockResponse);
+
+      const result = await analyticsService.getAgentAnalytics();
+
+      expect(apiClient.get).toHaveBeenCalledWith('/analytics/agents');
+      expect(result).toEqual(mockResponse.data.data);
+    });
+  });
+
+  describe('getFarmerAnalytics', () => {
+    it('should fetch farmer engagement analytics', async () => {
+      const mockResponse = {
+        data: {
+          success: true,
+          data: {
+            farmers: [],
+          },
+          message: 'Farmer analytics retrieved successfully',
+        },
+      };
+
+      apiClient.get.mockResolvedValue(mockResponse);
+
+      const result = await analyticsService.getFarmerAnalytics();
+
+      expect(apiClient.get).toHaveBeenCalledWith('/analytics/farmers');
+      expect(result).toEqual(mockResponse.data.data);
+    });
+  });
 });
