@@ -1,5 +1,7 @@
 # ── Stage 1: Build ────────────────────────────────────────────────────────────
-FROM node:20-alpine AS builder
+# Node 20 is EOL and too old for current deps (jsdom 29, rolldown, vitest 4
+# require Node ^20.19 || ^22.12+); build on the current Node 22 LTS instead.
+FROM node:22-alpine AS builder
 
 WORKDIR /app
 
@@ -11,10 +13,10 @@ RUN npm install
 
 COPY . .
 
-# Vite bakes VITE_* env vars into the bundle at build time. Default to a
-# same-origin relative path so nginx (below) can reverse-proxy it to the
-# "api" compose service without baking in any specific host/port.
-ARG VITE_API_BASE_URL=/api
+# Vite bakes VITE_* env vars into the bundle at build time. Default to the
+# canonical production backend so the built bundle works standalone, without
+# depending on an nginx-side reverse proxy to a sibling "api" container.
+ARG VITE_API_BASE_URL=https://api.rwandaavocados.rw/api
 ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
 
 RUN npm run build
