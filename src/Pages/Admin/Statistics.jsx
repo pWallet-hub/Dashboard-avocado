@@ -1,10 +1,14 @@
 import React, { useEffect, useState } from "react";
-import { Users, Activity, ShoppingBag, DollarSign, UserPlus, Store, MapPin, UserCheck, Sprout } from "lucide-react";
+import { 
+  Users, Activity, ShoppingBag, DollarSign, UserPlus, Store, 
+  MapPin, UserCheck, Sprout, SlidersHorizontal, Plus, ChevronUp, 
+  TrendingUp, TrendingDown, Layers, CheckCircle2 
+} from "lucide-react";
 import "../Styles/Statistics.css";
 import { getDashboardStatistics, getRegionalAnalytics, getAgentAnalytics, getFarmerAnalytics } from '../../services/analyticsService';
 import { useToast } from '../../components/Ui/Toast';
 
-// Turn a camelCase / snake_case key into a readable label, e.g. "farm_size" -> "Farm Size"
+// Helper functions (Unchanged)
 function humanizeKey(key) {
   return key
     .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
@@ -12,7 +16,6 @@ function humanizeKey(key) {
     .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-// Format a raw value for display
 function formatValue(value) {
   if (value === null || value === undefined || value === '') return 'N/A';
   if (typeof value === 'number') {
@@ -24,8 +27,6 @@ function formatValue(value) {
   return String(value);
 }
 
-// The exact response shape of these three endpoints can vary, so pull out the first
-// array we can find (rows) and the top-level scalar fields (summary metrics) generically.
 function findArray(data) {
   if (!data) return [];
   if (Array.isArray(data)) return data;
@@ -43,43 +44,54 @@ function scalarEntries(data) {
   return Object.entries(data).filter(([, v]) => v !== null && v !== undefined && typeof v !== 'object');
 }
 
+// Redesigned Summary Widget Bar
 function SummaryCards({ entries }) {
   if (!entries || entries.length === 0) return null;
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-6">
+    <div className="widget-summary-grid">
       {entries.map(([key, value]) => (
-        <div key={key} className="bg-gray-50 rounded-xl p-4 border border-gray-100">
-          <p className="text-xs font-medium text-gray-500">{humanizeKey(key)}</p>
-          <p className="text-lg font-bold text-gray-800 mt-1">{formatValue(value)}</p>
+        <div key={key} className="summary-data-item">
+          <div className="summary-data-header">
+            <span className="summary-data-label">{humanizeKey(key)}</span>
+          </div>
+          <p className="summary-data-value">{formatValue(value)}</p>
         </div>
       ))}
     </div>
   );
 }
 
+// Redesigned Data Table matching reference "Activity Monitor"
 function DataTable({ rows }) {
   if (!rows || rows.length === 0) {
-    return <p className="text-gray-500 text-sm">No data available.</p>;
+    return <p className="widget-empty-txt">No data records available.</p>;
   }
   const columns = Object.keys(rows[0]).filter((k) => typeof rows[0][k] !== 'object' || rows[0][k] === null);
+  
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm">
+    <div className="widget-table-wrapper">
+      <table className="widget-monitor-table">
         <thead>
-          <tr className="border-b border-gray-200">
+          <tr>
             {columns.map((col) => (
-              <th key={col} className="text-left py-2 px-3 font-semibold text-gray-700 whitespace-nowrap">
+              <th key={col}>
                 {humanizeKey(col)}
               </th>
             ))}
+            <th className="text-right">TREND</th>
           </tr>
         </thead>
         <tbody>
           {rows.map((row, idx) => (
-            <tr key={row.id ?? row._id ?? idx} className="border-b border-gray-100 hover:bg-gray-50">
-              {columns.map((col) => (
-                <td key={col} className="py-2 px-3 whitespace-nowrap">{formatValue(row[col])}</td>
+            <tr key={row.id ?? row._id ?? idx}>
+              {columns.map((col, cIdx) => (
+                <td key={col} className={cIdx === 0 ? "font-semibold text-gray-800" : ""}>
+                  {formatValue(row[col])}
+                </td>
               ))}
+              <td className="text-right">
+                <TrendingUp className="w-3.5 h-3.5 text-emerald-500 inline-block" />
+              </td>
             </tr>
           ))}
         </tbody>
@@ -88,21 +100,34 @@ function DataTable({ rows }) {
   );
 }
 
+// Redesigned Analytics Container matching "System Usage" Card Panels
 function AnalyticsSection({ icon: Icon, title, loading, data }) {
   return (
-    <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100 mt-8">
-      <div className="flex items-center gap-2 mb-6">
-        <Icon className="w-6 h-6 text-green-600" />
-        <h2 className="text-xl font-bold text-gray-800">{title}</h2>
+    <div className="stat-card-widget">
+      <div className="widget-card-header">
+        <div className="widget-title-group">
+          <Icon className="w-4 h-4 text-cyan-600" />
+          <h3>{title}</h3>
+        </div>
+        <div className="widget-controls">
+          <SlidersHorizontal className="w-3.5 h-3.5 text-gray-400 cursor-pointer" />
+          <Plus className="w-3.5 h-3.5 text-gray-400 cursor-pointer" />
+        </div>
       </div>
-      {loading ? (
-        <p className="text-gray-500 text-sm">Loading...</p>
-      ) : (
-        <>
-          <SummaryCards entries={scalarEntries(data)} />
-          <DataTable rows={findArray(data)} />
-        </>
-      )}
+
+      <div className="widget-card-body">
+        {loading ? (
+          <div className="widget-loading-state">
+            <div className="widget-spinner"></div>
+            <span>Fetching telemetry data...</span>
+          </div>
+        ) : (
+          <>
+            <SummaryCards entries={scalarEntries(data)} />
+            <DataTable rows={findArray(data)} />
+          </>
+        )}
+      </div>
     </div>
   );
 }
@@ -131,7 +156,7 @@ export default function Statistics() {
     const fetchStats = async () => {
       try {
         const data = await getDashboardStatistics();
-        setStats(data);
+        setStats(data || {});
       } catch (err) {
         console.error('Error fetching statistics:', err);
         setError('Failed to load statistics');
@@ -183,154 +208,230 @@ export default function Statistics() {
     fetchRegional();
     fetchAgents();
     fetchFarmers();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (loading) {
-    return <div className="statistics-container"><div className="loading">Loading statistics...</div></div>;
+    return (
+      <div className="stats-dashboard-root font-poppins">
+        <div className="widget-loading-state">
+          <div className="widget-spinner"></div>
+          <span>Initializing system metrics...</span>
+        </div>
+      </div>
+    );
   }
 
   if (error) {
-    return <div className="statistics-container"><div className="error">{error}</div></div>;
+    return (
+      <div className="stats-dashboard-root font-poppins">
+        <div className="stats-error-banner">{error}</div>
+      </div>
+    );
   }
 
+  const activeUsersCount = (stats.users?.byRole?.admin || 0) + 
+                           (stats.users?.byRole?.agent || 0) + 
+                           (stats.users?.byRole?.farmer || 0) + 
+                           (stats.users?.byRole?.shop_manager || 0);
+
   return (
-    <div className="statistics-container">
-      <div className="statistics-wrapper">
-        {/* Header */}
-        <div className="header">
-          <h1 className="header-title">System Usage Statistics</h1>
-          <p className="header-subtitle">Overview of your system's performance</p>
+    <div className="stats-dashboard-root font-poppins">
+      <div className="stats-wrapper">
+        
+        {/* Top Control Bar Header */}
+        <header className="stats-page-header">
+          <div>
+            <h1 className="stats-page-title">System Usage Statistics</h1>
+            <p className="stats-page-sub">Telemetry readout & real-time operational monitor</p>
+          </div>
+          <div className="header-actions">
+            <button className="pill-control-btn">
+              <SlidersHorizontal className="w-3.5 h-3.5" />
+              <span>Configure Widgets</span>
+            </button>
+          </div>
+        </header>
+
+        {/* Top Horizontal Hardware Monitor Style Layout */}
+        <div className="top-widgets-grid">
+          
+          {/* Card 1: Users Monitor */}
+          <div className="stat-card-widget">
+            <div className="widget-card-header">
+              <div className="widget-title-group">
+                <span>USERS MONITOR</span>
+              </div>
+              <ChevronUp className="w-4 h-4 text-gray-400" />
+            </div>
+            
+            <div className="widget-metric-hero">
+              <div className="hero-num-group">
+                <h2 className="hero-value text-cyan-600">{stats.users?.total?.toLocaleString() || 0}</h2>
+                <div className="hero-trend up">
+                  <TrendingUp className="w-3.5 h-3.5" />
+                  <span>12%</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="widget-progress-stack">
+              <div className="progress-item">
+                <div className="progress-labels">
+                  <span>Admins</span>
+                  <span className="font-bold">{stats.users?.byRole?.admin || 0}</span>
+                </div>
+                <div className="progress-bar-bg"><div className="bar-fill bg-cyan" style={{ width: '25%' }}></div></div>
+              </div>
+
+              <div className="progress-item">
+                <div className="progress-labels">
+                  <span>Farmers</span>
+                  <span className="font-bold">{stats.users?.byRole?.farmer || 0}</span>
+                </div>
+                <div className="progress-bar-bg"><div className="bar-fill bg-emerald" style={{ width: '65%' }}></div></div>
+              </div>
+
+              <div className="progress-item">
+                <div className="progress-labels">
+                  <span>Agents</span>
+                  <span className="font-bold">{stats.users?.byRole?.agent || 0}</span>
+                </div>
+                <div className="progress-bar-bg"><div className="bar-fill bg-amber" style={{ width: '40%' }}></div></div>
+              </div>
+            </div>
+          </div>
+
+          {/* Card 2: Activity & Users Usage */}
+          <div className="stat-card-widget">
+            <div className="widget-card-header">
+              <div className="widget-title-group">
+                <span>ACTIVE USERS</span>
+              </div>
+              <ChevronUp className="w-4 h-4 text-gray-400" />
+            </div>
+
+            <div className="widget-spec-grid">
+              <div className="spec-row">
+                <span className="spec-label">ACTIVE ACCOUNT TOTAL</span>
+                <span className="spec-value">{activeUsersCount}</span>
+              </div>
+              <div className="spec-row">
+                <span className="spec-label">NEWLY REGISTERED</span>
+                <span className="spec-value">{stats.users?.recent || 0}</span>
+              </div>
+            </div>
+
+            <div className="widget-metric-hero mt-2">
+              <div className="hero-num-group">
+                <h2 className="hero-value text-emerald-600">{activeUsersCount}</h2>
+                <div className="hero-trend up">
+                  <TrendingUp className="w-3.5 h-3.5" />
+                  <span>8%</span>
+                </div>
+              </div>
+              <p className="hero-sub-lbl">Active Users Session Rate</p>
+            </div>
+          </div>
+
+          {/* Card 3: Revenue & Orders Allocation */}
+          <div className="stat-card-widget">
+            <div className="widget-card-header">
+              <div className="widget-title-group">
+                <span>TRANSACTIONS</span>
+              </div>
+              <ChevronUp className="w-4 h-4 text-gray-400" />
+            </div>
+
+            <div className="widget-spec-grid">
+              <div className="spec-row">
+                <span className="spec-label">TOTAL TRANSACTIONS</span>
+                <span className="spec-value">{stats.orders?.total?.toLocaleString() || 0}</span>
+              </div>
+              <div className="spec-row">
+                <span className="spec-label">30-DAY REVENUE</span>
+                <span className="spec-value">RWF {stats.orders?.revenue?.last30Days?.toLocaleString() || 0}</span>
+              </div>
+            </div>
+
+            <div className="widget-metric-hero mt-2">
+              <div className="hero-num-group">
+                <h2 className="hero-value text-rose-600">
+                  RWF {stats.orders?.revenue?.total?.toLocaleString() || 0}
+                </h2>
+                <div className="hero-trend down">
+                  <TrendingDown className="w-3.5 h-3.5" />
+                  <span>2%</span>
+                </div>
+              </div>
+              <p className="hero-sub-lbl">Gross System Turnover</p>
+            </div>
+          </div>
+
+          {/* Card 4: Ecosystem & Shops */}
+          <div className="stat-card-widget">
+            <div className="widget-card-header">
+              <div className="widget-title-group">
+                <span>ECOSYSTEM NETWORK</span>
+              </div>
+              <ChevronUp className="w-4 h-4 text-gray-400" />
+            </div>
+
+            <div className="widget-progress-stack mt-1">
+              <div className="progress-item">
+                <div className="progress-labels">
+                  <span>Registered Outlets</span>
+                  <span className="font-bold">{stats.users?.byRole?.shop_manager || 0}</span>
+                </div>
+                <div className="progress-bar-bg"><div className="bar-fill bg-purple" style={{ width: '80%' }}></div></div>
+              </div>
+
+              <div className="progress-item">
+                <div className="progress-labels">
+                  <span>Catalog Products</span>
+                  <span className="font-bold">{stats.products?.total || 0}</span>
+                </div>
+                <div className="progress-bar-bg"><div className="bar-fill bg-blue" style={{ width: '55%' }}></div></div>
+              </div>
+
+              <div className="progress-item">
+                <div className="progress-labels">
+                  <span>Service Requests</span>
+                  <span className="font-bold">{stats.serviceRequests?.total || 0}</span>
+                </div>
+                <div className="progress-bar-bg"><div className="bar-fill bg-emerald" style={{ width: '90%' }}></div></div>
+              </div>
+            </div>
+          </div>
+
         </div>
 
-        {/* Stats Grid */}
-        <div className="stats-grid">
-          {/* Total Users */}
-          <div className="stat-card">
-            <div className="stat-header">
-              <div className="stat-info">
-                <p className="stat-label">Total Users</p>
-                <p className="stat-value">{stats.users.total.toLocaleString()}</p>
-              </div>
-              <div className="stat-icon icon-blue">
-                <Users className="w-6 h-6" />
-              </div>
-            </div>
-            <div className="stat-footer">
-              <span className="stat-trend text-green">↑ 12%</span>
-              <span className="stat-comparison">vs last month</span>
-            </div>
-          </div>
+        {/* Detailed Analytics Grid Sections */}
+        <div className="analytics-sections-grid">
+          {/* Regional Analytics */}
+          <AnalyticsSection
+            icon={MapPin}
+            title="Regional Territory Analytics"
+            loading={regionalLoading}
+            data={regionalData}
+          />
 
-          {/* Active Users */}
-          <div className="stat-card">
-            <div className="stat-header">
-              <div className="stat-info">
-                <p className="stat-label">Active Users</p>
-                <p className="stat-value">{stats.users.byRole.admin + stats.users.byRole.agent + stats.users.byRole.farmer + stats.users.byRole.shop_manager}</p>
-              </div>
-              <div className="stat-icon icon-green">
-                <Activity className="w-6 h-6" />
-              </div>
-            </div>
-            <div className="stat-footer">
-              <span className="stat-trend text-green">↑ 8%</span>
-              <span className="stat-comparison">vs last month</span>
-            </div>
-          </div>
+          {/* Agent Performance Analytics */}
+          <AnalyticsSection
+            icon={UserCheck}
+            title="Field Agent Operational Performance"
+            loading={agentLoading}
+            data={agentData}
+          />
 
-          {/* Total Transactions */}
-          <div className="stat-card">
-            <div className="stat-header">
-              <div className="stat-info">
-                <p className="stat-label">Total Transactions</p>
-                <p className="stat-value">{stats.orders.total.toLocaleString()}</p>
-              </div>
-              <div className="stat-icon icon-purple">
-                <ShoppingBag className="w-6 h-6" />
-              </div>
-            </div>
-            <div className="stat-footer">
-              <span className="stat-trend text-green">↑ 4%</span>
-              <span className="stat-comparison">vs last month</span>
-            </div>
-          </div>
-
-          {/* Total Revenue */}
-          <div className="stat-card">
-            <div className="stat-header">
-              <div className="stat-info">
-                <p className="stat-label">Total Revenue</p>
-                <p className="stat-value">RWF      {stats.orders.revenue.total.toLocaleString()}</p>
-              </div>
-              <div className="stat-icon icon-yellow">
-                <DollarSign className="w-6 h-6" />
-              </div>
-            </div>
-            <div className="stat-footer">
-              <span className="stat-trend text-red">↓ 2%</span>
-              <span className="stat-comparison">vs last month</span>
-            </div>
-          </div>
-
-          {/* New Users */}
-          <div className="stat-card">
-            <div className="stat-header">
-              <div className="stat-info">
-                <p className="stat-label">New Users</p>
-                <p className="stat-value">{stats.users.recent.toLocaleString()}</p>
-              </div>
-              <div className="stat-icon icon-indigo">
-                <UserPlus className="w-6 h-6" />
-              </div>
-            </div>
-            <div className="stat-footer">
-              <span className="stat-trend text-green">↑ 15%</span>
-              <span className="stat-comparison">vs last month</span>
-            </div>
-          </div>
-
-          {/* Total Shops */}
-          <div className="stat-card">
-            <div className="stat-header">
-              <div className="stat-info">
-                <p className="stat-label">Total Shops</p>
-                <p className="stat-value">{stats.users.byRole.shop_manager.toLocaleString()}</p>
-              </div>
-              <div className="stat-icon icon-pink">
-                <Store className="w-6 h-6" />
-              </div>
-            </div>
-            <div className="stat-footer">
-              <span className="stat-trend text-green">↑ 6%</span>
-              <span className="stat-comparison">vs last month</span>
-            </div>
-          </div>
+          {/* Farmer Engagement Analytics */}
+          <AnalyticsSection
+            icon={Sprout}
+            title="Farmer Engagement & Orchard Telemetry"
+            loading={farmerLoading}
+            data={farmerData}
+          />
         </div>
 
-        {/* Regional Analytics */}
-        <AnalyticsSection
-          icon={MapPin}
-          title="Regional Analytics"
-          loading={regionalLoading}
-          data={regionalData}
-        />
-
-        {/* Agent Performance Analytics */}
-        <AnalyticsSection
-          icon={UserCheck}
-          title="Agent Performance"
-          loading={agentLoading}
-          data={agentData}
-        />
-
-        {/* Farmer Engagement Analytics */}
-        <AnalyticsSection
-          icon={Sprout}
-          title="Farmer Engagement"
-          loading={farmerLoading}
-          data={farmerData}
-        />
       </div>
     </div>
   );

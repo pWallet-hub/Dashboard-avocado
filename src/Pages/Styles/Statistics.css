@@ -1,184 +1,357 @@
-/* styles.css */
-.statistics-container {
-    padding: 1.5rem;
-    background-color: rgb(249, 250, 251);
+/* ==========================================================================
+   SYSTEM MONITORING DASHBOARD (UI MATCH TO REFERENCE DESIGN)
+   ========================================================================== */
+
+.stats-dashboard-root {
+  min-height: 100vh;
+  background-color: #f1f5f9; /* Matching image light blueprint canvas */
+  color: #334155;
+  font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  padding: 1.5rem;
+  box-sizing: border-box;
+}
+
+.stats-wrapper {
+  max-width: 1440px;
+  margin: 0 auto;
+}
+
+/* Header Bar */
+.stats-page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.stats-page-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+.stats-page-sub {
+  font-size: 0.75rem;
+  color: #64748b;
+  margin-top: 0.2rem;
+}
+
+.pill-control-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  background-color: #ffffff;
+  border: 1px solid #cbd5e1;
+  padding: 0.45rem 0.85rem;
+  border-radius: 6px;
+  font-size: 0.725rem;
+  font-weight: 600;
+  color: #334155;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  transition: all 0.2s;
+}
+
+.pill-control-btn:hover {
+  background-color: #f8fafc;
+  border-color: #94a3b8;
+}
+
+/* ==================== Top 4 Widget Grid ==================== */
+.top-widgets-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+/* Base System Widget Card */
+.stat-card-widget {
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 1rem 1.15rem;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.widget-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #f1f5f9;
+  padding-bottom: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.widget-title-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.widget-title-group h3 {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0;
+}
+
+.widget-title-group span {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #64748b;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.widget-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Big Hero Metric Display */
+.widget-metric-hero {
+  margin: 0.25rem 0;
+}
+
+.hero-num-group {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.hero-value {
+  font-size: 2.25rem;
+  font-weight: 800;
+  margin: 0;
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+
+.hero-trend {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+}
+
+.hero-trend.up {
+  color: #16a34a;
+  background-color: #dcfce7;
+}
+
+.hero-trend.down {
+  color: #dc2626;
+  background-color: #fee2e2;
+}
+
+.hero-sub-lbl {
+  font-size: 0.68rem;
+  color: #94a3b8;
+  margin-top: 0.25rem;
+  font-weight: 500;
+}
+
+/* Progress Lines matching hardware bars */
+.widget-progress-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin-top: 0.5rem;
+}
+
+.progress-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.progress-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.68rem;
+  color: #64748b;
+}
+
+.progress-bar-bg {
+  width: 100%;
+  height: 6px;
+  background-color: #f1f5f9;
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+.bar-fill {
+  height: 100%;
+  border-radius: 9999px;
+}
+
+.bar-fill.bg-cyan { background-color: #0284c7; }
+.bar-fill.bg-emerald { background-color: #16a34a; }
+.bar-fill.bg-amber { background-color: #f59e0b; }
+.bar-fill.bg-purple { background-color: #9333ea; }
+.bar-fill.bg-blue { background-color: #2563eb; }
+
+/* Hardware Specification Rows */
+.widget-spec-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  border-bottom: 1px solid #f8fafc;
+  padding-bottom: 0.5rem;
+}
+
+.spec-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.68rem;
+}
+
+.spec-label {
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+.spec-value {
+  color: #1e293b;
+  font-weight: 700;
+}
+
+/* ==================== Analytics Sections & Tables ==================== */
+.analytics-sections-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.widget-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.summary-data-item {
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+}
+
+.summary-data-label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.summary-data-value {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin-top: 0.2rem;
+}
+
+/* Activity Monitor Style Table */
+.widget-table-wrapper {
+  overflow-x: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+}
+
+.widget-monitor-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.75rem;
+}
+
+.widget-monitor-table th {
+  background-color: #f8fafc;
+  color: #64748b;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.6rem 0.85rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.widget-monitor-table td {
+  padding: 0.65rem 0.85rem;
+  border-bottom: 1px solid #f1f5f9;
+  color: #334155;
+}
+
+.widget-monitor-table tbody tr:hover {
+  background-color: #f8fafc;
+}
+
+/* Loading & Error States */
+.widget-loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2.5rem;
+  gap: 0.75rem;
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.widget-spinner {
+  width: 24px;
+  height: 24px;
+  border: 2px solid #e2e8f0;
+  border-top-color: #0284c7;
+  border-radius: 50%;
+  animation: widgetSpin 0.8s linear infinite;
+}
+
+@keyframes widgetSpin {
+  to { transform: rotate(360deg); }
+}
+
+.stats-error-banner {
+  background-color: #fee2e2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+  padding: 1rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
+}
+
+.widget-empty-txt {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  padding: 1rem 0;
+  text-align: center;
+}
+
+/* Responsive Scaling */
+@media (max-width: 1024px) {
+  .top-widgets-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-  
-  .statistics-wrapper {
-    max-width: 80rem;
-    margin: 0 auto;
+}
+
+@media (max-width: 640px) {
+  .top-widgets-grid {
+    grid-template-columns: 1fr;
   }
-  
-  .header {
-    margin-bottom: 2rem;
+  .stats-page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
   }
-  
-  .header-title {
-    font-size: 1.875rem;
-    line-height: 2.25rem;
-    font-weight: 700;
-    color: rgb(17, 24, 39);
-  }
-  
-  .header-subtitle {
-    margin-top: 0.5rem;
-    color: rgb(75, 85, 99);
-  }
-  
-  .stats-grid {
-    display: grid;
-    gap: 1.5rem;
-    grid-template-columns: repeat(1, minmax(0, 1fr));
-  }
-  
-  @media (min-width: 768px) {
-    .stats-grid {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-  }
-  
-  @media (min-width: 1024px) {
-    .stats-grid {
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-    }
-  }
-  
-  .stat-card {
-    padding: 1.5rem;
-    background-color: white;
-    border: 1px solid rgb(243, 244, 246);
-    border-radius: 0.75rem;
-    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-    transition: all 200ms;
-  }
-  
-  .stat-card:hover {
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-  }
-  
-  .stat-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-  
-  .stat-info {
-    flex: 1;
-  }
-  
-  .stat-label {
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: rgb(107, 114, 128);
-  }
-  
-  .stat-value {
-    margin-top: 0.5rem;
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: rgb(17, 24, 39);
-  }
-  
-  .stat-icon {
-    padding: 0.75rem;
-    border-radius: 0.5rem;
-    transition: background-color 200ms;
-  }
-  
-  .stat-footer {
-    display: flex;
-    align-items: center;
-    margin-top: 1rem;
-    font-size: 0.875rem;
-  }
-  
-  .stat-trend {
-    font-weight: 500;
-  }
-  
-  .stat-comparison {
-    margin-left: 0.5rem;
-    color: rgb(107, 114, 128);
-  }
-  
-  /* Icon background colors */
-  .icon-blue {
-    background-color: rgb(239, 246, 255);
-  }
-  
-  .stat-card:hover .icon-blue {
-    background-color: rgb(219, 234, 254);
-  }
-  
-  .icon-green {
-    background-color: rgb(240, 253, 244);
-  }
-  
-  .stat-card:hover .icon-green {
-    background-color: rgb(220, 252, 231);
-  }
-  
-  .icon-purple {
-    background-color: rgb(245, 243, 255);
-  }
-  
-  .stat-card:hover .icon-purple {
-    background-color: rgb(237, 233, 254);
-  }
-  
-  .icon-yellow {
-    background-color: rgb(254, 252, 232);
-  }
-  
-  .stat-card:hover .icon-yellow {
-    background-color: rgb(254, 249, 195);
-  }
-  
-  .icon-indigo {
-    background-color: rgb(238, 242, 255);
-  }
-  
-  .stat-card:hover .icon-indigo {
-    background-color: rgb(224, 231, 255);
-  }
-  
-  .icon-pink {
-    background-color: rgb(253, 242, 248);
-  }
-  
-  .stat-card:hover .icon-pink {
-    background-color: rgb(252, 231, 243);
-  }
-  
-  /* Text colors */
-  .text-green {
-    color: rgb(22, 163, 74);
-  }
-  
-  .text-red {
-    color: rgb(220, 38, 38);
-  }
-  
-  .icon-blue svg {
-    color: rgb(37, 99, 235);
-  }
-  
-  .icon-green svg {
-    color: rgb(22, 163, 74);
-  }
-  
-  .icon-purple svg {
-    color: rgb(124, 58, 237);
-  }
-  
-  .icon-yellow svg {
-    color: rgb(202, 138, 4);
-  }
-  
-  .icon-indigo svg {
-    color: rgb(79, 70, 229);
-  }
-  
-  .icon-pink svg {
-    color: rgb(219, 39, 119);
-  }
+}

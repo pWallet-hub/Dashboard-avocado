@@ -1,5 +1,9 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { X, Camera, User, Mail, Shield, Calendar, Edit2, Save, Phone, MapPin } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { 
+  X, User, Mail, Shield, Edit2, Save, Phone, MapPin, 
+  KeyRound, ShieldCheck, Sprout, Store, Briefcase, 
+  CheckCircle2, AlertCircle, Loader2, Award
+} from 'lucide-react';
 import { updateProfile, changePassword, getProfile } from '../../services/authService';
 import ProfilePictureUploader from './ProfilePictureUploader';
 
@@ -22,7 +26,7 @@ const UserProfile = ({ user, isOpen, onClose, onUpdate }) => {
   const [passwordError, setPasswordError] = useState(null);
   const [passwordSuccess, setPasswordSuccess] = useState(false);
 
-  // Initialize immediately from whatever the caller passed in (avoids a blank flash)
+  // Initialize immediately from prop
   useEffect(() => {
     if (user) {
       setProfileData(prev => ({
@@ -35,9 +39,7 @@ const UserProfile = ({ user, isOpen, onClose, onUpdate }) => {
     }
   }, [user]);
 
-  // The caller (e.g. TopBar) often only has a partial user object cached in
-  // localStorage. Fetch the authoritative profile from the backend whenever
-  // the modal opens so full_name/phone/profile are never stale or blank.
+  // Fetch authoritative profile upon opening
   useEffect(() => {
     if (!isOpen) return;
     setError(null);
@@ -85,14 +87,12 @@ const UserProfile = ({ user, isOpen, onClose, onUpdate }) => {
         phone: profileData.phone
       };
       
-      // Only include profile data if it exists
       if (Object.keys(profileData.profile).length > 0) {
         updateData.profile = profileData.profile;
       }
       
       const updatedUser = await updateProfile(updateData);
       
-      // Call onUpdate callback if provided
       if (onUpdate) {
         onUpdate(updatedUser);
       }
@@ -110,7 +110,6 @@ const UserProfile = ({ user, isOpen, onClose, onUpdate }) => {
     setPasswordError(null);
     setPasswordSuccess(false);
     
-    // Validate password fields
     if (!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword) {
       setPasswordError('All password fields are required');
       return;
@@ -140,15 +139,12 @@ const UserProfile = ({ user, isOpen, onClose, onUpdate }) => {
       });
       
       setPasswordSuccess(true);
-      
-      // Reset password fields
       setPasswordData({
         currentPassword: '',
         newPassword: '',
         confirmPassword: ''
       });
       
-      // Clear success message after 3 seconds
       setTimeout(() => {
         setPasswordSuccess(false);
       }, 3000);
@@ -159,169 +155,220 @@ const UserProfile = ({ user, isOpen, onClose, onUpdate }) => {
     }
   };
 
-  const getRoleColor = (role) => {
+  const getRoleBadge = (role) => {
     switch (role) {
-      case 'admin': return 'bg-red-100 text-red-800';
-      case 'shop_manager': return 'bg-blue-100 text-blue-800';
-      case 'farmer': return 'bg-green-100 text-green-800';
-      case 'agent': return 'bg-purple-100 text-purple-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const getRoleIcon = (role) => {
-    switch (role) {
-      case 'admin': return '👤';
-      case 'shop_manager': return '🏪';
-      case 'farmer': return '🌾';
-      case 'agent': return '🏢';
-      default: return '👤';
+      case 'admin':
+        return {
+          label: 'Administrator',
+          bg: 'bg-rose-50 text-rose-700 border-rose-200',
+          icon: ShieldCheck
+        };
+      case 'shop_manager':
+        return {
+          label: 'Shop Manager',
+          bg: 'bg-blue-50 text-blue-700 border-blue-200',
+          icon: Store
+        };
+      case 'farmer':
+        return {
+          label: 'Avocado Farmer',
+          bg: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+          icon: Sprout
+        };
+      case 'agent':
+        return {
+          label: 'Extension Agent',
+          bg: 'bg-purple-50 text-purple-700 border-purple-200',
+          icon: Briefcase
+        };
+      default:
+        return {
+          label: role?.replace('_', ' ').toUpperCase() || 'User',
+          bg: 'bg-gray-50 text-gray-700 border-gray-200',
+          icon: User
+        };
     }
   };
 
   if (!isOpen) return null;
 
+  const roleInfo = getRoleBadge(profileData.role);
+  const RoleIcon = roleInfo.icon;
+
+  const labelClasses = "block text-xs font-semibold text-[#344054] mb-1.5 font-['Poppins'] flex items-center gap-1.5";
+  const inputClasses = `w-full border rounded-lg px-3.5 py-2.5 text-sm font-['Poppins'] transition-all duration-200 focus:outline-none ${
+    isEditing
+      ? 'bg-white border-[#d0d5dd] text-[#101828] focus:border-[#15803d] focus:ring-2 focus:ring-[#15803d]/20 shadow-xs'
+      : 'bg-[#f8fafc] border-[#eaecf0] text-[#475467] cursor-not-allowed'
+  }`;
+
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto mx-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-2xl font-bold text-gray-900">User Profile</h2>
+    <div className="fixed inset-0 bg-[#0c111d]/50 backdrop-blur-xs flex items-center justify-center z-50 p-4 font-['Poppins'] animate-in fade-in duration-200">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col border border-[#eaecf0]">
+        
+        {/* Header Bar */}
+        <div className="flex items-center justify-between px-6 py-4.5 border-b border-[#eaecf0] bg-[#fcfcfd]">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-[#ecfdf3] text-[#15803d] flex items-center justify-center border border-[#d1fadf]">
+              <User className="w-5 h-5 stroke-[2]" />
+            </div>
+            <div>
+              <h2 className="text-base font-bold text-[#101828]">Account Profile</h2>
+              <p className="text-xs text-[#475467]">Manage your personal credentials & preferences</p>
+            </div>
+          </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+            className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Profile Content */}
-        <div className="p-6">
+        {/* Scrollable Modal Body */}
+        <div className="p-6 overflow-y-auto space-y-6">
+          
           {error && (
-            <div className="mb-4 p-3 bg-red-50 text-red-700 rounded-lg">
-              {error}
+            <div className="flex items-center gap-2.5 p-3.5 bg-red-50 border border-red-200 text-red-700 rounded-xl text-xs font-medium">
+              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              <span>{error}</span>
             </div>
           )}
-          
-          {/* Profile Picture Section */}
-          <div className="flex flex-col items-center mb-8">
+
+          {/* Profile Header Avatar & Role Summary */}
+          <div className="bg-[#fcfcfd] border border-[#eaecf0] rounded-xl p-6 flex flex-col sm:flex-row items-center gap-5 text-center sm:text-left">
             <ProfilePictureUploader 
               currentPicture={user?.profile?.picture}
               userId={user?.id}
               onUpload={(file) => {
-                // In a real implementation, this would upload the file to a server
                 console.log('Uploading file:', file);
-                // For now, we'll just show a success message
                 setError(null);
               }}
               onDelete={() => {
-                // Handle delete picture
                 console.log('Deleting profile picture');
               }}
             />
             
-            <div className="text-center mt-4">
-              <h3 className="text-xl font-semibold text-gray-900">{profileData.full_name}</h3>
-              <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium mt-2 ${getRoleColor(profileData.role)}`}>
-                <span className="mr-1">{getRoleIcon(profileData.role)}</span>
-                {profileData.role?.replace('_', ' ').toUpperCase()}
+            <div className="flex-1 min-w-0">
+              <h3 className="text-lg font-bold text-[#101828] truncate">
+                {profileData.full_name || 'Anonymous User'}
+              </h3>
+              <p className="text-xs text-[#475467] mt-0.5 truncate">{profileData.email || 'No email specified'}</p>
+              
+              <div className="mt-3 flex flex-wrap items-center justify-center sm:justify-start gap-2">
+                <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border ${roleInfo.bg}`}>
+                  <RoleIcon className="w-3.5 h-3.5" />
+                  <span>{roleInfo.label}</span>
+                </span>
               </div>
             </div>
           </div>
 
-          {/* Profile Information */}
-          <div className="space-y-6">
-            {/* Basic Information */}
-            <div className="bg-gray-50 rounded-lg p-4">
-              <div className="flex items-center justify-between mb-4">
-                <h4 className="text-lg font-semibold text-gray-900">Basic Information</h4>
-                <button
-                  onClick={() => isEditing ? handleSave() : setIsEditing(true)}
-                  disabled={loading}
-                  className="flex items-center px-3 py-1 text-sm bg-green-500 hover:bg-green-600 text-white rounded-md transition-colors disabled:opacity-50"
-                >
-                  {loading ? (
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-1"></div>
-                  ) : isEditing ? (
-                    <>
-                      <Save className="w-4 h-4 mr-1" />
-                      Save
-                    </>
-                  ) : (
-                    <>
-                      <Edit2 className="w-4 h-4 mr-1" />
-                      Edit
-                    </>
-                  )}
-                </button>
+          {/* Section 1: Basic Information */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-[#eaecf0]">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-[#15803d]">
+                Basic Profile Parameters
+              </h4>
+              <button
+                type="button"
+                onClick={() => isEditing ? handleSave() : setIsEditing(true)}
+                disabled={loading}
+                className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all shadow-2xs cursor-pointer ${
+                  isEditing 
+                    ? 'bg-[#15803d] hover:bg-[#166534] text-white' 
+                    : 'bg-white border border-[#d0d5dd] hover:bg-gray-50 text-[#344054]'
+                }`}
+              >
+                {loading ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : isEditing ? (
+                  <>
+                    <Save className="w-3.5 h-3.5" />
+                    <span>Save Changes</span>
+                  </>
+                ) : (
+                  <>
+                    <Edit2 className="w-3.5 h-3.5 text-gray-500" />
+                    <span>Edit Information</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className={labelClasses}>
+                  <User className="w-3.5 h-3.5 text-gray-400" />
+                  Full Name
+                </label>
+                <input
+                  type="text"
+                  value={profileData.full_name}
+                  disabled={!isEditing}
+                  onChange={(e) => handleInputChange('full_name', e.target.value)}
+                  className={inputClasses}
+                  placeholder="Enter full name"
+                />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="flex items-center text-sm font-medium text-gray-700 mb-1">
-                    <User className="w-4 h-4 mr-2" />
-                    Full Name
-                  </label>
-                  <input
-                    type="text"
-                    value={profileData.full_name}
-                    disabled={!isEditing}
-                    onChange={(e) => handleInputChange('full_name', e.target.value)}
-                    className={`w-full px-3 py-2 border border-gray-300 rounded-md ${
-                      isEditing ? 'bg-white' : 'bg-gray-100 text-gray-600'
-                    }`}
-                  />
-                </div>
+              <div>
+                <label className={labelClasses}>
+                  <Mail className="w-3.5 h-3.5 text-gray-400" />
+                  Email Address
+                </label>
+                <input
+                  type="email"
+                  value={profileData.email}
+                  disabled
+                  className="w-full bg-[#f8fafc] border border-[#eaecf0] rounded-lg px-3.5 py-2.5 text-sm text-[#667085] cursor-not-allowed font-['Poppins']"
+                />
+              </div>
 
-                <div>
-                  <label className="flex items-center text-sm font-medium text-gray-700 mb-1">
-                    <Mail className="w-4 h-4 mr-2" />
-                    Email
-                  </label>
-                  <input
-                    type="email"
-                    value={profileData.email}
-                    disabled
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-600"
-                  />
-                </div>
+              <div>
+                <label className={labelClasses}>
+                  <Shield className="w-3.5 h-3.5 text-gray-400" />
+                  Assigned System Role
+                </label>
+                <input
+                  type="text"
+                  value={profileData.role?.replace('_', ' ').toUpperCase()}
+                  disabled
+                  className="w-full bg-[#f8fafc] border border-[#eaecf0] rounded-lg px-3.5 py-2.5 text-sm text-[#667085] cursor-not-allowed font-['Poppins'] font-medium"
+                />
+              </div>
 
-                <div>
-                  <label className="flex items-center text-sm font-medium text-gray-700 mb-1">
-                    <Shield className="w-4 h-4 mr-2" />
-                    Role
-                  </label>
-                  <input
-                    type="text"
-                    value={profileData.role?.replace('_', ' ').toUpperCase()}
-                    disabled
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-600"
-                  />
-                </div>
+              <div>
+                <label className={labelClasses}>
+                  <Phone className="w-3.5 h-3.5 text-gray-400" />
+                  Mobile Telephone
+                </label>
+                <input
+                  type="tel"
+                  value={profileData.phone}
+                  disabled={!isEditing}
+                  onChange={(e) => handleInputChange('phone', e.target.value)}
+                  placeholder="+250 7XX XXX XXX"
+                  className={inputClasses}
+                />
+              </div>
+            </div>
+          </div>
 
-                <div>
-                  <label className="flex items-center text-sm font-medium text-gray-700 mb-1">
-                    <Phone className="w-4 h-4 mr-2" />
-                    Phone Number
-                  </label>
-                  <input
-                    type="tel"
-                    value={profileData.phone}
-                    disabled={!isEditing}
-                    onChange={(e) => handleInputChange('phone', e.target.value)}
-                    placeholder="Enter phone number"
-                    className={`w-full px-3 py-2 border border-gray-300 rounded-md ${
-                      isEditing ? 'bg-white' : 'bg-gray-100 text-gray-600'
-                    }`}
-                  />
-                </div>
+          {/* Section 2: Role Specific Meta Parameters */}
+          {profileData.role && profileData.role !== 'admin' && (
+            <div className="space-y-4 pt-2">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-[#15803d] pb-2 border-b border-[#eaecf0]">
+                Role-Specific Details
+              </h4>
 
-                {/* Role-specific fields */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {profileData.role === 'farmer' && (
                   <>
                     <div>
-                      <label className="text-sm font-medium text-gray-700 mb-1 block">
-                        Location
+                      <label className={labelClasses}>
+                        <MapPin className="w-3.5 h-3.5 text-gray-400" />
+                        Location / District
                       </label>
                       <input
                         type="text"
@@ -329,24 +376,21 @@ const UserProfile = ({ user, isOpen, onClose, onUpdate }) => {
                         disabled={!isEditing}
                         onChange={(e) => handleProfileChange('location', e.target.value)}
                         placeholder="Enter location"
-                        className={`w-full px-3 py-2 border border-gray-300 rounded-md ${
-                          isEditing ? 'bg-white' : 'bg-gray-100 text-gray-600'
-                        }`}
+                        className={inputClasses}
                       />
                     </div>
                     <div>
-                      <label className="text-sm font-medium text-gray-700 mb-1 block">
-                        Farm Size
+                      <label className={labelClasses}>
+                        <Sprout className="w-3.5 h-3.5 text-gray-400" />
+                        Total Orchard Size
                       </label>
                       <input
                         type="text"
                         value={profileData.profile.farm_size || ''}
                         disabled={!isEditing}
                         onChange={(e) => handleProfileChange('farm_size', e.target.value)}
-                        placeholder="Enter farm size"
-                        className={`w-full px-3 py-2 border border-gray-300 rounded-md ${
-                          isEditing ? 'bg-white' : 'bg-gray-100 text-gray-600'
-                        }`}
+                        placeholder="e.g., 2.5 Hectares"
+                        className={inputClasses}
                       />
                     </div>
                   </>
@@ -355,8 +399,9 @@ const UserProfile = ({ user, isOpen, onClose, onUpdate }) => {
                 {profileData.role === 'agent' && (
                   <>
                     <div>
-                      <label className="text-sm font-medium text-gray-700 mb-1 block">
-                        Specialization
+                      <label className={labelClasses}>
+                        <Award className="w-3.5 h-3.5 text-gray-400" />
+                        Specialization Area
                       </label>
                       <input
                         type="text"
@@ -364,24 +409,21 @@ const UserProfile = ({ user, isOpen, onClose, onUpdate }) => {
                         disabled={!isEditing}
                         onChange={(e) => handleProfileChange('specialization', e.target.value)}
                         placeholder="Enter specialization"
-                        className={`w-full px-3 py-2 border border-gray-300 rounded-md ${
-                          isEditing ? 'bg-white' : 'bg-gray-100 text-gray-600'
-                        }`}
+                        className={inputClasses}
                       />
                     </div>
                     <div>
-                      <label className="text-sm font-medium text-gray-700 mb-1 block">
-                        Experience
+                      <label className={labelClasses}>
+                        <Briefcase className="w-3.5 h-3.5 text-gray-400" />
+                        Professional Experience
                       </label>
                       <input
                         type="text"
                         value={profileData.profile.experience || ''}
                         disabled={!isEditing}
                         onChange={(e) => handleProfileChange('experience', e.target.value)}
-                        placeholder="Enter experience"
-                        className={`w-full px-3 py-2 border border-gray-300 rounded-md ${
-                          isEditing ? 'bg-white' : 'bg-gray-100 text-gray-600'
-                        }`}
+                        placeholder="e.g., 5 Years Agronomy"
+                        className={inputClasses}
                       />
                     </div>
                   </>
@@ -390,8 +432,9 @@ const UserProfile = ({ user, isOpen, onClose, onUpdate }) => {
                 {profileData.role === 'shop_manager' && (
                   <>
                     <div>
-                      <label className="text-sm font-medium text-gray-700 mb-1 block">
-                        Shop Name
+                      <label className={labelClasses}>
+                        <Store className="w-3.5 h-3.5 text-gray-400" />
+                        Market Shop Name
                       </label>
                       <input
                         type="text"
@@ -399,108 +442,117 @@ const UserProfile = ({ user, isOpen, onClose, onUpdate }) => {
                         disabled={!isEditing}
                         onChange={(e) => handleProfileChange('shop_name', e.target.value)}
                         placeholder="Enter shop name"
-                        className={`w-full px-3 py-2 border border-gray-300 rounded-md ${
-                          isEditing ? 'bg-white' : 'bg-gray-100 text-gray-600'
-                        }`}
+                        className={inputClasses}
                       />
                     </div>
                     <div>
-                      <label className="text-sm font-medium text-gray-700 mb-1 block">
-                        Shop Location
+                      <label className={labelClasses}>
+                        <MapPin className="w-3.5 h-3.5 text-gray-400" />
+                        Store Outlet Location
                       </label>
                       <input
                         type="text"
                         value={profileData.profile.shop_location || ''}
                         disabled={!isEditing}
                         onChange={(e) => handleProfileChange('shop_location', e.target.value)}
-                        placeholder="Enter shop location"
-                        className={`w-full px-3 py-2 border border-gray-300 rounded-md ${
-                          isEditing ? 'bg-white' : 'bg-gray-100 text-gray-600'
-                        }`}
+                        placeholder="Enter outlet location"
+                        className={inputClasses}
                       />
                     </div>
                   </>
                 )}
               </div>
             </div>
+          )}
 
-            {/* Change Password Section */}
-            <div className="bg-gray-50 rounded-lg p-4">
-              <h4 className="text-lg font-semibold text-gray-900 mb-4">Change Password</h4>
-              <form onSubmit={handlePasswordChange}>
-                {passwordError && (
-                  <div className="mb-4 p-3 bg-red-50 text-red-700 rounded-lg">
-                    {passwordError}
-                  </div>
-                )}
-                
-                {passwordSuccess && (
-                  <div className="mb-4 p-3 bg-green-50 text-green-700 rounded-lg">
-                    Password changed successfully!
-                  </div>
-                )}
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm font-medium text-gray-700 mb-1 block">
-                      Current Password
-                    </label>
-                    <input
-                      type="password"
-                      value={passwordData.currentPassword}
-                      onChange={(e) => setPasswordData({...passwordData, currentPassword: e.target.value})}
-                      placeholder="Enter current password"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="text-sm font-medium text-gray-700 mb-1 block">
-                      New Password
-                    </label>
-                    <input
-                      type="password"
-                      value={passwordData.newPassword}
-                      onChange={(e) => setPasswordData({...passwordData, newPassword: e.target.value})}
-                      placeholder="Enter new password"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white"
-                    />
-                  </div>
-                  
-                  <div className="md:col-span-2">
-                    <label className="text-sm font-medium text-gray-700 mb-1 block">
-                      Confirm New Password
-                    </label>
-                    <input
-                      type="password"
-                      value={passwordData.confirmPassword}
-                      onChange={(e) => setPasswordData({...passwordData, confirmPassword: e.target.value})}
-                      placeholder="Confirm new password"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white"
-                    />
-                  </div>
-                  
-                  <div className="md:col-span-2">
-                    <button
-                      type="submit"
-                      disabled={loading}
-                      className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-md transition-colors disabled:opacity-50"
-                    >
-                      {loading ? (
-                        <div className="flex items-center">
-                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                          Changing Password...
-                        </div>
-                      ) : (
-                        'Change Password'
-                      )}
-                    </button>
-                  </div>
+          {/* Section 3: Security & Change Password */}
+          <div className="space-y-4 pt-2">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-[#15803d] pb-2 border-b border-[#eaecf0] flex items-center gap-1.5">
+              <KeyRound className="w-3.5 h-3.5" />
+              Security & Password
+            </h4>
+
+            <form onSubmit={handlePasswordChange} className="bg-[#fcfcfd] border border-[#eaecf0] rounded-xl p-5 space-y-4">
+              {passwordError && (
+                <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-xs font-medium">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                  <span>{passwordError}</span>
                 </div>
-              </form>
-            </div>
+              )}
+              
+              {passwordSuccess && (
+                <div className="flex items-center gap-2 p-3 bg-[#ecfdf3] border border-[#d1fadf] text-[#12b76a] rounded-lg text-xs font-medium">
+                  <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+                  <span>Password updated successfully!</span>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-semibold text-[#344054] mb-1">Current Password</label>
+                  <input
+                    type="password"
+                    value={passwordData.currentPassword}
+                    onChange={(e) => setPasswordData({...passwordData, currentPassword: e.target.value})}
+                    placeholder="••••••••••••"
+                    className="w-full bg-white border border-[#d0d5dd] rounded-lg px-3.5 py-2.5 text-sm text-[#101828] focus:outline-none focus:border-[#15803d] focus:ring-2 focus:ring-[#15803d]/20 transition-all font-['Poppins'] shadow-xs"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-[#344054] mb-1">New Password</label>
+                  <input
+                    type="password"
+                    value={passwordData.newPassword}
+                    onChange={(e) => setPasswordData({...passwordData, newPassword: e.target.value})}
+                    placeholder="Min 8 characters"
+                    className="w-full bg-white border border-[#d0d5dd] rounded-lg px-3.5 py-2.5 text-sm text-[#101828] focus:outline-none focus:border-[#15803d] focus:ring-2 focus:ring-[#15803d]/20 transition-all font-['Poppins'] shadow-xs"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-[#344054] mb-1">Confirm New Password</label>
+                  <input
+                    type="password"
+                    value={passwordData.confirmPassword}
+                    onChange={(e) => setPasswordData({...passwordData, confirmPassword: e.target.value})}
+                    placeholder="Re-enter new password"
+                    className="w-full bg-white border border-[#d0d5dd] rounded-lg px-3.5 py-2.5 text-sm text-[#101828] focus:outline-none focus:border-[#15803d] focus:ring-2 focus:ring-[#15803d]/20 transition-all font-['Poppins'] shadow-xs"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-2 flex justify-end">
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="bg-[#15803d] hover:bg-[#166534] text-white text-xs font-semibold px-4 py-2.5 rounded-lg transition-colors shadow-xs disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Updating Password...</span>
+                    </>
+                  ) : (
+                    <span>Update Password</span>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
+
         </div>
+
+        {/* Modal Footer Actions */}
+        <div className="px-6 py-4 border-t border-[#eaecf0] bg-[#fcfcfd] flex justify-end">
+          <button
+            onClick={onClose}
+            className="bg-white border border-[#d0d5dd] hover:bg-gray-50 text-[#344054] text-xs font-semibold py-2.5 px-5 rounded-lg transition-colors shadow-2xs cursor-pointer"
+          >
+            Close Panel
+          </button>
+        </div>
+
       </div>
     </div>
   );
