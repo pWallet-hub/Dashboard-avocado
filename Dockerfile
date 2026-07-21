@@ -29,7 +29,9 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 80
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-  CMD wget -qO- http://localhost:80/ || exit 1
+# Disabled: Coolify runs its own healthcheck against a port configured in its
+# UI, separate from this Dockerfile's HEALTHCHECK. A mismatch there caused
+# "connection refused" and rollback loops even though nginx was healthy.
+HEALTHCHECK NONE
 
 CMD ["nginx", "-g", "daemon off;"]
