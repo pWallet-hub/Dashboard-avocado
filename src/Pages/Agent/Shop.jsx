@@ -3,6 +3,10 @@ import { ShoppingCart, X, CheckCircle, Loader2, Minus, Plus, Trash2, Filter, Sea
 import { getAllProducts } from '../../services/productsService';
 import { listFarmers } from '../../services/usersService';
 import { getAgentInformation } from '../../services/agent-information';
+import AgentShopHeader from '../../components/AgentShop/AgentShopHeader';
+import AgentShopProductGrid from '../../components/AgentShop/AgentShopProductGrid';
+import AgentShopModeSelection from '../../components/AgentShop/AgentShopModeSelection';
+import AgentShopFarmerSelection from '../../components/AgentShop/AgentShopFarmerSelection';
 
 // Cart Service (same as HarvestingKit)
 const CartService = {
@@ -466,170 +470,42 @@ export default function Shop() {
 
   // STEP 1: Purchase Mode Selection
   if (currentStep === 1) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-green-50 to-green-100 flex items-center justify-center p-4">
-        <div className="max-w-4xl w-full">
-          <div className="text-center mb-8">
-            <h1 className="text-4xl font-bold text-gray-900 mb-2">Agent Shop</h1>
-            <p className="text-gray-600">Purchase products for yourself or on behalf of farmers</p>
-          </div>
-          
-          <div className="grid md:grid-cols-2 gap-6">
-            {/* Buy for Self */}
-            <div 
-              onClick={() => handleModeSelection('self')}
-              className="bg-white rounded-2xl p-8 shadow-lg border-2 border-transparent hover:border-green-500 cursor-pointer transition-all duration-300 hover:shadow-xl"
-            >
-              <div className="flex flex-col items-center text-center">
-                <div className="w-20 h-20 bg-gradient-to-br from-green-500 to-green-600 rounded-full flex items-center justify-center mb-4">
-                  <User className="w-10 h-10 text-white" />
-                </div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-2">Buy for Myself</h3>
-                <p className="text-gray-600 mb-4">Purchase products for your own use as an agent</p>
-                <button className="mt-auto px-6 py-3 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-colors">
-                  Continue
-                </button>
-              </div>
-            </div>
-
-            {/* Buy on Behalf of Farmer */}
-            <div 
-              onClick={() => handleModeSelection('behalf')}
-              className="bg-white rounded-2xl p-8 shadow-lg border-2 border-transparent hover:border-green-500 cursor-pointer transition-all duration-300 hover:shadow-xl"
-            >
-              <div className="flex flex-col items-center text-center">
-                <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center mb-4">
-                  <Users className="w-10 h-10 text-white" />
-                </div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-2">Buy for a Farmer</h3>
-                <p className="text-gray-600 mb-4">Purchase products on behalf of a farmer in your territory</p>
-                <button className="mt-auto px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors">
-                  Select Farmer
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
+    return <AgentShopModeSelection onSelectMode={handleModeSelection} />;
   }
 
   // STEP 2: Farmer Selection (only if behalf mode)
   if (currentStep === 2 && purchaseMode === 'behalf') {
     return (
-      <div className="min-h-screen bg-gray-50 p-4">
-        <div className="max-w-6xl mx-auto">
-          {/* Header */}
-          <div className="mb-6">
-            <button 
-              onClick={handleBackToMode}
-              className="mb-4 px-4 py-2 text-green-600 hover:text-green-700 font-medium flex items-center"
-            >
-              ← Back to Mode Selection
-            </button>
-            <h1 className="text-3xl font-bold text-gray-900">Select Farmer</h1>
-            <p className="text-gray-600 mt-1">Choose a farmer from your territory to buy products on their behalf</p>
-          </div>
-
-          {/* Search and Filters */}
-          <div className="bg-white rounded-xl shadow p-6 mb-6">
-            <div className="grid md:grid-cols-4 gap-4 mb-4">
-              <div className="md:col-span-4">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                  <input
-                    type="text"
-                    placeholder="Search by name, email, or phone..."
-                    value={searchFarmerTerm}
-                    onChange={(e) => setSearchFarmerTerm(e.target.value)}
-                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                  />
-                </div>
-              </div>
-
-              <select
-                value={selectedDistrict}
-                onChange={(e) => { setSelectedDistrict(e.target.value); setSelectedSector(''); setSelectedCell(''); }}
-                className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
-              >
-                <option value="">All Districts</option>
-                {getUniqueDistricts().map(district => (
-                  <option key={district} value={district}>{district}</option>
-                ))}
-              </select>
-
-              <select
-                value={selectedSector}
-                onChange={(e) => { setSelectedSector(e.target.value); setSelectedCell(''); }}
-                disabled={!selectedDistrict}
-                className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 disabled:bg-gray-100"
-              >
-                <option value="">All Sectors</option>
-                {getUniqueSectors().map(sector => (
-                  <option key={sector} value={sector}>{sector}</option>
-                ))}
-              </select>
-
-              <select
-                value={selectedCell}
-                onChange={(e) => setSelectedCell(e.target.value)}
-                disabled={!selectedSector}
-                className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 disabled:bg-gray-100"
-              >
-                <option value="">All Cells</option>
-                {getUniqueCells().map(cell => (
-                  <option key={cell} value={cell}>{cell}</option>
-                ))}
-              </select>
-
-              <button
-                onClick={() => { setSelectedDistrict(''); setSelectedSector(''); setSelectedCell(''); setSearchFarmerTerm(''); }}
-                className="px-4 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
-              >
-                Clear Filters
-              </button>
-            </div>
-          </div>
-
-          {/* Farmers List */}
-          {loading ? (
-            <div className="bg-white rounded-xl shadow p-12 text-center">
-              <Loader2 className="w-12 h-12 mx-auto text-green-600 animate-spin mb-4" />
-              <p className="text-gray-600">Loading farmers...</p>
-            </div>
-          ) : filteredFarmers.length > 0 ? (
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredFarmers.map((farmer) => (
-                <div
-                  key={farmer.id || farmer._id}
-                  onClick={() => handleFarmerSelection(farmer)}
-                  className="bg-white rounded-xl shadow p-6 cursor-pointer hover:shadow-lg hover:border-green-500 border-2 border-transparent transition-all"
-                >
-                  <div className="flex items-start space-x-4">
-                    <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
-                      <User className="w-6 h-6 text-green-600" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-gray-900 truncate">{farmer.full_name || 'Unknown Farmer'}</h3>
-                      <p className="text-sm text-gray-600 truncate">{farmer.email || 'No email'}</p>
-                      <p className="text-sm text-gray-600">{farmer.phone || 'No phone'}</p>
-                      <div className="mt-2 text-xs text-gray-500">
-                        <p>{farmer.profile?.district || farmer.district || 'N/A'}, {farmer.profile?.sector || farmer.sector || 'N/A'}</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="bg-white rounded-xl shadow p-12 text-center">
-              <Users className="w-12 h-12 mx-auto text-gray-400 mb-4" />
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">No Farmers Found</h3>
-              <p className="text-gray-600">Try adjusting your filters or search term</p>
-            </div>
-          )}
-        </div>
-      </div>
+      <AgentShopFarmerSelection
+        farmers={filteredFarmers}
+        loading={loading}
+        searchTerm={searchFarmerTerm}
+        onSearchChange={setSearchFarmerTerm}
+        districts={getUniqueDistricts()}
+        selectedDistrict={selectedDistrict}
+        onDistrictChange={(district) => {
+          setSelectedDistrict(district);
+          setSelectedSector('');
+          setSelectedCell('');
+        }}
+        sectors={getUniqueSectors()}
+        selectedSector={selectedSector}
+        onSectorChange={(sector) => {
+          setSelectedSector(sector);
+          setSelectedCell('');
+        }}
+        cells={getUniqueCells()}
+        selectedCell={selectedCell}
+        onCellChange={setSelectedCell}
+        onClearFilters={() => {
+          setSelectedDistrict('');
+          setSelectedSector('');
+          setSelectedCell('');
+          setSearchFarmerTerm('');
+        }}
+        onSelectFarmer={handleFarmerSelection}
+        onBack={handleBackToMode}
+      />
     );
   }
 
@@ -768,178 +644,31 @@ export default function Shop() {
       )}
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="flex justify-between items-center mb-6">
-          <div>
-            <div className="flex items-center gap-4 mb-2">
-              {(purchaseMode === 'behalf' && currentStep === 3) && (
-                <button
-                  onClick={handleBackToFarmers}
-                  className="text-green-600 hover:text-green-700 font-medium"
-                >
-                  ← Change Farmer
-                </button>
-              )}
-              {currentStep === 3 && (
-                <button
-                  onClick={handleBackToMode}
-                  className="text-green-600 hover:text-green-700 font-medium"
-                >
-                  ← Change Purchase Mode
-                </button>
-              )}
-            </div>
-            <h1 className="text-3xl font-bold text-gray-900">Agent Shop</h1>
-            {purchaseMode === 'behalf' && selectedFarmer && (
-              <p className="text-gray-600 mt-1">
-                Shopping for: <span className="font-semibold text-green-600">{selectedFarmer.full_name}</span>
-              </p>
-            )}
-            {purchaseMode === 'self' && (
-              <p className="text-gray-600 mt-1">Shopping for yourself</p>
-            )}
-          </div>
-          
-          <button
-            onClick={() => setIsCartOpen(true)}
-            className="relative px-6 py-3 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-all flex items-center gap-2"
-          >
-            <ShoppingCart className="w-5 h-5" />
-            <span>Cart</span>
-            {cartCount > 0 && (
-              <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center">
-                {cartCount}
-              </span>
-            )}
-          </button>
-        </div>
+      <div className="h-screen flex flex-col overflow-hidden">
+        <AgentShopHeader
+          purchaseMode={purchaseMode}
+          selectedFarmer={selectedFarmer}
+          currentStep={currentStep}
+          cartCount={cartCount}
+          searchTerm={searchTerm}
+          categoryFilter={categoryFilter}
+          categories={categories}
+          onBackToFarmers={handleBackToFarmers}
+          onBackToMode={handleBackToMode}
+          onCartOpen={() => setIsCartOpen(true)}
+          onSearchChange={setSearchTerm}
+          onCategoryChange={setCategoryFilter}
+        />
 
-        {/* Search and Filters */}
-        <div className="bg-white rounded-xl shadow p-4 mb-6">
-          <div className="flex gap-4">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search products..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-              />
-            </div>
-            <select
-              value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-              className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
-            >
-              {categories.map(category => (
-                <option key={category} value={category}>
-                  {category === 'all' ? 'All Categories' : category}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        {/* Products Grid */}
-        {loading ? (
-          <div className="bg-white rounded-xl shadow p-12 text-center">
-            <Loader2 className="w-12 h-12 mx-auto text-green-600 animate-spin mb-4" />
-            <p className="text-gray-600">Loading products...</p>
-          </div>
-        ) : filteredProducts.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {filteredProducts.map((product) => (
-              <div
-                key={product.id}
-                className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-all duration-300 border border-gray-100"
-              >
-                <div className="relative h-48 bg-gradient-to-br from-green-100 to-green-200 flex items-center justify-center">
-                  {product.image ? (
-                    <img 
-                      src={product.image} 
-                      alt={product.name}
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        e.target.style.display = 'none';
-                        e.target.nextSibling.style.display = 'flex';
-                      }}
-                    />
-                  ) : null}
-                  <div className="hidden w-full h-full items-center justify-center">
-                    <Package className="w-16 h-16 text-green-600" />
-                  </div>
-                  {product.originalPrice && (
-                    <div className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded">
-                      SALE
-                    </div>
-                  )}
-                </div>
-                
-                <div className="p-4">
-                  <h3 className="font-bold text-gray-900 mb-1 text-lg truncate">{product.name}</h3>
-                  <p className="text-sm text-gray-600 mb-3 line-clamp-2">{product.description}</p>
-                  
-                  <div className="flex items-baseline gap-2 mb-3">
-                    <span className="text-2xl font-bold text-green-600">
-                      {product.price.toLocaleString()} RWF
-                    </span>
-                    {product.originalPrice && (
-                      <span className="text-sm text-gray-500 line-through">
-                        {product.originalPrice.toLocaleString()} RWF
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-xs text-gray-500">{product.capacity}</span>
-                    <span className="text-xs text-green-600 font-semibold">In Stock</span>
-                  </div>
-
-                  <button
-                    onClick={() => addToCart(product)}
-                    disabled={addingToCart === product.id || justAdded === product.id}
-                    className={`w-full py-2.5 rounded-lg font-semibold transition-all duration-300 flex items-center justify-center gap-2 ${
-                      justAdded === product.id
-                        ? 'bg-green-100 text-green-700'
-                        : addingToCart === product.id
-                        ? 'bg-gray-100 text-gray-400'
-                        : 'bg-green-600 text-white hover:bg-green-700'
-                    }`}
-                  >
-                    {addingToCart === product.id ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        <span>Adding...</span>
-                      </>
-                    ) : justAdded === product.id ? (
-                      <>
-                        <CheckCircle className="w-4 h-4" />
-                        <span>Added!</span>
-                      </>
-                    ) : (
-                      <>
-                        <ShoppingCart className="w-4 h-4" />
-                        <span>Add to Cart</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="bg-white rounded-xl shadow p-12 text-center">
-            <Package className="w-16 h-16 mx-auto text-gray-400 mb-4" />
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">No Products Found</h3>
-            <p className="text-gray-600">
-              {searchTerm || categoryFilter !== 'all' 
-                ? 'Try adjusting your search or filters' 
-                : 'No products available at the moment'}
-            </p>
-          </div>
-        )}
+        <AgentShopProductGrid
+          loading={loading}
+          filteredProducts={filteredProducts}
+          searchTerm={searchTerm}
+          categoryFilter={categoryFilter}
+          addingToCart={addingToCart}
+          justAdded={justAdded}
+          onAddToCart={addToCart}
+        />
       </div>
     </div>
   );

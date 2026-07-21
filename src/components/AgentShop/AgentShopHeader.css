@@ -1,0 +1,194 @@
+/* AgentShopHeader.css */
+/* Dedicated CSS for agent shop header - isolated from other pages */
+
+/* Main Header Container */
+.agent-shop-header {
+  background: white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  padding: 1rem;
+}
+
+.agent-shop-header-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* Top Row: Navigation and Context */
+.agent-shop-header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.agent-shop-nav-section {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.agent-shop-back-button {
+  padding: 0.5rem 1rem;
+  background: #f3f4f6;
+  color: #374151;
+  border: none;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.2s ease;
+}
+
+.agent-shop-back-button:hover {
+  background: #e5e7eb;
+}
+
+.agent-shop-back-icon {
+  width: 1rem;
+  height: 1rem;
+}
+
+.agent-shop-context {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.agent-shop-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.agent-shop-subtitle {
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.agent-shop-farmer-highlight {
+  color: #16a34a;
+  font-weight: 600;
+}
+
+/* Cart Button */
+.agent-shop-cart-button {
+  padding: 0.5rem 1rem;
+  background: #16a34a;
+  color: white;
+  border: none;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.agent-shop-cart-button:hover {
+  background: #15803d;
+  transform: scale(1.05);
+}
+
+.agent-shop-cart-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.agent-shop-cart-badge {
+  position: absolute;
+  top: -0.25rem;
+  right: -0.25rem;
+  background: #dc2626;
+  color: white;
+  font-size: 0.625rem;
+  font-weight: bold;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Search and Filter Row */
+.agent-shop-search-row {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.agent-shop-search-wrapper {
+  flex: 1;
+  position: relative;
+}
+
+.agent-shop-search-icon {
+  position: absolute;
+  left: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 1rem;
+  height: 1rem;
+  color: #9ca3af;
+  pointer-events: none;
+}
+
+.agent-shop-search-input {
+  width: 100%;
+  padding: 0.5rem 0.75rem 0.5rem 2.5rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  transition: all 0.2s ease;
+}
+
+.agent-shop-search-input:focus {
+  outline: none;
+  border-color: #16a34a;
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.1);
+}
+
+.agent-shop-category-select {
+  padding: 0.5rem 2rem 0.5rem 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  background: white;
+  cursor: pointer;
+  min-width: 9rem;
+  transition: all 0.2s ease;
+}
+
+.agent-shop-category-select:focus {
+  outline: none;
+  border-color: #16a34a;
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.1);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .agent-shop-header-top {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .agent-shop-nav-section {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .agent-shop-search-row {
+    flex-direction: column;
+  }
+  
+  .agent-shop-category-select {
+    width: 100%;
+  }
+}

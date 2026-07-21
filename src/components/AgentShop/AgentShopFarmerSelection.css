@@ -1,0 +1,281 @@
+/* AgentShopFarmerSelection.css */
+/* Dedicated CSS for farmer selection step - isolated from other pages */
+
+/* Main Container */
+.agent-farmer-selection {
+  min-height: 100vh;
+  background: linear-gradient(to bottom right, #f0fdf4, #dcfce7);
+  padding: 2rem 1rem;
+}
+
+.agent-farmer-container {
+  max-width: 80rem;
+  margin: 0 auto;
+}
+
+/* Header Section */
+.agent-farmer-header {
+  margin-bottom: 2rem;
+}
+
+.agent-farmer-title {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #166534;
+  margin-bottom: 0.5rem;
+}
+
+.agent-farmer-subtitle {
+  color: #4b5563;
+}
+
+/* Search and Filter Section */
+.agent-farmer-filters {
+  background: white;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  margin-bottom: 1.5rem;
+}
+
+.agent-farmer-search-wrapper {
+  margin-bottom: 1rem;
+}
+
+.agent-farmer-search-label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #374151;
+  margin-bottom: 0.25rem;
+}
+
+.agent-farmer-search-input {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  transition: all 0.2s ease;
+}
+
+.agent-farmer-search-input:focus {
+  outline: none;
+  border-color: #16a34a;
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.1);
+}
+
+.agent-farmer-location-filters {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.agent-farmer-filter-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.agent-farmer-filter-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #374151;
+  margin-bottom: 0.25rem;
+}
+
+.agent-farmer-filter-select {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  background: white;
+  transition: all 0.2s ease;
+}
+
+.agent-farmer-filter-select:focus {
+  outline: none;
+  border-color: #16a34a;
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.1);
+}
+
+.agent-farmer-filter-select:disabled {
+  background: #f3f4f6;
+  cursor: not-allowed;
+}
+
+.agent-farmer-clear-button {
+  padding: 0.5rem 1rem;
+  background: #f3f4f6;
+  color: #16a34a;
+  border: none;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.agent-farmer-clear-button:hover {
+  background: #e5e7eb;
+}
+
+/* Farmer Grid */
+.agent-farmer-grid {
+  display: grid;
+  grid-template-columns: repeat(1, 1fr);
+  gap: 1rem;
+}
+
+@media (min-width: 640px) {
+  .agent-farmer-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .agent-farmer-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* Farmer Card */
+.agent-farmer-card {
+  background: white;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border: 2px solid transparent;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.agent-farmer-card:hover {
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+}
+
+.agent-farmer-card.selected {
+  border-color: #16a34a;
+  box-shadow: 0 4px 6px rgba(22, 163, 74, 0.2);
+}
+
+.agent-farmer-card-content {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.agent-farmer-avatar {
+  width: 3rem;
+  height: 3rem;
+  border-radius: 9999px;
+  background: linear-gradient(to bottom right, #dcfce7, #86efac);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.agent-farmer-avatar-icon {
+  width: 1.5rem;
+  height: 1.5rem;
+  color: #16a34a;
+}
+
+.agent-farmer-details {
+  flex: 1;
+  min-width: 0;
+}
+
+.agent-farmer-name {
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 0.25rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.agent-farmer-contact {
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin-bottom: 0.125rem;
+}
+
+.agent-farmer-location {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Loading State */
+.agent-farmer-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1rem;
+  background: white;
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.agent-farmer-loading-icon {
+  width: 3rem;
+  height: 3rem;
+  color: #16a34a;
+  margin-bottom: 1rem;
+  animation: spin 1s linear infinite;
+}
+
+.agent-farmer-loading-text {
+  color: #6b7280;
+}
+
+/* Empty State */
+.agent-farmer-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1rem;
+  background: white;
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.agent-farmer-empty-icon {
+  width: 3rem;
+  height: 3rem;
+  color: #d1d5db;
+  margin-bottom: 1rem;
+}
+
+.agent-farmer-empty-text {
+  color: #6b7280;
+  font-size: 0.875rem;
+}
+
+/* Spin Animation */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Responsive adjustments */
+@media (max-width: 639px) {
+  .agent-farmer-location-filters {
+    grid-template-columns: 1fr;
+  }
+  
+  .agent-farmer-title {
+    font-size: 1.25rem;
+  }
+}

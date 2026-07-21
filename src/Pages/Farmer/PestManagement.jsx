@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import "../Styles/HarvestingDay.css";
+import DashboardHeader from "../../components/Header/DashboardHeader";
 import { createPestManagementRequest } from '../../services/serviceRequestsService';
 import { uploadSingle } from '../../services/uploadService';
 
@@ -41,7 +43,7 @@ const pests = [
   { pest: "Birds (esp. bulbuls, starlings)", damage: "Peck ripe fruits" }
 ];
 
-export default function App() {
+export default function PestManagement() {
   const [selectedDisease, setSelectedDisease] = useState('');
   const [selectedSymptom, setSelectedSymptom] = useState('');
   const [selectedPest, setSelectedPest] = useState('');
@@ -133,7 +135,7 @@ export default function App() {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     if (!validateForm()) {
       return;
     }
@@ -191,384 +193,180 @@ export default function App() {
     }
   };
 
+  const handleCancel = () => {
+    setSelectedDisease('');
+    setSelectedSymptom('');
+    setSelectedPest('');
+    setSelectedDamage('');
+    setPestNoticed('');
+    setSeverity('');
+    setControlMethods('');
+    setPrimaryImage(null);
+    setSecondaryImage(null);
+    setErrors({});
+    setSubmitError('');
+  };
+
+  const Icon = {
+    check: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    )
+  };
+
   if (submitted) {
     return (
-      <div style={{
-        minHeight: '100vh',
-        background: 'linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '20px'
-      }}>
-        <div style={{
-          maxWidth: '600px',
-          width: '100%',
-          background: 'white',
-          borderRadius: '16px',
-          // padding: '48px 32px',
-          boxShadow: '0 12px 40px rgba(0, 0, 0, 0.1)',
-          textAlign: 'center'
-        }}>
-          <div style={{
-            width: '80px',
-            height: '80px',
-            background: 'linear-gradient(135deg, #27ae60, #219653)',
-            borderRadius: '50%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            margin: '0 auto 24px'
-          }}>
-            <svg width="40" height="40" fill="none" stroke="white" strokeWidth="3" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-            </svg>
+      <div className="hd-scope">
+        <div className="hd-confirmWrap">
+          <div className="hd-slip">
+            <div className="hd-checkCircle">{Icon.check}</div>
+            <h2 className="hd-slipTitle">Diagnosis Submitted Successfully!</h2>
+            <p className="hd-slipText">
+              Thank you for submitting your pest and disease diagnostic form. Our agricultural experts will review your submission and contact you within 24-48 hours with recommendations.
+            </p>
+            <dl className="hd-slipDetails">
+              <div className="hd-slipRow">
+                <dt>Selected Issue:</dt>
+                <dd>{selectedDisease !== '' ? diseases[selectedDisease].disease : pests[selectedPest].pest}</dd>
+              </div>
+              <div className="hd-slipRow">
+                <dt>First Noticed:</dt>
+                <dd>{pestNoticed}</dd>
+              </div>
+              <div className="hd-slipRow">
+                <dt>Severity Level:</dt>
+                <dd style={{ textTransform: 'capitalize' }}>{severity}</dd>
+              </div>
+              <div className="hd-slipRow">
+                <dt>Images Attached:</dt>
+                <dd>{(primaryImage ? 1 : 0) + (secondaryImage ? 1 : 0)}</dd>
+              </div>
+            </dl>
           </div>
-          <h2 style={{
-            fontSize: '28px',
-            color: '#1b5e20',
-            marginBottom: '16px',
-            fontWeight: '700'
-          }}>
-            Diagnosis Submitted Successfully!
-          </h2>
-          <p style={{
-            fontSize: '16px',
-            color: '#555',
-            lineHeight: '1.6',
-            marginBottom: '32px'
-          }}>
-            Thank you for submitting your pest and disease diagnostic form. Our agricultural experts will review your submission and contact you within 24-48 hours with recommendations.
-          </p>
-          <button
-            onClick={() => {
-              setSubmitted(false);
-              setSelectedDisease('');
-              setSelectedSymptom('');
-              setSelectedPest('');
-              setSelectedDamage('');
-              setPestNoticed('');
-              setSeverity('');
-              setControlMethods('');
-              setPrimaryImage(null);
-              setSecondaryImage(null);
-              setErrors({});
-              setSubmitError('');
-            }}
-            style={{
-              padding: '14px 32px',
-              background: 'linear-gradient(to right, #27ae60, #219653)',
-              color: 'white',
-              border: 'none',
-              borderRadius: '8px',
-              fontSize: '16px',
-              fontWeight: '600',
-              cursor: 'pointer',
-              transition: 'transform 0.2s'
-            }}
-            onMouseOver={(e) => e.target.style.transform = 'translateY(-2px)'}
-            onMouseOut={(e) => e.target.style.transform = 'translateY(0)'}
-          >
-            Submit Another Diagnosis
-          </button>
         </div>
       </div>
     );
   }
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      // background: 'linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%)',
-      // padding: '40px 20px',
-      fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
-    }}>
-      <div style={{
-        maxWidth: '900px',
-        margin: '0 auto',
-        background: 'white',
-        borderRadius: '16px',
-        padding: '9px',
-        boxShadow: '0 12px 40px rgba(0, 0, 0, 0.08)'
-      }}>
-        {/* Header */}
-        <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-          <h1 style={{
-            fontSize: '28px',
-            color: '#1b5e20',
-            marginBottom: '8px',
-            fontWeight: '700',
-            letterSpacing: '-0.5px'
-          }}>
-            Avocado Pest & Disease Diagnostic <br /> Plus Regural Agronomic Scouting
-          </h1>
-          <p style={{
-            fontSize: '15px',
-            color: '#666',
-            lineHeight: '1.5'
-          }}>
-            Help us identify and treat issues within  your avocado orchard!
-          </p>
-        </div>
+    <div className="hd-scope">
+      <DashboardHeader />
 
-        <form onSubmit={handleSubmit}>
-          {errors.general && (
-            <div style={{
-              padding: '14px 16px',
-              background: '#fee',
-              border: '1px solid #fcc',
-              borderRadius: '8px',
-              color: '#c33',
-              fontSize: '14px',
-              marginBottom: '24px'
-            }}>
-              {errors.general}
+      <div className="hd-wrap">
+        <h1 className="hd-pageTitle">
+          Avocado Pest & Disease Diagnostic Plus Regular Agronomic Scouting
+        </h1>
+
+        <div className="hd-card">
+
+          {errors.general && <p className="hd-errorText" style={{ padding: '0 0 16px 0', fontSize: '15px' }}>{errors.general}</p>}
+          {submitError && <p className="hd-errorText" style={{ padding: '0 0 16px 0', fontSize: '15px' }}>{submitError}</p>}
+
+          {/* Disease Identification */}
+          <div className="hd-row">
+            <div className="hd-rowLabel">
+              <h2>Disease Identification</h2>
+              <p className="hd-rowHint">Select by symptoms or directly pick a diagnosed disease</p>
             </div>
-          )}
-
-          {submitError && (
-            <div style={{
-              padding: '14px 16px',
-              background: '#fee',
-              border: '1px solid #fcc',
-              borderRadius: '8px',
-              color: '#c33',
-              fontSize: '14px',
-              marginBottom: '24px'
-            }}>
-              {submitError}
-            </div>
-          )}
-
-          {/* Diseases Section */}
-          <div style={{
-            background: '#f9fafb',
-            padding: '28px',
-            borderRadius: '12px',
-            marginBottom: '24px',
-            border: '2px solid #e5e7eb'
-          }}>
-            <h2 style={{
-              fontSize: '20px',
-              color: '#1b5e20',
-              marginBottom: '20px',
-              fontWeight: '600',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px'
-            }}>
-              <span style={{
-                width: '32px',
-                height: '32px',
-                background: '#27ae60',
-                borderRadius: '6px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'white',
-                fontSize: '16px',
-                fontWeight: '700'
-              }}>1</span>
-              Disease Identification
-            </h2>
-
-            <div style={{ 
-              display: 'grid', 
-              gridTemplateColumns: selectedDisease === '' ? '1fr' : '1fr 1fr',
-              gap: '20px',
-              marginBottom: '20px'
-            }}>
+            <div className="hd-rowFields">
               <div>
-                <label style={{
-                  display: 'block',
-                  marginBottom: '8px',
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  color: '#374151'
-                }}>
-                  Select by Symptoms
-                </label>
+                <label className="hd-label">Select by Symptoms</label>
                 <select
+                  className="hd-input"
                   value={selectedSymptom}
                   onChange={handleSymptomChange}
-                  style={{
-                    width: '100%',
-                    padding: '12px 16px',
-                    fontSize: '15px',
-                    border: '2px solid #d1d5db',
-                    borderRadius: '8px',
-                    background: 'white',
-                    cursor: 'pointer',
-                    marginBottom: '20px'
-                  }}
                 >
                   <option value="">-- Select symptoms --</option>
                   {diseases.map((item, index) => (
                     <option key={index} value={index}>{item.symptoms}</option>
                   ))}
                 </select>
+              </div>
 
-                <div>
-                  <label style={{
-                    display: 'block',
-                    marginBottom: '8px',
-                    fontSize: '14px',
-                    fontWeight: '600',
-                    color: '#374151'
-                  }}>
-                    When did you first notice the issue? <span style={{ color: '#ef4444' }}>*</span>
-                  </label>
-                  <select
-                    value={pestNoticed}
-                    onChange={(e) => {
-                      setPestNoticed(e.target.value);
-                      setErrors(prev => ({ ...prev, pestNoticed: '' }));
-                    }}
-                    style={{
-                      width: '100%',
-                      padding: '12px 16px',
-                      fontSize: '15px',
-                      border: errors.pestNoticed ? '2px solid #ef4444' : '2px solid #d1d5db',
-                      borderRadius: '8px',
-                      background: 'white',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    <option value="">-- Select timeframe --</option>
-                    <option value="this_week">This week</option>
-                    <option value="few_weeks">A few weeks ago</option>
-                    <option value="2_months">In the last 2 months</option>
-                    <option value="last_year">Last year</option>
-                  </select>
-                  {errors.pestNoticed && (
-                    <p style={{ color: '#ef4444', fontSize: '13px', marginTop: '6px' }}>{errors.pestNoticed}</p>
-                  )}
-                </div>
+              <div>
+                <label className="hd-label">Identified Disease</label>
+                <select
+                  className="hd-input"
+                  value={selectedDisease}
+                  onChange={handleDiseaseChange}
+                >
+                  <option value="">-- Select disease --</option>
+                  {diseases.map((item, index) => (
+                    <option key={index} value={index}>{item.disease}</option>
+                  ))}
+                </select>
               </div>
 
               {selectedDisease !== '' && (
-                <div style={{
-                  padding: '16px',
-                  background: 'linear-gradient(135deg, #e8f5e9 0%, #d4edda 100%)',
-                  borderRadius: '8px',
-                  border: '1px solid #a5d6a7',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '12px'
-                }}>
-                  <div>
-                    <p style={{ fontSize: '13px', color: '#1b5e20', marginBottom: '4px', fontWeight: '600' }}>
-                      Disease:
-                    </p>
-                    <p style={{ fontSize: '14px', color: '#2e7d32' }}>
-                      {diseases[selectedDisease].disease}
-                    </p>
-                  </div>
-                  <div>
-                    <p style={{ fontSize: '13px', color: '#1b5e20', marginBottom: '4px', fontWeight: '600' }}>
-                      Symptoms:
-                    </p>
-                    <p style={{ fontSize: '14px', color: '#2e7d32' }}>
-                      {diseases[selectedDisease].symptoms}
-                    </p>
-                  </div>
+                <div style={{ padding: '12px 16px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', marginTop: '8px' }}>
+                  <p style={{ fontSize: '14px', fontWeight: '600', color: '#1e293b' }}>{diseases[selectedDisease].disease}</p>
+                  <p style={{ fontSize: '13px', color: '#64748b', marginTop: '4px' }}>{diseases[selectedDisease].symptoms}</p>
                 </div>
               )}
             </div>
           </div>
 
-          {/* Pests Section */}
-          <div style={{
-            background: '#f9fafb',
-            padding: '28px',
-            borderRadius: '12px',
-            marginBottom: '24px',
-            border: '2px solid #e5e7eb'
-          }}>
-            <h2 style={{
-              fontSize: '20px',
-              color: '#1b5e20',
-              marginBottom: '20px',
-              fontWeight: '600',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px'
-            }}>
-              <span style={{
-                width: '32px',
-                height: '32px',
-                background: '#27ae60',
-                borderRadius: '6px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'white',
-                fontSize: '16px',
-                fontWeight: '700'
-              }}>2</span>
-              Pest Identification
-            </h2>
-
-            <div style={{ 
-              display: 'grid', 
-              gridTemplateColumns: selectedPest === '' ? '1fr' : '1fr 1fr',
-              gap: '20px',
-              marginBottom: '20px'
-            }}>
+          {/* Pest Identification */}
+          <div className="hd-row">
+            <div className="hd-rowLabel">
+              <h2>Pest Identification</h2>
+              <p className="hd-rowHint">Select by observed damage or directly pick an identified pest</p>
+            </div>
+            <div className="hd-rowFields">
               <div>
-                <label style={{
-                  display: 'block',
-                  marginBottom: '8px',
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  color: '#374151'
-                }}>
-                  Select by Damage Type
-                </label>
+                <label className="hd-label">Select by Damage Type</label>
                 <select
+                  className="hd-input"
                   value={selectedDamage}
                   onChange={handleDamageChange}
-                  style={{
-                    width: '100%',
-                    padding: '12px 16px',
-                    fontSize: '15px',
-                    border: '2px solid #d1d5db',
-                    borderRadius: '8px',
-                    background: 'white',
-                    cursor: 'pointer',
-                    marginBottom: '20px'
-                  }}
                 >
                   <option value="">-- Select damage type --</option>
                   {pests.map((item, index) => (
                     <option key={index} value={index}>{item.damage}</option>
                   ))}
                 </select>
+              </div>
 
+              <div>
+                <label className="hd-label">Identified Pest</label>
+                <select
+                  className="hd-input"
+                  value={selectedPest}
+                  onChange={handlePestChange}
+                >
+                  <option value="">-- Select pest --</option>
+                  {pests.map((item, index) => (
+                    <option key={index} value={index}>{item.pest}</option>
+                  ))}
+                </select>
+              </div>
+
+              {selectedPest !== '' && (
+                <div style={{ padding: '12px 16px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', marginTop: '8px' }}>
+                  <p style={{ fontSize: '14px', fontWeight: '600', color: '#1e293b' }}>{pests[selectedPest].pest}</p>
+                  <p style={{ fontSize: '13px', color: '#64748b', marginTop: '4px' }}>{pests[selectedPest].damage}</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Additional Details */}
+          <div className="hd-row">
+            <div className="hd-rowLabel">
+              <h2>Additional Details</h2>
+              <p className="hd-rowHint">Provide timelines, severity metrics, and historical control attempts</p>
+            </div>
+            <div className="hd-rowFields">
+              <div className="hd-fieldPair">
                 <div>
-                  <label style={{
-                    display: 'block',
-                    marginBottom: '8px',
-                    fontSize: '14px',
-                    fontWeight: '600',
-                    color: '#374151'
-                  }}>
-                    When did you first notice the issue? <span style={{ color: '#ef4444' }}>*</span>
-                  </label>
+                  <label className="hd-label">When first noticed?<span className="hd-req">*</span></label>
                   <select
+                    className={`hd-input ${errors.pestNoticed ? "hd-error" : ""}`}
                     value={pestNoticed}
                     onChange={(e) => {
                       setPestNoticed(e.target.value);
-                      setErrors(prev => ({ ...prev, pestNoticed: '' }));
-                    }}
-                    style={{
-                      width: '100%',
-                      padding: '12px 16px',
-                      fontSize: '15px',
-                      border: errors.pestNoticed ? '2px solid #ef4444' : '2px solid #d1d5db',
-                      borderRadius: '8px',
-                      background: 'white',
-                      cursor: 'pointer'
+                      if (errors.pestNoticed) setErrors(prev => ({ ...prev, pestNoticed: '' }));
                     }}
                   >
                     <option value="">-- Select timeframe --</option>
@@ -577,263 +375,115 @@ export default function App() {
                     <option value="2_months">In the last 2 months</option>
                     <option value="last_year">Last year</option>
                   </select>
-                  {errors.pestNoticed && (
-                    <p style={{ color: '#ef4444', fontSize: '13px', marginTop: '6px' }}>{errors.pestNoticed}</p>
-                  )}
+                  {errors.pestNoticed && <p className="hd-errorText">{errors.pestNoticed}</p>}
+                </div>
+
+                <div>
+                  <label className="hd-label">Severity Level<span className="hd-req">*</span></label>
+                  <select
+                    className={`hd-input ${errors.severity ? "hd-error" : ""}`}
+                    value={severity}
+                    onChange={(e) => {
+                      setSeverity(e.target.value);
+                      if (errors.severity) setErrors(prev => ({ ...prev, severity: '' }));
+                    }}
+                  >
+                    <option value="">-- Select severity --</option>
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                    <option value="critical">Critical</option>
+                  </select>
+                  {errors.severity && <p className="hd-errorText">{errors.severity}</p>}
                 </div>
               </div>
 
-              {selectedPest !== '' && (
-                <div style={{
-                  padding: '16px',
-                  background: 'linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%)',
-                  borderRadius: '8px',
-                  border: '1px solid #ffb74d',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '12px'
-                }}>
-                  <div>
-                    <p style={{ fontSize: '13px', color: '#e65100', marginBottom: '4px', fontWeight: '600' }}>
-                      Pest:
-                    </p>
-                    <p style={{ fontSize: '14px', color: '#f57c00' }}>
-                      {pests[selectedPest].pest}
-                    </p>
-                  </div>
-                  <div>
-                    <p style={{ fontSize: '13px', color: '#e65100', marginBottom: '4px', fontWeight: '600' }}>
-                      Damage:
-                    </p>
-                    <p style={{ fontSize: '14px', color: '#f57c00' }}>
-                      {pests[selectedPest].damage}
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Additional Information */}
-          <div style={{
-            background: '#f9fafb',
-            padding: '28px',
-            borderRadius: '12px',
-            marginBottom: '24px',
-            border: '2px solid #e5e7eb'
-          }}>
-            <h2 style={{
-              fontSize: '20px',
-              color: '#1b5e20',
-              marginBottom: '20px',
-              fontWeight: '600',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px'
-            }}>
-              <span style={{
-                width: '32px',
-                height: '32px',
-                background: '#27ae60',
-                borderRadius: '6px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'white',
-                fontSize: '16px',
-                fontWeight: '700'
-              }}>3</span>
-              Additional Details
-            </h2>
-
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
-              gap: '20px',
-              marginBottom: '20px'
-            }}>
               <div>
-                <label style={{
-                  display: 'block',
-                  marginBottom: '8px',
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  color: '#374151'
-                }}>
-                  Severity level <span style={{ color: '#ef4444' }}>*</span>
-                </label>
-                <select
-                  value={severity}
-                  onChange={(e) => {
-                    setSeverity(e.target.value);
-                    setErrors(prev => ({ ...prev, severity: '' }));
-                  }}
-                  style={{
-                    width: '100%',
-                    padding: '12px 16px',
-                    fontSize: '15px',
-                    border: errors.severity ? '2px solid #ef4444' : '2px solid #d1d5db',
-                    borderRadius: '8px',
-                    background: 'white',
-                    cursor: 'pointer'
-                  }}
-                >
-                  <option value="">-- Select severity --</option>
-                  <option value="low">Low</option>
-                  <option value="medium">Medium</option>
-                  <option value="high">High</option>
-                  <option value="critical">Critical</option>
-                </select>
-                {errors.severity && (
-                  <p style={{ color: '#ef4444', fontSize: '13px', marginTop: '6px' }}>{errors.severity}</p>
-                )}
-              </div>
-            </div>
-
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
-              gap: '20px',
-              marginBottom: '20px'
-            }}>
-              <div>
-                <label style={{
-                  display: 'block',
-                  marginBottom: '8px',
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  color: '#374151'
-                }}>
-                  Control methods already tried
-                </label>
+                <label className="hd-label">Control methods already tried</label>
                 <textarea
+                  className="hd-input"
                   value={controlMethods}
                   onChange={(e) => setControlMethods(e.target.value)}
                   placeholder="e.g., neem oil, copper spray, traps, sanitation practices..."
-                  rows="4"
-                  style={{
-                    width: '100%',
-                    padding: '12px 16px',
-                    fontSize: '15px',
-                    border: '2px solid #d1d5db',
-                    borderRadius: '8px',
-                    resize: 'vertical',
-                    fontFamily: 'inherit'
-                  }}
+                  rows="3"
+                  style={{ resize: 'vertical' }}
                 />
-              </div>
-
-              <div>
-                <label style={{
-                  display: 'block',
-                  marginBottom: '8px',
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  color: '#374151'
-                }}>
-                  Upload Image of Problem <span style={{ color: '#ef4444' }}>*</span>
-                </label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handlePrimaryImage}
-                  style={{
-                    width: '100%',
-                    padding: '12px',
-                    fontSize: '14px',
-                    border: errors.primaryImage ? '2px dashed #ef4444' : '2px dashed #d1d5db',
-                    borderRadius: '8px',
-                    background: '#f9fafb',
-                    cursor: 'pointer'
-                  }}
-                />
-                {primaryImage && (
-                  <p style={{ color: '#27ae60', fontSize: '14px', marginTop: '8px', fontWeight: '500' }}>
-                     Selected: {primaryImage.name}
-                  </p>
-                )}
-                {errors.primaryImage && (
-                  <p style={{ color: '#ef4444', fontSize: '13px', marginTop: '6px' }}>{errors.primaryImage}</p>
-                )}
-              </div>
-            </div>
-
-            <div style={{ 
-              display: 'grid', 
-              gridTemplateColumns: '1fr 1fr', 
-              gap: '20px',
-              marginBottom: '20px'
-            }}>
-              <div>
-                <label style={{
-                  display: 'block',
-                  marginBottom: '8px',
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  color: '#374151'
-                }}>
-                  Additional Image (Optional)
-                </label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleSecondaryImage}
-                  style={{
-                    width: '100%',
-                    padding: '12px',
-                    fontSize: '14px',
-                    border: '2px dashed #d1d5db',
-                    borderRadius: '8px',
-                    background: '#f9fafb',
-                    cursor: 'pointer'
-                  }}
-                />
-                {secondaryImage && (
-                  <p style={{ color: '#27ae60', fontSize: '14px', marginTop: '8px', fontWeight: '500' }}>
-                    ✓ Selected: {secondaryImage.name}
-                  </p>
-                )}
               </div>
             </div>
           </div>
 
-          {/* Submit Button */}
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            style={{
-              width: '40%',
-              padding: '16px',
-              background: 'linear-gradient(to right, #27ae60, #219653)',
-              color: 'white',
-              border: 'none',
-              borderRadius: '10px',
-              fontSize: '17px',
-              fontWeight: '700',
-              cursor: isSubmitting ? 'not-allowed' : 'pointer',
-              opacity: isSubmitting ? 0.7 : 1,
-              textTransform: 'uppercase',
-              letterSpacing: '0.5px',
-              boxShadow: '0 4px 14px rgba(39, 174, 96, 0.4)',
-              transition: 'all 0.3s'
-            }}
-            onMouseOver={(e) => {
-              e.target.style.transform = 'translateY(-2px)';
-              e.target.style.boxShadow = '0 6px 20px rgba(39, 174, 96, 0.5)';
-            }}
-            onMouseOut={(e) => {
-              e.target.style.transform = 'translateY(0)';
-              e.target.style.boxShadow = '0 4px 14px rgba(39, 174, 96, 0.4)';
-            }}
-          >
-            {isSubmitting ? 'Submitting...' : 'Submit Diagnosis'}
-          </button>
-        </form>
+          {/* Upload Attachments */}
+          <div className="hd-row">
+            <div className="hd-rowLabel">
+              <h2>Upload Media Attachments</h2>
+              <p className="hd-rowHint">Clear photos help our agronomists accurately diagnose issues</p>
+            </div>
+            <div className="hd-rowFields">
+              <div>
+                <label className="hd-label">Primary Image of Problem<span className="hd-req">*</span></label>
+                <div className="hd-uploadRow">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handlePrimaryImage}
+                    style={{ display: "none" }}
+                    id="primary-file-upload"
+                  />
+                  <label htmlFor="primary-file-upload" className="hd-fileTrigger">
+                    {primaryImage ? primaryImage.name : "Choose primary image..."}
+                  </label>
+                  <button
+                    type="button"
+                    className="hd-uploadBtn"
+                    onClick={() => document.getElementById("primary-file-upload").click()}
+                  >
+                    Browse
+                  </button>
+                </div>
+                {errors.primaryImage && <p className="hd-errorText">{errors.primaryImage}</p>}
+              </div>
 
-        
-        
-         
-       
+              <div>
+                <label className="hd-label">Additional Image (Optional)</label>
+                <div className="hd-uploadRow">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleSecondaryImage}
+                    style={{ display: "none" }}
+                    id="secondary-file-upload"
+                  />
+                  <label htmlFor="secondary-file-upload" className="hd-fileTrigger">
+                    {secondaryImage ? secondaryImage.name : "Choose optional image..."}
+                  </label>
+                  <button
+                    type="button"
+                    className="hd-uploadBtn"
+                    onClick={() => document.getElementById("secondary-file-upload").click()}
+                  >
+                    Browse
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Footer Control Actions */}
+          <div className="hd-footer">
+            <button type="button" className="hd-btnCancel" onClick={handleCancel} disabled={isSubmitting}>
+              Reset Form
+            </button>
+            <button
+              type="button"
+              className="hd-submit"
+              onClick={handleSubmit}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? "Submitting..." : "Submit Diagnosis"}
+            </button>
+          </div>
+
+        </div>
       </div>
     </div>
   );
