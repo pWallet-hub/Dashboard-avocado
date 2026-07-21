@@ -1,80 +1,200 @@
-/* General Page Styles */
+/* ==========================================================================
+   Design System & Theme Variables
+   ========================================================================== */
+:root {
+  /* Color Palette - Forest & Emerald Accents */
+  --primary-50: #ecfdf3;
+  --primary-100: #d1fadf;
+  --primary-600: #16a34a;
+  --primary-700: #15803d;
+  --primary-800: #166534;
+
+  /* Neutral Tones */
+  --bg-page: #fcfcfd;
+  --bg-surface: #ffffff;
+  --text-main: #101828;
+  --text-muted: #475467;
+  --border-subtle: #eaecf0;
+  --border-active: #d1fadf;
+
+  /* Elevation Shadows */
+  --shadow-xs: 0px 1px 2px rgba(16, 24, 40, 0.05);
+  --shadow-sm: 0px 4px 8px -2px rgba(16, 24, 40, 0.06), 0px 2px 4px -2px rgba(16, 24, 40, 0.04);
+  --shadow-md: 0px 12px 16px -4px rgba(16, 24, 40, 0.08), 0px 4px 6px -2px rgba(16, 24, 40, 0.03);
+
+  /* Typography & Radius */
+  --font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+
+  /* Motion */
+  --transition-smooth: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ==========================================================================
+   General Page Layout
+   ========================================================================== */
 .service-page {
-    min-height: 100vh;
-    display: flex;
-    gap: 20px;
-  }
-  
-  /* Container */
-  .service-wrapper {
-    max-width: 1200px;
-    margin: 0 auto;
-    background: linear-gradient(to bottom, #f9fafb, #f1f5f9);
-    width: 78%;
-    padding: 20px;
-  }
-  
-  /* Header Section */
-  .service-header {
-    margin-bottom: 40px;
-  }
-  
-  .service-title {
-    font-size: 2.5rem;
-    font-weight: bold;
-    background: linear-gradient(to right, #16a34a, #0d9488);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-  }
-  
-  .service-description {
-    margin-top: 10px;
-    font-size: 1.125rem;
-    color: #4b5563;
-  }
-  
-  /* Services Grid */
+  min-height: 100vh;
+  background-color: var(--bg-page);
+  font-family: var(--font-family);
+  color: var(--text-muted);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 32px 16px;
+  box-sizing: border-box;
+}
+
+/* Container */
+.service-wrapper {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+/* ==========================================================================
+   Header Section
+   ========================================================================== */
+.service-header {
+  text-align: center;
+  max-width: 600px;
+  margin: 0 auto 32px auto;
+}
+
+.service-title {
+  font-size: clamp(1.75rem, 3vw, 2.25rem);
+  font-weight: 700;
+  color: var(--text-main);
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  margin: 0 0 8px 0;
+}
+
+.service-title-gradient {
+  background: linear-gradient(135deg, var(--primary-700) 0%, #0d9488 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.service-description {
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+/* ==========================================================================
+   Services Grid (3 Cards Fit in One Horizontal Line)
+   ========================================================================== */
+.service-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr); /* Forces 3 columns horizontally */
+  gap: 20px; /* Reduced gap to fit comfortably */
+}
+
+/* ==========================================================================
+   Compact Service Card Component
+   ========================================================================== */
+.service-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 20px 18px; /* Compact padding */
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-shadow: var(--shadow-xs);
+  transition: var(--transition-smooth);
+}
+
+.service-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--border-active);
+  box-shadow: var(--shadow-md);
+}
+
+/* Compact Icon Wrapper */
+.service-icon {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  width: 40px;
+  height: 40px;
+  margin-bottom: 14px;
+  background-color: var(--primary-50);
+  border: 1px solid var(--primary-100);
+  border-radius: var(--radius-md);
+  color: var(--primary-700);
+  transition: var(--transition-smooth);
+}
+
+.service-card:hover .service-icon {
+  background-color: var(--primary-700);
+  color: #ffffff;
+  border-color: var(--primary-700);
+}
+
+/* Compact Typography */
+.service-card-title {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--text-main);
+  margin: 0 0 6px 0;
+  letter-spacing: -0.01em;
+  transition: var(--transition-smooth);
+}
+
+.service-card:hover .service-card-title {
+  color: var(--primary-700);
+}
+
+.service-card-description {
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+  margin: 0 0 16px 0;
+}
+
+/* Compact Button */
+.service-card-button {
+  width: 100%;
+  background-color: var(--primary-700);
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  padding: 9px 14px;
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: var(--transition-smooth);
+  box-shadow: var(--shadow-xs);
+}
+
+.service-card-button:hover {
+  background-color: var(--primary-800);
+}
+
+/* ==========================================================================
+   Responsive Adjustments for Mobile & Tablets
+   ========================================================================== */
+@media (max-width: 900px) {
   .service-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 20px;
+    grid-template-columns: repeat(2, 1fr);
   }
-  
-  /* Service Card */
-  .service-card {
-    background: #ffffff;
-    border-radius: 12px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    padding: 20px;
-    transition: box-shadow 0.3s ease;
+}
+
+@media (max-width: 600px) {
+  .service-grid {
+    grid-template-columns: 1fr;
   }
-  
-  .service-card:hover {
-    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+  .service-page {
+    padding: 20px 12px;
   }
-  
-  .service-icon {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    width: 50px;
-    height: 50px;
-    margin-bottom: 20px;
-    font-size: 1.5rem;
-    background: #d1fae5;
-    border-radius: 50%;
-    color: #065f46;
-  }
-  
-  .service-card-title {
-    margin-bottom: 10px;
-    font-size: 1.25rem;
-    font-weight: bold;
-    color: #1f2937;
-  }
-  
-  .service-card-description {
-    font-size: 1rem;
-    color: #4b5563;
-  }
-  
+}
