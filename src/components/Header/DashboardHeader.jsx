@@ -1,32 +1,32 @@
 import { Link, useLocation } from "react-router-dom";
-import { ShoppingCart, Calendar, Bug, MapPin, ClipboardList } from 'lucide-react';
+import { Store, Calendar, Bug, MapPin, ClipboardList } from 'lucide-react';
 
 export default function DashboardHeader() {
   const location = useLocation();
 
   const navigationItems = [
     { 
-      icon: "🏪", 
+      icon: Store, 
       label: "Farm Market", 
       route: "/dashboard/farmer/market" 
     },
     { 
-      icon: "🛠️", 
+      icon: Calendar, 
       label: "Book Harvesting Day", 
       route: "/dashboard/farmer/HarvestingDay" 
     },
     { 
-      icon: "📊", 
+      icon: Bug, 
       label: "Book your IPM Day", 
       route: "/dashboard/farmer/PestManagement" 
     },
     { 
-      icon: "👤", 
+      icon: MapPin, 
       label: "Book your PE Day", 
       route: "/dashboard/farmer/PropertyEvaluation" 
     },
     { 
-      icon: "📋", 
+      icon: ClipboardList, 
       label: "My Requests", 
       route: "/dashboard/farmer/my-service-requests" 
     },
@@ -37,38 +37,36 @@ export default function DashboardHeader() {
   };
 
   return (
-    <header className="bg-gradient-to-b from-white to-gray-50 border-b border-gray-200">
-      <div className="max-w-7xl mx-auto px-4 py-2">
-        <nav className="flex justify-center items-center gap-4 flex-wrap">
-          {navigationItems.map((item, index) => (
-            <Link
-              key={index}
-              to={item.route}
-              className={`
-                group relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg
-                font-medium text-xs transition-all duration-300 ease-out
-                ${isActive(item.route)
-                  ? 'bg-gradient-to-r from-green-900 to-green-800 text-white shadow-md shadow-green-900/30 scale-105'
-                  : 'bg-white text-gray-700 hover:bg-gray-50 hover:shadow-sm hover:scale-102 border border-gray-200'
-                }
-              `}
-            >
-              <span 
+    <header className="bg-white border-b border-[#eaecf0] sticky top-0 z-40 font-['Poppins']">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+        <nav className="flex items-center justify-center gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar py-1">
+          {navigationItems.map((item, index) => {
+            const IconComponent = item.icon;
+            const active = isActive(item.route);
+
+            return (
+              <Link
+                key={index}
+                to={item.route}
                 className={`
-                  text-sm transition-transform duration-300
-                  ${isActive(item.route) ? 'scale-110' : 'group-hover:scale-110'}
+                  group flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold
+                  transition-all duration-200 ease-in-out whitespace-nowrap cursor-pointer select-none
+                  ${active
+                    ? 'bg-[#ecfdf3] text-[#15803d] border border-[#d1fadf] shadow-2xs'
+                    : 'text-[#475467] hover:text-[#101828] hover:bg-gray-50 border border-transparent'
+                  }
                 `}
               >
-                {item.icon}
-              </span>
-              <span className="whitespace-nowrap font-semibold tracking-tight">
-                {item.label}
-              </span>
-              {isActive(item.route) && (
-                <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-3/4 h-0.5 bg-white rounded-full" />
-              )}
-            </Link>
-          ))}
+                <IconComponent 
+                  className={`
+                    w-4 h-4 transition-transform duration-200
+                    ${active ? 'text-[#15803d] scale-110' : 'text-gray-400 group-hover:text-gray-600 group-hover:scale-105'}
+                  `} 
+                />
+                <span className="tracking-tight">{item.label}</span>
+              </Link>
+            );
+          })}
         </nav>
       </div>
     </header>
