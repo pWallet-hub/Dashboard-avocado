@@ -29,9 +29,13 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 80
 
-# Disabled: Coolify runs its own healthcheck against a port configured in its
-# UI, separate from this Dockerfile's HEALTHCHECK. A mismatch there caused
-# "connection refused" and rollback loops even though nginx was healthy.
-HEALTHCHECK NONE
+# Coolify's deployment flow requires a HEALTHCHECK to exist (it reads
+# .State.Health.Status via `docker inspect`; no HEALTHCHECK means no Health
+# key, which hard-fails the deploy). Use 127.0.0.1, not localhost: nginx's
+# entrypoint only auto-adds an IPv6 listener when default.conf is untouched,
+# so with our custom nginx.conf it binds IPv4 only, and "localhost" can
+# resolve to the unbound ::1 first, causing false "connection refused".
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+  CMD wget -qO- http://127.0.0.1:80/ || exit 1
 
 CMD ["nginx", "-g", "daemon off;"]
