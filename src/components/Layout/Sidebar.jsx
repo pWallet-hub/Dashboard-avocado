@@ -122,10 +122,9 @@ const Sidebar = ({ role: propRole }) => {
   );
 
   const adminLinks = [
-    { to: "/dashboard/admin/profile", icon: User, text: "Profile" },
     { to: "/dashboard/admin/users", icon: Users, text: "Manage Growers" },
     { to: "/dashboard/admin/agents", icon: UserCheck, text: "Manage Agents" },
-    { to: "/dashboard/admin/reports", icon: FileText, text: "Manage Account" },
+    { to: "/dashboard/admin/reports", icon: FileText, text: "Report Management" },
     { to: "/dashboard/admin/shops", icon: ShoppingCart, text: "Manage Shops" },
     { to: "/dashboard/admin/shop-managers", icon: Store, text: "Shop Managers" },
     { to: "/dashboard/admin/transactions", icon: Receipt, text: "Transactions" },
@@ -140,6 +139,7 @@ const Sidebar = ({ role: propRole }) => {
     { to: "/dashboard/admin/settings", icon: Settings, text: "Settings" },
     { to: "/dashboard/admin/logs", icon: FileText, text: "System Logs" },
     { to: "/dashboard/admin/monitoring", icon: Activity, text: "Monitoring" },
+    { to: "/dashboard/admin/profile", icon: User, text: "Profile" },
   ];
 
   const agentLinks = [

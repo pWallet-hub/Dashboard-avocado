@@ -1,17 +1,16 @@
 import React, { useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Bell, User, Settings, LogOut, Search, ChevronDown, Camera, X } from 'lucide-react';
 import asr from '../../assets/image/pwallet-logo-new.png';
-import UserProfile from '../Profile/UserProfile';
 import SettingsModal from '../Settings/SettingsModal';
 import './TopBar.css';
 import { updateProfile } from '../../services/authService';
 
 const TopBar = ({ onLogout, user }) => {
+  const navigate = useNavigate();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
-  const [showUserProfile, setShowUserProfile] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [profilePicture, setProfilePicture] = useState(() => {
-    // Get profile picture from user profile data if available
     return user?.profile?.picture || localStorage.getItem(`profilePic_${user?.email}`) || null;
   });
   const [isUploading, setIsUploading] = useState(false);
@@ -22,13 +21,11 @@ const TopBar = ({ onLogout, user }) => {
     const file = event.target.files[0];
     if (!file) return;
 
-    // Validate file type
     if (!file.type.startsWith('image/')) {
       setUploadError('Please select an image file');
       return;
     }
 
-    // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
       setUploadError('File size must be less than 5MB');
       return;
@@ -38,24 +35,11 @@ const TopBar = ({ onLogout, user }) => {
     setUploadError(null);
     
     try {
-      // In a real implementation, we would upload the file to a server
-      // For now, we'll just store it in localStorage and update the UI
       const reader = new FileReader();
       reader.onload = async (e) => {
         const imageDataUrl = e.target.result;
         setProfilePicture(imageDataUrl);
-        
-        // Store in localStorage for persistence
         localStorage.setItem(`profilePic_${user?.email}`, imageDataUrl);
-        
-        // In a complete implementation, we would also update the user profile on the server
-        // For now, we'll just update the local state
-        try {
-          // This would be the API call to update the profile picture on the server
-          // await updateProfile({ profile: { picture: imageDataUrl } });
-        } catch (err) {
-          console.error('Failed to update profile picture on server:', err);
-        }
       };
       reader.readAsDataURL(file);
     } catch (err) {
@@ -69,11 +53,26 @@ const TopBar = ({ onLogout, user }) => {
     fileInputRef.current?.click();
   };
 
-  const handleProfileUpdate = (updatedUser) => {
-    // Update the profile picture if it was changed
-    if (updatedUser.profile?.picture) {
-      setProfilePicture(updatedUser.profile.picture);
-      localStorage.setItem(`profilePic_${user?.email}`, updatedUser.profile.picture);
+  const handleNavigateProfile = () => {
+    setShowProfileMenu(false);
+    // Navigate based on user role
+    const role = user?.role || localStorage.getItem('role');
+    switch (role) {
+      case 'admin':
+        navigate('/dashboard/admin/profile');
+        break;
+      case 'agent':
+        navigate('/dashboard/agent/profile');
+        break;
+      case 'farmer':
+        navigate('/dashboard/farmer/profile');
+        break;
+      case 'shop_manager':
+        navigate('/dashboard/shop-manager/profile');
+        break;
+      default:
+        navigate('/dashboard');
+        break;
     }
   };
 
@@ -97,7 +96,6 @@ const TopBar = ({ onLogout, user }) => {
             </div>
           </div>
 
-          
           <div className="topbar-actions">
             <div className="relative">
               <button
@@ -148,10 +146,7 @@ const TopBar = ({ onLogout, user }) => {
                       </div>
                     )}
                     <button 
-                      onClick={() => {
-                        setShowUserProfile(true);
-                        setShowProfileMenu(false);
-                      }}
+                      onClick={handleNavigateProfile}
                       className="profile-dropdown-item"
                     >
                       <User className="w-4 h-4" />
@@ -181,14 +176,6 @@ const TopBar = ({ onLogout, user }) => {
           </div>
         </div>
       </div>
-      
-      {/* User Profile Modal */}
-      <UserProfile 
-        user={user}
-        isOpen={showUserProfile}
-        onClose={() => setShowUserProfile(false)}
-        onUpdate={handleProfileUpdate}
-      />
       
       {/* Settings Modal */}
       <SettingsModal 

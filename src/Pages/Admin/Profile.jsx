@@ -8,14 +8,15 @@ export default function Profile() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    getProfile().then(setUser).catch(() => setUser(null));
+    getProfile()
+      .then(setUser)
+      .catch(() => setUser(null));
   }, []);
 
   return (
     <UserProfile
       user={user}
-      isOpen={true}
-      onClose={() => navigate('/dashboard/admin')}
+      onBack={() => navigate(-1)}
       onUpdate={setUser}
     />
   );

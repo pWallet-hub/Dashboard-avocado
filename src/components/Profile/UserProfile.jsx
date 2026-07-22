@@ -1,10 +1,14 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { X, Camera, User, Mail, Shield, Calendar, Edit2, Save, Phone, MapPin } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { 
+  User, Mail, Shield, Edit2, Save, Phone, MapPin, 
+  KeyRound, ShieldCheck, Sprout, Store, Briefcase, 
+  CheckCircle2, AlertCircle, Loader2, Award, ArrowLeft,
+  Camera, Lock, Copy, Check
+} from 'lucide-react';
 import { updateProfile, changePassword, getProfile } from '../../services/authService';
 import ProfilePictureUploader from './ProfilePictureUploader';
 
-const UserProfile = ({ user, isOpen, onClose, onUpdate }) => {
-  const [isEditing, setIsEditing] = useState(false);
+const UserProfile = ({ user: initialUser, onClose, onUpdate }) => {
   const [profileData, setProfileData] = useState({
     full_name: '',
     email: '',
@@ -19,27 +23,26 @@ const UserProfile = ({ user, isOpen, onClose, onUpdate }) => {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [successMsg, setSuccessMsg] = useState('');
   const [passwordError, setPasswordError] = useState(null);
   const [passwordSuccess, setPasswordSuccess] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
 
-  // Initialize immediately from whatever the caller passed in (avoids a blank flash)
+  // Initialize immediately from prop
   useEffect(() => {
-    if (user) {
-      setProfileData(prev => ({
-        full_name: user.full_name || prev.full_name || '',
-        email: user.email || prev.email || '',
-        role: user.role || prev.role || '',
-        phone: user.phone || prev.phone || '',
-        profile: user.profile || prev.profile || {}
-      }));
+    if (initialUser) {
+      setProfileData({
+        full_name: initialUser.full_name || '',
+        email: initialUser.email || '',
+        role: initialUser.role || '',
+        phone: initialUser.phone || '',
+        profile: initialUser.profile || {}
+      });
     }
-  }, [user]);
+  }, [initialUser]);
 
-  // The caller (e.g. TopBar) often only has a partial user object cached in
-  // localStorage. Fetch the authoritative profile from the backend whenever
-  // the modal opens so full_name/phone/profile are never stale or blank.
+  // Fetch authoritative profile data on mount
   useEffect(() => {
-    if (!isOpen) return;
     setError(null);
     getProfile()
       .then((freshUser) => {
@@ -54,30 +57,26 @@ const UserProfile = ({ user, isOpen, onClose, onUpdate }) => {
       })
       .catch((err) => {
         console.error('Failed to load profile:', err);
-        setError('Failed to load the latest profile data');
+        setError('Failed to load authoritative profile records');
       });
-  }, [isOpen]);
+  }, []);
 
   const handleInputChange = (field, value) => {
-    setProfileData(prev => ({
-      ...prev,
-      [field]: value
-    }));
+    setProfileData(prev => ({ ...prev, [field]: value }));
   };
 
   const handleProfileChange = (field, value) => {
     setProfileData(prev => ({
       ...prev,
-      profile: {
-        ...prev.profile,
-        [field]: value
-      }
+      profile: { ...prev.profile, [field]: value }
     }));
   };
 
-  const handleSave = async () => {
+  const handleSave = async (e) => {
+    if (e) e.preventDefault();
     setLoading(true);
     setError(null);
+    setSuccessMsg('');
     
     try {
       const updateData = {
@@ -85,21 +84,20 @@ const UserProfile = ({ user, isOpen, onClose, onUpdate }) => {
         phone: profileData.phone
       };
       
-      // Only include profile data if it exists
       if (Object.keys(profileData.profile).length > 0) {
         updateData.profile = profileData.profile;
       }
       
       const updatedUser = await updateProfile(updateData);
       
-      // Call onUpdate callback if provided
       if (onUpdate) {
         onUpdate(updatedUser);
       }
       
-      setIsEditing(false);
+      setSuccessMsg('Profile settings updated successfully');
+      setTimeout(() => setSuccessMsg(''), 3000);
     } catch (err) {
-      setError(err.message || 'Failed to update profile');
+      setError(err.message || 'Failed to update profile settings');
     } finally {
       setLoading(false);
     }
@@ -110,7 +108,6 @@ const UserProfile = ({ user, isOpen, onClose, onUpdate }) => {
     setPasswordError(null);
     setPasswordSuccess(false);
     
-    // Validate password fields
     if (!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword) {
       setPasswordError('All password fields are required');
       return;
@@ -140,18 +137,8 @@ const UserProfile = ({ user, isOpen, onClose, onUpdate }) => {
       });
       
       setPasswordSuccess(true);
-      
-      // Reset password fields
-      setPasswordData({
-        currentPassword: '',
-        newPassword: '',
-        confirmPassword: ''
-      });
-      
-      // Clear success message after 3 seconds
-      setTimeout(() => {
-        setPasswordSuccess(false);
-      }, 3000);
+      setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      setTimeout(() => setPasswordSuccess(false), 3000);
     } catch (err) {
       setPasswordError(err.message || 'Failed to change password');
     } finally {
@@ -159,348 +146,432 @@ const UserProfile = ({ user, isOpen, onClose, onUpdate }) => {
     }
   };
 
-  const getRoleColor = (role) => {
-    switch (role) {
-      case 'admin': return 'bg-red-100 text-red-800';
-      case 'shop_manager': return 'bg-blue-100 text-blue-800';
-      case 'farmer': return 'bg-green-100 text-green-800';
-      case 'agent': return 'bg-purple-100 text-purple-800';
-      default: return 'bg-gray-100 text-gray-800';
+  const copyProfileLink = () => {
+    navigator.clipboard.writeText(window.location.href);
+    setCopiedLink(true);
+    setTimeout(() => setCopiedLink(false), 2000);
+  };
+
+  const scrollToSection = (id) => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   };
 
-  const getRoleIcon = (role) => {
-    switch (role) {
-      case 'admin': return '👤';
-      case 'shop_manager': return '🏪';
-      case 'farmer': return '🌾';
-      case 'agent': return '🏢';
-      default: return '👤';
-    }
-  };
+  // Derive First and Last Name for split input matching reference UI
+  const nameParts = (profileData.full_name || '').trim().split(' ');
+  const firstName = nameParts[0] || '';
+  const lastName = nameParts.slice(1).join(' ') || '';
 
-  if (!isOpen) return null;
+  const handleNameSplitChange = (type, val) => {
+    let updatedFullName = '';
+    if (type === 'first') {
+      updatedFullName = `${val} ${lastName}`.trim();
+    } else {
+      updatedFullName = `${firstName} ${val}`.trim();
+    }
+    handleInputChange('full_name', updatedFullName);
+  };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto mx-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-2xl font-bold text-gray-900">User Profile</h2>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+    <div className="w-full h-full min-h-full overflow-y-auto bg-[#eef2f6] text-[#334155] font-['Poppins'] pb-24">
+      
+      {/* ── HERO TOP DARK GREEN COVER BANNER ── */}
+      <div className="w-full h-56 bg-gradient-to-r from-[#1a3808] via-[#234a0a] to-[#142e06] relative px-6 pt-6 flex justify-between items-start">
+        <button
+          onClick={onClose}
+          className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white px-3.5 py-1.5 rounded-lg text-xs font-medium backdrop-blur-xs transition-colors cursor-pointer border border-white/20"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          <span>Back to Dashboard</span>
+        </button>
 
-        {/* Profile Content */}
-        <div className="p-6">
-          {error && (
-            <div className="mb-4 p-3 bg-red-50 text-red-700 rounded-lg">
-              {error}
-            </div>
-          )}
+        <button className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white px-3.5 py-1.5 rounded-lg text-xs font-medium backdrop-blur-xs transition-colors cursor-pointer border border-white/20">
+          <Camera className="w-4 h-4" />
+          <span>Change Cover</span>
+        </button>
+      </div>
+
+      {/* ── MAIN CONTENT CONTAINER (FLOATING CARDS OVER BANNER) ── */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-24 relative z-10 space-y-6">
+        
+        {/* Global Feedback Banners */}
+        {error && (
+          <div className="flex items-center gap-2.5 p-3.5 bg-red-50 border border-red-200 text-red-700 rounded-xl text-xs font-medium shadow-xs">
+            <AlertCircle className="w-4 h-4 flex-shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
+        {successMsg && (
+          <div className="flex items-center gap-2.5 p-3.5 bg-[#f2f8ed] border border-[#c4e1b2] text-[#1a3808] rounded-xl text-xs font-medium shadow-xs">
+            <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+            <span>{successMsg}</span>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           
-          {/* Profile Picture Section */}
-          <div className="flex flex-col items-center mb-8">
-            <ProfilePictureUploader 
-              currentPicture={user?.profile?.picture}
-              userId={user?.id}
-              onUpload={(file) => {
-                // In a real implementation, this would upload the file to a server
-                console.log('Uploading file:', file);
-                // For now, we'll just show a success message
-                setError(null);
-              }}
-              onDelete={() => {
-                // Handle delete picture
-                console.log('Deleting profile picture');
-              }}
-            />
-            
-            <div className="text-center mt-4">
-              <h3 className="text-xl font-semibold text-gray-900">{profileData.full_name}</h3>
-              <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium mt-2 ${getRoleColor(profileData.role)}`}>
-                <span className="mr-1">{getRoleIcon(profileData.role)}</span>
-                {profileData.role?.replace('_', ' ').toUpperCase()}
+          {/* ── LEFT COLUMN: STICKY PROFILE CARD & JUMP NAVIGATION ── */}
+          <div className="lg:col-span-4 space-y-6 lg:sticky lg:top-6">
+            <div className="bg-white rounded-2xl shadow-sm border border-[#e2e8f0] overflow-hidden">
+              <div className="p-6 flex flex-col items-center text-center border-b border-[#f1f5f9]">
+                
+                {/* Avatar Uploader Wrapper */}
+                <div className="relative mb-3">
+                  <ProfilePictureUploader 
+                    currentPicture={initialUser?.profile?.picture}
+                    userId={initialUser?.id}
+                    onUpload={() => setError(null)}
+                    onDelete={() => console.log('Deleted picture')}
+                  />
+                </div>
+
+                <h2 className="text-lg font-bold text-[#0f172a]">
+                  {profileData.full_name || 'Anonymous User'}
+                </h2>
+                <p className="text-xs text-[#64748b] font-medium mt-0.5">
+                  {profileData.role ? profileData.role.replace('_', ' ').toUpperCase() : 'System Member'}
+                </p>
               </div>
+
+              {/* Quick Metrics List */}
+              <div className="divide-y divide-[#f1f5f9] text-xs">
+                <div className="p-4 flex items-center justify-between">
+                  <span className="text-[#64748b] font-medium">Assigned Domain</span>
+                  <span className="font-bold text-[#1a3808] capitalize">{profileData.role || 'Member'}</span>
+                </div>
+
+                <div className="p-4 flex items-center justify-between">
+                  <span className="text-[#64748b] font-medium">Account Status</span>
+                  <span className="font-bold text-[#1a3808] flex items-center gap-1">
+                    <Check className="w-3.5 h-3.5 stroke-[3]" /> Verified
+                  </span>
+                </div>
+
+                <div className="p-4 flex items-center justify-between">
+                  <span className="text-[#64748b] font-medium">Profile Score</span>
+                  <span className="font-bold text-[#334155]">100% Complete</span>
+                </div>
+              </div>
+
+              {/* Action Link Box */}
+              <div className="p-4 space-y-3 bg-[#f8fafc]">
+                <button 
+                  type="button"
+                  className="w-full py-2.5 px-4 bg-white border border-[#cbd5e1] hover:bg-gray-50 text-[#334155] rounded-xl text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
+                >
+                  View Public Profile
+                </button>
+
+                <div className="relative flex items-center">
+                  <input
+                    type="text"
+                    readOnly
+                    value={window.location.href}
+                    className="w-full bg-white border border-[#cbd5e1] rounded-xl pl-3 pr-9 py-2 text-[11px] text-[#64748b] outline-none truncate"
+                  />
+                  <button
+                    type="button"
+                    onClick={copyProfileLink}
+                    className="absolute right-2 text-gray-400 hover:text-gray-600 cursor-pointer"
+                    title="Copy link"
+                  >
+                    {copiedLink ? <Check className="w-4 h-4 text-[#1a3808]" /> : <Copy className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Quick Section Anchor Jump Links */}
+            <div className="bg-white border border-[#e2e8f0] rounded-2xl p-4 shadow-sm space-y-2">
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider px-2">
+                Section Overview
+              </p>
+              <button
+                type="button"
+                onClick={() => scrollToSection('account-section')}
+                className="w-full text-left px-3 py-2 text-xs font-semibold text-[#475569] hover:bg-[#f2f8ed] hover:text-[#1a3808] rounded-lg transition-colors cursor-pointer flex items-center gap-2"
+              >
+                <User className="w-3.5 h-3.5 text-[#1a3808]" />
+                <span>1. Account Settings</span>
+              </button>
+
+              {profileData.role && profileData.role !== 'admin' && (
+                <button
+                  type="button"
+                  onClick={() => scrollToSection('role-section')}
+                  className="w-full text-left px-3 py-2 text-xs font-semibold text-[#475569] hover:bg-[#f2f8ed] hover:text-[#1a3808] rounded-lg transition-colors cursor-pointer flex items-center gap-2"
+                >
+                  <Award className="w-3.5 h-3.5 text-[#1a3808]" />
+                  <span>2. Role Specifications</span>
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={() => scrollToSection('security-section')}
+                className="w-full text-left px-3 py-2 text-xs font-semibold text-[#475569] hover:bg-[#f2f8ed] hover:text-[#1a3808] rounded-lg transition-colors cursor-pointer flex items-center gap-2"
+              >
+                <KeyRound className="w-3.5 h-3.5 text-[#1a3808]" />
+                <span>{profileData.role && profileData.role !== 'admin' ? '3.' : '2.'} Security & Password</span>
+              </button>
             </div>
           </div>
 
-          {/* Profile Information */}
-          <div className="space-y-6">
-            {/* Basic Information */}
-            <div className="bg-gray-50 rounded-lg p-4">
-              <div className="flex items-center justify-between mb-4">
-                <h4 className="text-lg font-semibold text-gray-900">Basic Information</h4>
-                <button
-                  onClick={() => isEditing ? handleSave() : setIsEditing(true)}
-                  disabled={loading}
-                  className="flex items-center px-3 py-1 text-sm bg-green-500 hover:bg-green-600 text-white rounded-md transition-colors disabled:opacity-50"
-                >
-                  {loading ? (
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-1"></div>
-                  ) : isEditing ? (
-                    <>
-                      <Save className="w-4 h-4 mr-1" />
-                      Save
-                    </>
-                  ) : (
-                    <>
-                      <Edit2 className="w-4 h-4 mr-1" />
-                      Edit
-                    </>
-                  )}
-                </button>
+          {/* ── RIGHT COLUMN: FULL CONTINUOUSLY SCROLLABLE CONTENT ── */}
+          <div className="lg:col-span-8 space-y-6">
+            
+            {/* SECTION 1: Account Settings */}
+            <section id="account-section" className="bg-white rounded-2xl shadow-sm border border-[#e2e8f0] overflow-hidden scroll-mt-6">
+              <div className="border-b border-[#f1f5f9] px-6 py-4 bg-[#fcfcfd]">
+                <h3 className="text-sm font-bold text-[#0f172a]">Account Settings</h3>
+                <p className="text-xs text-[#64748b]">Manage personal contact details and identification credentials</p>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="flex items-center text-sm font-medium text-gray-700 mb-1">
-                    <User className="w-4 h-4 mr-2" />
-                    Full Name
-                  </label>
-                  <input
-                    type="text"
-                    value={profileData.full_name}
-                    disabled={!isEditing}
-                    onChange={(e) => handleInputChange('full_name', e.target.value)}
-                    className={`w-full px-3 py-2 border border-gray-300 rounded-md ${
-                      isEditing ? 'bg-white' : 'bg-gray-100 text-gray-600'
-                    }`}
-                  />
-                </div>
-
-                <div>
-                  <label className="flex items-center text-sm font-medium text-gray-700 mb-1">
-                    <Mail className="w-4 h-4 mr-2" />
-                    Email
-                  </label>
-                  <input
-                    type="email"
-                    value={profileData.email}
-                    disabled
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-600"
-                  />
-                </div>
-
-                <div>
-                  <label className="flex items-center text-sm font-medium text-gray-700 mb-1">
-                    <Shield className="w-4 h-4 mr-2" />
-                    Role
-                  </label>
-                  <input
-                    type="text"
-                    value={profileData.role?.replace('_', ' ').toUpperCase()}
-                    disabled
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-600"
-                  />
-                </div>
-
-                <div>
-                  <label className="flex items-center text-sm font-medium text-gray-700 mb-1">
-                    <Phone className="w-4 h-4 mr-2" />
-                    Phone Number
-                  </label>
-                  <input
-                    type="tel"
-                    value={profileData.phone}
-                    disabled={!isEditing}
-                    onChange={(e) => handleInputChange('phone', e.target.value)}
-                    placeholder="Enter phone number"
-                    className={`w-full px-3 py-2 border border-gray-300 rounded-md ${
-                      isEditing ? 'bg-white' : 'bg-gray-100 text-gray-600'
-                    }`}
-                  />
-                </div>
-
-                {/* Role-specific fields */}
-                {profileData.role === 'farmer' && (
-                  <>
-                    <div>
-                      <label className="text-sm font-medium text-gray-700 mb-1 block">
-                        Location
-                      </label>
-                      <input
-                        type="text"
-                        value={profileData.profile.location || ''}
-                        disabled={!isEditing}
-                        onChange={(e) => handleProfileChange('location', e.target.value)}
-                        placeholder="Enter location"
-                        className={`w-full px-3 py-2 border border-gray-300 rounded-md ${
-                          isEditing ? 'bg-white' : 'bg-gray-100 text-gray-600'
-                        }`}
-                      />
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-700 mb-1 block">
-                        Farm Size
-                      </label>
-                      <input
-                        type="text"
-                        value={profileData.profile.farm_size || ''}
-                        disabled={!isEditing}
-                        onChange={(e) => handleProfileChange('farm_size', e.target.value)}
-                        placeholder="Enter farm size"
-                        className={`w-full px-3 py-2 border border-gray-300 rounded-md ${
-                          isEditing ? 'bg-white' : 'bg-gray-100 text-gray-600'
-                        }`}
-                      />
-                    </div>
-                  </>
-                )}
-
-                {profileData.role === 'agent' && (
-                  <>
-                    <div>
-                      <label className="text-sm font-medium text-gray-700 mb-1 block">
-                        Specialization
-                      </label>
-                      <input
-                        type="text"
-                        value={profileData.profile.specialization || ''}
-                        disabled={!isEditing}
-                        onChange={(e) => handleProfileChange('specialization', e.target.value)}
-                        placeholder="Enter specialization"
-                        className={`w-full px-3 py-2 border border-gray-300 rounded-md ${
-                          isEditing ? 'bg-white' : 'bg-gray-100 text-gray-600'
-                        }`}
-                      />
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-700 mb-1 block">
-                        Experience
-                      </label>
-                      <input
-                        type="text"
-                        value={profileData.profile.experience || ''}
-                        disabled={!isEditing}
-                        onChange={(e) => handleProfileChange('experience', e.target.value)}
-                        placeholder="Enter experience"
-                        className={`w-full px-3 py-2 border border-gray-300 rounded-md ${
-                          isEditing ? 'bg-white' : 'bg-gray-100 text-gray-600'
-                        }`}
-                      />
-                    </div>
-                  </>
-                )}
-
-                {profileData.role === 'shop_manager' && (
-                  <>
-                    <div>
-                      <label className="text-sm font-medium text-gray-700 mb-1 block">
-                        Shop Name
-                      </label>
-                      <input
-                        type="text"
-                        value={profileData.profile.shop_name || ''}
-                        disabled={!isEditing}
-                        onChange={(e) => handleProfileChange('shop_name', e.target.value)}
-                        placeholder="Enter shop name"
-                        className={`w-full px-3 py-2 border border-gray-300 rounded-md ${
-                          isEditing ? 'bg-white' : 'bg-gray-100 text-gray-600'
-                        }`}
-                      />
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-700 mb-1 block">
-                        Shop Location
-                      </label>
-                      <input
-                        type="text"
-                        value={profileData.profile.shop_location || ''}
-                        disabled={!isEditing}
-                        onChange={(e) => handleProfileChange('shop_location', e.target.value)}
-                        placeholder="Enter shop location"
-                        className={`w-full px-3 py-2 border border-gray-300 rounded-md ${
-                          isEditing ? 'bg-white' : 'bg-gray-100 text-gray-600'
-                        }`}
-                      />
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-
-            {/* Change Password Section */}
-            <div className="bg-gray-50 rounded-lg p-4">
-              <h4 className="text-lg font-semibold text-gray-900 mb-4">Change Password</h4>
-              <form onSubmit={handlePasswordChange}>
-                {passwordError && (
-                  <div className="mb-4 p-3 bg-red-50 text-red-700 rounded-lg">
-                    {passwordError}
-                  </div>
-                )}
-                
-                {passwordSuccess && (
-                  <div className="mb-4 p-3 bg-green-50 text-green-700 rounded-lg">
-                    Password changed successfully!
-                  </div>
-                )}
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <form onSubmit={handleSave} className="p-6 space-y-5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                   <div>
-                    <label className="text-sm font-medium text-gray-700 mb-1 block">
-                      Current Password
-                    </label>
+                    <label className="block text-xs font-semibold text-[#475569] mb-1.5">First Name</label>
                     <input
-                      type="password"
-                      value={passwordData.currentPassword}
-                      onChange={(e) => setPasswordData({...passwordData, currentPassword: e.target.value})}
-                      placeholder="Enter current password"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white"
+                      type="text"
+                      value={firstName}
+                      onChange={(e) => handleNameSplitChange('first', e.target.value)}
+                      placeholder="First Name"
+                      className="w-full bg-[#f8fafc] border border-[#cbd5e1] rounded-xl px-3.5 py-2.5 text-xs font-medium text-[#0f172a] focus:bg-white focus:border-[#1a3808] focus:ring-2 focus:ring-[#1a3808]/20 outline-none transition-all"
                     />
                   </div>
-                  
+
                   <div>
-                    <label className="text-sm font-medium text-gray-700 mb-1 block">
-                      New Password
-                    </label>
+                    <label className="block text-xs font-semibold text-[#475569] mb-1.5">Last Name</label>
                     <input
-                      type="password"
-                      value={passwordData.newPassword}
-                      onChange={(e) => setPasswordData({...passwordData, newPassword: e.target.value})}
-                      placeholder="Enter new password"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white"
+                      type="text"
+                      value={lastName}
+                      onChange={(e) => handleNameSplitChange('last', e.target.value)}
+                      placeholder="Last Name"
+                      className="w-full bg-[#f8fafc] border border-[#cbd5e1] rounded-xl px-3.5 py-2.5 text-xs font-medium text-[#0f172a] focus:bg-white focus:border-[#1a3808] focus:ring-2 focus:ring-[#1a3808]/20 outline-none transition-all"
                     />
                   </div>
-                  
-                  <div className="md:col-span-2">
-                    <label className="text-sm font-medium text-gray-700 mb-1 block">
-                      Confirm New Password
-                    </label>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-[#475569] mb-1.5">Phone Number</label>
                     <input
-                      type="password"
-                      value={passwordData.confirmPassword}
-                      onChange={(e) => setPasswordData({...passwordData, confirmPassword: e.target.value})}
-                      placeholder="Confirm new password"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white"
+                      type="tel"
+                      value={profileData.phone}
+                      onChange={(e) => handleInputChange('phone', e.target.value)}
+                      placeholder="+250 7XX XXX XXX"
+                      className="w-full bg-[#f8fafc] border border-[#cbd5e1] rounded-xl px-3.5 py-2.5 text-xs font-medium text-[#0f172a] focus:bg-white focus:border-[#1a3808] focus:ring-2 focus:ring-[#1a3808]/20 outline-none transition-all"
                     />
                   </div>
-                  
-                  <div className="md:col-span-2">
+
+                  <div>
+                    <label className="block text-xs font-semibold text-[#475569] mb-1.5">Email Address</label>
+                    <input
+                      type="email"
+                      value={profileData.email}
+                      disabled
+                      className="w-full bg-[#f1f5f9] border border-[#e2e8f0] rounded-xl px-3.5 py-2.5 text-xs font-medium text-[#64748b] cursor-not-allowed"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-semibold text-[#475569] mb-1.5">Assigned System Role</label>
+                    <input
+                      type="text"
+                      value={profileData.role ? profileData.role.replace('_', ' ').toUpperCase() : 'USER'}
+                      disabled
+                      className="w-full bg-[#f1f5f9] border border-[#e2e8f0] rounded-xl px-3.5 py-2.5 text-xs font-semibold text-[#64748b] cursor-not-allowed"
+                    />
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t border-[#f1f5f9] flex justify-end">
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="bg-[#1a3808] hover:bg-[#142e06] text-white font-semibold text-xs px-6 py-2.5 rounded-xl shadow-xs transition-colors cursor-pointer disabled:opacity-50 flex items-center gap-2"
+                  >
+                    {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                    <span>Update Settings</span>
+                  </button>
+                </div>
+              </form>
+            </section>
+
+            {/* SECTION 2: Role Specifications */}
+            {profileData.role && profileData.role !== 'admin' && (
+              <section id="role-section" className="bg-white rounded-2xl shadow-sm border border-[#e2e8f0] overflow-hidden scroll-mt-6">
+                <div className="border-b border-[#f1f5f9] px-6 py-4 bg-[#fcfcfd]">
+                  <h3 className="text-sm font-bold text-[#0f172a]">Role Specifications</h3>
+                  <p className="text-xs text-[#64748b]">Configure workspace profile attributes tailored to your system role</p>
+                </div>
+
+                <form onSubmit={handleSave} className="p-6 space-y-5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                    {profileData.role === 'farmer' && (
+                      <>
+                        <div>
+                          <label className="block text-xs font-semibold text-[#475569] mb-1.5">Location / District</label>
+                          <input
+                            type="text"
+                            value={profileData.profile.location || ''}
+                            onChange={(e) => handleProfileChange('location', e.target.value)}
+                            placeholder="e.g. Gatsibo, Eastern Province"
+                            className="w-full bg-[#f8fafc] border border-[#cbd5e1] rounded-xl px-3.5 py-2.5 text-xs font-medium text-[#0f172a] focus:bg-white focus:border-[#1a3808] focus:ring-2 focus:ring-[#1a3808]/20 outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-[#475569] mb-1.5">Total Orchard Size</label>
+                          <input
+                            type="text"
+                            value={profileData.profile.farm_size || ''}
+                            onChange={(e) => handleProfileChange('farm_size', e.target.value)}
+                            placeholder="e.g. 2.5 Hectares"
+                            className="w-full bg-[#f8fafc] border border-[#cbd5e1] rounded-xl px-3.5 py-2.5 text-xs font-medium text-[#0f172a] focus:bg-white focus:border-[#1a3808] focus:ring-2 focus:ring-[#1a3808]/20 outline-none"
+                          />
+                        </div>
+                      </>
+                    )}
+
+                    {profileData.role === 'agent' && (
+                      <>
+                        <div>
+                          <label className="block text-xs font-semibold text-[#475569] mb-1.5">Specialization Field</label>
+                          <input
+                            type="text"
+                            value={profileData.profile.specialization || ''}
+                            onChange={(e) => handleProfileChange('specialization', e.target.value)}
+                            placeholder="e.g. Pest & Soil Analytics"
+                            className="w-full bg-[#f8fafc] border border-[#cbd5e1] rounded-xl px-3.5 py-2.5 text-xs font-medium text-[#0f172a] focus:bg-white focus:border-[#1a3808] focus:ring-2 focus:ring-[#1a3808]/20 outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-[#475569] mb-1.5">Field Experience</label>
+                          <input
+                            type="text"
+                            value={profileData.profile.experience || ''}
+                            onChange={(e) => handleProfileChange('experience', e.target.value)}
+                            placeholder="e.g. 5 Years Agronomy"
+                            className="w-full bg-[#f8fafc] border border-[#cbd5e1] rounded-xl px-3.5 py-2.5 text-xs font-medium text-[#0f172a] focus:bg-white focus:border-[#1a3808] focus:ring-2 focus:ring-[#1a3808]/20 outline-none"
+                          />
+                        </div>
+                      </>
+                    )}
+
+                    {profileData.role === 'shop_manager' && (
+                      <>
+                        <div>
+                          <label className="block text-xs font-semibold text-[#475569] mb-1.5">Market Shop Name</label>
+                          <input
+                            type="text"
+                            value={profileData.profile.shop_name || ''}
+                            onChange={(e) => handleProfileChange('shop_name', e.target.value)}
+                            placeholder="Enter shop name"
+                            className="w-full bg-[#f8fafc] border border-[#cbd5e1] rounded-xl px-3.5 py-2.5 text-xs font-medium text-[#0f172a] focus:bg-white focus:border-[#1a3808] focus:ring-2 focus:ring-[#1a3808]/20 outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-[#475569] mb-1.5">Outlet Physical Location</label>
+                          <input
+                            type="text"
+                            value={profileData.profile.shop_location || ''}
+                            onChange={(e) => handleProfileChange('shop_location', e.target.value)}
+                            placeholder="Enter location"
+                            className="w-full bg-[#f8fafc] border border-[#cbd5e1] rounded-xl px-3.5 py-2.5 text-xs font-medium text-[#0f172a] focus:bg-white focus:border-[#1a3808] focus:ring-2 focus:ring-[#1a3808]/20 outline-none"
+                          />
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  <div className="pt-4 border-t border-[#f1f5f9] flex justify-end">
                     <button
                       type="submit"
                       disabled={loading}
-                      className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-md transition-colors disabled:opacity-50"
+                      className="bg-[#1a3808] hover:bg-[#142e06] text-white font-semibold text-xs px-6 py-2.5 rounded-xl shadow-xs transition-colors cursor-pointer disabled:opacity-50 flex items-center gap-2"
                     >
-                      {loading ? (
-                        <div className="flex items-center">
-                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                          Changing Password...
-                        </div>
-                      ) : (
-                        'Change Password'
-                      )}
+                      {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                      <span>Save Specifications</span>
                     </button>
                   </div>
+                </form>
+              </section>
+            )}
+
+            {/* SECTION 3: Security & Password Change */}
+            <section id="security-section" className="bg-white rounded-2xl shadow-sm border border-[#e2e8f0] overflow-hidden scroll-mt-6">
+              <div className="border-b border-[#f1f5f9] px-6 py-4 bg-[#fcfcfd]">
+                <h3 className="text-sm font-bold text-[#0f172a]">Security & Password</h3>
+                <p className="text-xs text-[#64748b]">Update your system password to maintain account protection</p>
+              </div>
+
+              <form onSubmit={handlePasswordChange} className="p-6 space-y-5">
+                {passwordError && (
+                  <div className="flex items-center gap-2 p-3.5 bg-red-50 border border-red-200 text-red-700 rounded-xl text-xs font-medium">
+                    <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                    <span>{passwordError}</span>
+                  </div>
+                )}
+
+                {passwordSuccess && (
+                  <div className="flex items-center gap-2 p-3.5 bg-[#f2f8ed] border border-[#c4e1b2] text-[#1a3808] rounded-xl text-xs font-medium">
+                    <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+                    <span>Password updated successfully!</span>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-semibold text-[#475569] mb-1.5">Current Password</label>
+                    <input
+                      type="password"
+                      value={passwordData.currentPassword}
+                      onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
+                      placeholder="••••••••••••"
+                      className="w-full bg-[#f8fafc] border border-[#cbd5e1] rounded-xl px-3.5 py-2.5 text-xs font-medium text-[#0f172a] focus:bg-white focus:border-[#1a3808] focus:ring-2 focus:ring-[#1a3808]/20 outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-[#475569] mb-1.5">New Password</label>
+                    <input
+                      type="password"
+                      value={passwordData.newPassword}
+                      onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
+                      placeholder="Min 8 characters"
+                      className="w-full bg-[#f8fafc] border border-[#cbd5e1] rounded-xl px-3.5 py-2.5 text-xs font-medium text-[#0f172a] focus:bg-white focus:border-[#1a3808] focus:ring-2 focus:ring-[#1a3808]/20 outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-[#475569] mb-1.5">Confirm New Password</label>
+                    <input
+                      type="password"
+                      value={passwordData.confirmPassword}
+                      onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
+                      placeholder="Re-enter password"
+                      className="w-full bg-[#f8fafc] border border-[#cbd5e1] rounded-xl px-3.5 py-2.5 text-xs font-medium text-[#0f172a] focus:bg-white focus:border-[#1a3808] focus:ring-2 focus:ring-[#1a3808]/20 outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t border-[#f1f5f9] flex justify-end">
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="bg-[#1a3808] hover:bg-[#142e06] text-white font-semibold text-xs px-6 py-2.5 rounded-xl shadow-xs transition-colors cursor-pointer disabled:opacity-50 flex items-center gap-2"
+                  >
+                    {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Lock className="w-4 h-4" />}
+                    <span>Update Password</span>
+                  </button>
                 </div>
               </form>
-            </div>
+            </section>
+
           </div>
+
         </div>
+
       </div>
     </div>
   );
