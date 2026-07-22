@@ -42,6 +42,15 @@ const processQueue = (error, token = null) => {
   failedQueue = [];
 };
 
+// Helper: build an Error that still carries the original axios error.response
+// so downstream code (e.g. error.response?.data in usersService.js) keeps working.
+const rejectWithResponse = (message, originalError) => {
+  const err = new Error(message);
+  err.response = originalError.response;
+  err.status = originalError.response?.status;
+  return Promise.reject(err);
+};
+
 // Request interceptor to add auth token
 apiClient.interceptors.request.use(
   (config) => {
@@ -64,7 +73,7 @@ apiClient.interceptors.response.use(
     console.log(`✅ API Response: ${response.status}`, response.data);
     // If response has success: false, reject with error message
     if (response.data && response.data.success === false) {
-      return Promise.reject(new Error(response.data.message || 'API request failed'));
+      return rejectWithResponse(response.data.message || 'API request failed', { response });
     }
     return response;
   },
@@ -140,22 +149,28 @@ apiClient.interceptors.response.use(
     
     // Handle other error statuses with specific messages
     if (error.response?.status === 403) {
-      return Promise.reject(new Error('Access denied. You do not have permission to perform this action.'));
+      return rejectWithResponse('Access denied. You do not have permission to perform this action.', error);
     }
     
     // Add specific handling for 409 Conflict errors (user already exists)
     if (error.response?.status === 409) {
-      return Promise.reject(new Error('User with this email already exists.'));
+      return rejectWithResponse('User with this email already exists.', error);
     }
     
-    // Add specific handling for 422 Unprocessable Entity errors
-    if (error.response?.status === 422) {
-      return Promise.reject(new Error('Validation error. Please check your input data.'));
+    // Add specific handling for 400/422 validation errors
+    if (error.response?.status === 400 || error.response?.status === 422) {
+      const data = error.response?.data;
+      const details = data?.errors || data?.data?.errors;
+      const detailMsg = Array.isArray(details) && details.length > 0
+        ? details.map(d => (typeof d === 'string' ? d : d.message || d.msg || JSON.stringify(d))).join('; ')
+        : (data?.message || data?.data?.message || 'Validation error. Please check your input data.');
+
+      return rejectWithResponse(detailMsg, error);
     }
     
     // Add specific handling for 429 Too Many Requests errors
     if (error.response?.status === 429) {
-      return Promise.reject(new Error('Too many requests. Please try again later.'));
+      return rejectWithResponse('Too many requests. Please try again later.', error);
     }
     
     if (error.response?.status === 404) {
@@ -166,7 +181,7 @@ apiClient.interceptors.response.use(
         fullURL: `${error.config?.baseURL}${endpoint}`,
         method: error.config?.method
       });
-      return Promise.reject(new Error(`Resource not found: ${endpoint}. Please check if the API endpoint is correct.`));
+      return rejectWithResponse(`Resource not found: ${endpoint}. Please check if the API endpoint is correct.`, error);
     }
     
     if (error.response?.status === 500) {
@@ -178,19 +193,19 @@ apiClient.interceptors.response.use(
         fullError: error.response
       });
       const errorMessage = error.response?.data?.message || error.response?.data?.error || 'Server error. Please try again later.';
-      return Promise.reject(new Error(errorMessage));
+      return rejectWithResponse(errorMessage, error);
     }
     
     // Extract error message from response if available
     if (error.response?.data?.message) {
-      return Promise.reject(new Error(error.response.data.message));
+      return rejectWithResponse(error.response.data.message, error);
     }
     
     if (error.response?.data?.data?.message) {
-      return Promise.reject(new Error(error.response.data.data.message));
+      return rejectWithResponse(error.response.data.data.message, error);
     }
     
-    return Promise.reject(new Error('An unexpected error occurred. Please try again.'));
+    return rejectWithResponse('An unexpected error occurred. Please try again.', error);
   }
 );
 

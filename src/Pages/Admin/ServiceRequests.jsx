@@ -1,5 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { CheckCircle, XCircle, Clock, Eye, Filter, Search, Calendar, User, MapPin, Phone, Mail, Database, CalendarClock } from 'lucide-react';
+import { 
+  CheckCircle2, XCircle, Clock, Eye, Filter, Search, Calendar, 
+  User, MapPin, Phone, Mail, Database, CalendarClock, RefreshCw,
+  BarChart3, Hourglass, PartyPopper, CheckSquare, MoreVertical,
+  AlertCircle, FileText, ChevronRight, X
+} from 'lucide-react';
 import { 
   listServiceRequests, 
   listHarvestRequests,
@@ -108,7 +113,6 @@ export default function ServiceRequests() {
         }))
       ];
 
-      console.log('Loaded requests:', allRequests);
       setRequests(allRequests);
       setFilteredRequests(allRequests);
     } catch (error) {
@@ -152,7 +156,7 @@ export default function ServiceRequests() {
         (request.farmerPhone && request.farmerPhone.toLowerCase().includes(searchLower)) ||
         (request.farmerEmail && request.farmerEmail.toLowerCase().includes(searchLower)) ||
         (request.service_type && request.service_type.toLowerCase().includes(searchLower)) ||
-        (request.requestNumber && request.requestNumber.toLowerCase().includes(searchLower))
+        (request.requestNumber && String(request.requestNumber).toLowerCase().includes(searchLower))
       );
     }
 
@@ -177,7 +181,7 @@ export default function ServiceRequests() {
         ...(newStatus === 'postponed' && rescheduleDate && { rescheduleDate })
       };
       
-      const response = await updateServiceRequestStatusAPI(requestId, statusData);
+      await updateServiceRequestStatusAPI(requestId, statusData);
       
       const updatedRequests = requests.map(request => 
         request.id === requestId 
@@ -227,25 +231,50 @@ export default function ServiceRequests() {
     }
   };
 
-  const getStatusColor = (status) => {
+  const getStatusBadge = (status) => {
     switch (status) {
-      case 'pending': return 'bg-amber-100 text-amber-800 border-amber-200';
-      case 'approved': return 'bg-green-100 text-green-800 border-green-200';
-      case 'rejected': return 'bg-rose-100 text-rose-800 border-rose-200';
-      case 'completed': return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'postponed': return 'bg-orange-100 text-orange-800 border-orange-200';
-      default: return 'bg-slate-100 text-slate-800 border-slate-200';
-    }
-  };
-
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case 'pending': return <Clock className="w-4 h-4" />;
-      case 'approved': return <CheckCircle className="w-4 h-4" />;
-      case 'rejected': return <XCircle className="w-4 h-4" />;
-      case 'completed': return <CheckCircle className="w-4 h-4" />;
-      case 'postponed': return <CalendarClock className="w-4 h-4" />;
-      default: return <Clock className="w-4 h-4" />;
+      case 'pending':
+        return (
+          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 mr-1.5"></span>
+            Pending
+          </span>
+        );
+      case 'approved':
+        return (
+          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5"></span>
+            Approved
+          </span>
+        );
+      case 'rejected':
+        return (
+          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200">
+            <span className="w-1.5 h-1.5 rounded-full bg-rose-500 mr-1.5"></span>
+            Rejected
+          </span>
+        );
+      case 'completed':
+        return (
+          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+            <span className="w-1.5 h-1.5 rounded-full bg-blue-500 mr-1.5"></span>
+            Completed
+          </span>
+        );
+      case 'postponed':
+        return (
+          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-orange-50 text-orange-700 border border-orange-200">
+            <span className="w-1.5 h-1.5 rounded-full bg-orange-500 mr-1.5"></span>
+            Postponed
+          </span>
+        );
+      default:
+        return (
+          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200">
+            <span className="w-1.5 h-1.5 rounded-full bg-slate-400 mr-1.5"></span>
+            {status || 'Unknown'}
+          </span>
+        );
     }
   };
 
@@ -255,9 +284,7 @@ export default function ServiceRequests() {
     return isNaN(date) ? 'N/A' : date.toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
+      day: 'numeric'
     });
   };
 
@@ -301,10 +328,9 @@ export default function ServiceRequests() {
     setActionLoading(prev => ({ ...prev, [requestId]: true }));
     setError(null);
     try {
-      let response;
       switch (action) {
         case 'approve':
-          response = await approveHarvestRequest(requestId, {
+          await approveHarvestRequest(requestId, {
             scheduled_date: new Date().toISOString(),
             notes: 'Approved by admin',
             ...additionalData
@@ -313,16 +339,16 @@ export default function ServiceRequests() {
         case 'reject':
           const reason = additionalData.reason || prompt('Please provide a rejection reason:');
           if (!reason) return;
-          response = await rejectHarvestRequest(requestId, {
+          await rejectHarvestRequest(requestId, {
             rejection_reason: reason,
             notes: 'Rejected by admin'
           });
           break;
         case 'start':
-          response = await startHarvestRequest(requestId, additionalData);
+          await startHarvestRequest(requestId, additionalData);
           break;
         case 'complete':
-          response = await completeHarvestRequest(requestId, additionalData);
+          await completeHarvestRequest(requestId, additionalData);
           break;
         default:
           throw new Error('Unknown harvest action');
@@ -341,10 +367,9 @@ export default function ServiceRequests() {
     setActionLoading(prev => ({ ...prev, [requestId]: true }));
     setError(null);
     try {
-      let response;
       switch (action) {
         case 'approve':
-          response = await approvePropertyEvaluationRequest(requestId, {
+          await approvePropertyEvaluationRequest(requestId, {
             notes: 'Approved by admin',
             ...additionalData
           });
@@ -352,7 +377,7 @@ export default function ServiceRequests() {
         case 'reject':
           const reason = additionalData.reason || prompt('Please provide a rejection reason:');
           if (!reason) return;
-          response = await rejectPropertyEvaluationRequest(requestId, {
+          await rejectPropertyEvaluationRequest(requestId, {
             rejection_reason: reason,
             notes: 'Rejected by admin'
           });
@@ -370,388 +395,240 @@ export default function ServiceRequests() {
     }
   };
 
+  // Modernized Modal Component
   const RequestModal = ({ request, onClose }) => (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-5xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="flex justify-between items-start mb-6">
+    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
+      <div className="bg-white rounded-2xl shadow-xl border border-slate-200 p-6 max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+        
+        {/* Modal Header */}
+        <div className="flex justify-between items-start pb-4 border-b border-slate-100">
           <div>
-            <h2 className="text-2xl font-bold text-slate-900">Service Request Details</h2>
-            <p className="text-sm text-slate-500 mt-1">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Request Specs</span>
+              {getStatusBadge(request.status)}
+            </div>
+            <h2 className="text-xl font-bold text-slate-900 mt-1">
               {request.service_type === 'property_evaluation' ? 'Property Evaluation Request' : `Request #${request.requestNumber}`}
-            </p>
+            </h2>
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-slate-100 rounded-xl transition-colors duration-200"
+            className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
           >
-            <XCircle className="w-6 h-6 text-slate-400" />
+            <X className="w-5 h-5" />
           </button>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-6">
-          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-5 border border-blue-100">
-            <h3 className="text-lg font-semibold text-slate-900 mb-4 flex items-center">
-              <div className="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center mr-3">
-                <User className="w-5 h-5 text-white" />
-              </div>
+        {/* Info Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 my-6">
+          
+          {/* Farmer Details Box */}
+          <div className="bg-slate-50 rounded-xl p-4 border border-slate-200/80 space-y-3">
+            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5 mb-2">
+              <User className="w-4 h-4 text-emerald-600" />
               Farmer Information
             </h3>
-            <div className="space-y-3">
-              <div className="flex items-start">
-                <span className="text-sm font-medium text-slate-600 w-20">Name:</span>
-                <span className="text-sm text-slate-900 font-medium flex-1">{request.farmerName || 'N/A'}</span>
+            
+            <div className="text-sm space-y-2">
+              <div className="flex justify-between">
+                <span className="text-slate-500">Name:</span>
+                <span className="font-semibold text-slate-900">{request.farmerName || 'N/A'}</span>
               </div>
-              <div className="flex items-start">
-                <span className="text-sm font-medium text-slate-600 w-20">Phone:</span>
-                <span className="text-sm text-slate-900 flex items-center flex-1">
-                  <Phone className="w-3.5 h-3.5 mr-1.5 text-slate-400" />
+              <div className="flex justify-between">
+                <span className="text-slate-500">Phone:</span>
+                <span className="font-medium text-slate-800 flex items-center gap-1">
+                  <Phone className="w-3.5 h-3.5 text-slate-400" />
                   {request.farmerPhone || 'N/A'}
                 </span>
               </div>
-              <div className="flex items-start">
-                <span className="text-sm font-medium text-slate-600 w-20">Email:</span>
-                <span className="text-sm text-slate-900 flex items-center flex-1">
-                  <Mail className="w-3.5 h-3.5 mr-1.5 text-slate-400" />
+              <div className="flex justify-between">
+                <span className="text-slate-500">Email:</span>
+                <span className="font-medium text-slate-800 flex items-center gap-1">
+                  <Mail className="w-3.5 h-3.5 text-slate-400" />
                   {request.farmerEmail || 'N/A'}
                 </span>
               </div>
-              <div className="flex items-start">
-                <span className="text-sm font-medium text-slate-600 w-20">Location:</span>
-                <span className="text-sm text-slate-900 flex items-start flex-1">
-                  <MapPin className="w-3.5 h-3.5 mr-1.5 text-slate-400 mt-0.5 flex-shrink-0" />
-                  <span className="flex-1">{request.farmerLocation || 'N/A'}</span>
+              <div className="flex justify-between items-start pt-1">
+                <span className="text-slate-500">Location:</span>
+                <span className="font-medium text-slate-800 text-right max-w-[200px] truncate">
+                  {request.farmerLocation || 'N/A'}
                 </span>
               </div>
             </div>
           </div>
 
-          <div className="bg-gradient-to-br from-green-50 to-teal-50 rounded-xl p-5 border border-green-100">
-            <h3 className="text-lg font-semibold text-slate-900 mb-4 flex items-center">
-              <div className="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center mr-3">
-                <Calendar className="w-5 h-5 text-white" />
-              </div>
-              Request Information
+          {/* Request Meta Box */}
+          <div className="bg-slate-50 rounded-xl p-4 border border-slate-200/80 space-y-3">
+            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5 mb-2">
+              <FileText className="w-4 h-4 text-emerald-600" />
+              Service Metadata
             </h3>
-            <div className="space-y-3">
-              {/* Only show Request ID for non-property evaluation and non-harvest requests */}
-              {request.service_type !== 'property_evaluation' && request.service_type !== 'harvest' && (
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-slate-600">Request ID:</span>
-                  <span className="text-sm font-mono bg-white px-2 py-1 rounded border border-green-200">
-                    {request.requestNumber || 'N/A'}
-                  </span>
-                </div>
-              )}
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-slate-600">Service Type:</span>
-                <span className="text-sm font-semibold text-slate-900">
+            
+            <div className="text-sm space-y-2">
+              <div className="flex justify-between">
+                <span className="text-slate-500">Service Category:</span>
+                <span className="font-semibold text-slate-900 capitalize">
                   {request.service_type === 'property_evaluation' ? 'Property Evaluation' :
                    request.service_type === 'harvest' ? 'Harvesting Day' :
                    request.service_type || 'Unknown'}
                 </span>
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-slate-600">Status:</span>
-                <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold border ${getStatusColor(request.status)}`}>
-                  {getStatusIcon(request.status)}
-                  <span className="ml-1.5 capitalize">{request.status}</span>
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-slate-600">Submitted:</span>
-                <span className="text-sm text-slate-900">{formatDate(request.submittedAt)}</span>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Submitted Date:</span>
+                <span className="font-medium text-slate-800">{formatDate(request.submittedAt)}</span>
               </div>
               {request.updatedAt && (
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-slate-600">Updated:</span>
-                  <span className="text-sm text-slate-900">{formatDate(request.updatedAt)}</span>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Last Modified:</span>
+                  <span className="font-medium text-slate-800">{formatDate(request.updatedAt)}</span>
                 </div>
               )}
               {request.rescheduleDate && (
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-slate-600">Rescheduled:</span>
-                  <span className="text-sm font-semibold text-orange-700">{new Date(request.rescheduleDate).toLocaleDateString('en-US')}</span>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Postponed Date:</span>
+                  <span className="font-bold text-orange-600">{new Date(request.rescheduleDate).toLocaleDateString('en-US')}</span>
                 </div>
               )}
             </div>
           </div>
+
         </div>
 
-        <div className="bg-white border-2 border-slate-100 rounded-xl p-5">
-          <h3 className="text-lg font-semibold text-slate-900 mb-4 flex items-center">
-            <div className="w-8 h-8 bg-gradient-to-br from-violet-500 to-purple-500 rounded-lg flex items-center justify-center mr-2.5">
-              <Database className="w-4 h-4 text-white" />
-            </div>
-            Service Details
+        {/* Detailed Service Parameters */}
+        <div className="bg-slate-50 rounded-xl p-4 border border-slate-200/80 space-y-3 mb-6">
+          <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+            Specific Requirements & Notes
           </h3>
-          
+
           {request.service_type === 'pest_management' && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {[
-                  { label: 'Pest Type', value: request.pestType },
-                  { label: 'Infestation Level', value: request.infestationLevel },
-                  { label: 'Crop Type', value: request.cropType },
-                  { label: 'Farm Size', value: request.farmSize }
-                ].map((item, i) => (
-                  <div key={i} className="bg-slate-50 rounded-lg p-3">
-                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">{item.label}</p>
-                    <p className="text-sm text-slate-900 font-medium">{item.value || 'N/A'}</p>
-                  </div>
-                ))}
+            <div className="grid grid-cols-2 gap-3 text-xs">
+              <div className="p-2.5 bg-white rounded-lg border border-slate-200">
+                <span className="text-slate-400 font-semibold block">Pest Category</span>
+                <span className="font-semibold text-slate-800">{request.pestType || 'N/A'}</span>
               </div>
-              <div className="bg-slate-50 rounded-lg p-3">
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Description</p>
-                <p className="text-sm text-slate-900">{request.description || 'N/A'}</p>
+              <div className="p-2.5 bg-white rounded-lg border border-slate-200">
+                <span className="text-slate-400 font-semibold block">Infestation Level</span>
+                <span className="font-semibold text-slate-800">{request.infestationLevel || 'N/A'}</span>
+              </div>
+              <div className="p-2.5 bg-white rounded-lg border border-slate-200 col-span-2">
+                <span className="text-slate-400 font-semibold block">Problem Description</span>
+                <p className="text-slate-700 mt-1">{request.description || 'No additional details provided.'}</p>
               </div>
             </div>
           )}
 
           {request.service_type === 'harvest' && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {[
-                  { label: 'Workers Needed', value: request.workersNeeded },
-                  { label: 'Equipment Needed', value: Array.isArray(request.equipmentNeeded) ? request.equipmentNeeded.join(', ') : request.equipmentNeeded || 'None' },
-                  { label: 'Trees to Harvest', value: request.treesToHarvest },
-                  { label: 'Harvest Period', value: `${request.harvestDateFrom || 'N/A'} to ${request.harvestDateTo || 'N/A'}` },
-                  { label: 'Priority', value: request.priority }
-                ].map((item, i) => (
-                  <div key={i} className="bg-slate-50 rounded-lg p-3">
-                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">{item.label}</p>
-                    <p className="text-sm text-slate-900 font-medium">{item.value || 'N/A'}</p>
-                  </div>
-                ))}
+            <div className="grid grid-cols-2 gap-3 text-xs">
+              <div className="p-2.5 bg-white rounded-lg border border-slate-200">
+                <span className="text-slate-400 font-semibold block">Workers Requested</span>
+                <span className="font-semibold text-slate-800">{request.workersNeeded}</span>
               </div>
-              {request.notes && (
-                <div className="bg-slate-50 rounded-lg p-3">
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Notes</p>
-                  <p className="text-sm text-slate-900">{request.notes}</p>
-                </div>
-              )}
+              <div className="p-2.5 bg-white rounded-lg border border-slate-200">
+                <span className="text-slate-400 font-semibold block">Trees Count</span>
+                <span className="font-semibold text-slate-800">{request.treesToHarvest}</span>
+              </div>
+              <div className="p-2.5 bg-white rounded-lg border border-slate-200 col-span-2">
+                <span className="text-slate-400 font-semibold block">Equipment Required</span>
+                <span className="font-semibold text-slate-800">
+                  {Array.isArray(request.equipmentNeeded) ? request.equipmentNeeded.join(', ') : request.equipmentNeeded || 'None'}
+                </span>
+              </div>
             </div>
           )}
 
           {request.service_type === 'property_evaluation' && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {[
-                  { label: 'Farm Name', value: request.farmName },
-                  { label: 'Priority', value: request.priority },
-                  { label: 'Irrigation Source', value: request.irrigationSource },
-                  { label: 'Irrigation Timing', value: request.irrigationTiming },
-                  { label: 'Soil Testing', value: request.soilTesting ? 'Yes' : 'No' },
-                  { label: 'Visit Date', value: request.visitStartDate ? formatDate(request.visitStartDate) : 'TBD' }
-                ].map((item, i) => (
-                  <div key={i} className="bg-slate-50 rounded-lg p-3">
-                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">{item.label}</p>
-                    <p className="text-sm text-slate-900 font-medium">{item.value || 'N/A'}</p>
-                  </div>
-                ))}
+            <div className="grid grid-cols-2 gap-3 text-xs">
+              <div className="p-2.5 bg-white rounded-lg border border-slate-200">
+                <span className="text-slate-400 font-semibold block">Evaluation Purpose</span>
+                <span className="font-semibold text-slate-800">{request.evaluationPurpose}</span>
               </div>
-              <div className="bg-slate-50 rounded-lg p-3">
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Evaluation Purpose</p>
-                <p className="text-sm text-slate-900">{request.evaluationPurpose || 'General property assessment'}</p>
+              <div className="p-2.5 bg-white rounded-lg border border-slate-200">
+                <span className="text-slate-400 font-semibold block">Irrigation Source</span>
+                <span className="font-semibold text-slate-800">{request.irrigationSource}</span>
               </div>
-              {request.description && (
-                <div className="bg-slate-50 rounded-lg p-3">
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Description</p>
-                  <p className="text-sm text-slate-900">{request.description}</p>
-                </div>
-              )}
-              {request.accessInstructions && (
-                <div className="bg-slate-50 rounded-lg p-3">
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Access Instructions</p>
-                  <p className="text-sm text-slate-900">{request.accessInstructions}</p>
-                </div>
-              )}
               {request.notes && (
-                <div className="bg-slate-50 rounded-lg p-3">
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Notes</p>
-                  <p className="text-sm text-slate-900">{request.notes}</p>
-                </div>
-              )}
-              {request.propertyDetails && Object.keys(request.propertyDetails).length > 0 && (
-                <div className="bg-slate-50 rounded-lg p-3">
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Property Details</p>
-                  <div className="space-y-1.5">
-                    {request.propertyDetails.farm_size && (
-                      <p className="text-sm text-slate-700"><span className="font-medium">Farm Size:</span> {request.propertyDetails.farm_size}</p>
-                    )}
-                    {request.propertyDetails.crop_types && (
-                      <p className="text-sm text-slate-700"><span className="font-medium">Crop Types:</span> {Array.isArray(request.propertyDetails.crop_types) ? request.propertyDetails.crop_types.join(', ') : request.propertyDetails.crop_types}</p>
-                    )}
-                    {request.propertyDetails.current_irrigation_system && (
-                      <p className="text-sm text-slate-700"><span className="font-medium">Current Irrigation:</span> {request.propertyDetails.current_irrigation_system}</p>
-                    )}
-                    {request.propertyDetails.soil_type && (
-                      <p className="text-sm text-slate-700"><span className="font-medium">Soil Type:</span> {request.propertyDetails.soil_type}</p>
-                    )}
-                  </div>
-                </div>
-              )}
-              {request.attachments && request.attachments.length > 0 && (
-                <div className="bg-slate-50 rounded-lg p-3">
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Attachments</p>
-                  <div className="grid grid-cols-3 md:grid-cols-5 gap-2">
-                    {request.attachments.map((attachment, index) => (
-                      <div key={index} className="aspect-square bg-white rounded-lg border-2 border-slate-200 flex items-center justify-center hover:border-violet-400 transition-colors">
-                        <span className="text-xs text-slate-500 font-medium">File {index + 1}</span>
-                      </div>
-                    ))}
-                  </div>
+                <div className="p-2.5 bg-white rounded-lg border border-slate-200 col-span-2">
+                  <span className="text-slate-400 font-semibold block">Field Notes</span>
+                  <p className="text-slate-700 mt-1">{request.notes}</p>
                 </div>
               )}
             </div>
           )}
         </div>
 
-        <div className="mt-6 pt-5 border-t border-slate-200 flex flex-wrap justify-end gap-3">
+        {/* Action Controls */}
+        <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-2">
           <button
             onClick={onClose}
-            disabled={actionLoading[request.id]}
-            className="px-5 py-2.5 text-slate-700 bg-slate-100 rounded-xl hover:bg-slate-200 font-semibold transition-all duration-200 disabled:opacity-50"
+            className="px-4 py-2 border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 font-medium text-xs transition-colors"
           >
-            Close
+            Close Panel
           </button>
-          
-          {request.service_type !== 'harvest' && 
-           request.service_type !== 'property_evaluation' && 
-           request.status === 'pending' && (
+
+          {request.status === 'pending' && (
             <>
               <button
                 onClick={() => {
-                  updateRequestStatus(request.id, 'approved');
+                  if (request.service_type === 'harvest') handleHarvestAction('approve', request.id);
+                  else if (request.service_type === 'property_evaluation') handlePropertyEvaluationAction('approve', request.id);
+                  else updateRequestStatus(request.id, 'approved');
                   onClose();
                 }}
                 disabled={actionLoading[request.id]}
-                className="px-5 py-2.5 text-white bg-gradient-to-r from-green-500 to-green-600 rounded-xl hover:from-green-600 hover:to-green-700 font-semibold shadow-lg shadow-green-500/30 transition-all duration-200 disabled:opacity-50"
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold text-xs transition-colors shadow-sm disabled:opacity-50"
               >
-                {actionLoading[request.id] ? 'Processing...' : 'Approve'}
+                {actionLoading[request.id] ? 'Updating...' : 'Approve Request'}
               </button>
+
               <button
                 onClick={() => {
-                  updateRequestStatus(request.id, 'rejected');
+                  if (request.service_type === 'harvest') handleHarvestAction('reject', request.id);
+                  else if (request.service_type === 'property_evaluation') handlePropertyEvaluationAction('reject', request.id);
+                  else updateRequestStatus(request.id, 'rejected');
                   onClose();
                 }}
                 disabled={actionLoading[request.id]}
-                className="px-5 py-2.5 text-white bg-gradient-to-r from-rose-500 to-red-600 rounded-xl hover:from-rose-600 hover:to-red-700 font-semibold shadow-lg shadow-rose-500/30 transition-all duration-200 disabled:opacity-50"
+                className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg font-semibold text-xs transition-colors shadow-sm disabled:opacity-50"
               >
-                {actionLoading[request.id] ? 'Processing...' : 'Reject'}
+                {actionLoading[request.id] ? 'Updating...' : 'Reject Request'}
               </button>
+
               <button
                 onClick={() => openRescheduleModal(request)}
                 disabled={actionLoading[request.id]}
-                className="px-5 py-2.5 text-white bg-gradient-to-r from-orange-500 to-amber-600 rounded-xl hover:from-orange-600 hover:to-amber-700 font-semibold shadow-lg shadow-orange-500/30 transition-all duration-200 disabled:opacity-50"
+                className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-semibold text-xs transition-colors shadow-sm disabled:opacity-50"
               >
                 Postpone
-              </button>
-            </>
-          )}
-          
-          {request.service_type === 'harvest' && request.status === 'pending' && (
-            <>
-              <button
-                onClick={async () => {
-                  await handleHarvestAction('approve', request.id);
-                  onClose();
-                }}
-                disabled={actionLoading[request.id]}
-                className="px-5 py-2.5 text-white bg-gradient-to-r from-green-500 to-green-600 rounded-xl hover:from-green-600 hover:to-green-700 font-semibold shadow-lg shadow-green-500/30 transition-all duration-200 disabled:opacity-50"
-              >
-                {actionLoading[request.id] ? 'Processing...' : 'Approve Harvest'}
-              </button>
-              <button
-                onClick={async () => {
-                  await handleHarvestAction('reject', request.id);
-                  onClose();
-                }}
-                disabled={actionLoading[request.id]}
-                className="px-5 py-2.5 text-white bg-gradient-to-r from-rose-500 to-red-600 rounded-xl hover:from-rose-600 hover:to-red-700 font-semibold shadow-lg shadow-rose-500/30 transition-all duration-200 disabled:opacity-50"
-              >
-                {actionLoading[request.id] ? 'Processing...' : 'Reject Harvest'}
               </button>
             </>
           )}
 
-          {request.service_type === 'property_evaluation' && request.status === 'pending' && (
-            <>
-              <button
-                onClick={async () => {
-                  await handlePropertyEvaluationAction('approve', request.id);
-                  onClose();
-                }}
-                disabled={actionLoading[request.id]}
-                className="px-5 py-2.5 text-white bg-gradient-to-r from-green-500 to-green-600 rounded-xl hover:from-green-600 hover:to-green-700 font-semibold shadow-lg shadow-green-500/30 transition-all duration-200 disabled:opacity-50"
-              >
-                {actionLoading[request.id] ? 'Processing...' : 'Approve Evaluation'}
-              </button>
-              <button
-                onClick={async () => {
-                  await handlePropertyEvaluationAction('reject', request.id);
-                  onClose();
-                }}
-                disabled={actionLoading[request.id]}
-                className="px-5 py-2.5 text-white bg-gradient-to-r from-rose-500 to-red-600 rounded-xl hover:from-rose-600 hover:to-red-700 font-semibold shadow-lg shadow-rose-500/30 transition-all duration-200 disabled:opacity-50"
-              >
-                {actionLoading[request.id] ? 'Processing...' : 'Reject Evaluation'}
-              </button>
-              <button
-                onClick={() => openRescheduleModal(request)}
-                disabled={actionLoading[request.id]}
-                className="px-5 py-2.5 text-white bg-gradient-to-r from-orange-500 to-amber-600 rounded-xl hover:from-orange-600 hover:to-amber-700 font-semibold shadow-lg shadow-orange-500/30 transition-all duration-200 disabled:opacity-50"
-              >
-                Postpone
-              </button>
-            </>
-          )}
-          
           {request.status === 'approved' && (
-            <>
-              <button
-                onClick={() => {
-                  updateRequestStatus(request.id, 'completed');
-                  onClose();
-                }}
-                disabled={actionLoading[request.id]}
-                className="px-5 py-2.5 text-white bg-gradient-to-r from-blue-500 to-indigo-600 rounded-xl hover:from-blue-600 hover:to-indigo-700 font-semibold shadow-lg shadow-blue-500/30 transition-all duration-200 disabled:opacity-50"
-              >
-                {actionLoading[request.id] ? 'Processing...' : 'Mark as Completed'}
-              </button>
-              <button
-                onClick={() => openRescheduleModal(request)}
-                disabled={actionLoading[request.id]}
-                className="px-5 py-2.5 text-white bg-gradient-to-r from-orange-500 to-amber-600 rounded-xl hover:from-orange-600 hover:to-amber-700 font-semibold shadow-lg shadow-orange-500/30 transition-all duration-200 disabled:opacity-50"
-              >
-                Reschedule
-              </button>
-            </>
-          )}
-          
-          {request.status === 'postponed' && (
             <button
               onClick={() => {
-                updateRequestStatus(request.id, 'approved');
+                updateRequestStatus(request.id, 'completed');
                 onClose();
               }}
               disabled={actionLoading[request.id]}
-              className="px-5 py-2.5 text-white bg-gradient-to-r from-green-500 to-green-600 rounded-xl hover:from-green-600 hover:to-green-700 font-semibold shadow-lg shadow-green-500/30 transition-all duration-200 disabled:opacity-50"
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-xs transition-colors shadow-sm disabled:opacity-50"
             >
-              {actionLoading[request.id] ? 'Processing...' : 'Approve'}
+              {actionLoading[request.id] ? 'Updating...' : 'Mark Completed'}
             </button>
           )}
         </div>
+
       </div>
     </div>
   );
 
+  // Modern Reschedule Modal
   const RescheduleModal = () => (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-md w-full">
-        <div className="flex justify-between items-start mb-6">
-          <div>
-            <h2 className="text-xl font-bold text-slate-900">Reschedule Request</h2>
-            <p className="text-sm text-slate-500 mt-1">Select a new date for this service</p>
+    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-2xl shadow-xl border border-slate-200 p-6 max-w-md w-full">
+        <div className="flex justify-between items-center pb-3 border-b border-slate-100 mb-4">
+          <div className="flex items-center gap-2">
+            <CalendarClock className="w-5 h-5 text-orange-600" />
+            <h2 className="text-base font-bold text-slate-900">Postpone / Reschedule</h2>
           </div>
           <button
             onClick={() => {
@@ -759,54 +636,54 @@ export default function ServiceRequests() {
               setRescheduleDate('');
               setRescheduleReason('');
             }}
-            className="p-2 hover:bg-slate-100 rounded-xl transition-colors duration-200"
+            className="p-1 text-slate-400 hover:text-slate-600 rounded-lg"
           >
-            <XCircle className="w-6 h-6 text-slate-400" />
+            <X className="w-5 h-5" />
           </button>
         </div>
-        <div className="space-y-4">
+
+        <div className="space-y-4 text-xs">
           <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-2">Select New Date</label>
+            <label className="block font-semibold text-slate-700 mb-1">New Execution Date</label>
             <input
               type="date"
               value={rescheduleDate}
               onChange={(e) => setRescheduleDate(e.target.value)}
               min={new Date().toISOString().split('T')[0]}
-              className="w-full px-4 py-2.5 bg-slate-50 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all outline-none"
+              className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-emerald-600"
             />
           </div>
+
           <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-2">Reason for Rescheduling</label>
+            <label className="block font-semibold text-slate-700 mb-1">Reason for Postponement</label>
             <textarea
               value={rescheduleReason}
               onChange={(e) => setRescheduleReason(e.target.value)}
-              placeholder="Enter reason for rescheduling..."
-              className="w-full px-4 py-2.5 bg-slate-50 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all outline-none resize-none"
-              rows="4"
+              placeholder="State reason clearly for the farmer..."
+              rows="3"
+              className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-emerald-600 resize-none"
             />
           </div>
         </div>
-        <div className="flex justify-end gap-3 mt-6 pt-5 border-t border-slate-200">
+
+        <div className="flex justify-end gap-2 mt-6 pt-3 border-t border-slate-100">
           <button
             onClick={() => {
               setShowRescheduleModal(false);
               setRescheduleDate('');
               setRescheduleReason('');
             }}
-            className="px-5 py-2.5 text-slate-700 bg-slate-100 rounded-xl hover:bg-slate-200 font-semibold transition-all duration-200"
+            className="px-4 py-2 border border-slate-200 text-slate-600 rounded-lg font-medium text-xs hover:bg-slate-50"
           >
             Cancel
           </button>
+
           <button
             onClick={handleReschedule}
             disabled={!rescheduleDate || !rescheduleReason || actionLoading[selectedRequest?.id]}
-            className={`px-5 py-2.5 text-white rounded-xl font-semibold transition-all duration-200 ${
-              rescheduleDate && rescheduleReason && !actionLoading[selectedRequest?.id]
-                ? 'bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 shadow-lg shadow-orange-500/30'
-                : 'bg-slate-300 cursor-not-allowed'
-            }`}
+            className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-semibold text-xs transition-colors shadow-sm disabled:opacity-50"
           >
-            {actionLoading[selectedRequest?.id] ? 'Processing...' : 'Confirm Reschedule'}
+            {actionLoading[selectedRequest?.id] ? 'Saving...' : 'Confirm Reschedule'}
           </button>
         </div>
       </div>
@@ -814,213 +691,221 @@ export default function ServiceRequests() {
   );
 
   return (
-    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #f8fafc 0%, #e0f2fe 50%, #dbeafe 100%)', padding: '2rem 1rem' }}>
-      <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
-        
-        {/* Header */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 mb-6">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <h1 className="text-3xl font-bold text-slate-900 mb-1">Service Requests Management</h1>
-              <p className="text-slate-500">Monitor and manage all service requests from farmers</p>
-            </div>
-            <div className="flex items-center gap-4">
-              <div className="text-sm font-medium text-slate-600 bg-slate-100 px-4 py-2 rounded-xl">
-                Total: <span className="font-bold text-slate-900">{requests.length}</span> requests
-              </div>
-              <button
-                onClick={loadServiceRequests}
-                disabled={loading}
-                className="inline-flex items-center px-5 py-2.5 bg-gradient-to-r from-blue-500 to-indigo-600 text-white text-sm font-semibold rounded-xl hover:from-blue-600 hover:to-indigo-700 shadow-lg shadow-blue-500/30 transition-all duration-200 disabled:opacity-50"
-              >
-                <Database className="w-4 h-4 mr-2" />
-                {loading ? 'Loading...' : 'Refresh Data'}
-              </button>
-            </div>
+    <div className="min-h-screen bg-slate-50 text-slate-700 font-['Poppins'] p-4 sm:p-6 lg:p-8">
+      <div className="max-w-7xl mx-auto space-y-6">
+
+        {/* Header Bar */}
+        <div className="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-xs flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h1 className="text-xl font-bold text-slate-900 tracking-tight">Service Requests Management</h1>
+            <p className="text-xs text-slate-500 mt-0.5">Track, schedule, and process field service inquiries from farmers</p>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-semibold px-3 py-1.5 bg-slate-100 text-slate-700 rounded-lg border border-slate-200">
+              Total: <strong className="text-slate-900">{requests.length}</strong>
+            </span>
+            <button
+              onClick={loadServiceRequests}
+              disabled={loading}
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold rounded-lg shadow-xs transition-colors disabled:opacity-50 cursor-pointer"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+              <span>Refresh Records</span>
+            </button>
           </div>
         </div>
 
-        {/* Error Alert */}
+        {/* Global Error Banner */}
         {error && (
-          <div className="bg-gradient-to-r from-rose-50 to-red-50 border-2 border-rose-200 text-rose-800 px-5 py-4 rounded-xl mb-6 flex items-center shadow-sm">
-            <XCircle className="w-5 h-5 mr-3 flex-shrink-0" />
-            <span className="font-medium">{error}</span>
+          <div className="p-4 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-xs font-medium flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 flex-shrink-0" />
+            <span>{error}</span>
           </div>
         )}
 
-        {/* Summary Cards */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 mb-6">
-          <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center">
-            <div className="w-8 h-8 bg-gradient-to-br from-violet-500 to-purple-500 rounded-lg flex items-center justify-center mr-2.5">
-              <Database className="w-4 h-4 text-white" />
-            </div>
-            Request Summary
-          </h2>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            {[
-              { label: 'Total', value: summary.total, gradient: 'from-slate-50 to-slate-100', text: 'slate', icon: '📊' },
-              { label: 'Pending', value: summary.pending, gradient: 'from-amber-50 to-yellow-100', text: 'amber', icon: '⏳' },
-              { label: 'Approved', value: summary.approved, gradient: 'from-green-50 to-green-100', text: 'green', icon: '✅' },
-              { label: 'Completed', value: summary.completed, gradient: 'from-blue-50 to-indigo-100', text: 'blue', icon: '🎉' },
-              { label: 'Rejected', value: summary.rejected, gradient: 'from-rose-50 to-red-100', text: 'rose', icon: '❌' },
-              { label: 'Postponed', value: summary.postponed, gradient: 'from-orange-50 to-amber-100', text: 'orange', icon: '📅' }
-            ].map((stat, i) => (
-              <div key={i} className={`bg-gradient-to-br ${stat.gradient} rounded-xl p-4 border-2 border-${stat.text}-200 text-center transition-transform hover:scale-105`}>
-                <div className="text-2xl mb-1">{stat.icon}</div>
-                <p className={`text-sm font-semibold text-${stat.text}-700 mb-1`}>{stat.label}</p>
-                <p className={`text-3xl font-bold text-${stat.text}-900`}>{stat.value}</p>
+        {/* Summary Metric Cards with Lucide Icons */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          
+          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-col justify-between">
+            <div className="flex items-center justify-between text-slate-400">
+              <span className="text-xs font-semibold uppercase">Total</span>
+              <div className="p-1.5 bg-slate-100 rounded-lg text-slate-600">
+                <BarChart3 className="w-4 h-4" />
               </div>
-            ))}
+            </div>
+            <p className="text-2xl font-bold text-slate-900 mt-3">{summary.total}</p>
           </div>
+
+          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-col justify-between">
+            <div className="flex items-center justify-between text-amber-600">
+              <span className="text-xs font-semibold uppercase text-slate-500">Pending</span>
+              <div className="p-1.5 bg-amber-50 rounded-lg text-amber-600 border border-amber-100">
+                <Hourglass className="w-4 h-4" />
+              </div>
+            </div>
+            <p className="text-2xl font-bold text-slate-900 mt-3">{summary.pending}</p>
+          </div>
+
+          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-col justify-between">
+            <div className="flex items-center justify-between text-emerald-600">
+              <span className="text-xs font-semibold uppercase text-slate-500">Approved</span>
+              <div className="p-1.5 bg-emerald-50 rounded-lg text-emerald-600 border border-emerald-100">
+                <CheckCircle2 className="w-4 h-4" />
+              </div>
+            </div>
+            <p className="text-2xl font-bold text-slate-900 mt-3">{summary.approved}</p>
+          </div>
+
+          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-col justify-between">
+            <div className="flex items-center justify-between text-blue-600">
+              <span className="text-xs font-semibold uppercase text-slate-500">Completed</span>
+              <div className="p-1.5 bg-blue-50 rounded-lg text-blue-600 border border-blue-100">
+                <PartyPopper className="w-4 h-4" />
+              </div>
+            </div>
+            <p className="text-2xl font-bold text-slate-900 mt-3">{summary.completed}</p>
+          </div>
+
+          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-col justify-between">
+            <div className="flex items-center justify-between text-rose-600">
+              <span className="text-xs font-semibold uppercase text-slate-500">Rejected</span>
+              <div className="p-1.5 bg-rose-50 rounded-lg text-rose-600 border border-rose-100">
+                <XCircle className="w-4 h-4" />
+              </div>
+            </div>
+            <p className="text-2xl font-bold text-slate-900 mt-3">{summary.rejected}</p>
+          </div>
+
+          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-col justify-between">
+            <div className="flex items-center justify-between text-orange-600">
+              <span className="text-xs font-semibold uppercase text-slate-500">Postponed</span>
+              <div className="p-1.5 bg-orange-50 rounded-lg text-orange-600 border border-orange-100">
+                <CalendarClock className="w-4 h-4" />
+              </div>
+            </div>
+            <p className="text-2xl font-bold text-slate-900 mt-3">{summary.postponed}</p>
+          </div>
+
         </div>
 
-        {/* Filters */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center">
-                <Search className="w-4 h-4 mr-1.5" />
-                Search
-              </label>
-              <div className="relative">
-                <Search className="absolute left-3.5 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <input
-                  type="text"
-                  placeholder="Name, phone, email, request #..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border-2 border-slate-200 rounded-xl text-slate-900 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all outline-none"
-                />
-              </div>
-            </div>
-            
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center">
-                <Filter className="w-4 h-4 mr-1.5" />
-                Status
-              </label>
+        {/* Filter Toolbar */}
+        <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col md:flex-row gap-3 items-center justify-between">
+          <div className="relative w-full md:w-80">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              placeholder="Search by farmer, contact, ID..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-emerald-600 transition-colors"
+            />
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3 w-full md:w-auto justify-end">
+            <div className="flex items-center gap-2">
+              <Filter className="w-3.5 h-3.5 text-slate-400" />
               <select
                 value={filterStatus}
                 onChange={(e) => setFilterStatus(e.target.value)}
-                className="w-full px-4 py-2.5 bg-slate-50 border-2 border-slate-200 rounded-xl text-slate-900 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all outline-none"
+                className="bg-slate-50 border border-slate-200 text-xs font-medium rounded-xl px-3 py-2 outline-none"
               >
-                <option value="all">All Status</option>
+                <option value="all">All Statuses</option>
                 <option value="pending">Pending</option>
                 <option value="approved">Approved</option>
-                <option value="rejected">Rejected</option>
                 <option value="completed">Completed</option>
+                <option value="rejected">Rejected</option>
                 <option value="postponed">Postponed</option>
               </select>
             </div>
-            
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center">
-                <Database className="w-4 h-4 mr-1.5" />
-                Service Type
-              </label>
-              <select
-                value={filterType}
-                onChange={(e) => setFilterType(e.target.value)}
-                className="w-full px-4 py-2.5 bg-slate-50 border-2 border-slate-200 rounded-xl text-slate-900 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all outline-none"
-              >
-                <option value="all">All Types</option>
-                <option value="pest_management">Pest Management</option>
-                <option value="harvest">Harvesting Day</option>
-                <option value="property_evaluation">Property Evaluation</option>
-              </select>
-            </div>
-            
-            <div className="flex items-end">
+
+            <select
+              value={filterType}
+              onChange={(e) => setFilterType(e.target.value)}
+              className="bg-slate-50 border border-slate-200 text-xs font-medium rounded-xl px-3 py-2 outline-none"
+            >
+              <option value="all">All Service Types</option>
+              <option value="pest_management">Pest Management</option>
+              <option value="harvest">Harvesting Day</option>
+              <option value="property_evaluation">Property Evaluation</option>
+            </select>
+
+            {(filterStatus !== 'all' || filterType !== 'all' || searchTerm) && (
               <button
                 onClick={() => {
                   setFilterStatus('all');
                   setFilterType('all');
                   setSearchTerm('');
                 }}
-                className="w-full px-4 py-2.5 text-slate-700 bg-slate-100 rounded-xl hover:bg-slate-200 font-semibold transition-all duration-200"
+                className="text-xs text-slate-500 hover:text-slate-900 font-semibold underline px-2 cursor-pointer"
               >
-                Clear Filters
+                Reset
               </button>
-            </div>
+            )}
           </div>
         </div>
 
-       
-       Requests Table
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        {/* Data Table Container */}
+        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
           {loading ? (
-            <div className="text-center py-20">
-              <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-slate-200 border-t-green-500 mb-4"></div>
-              <p className="text-slate-600 font-medium">Loading service requests...</p>
+            <div className="p-12 text-center text-slate-400 text-xs">
+              <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-emerald-700" />
+              <span>Fetching service records...</span>
             </div>
           ) : filteredRequests.length > 0 ? (
             <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-white border-b border-slate-200">
-                  <tr>
-                    <th className="px-6 py-4 text-left">
-                      <input type="checkbox" className="w-4 h-4 rounded border-slate-300" />
-                    </th>
-                    <th className="px-6 py-4 text-left text-sm font-medium text-slate-600">Farmer Name</th>
-                    <th className="px-6 py-4 text-left text-sm font-medium text-slate-600">Email</th>
-                    <th className="px-6 py-4 text-left text-sm font-medium text-slate-600">Telephone</th>
-                    <th className="px-6 py-4 text-left text-sm font-medium text-slate-600">Request ID</th>
-                    <th className="px-6 py-4 text-left text-sm font-medium text-slate-600">Service Type</th>
-                    <th className="px-6 py-4 text-left text-sm font-medium text-slate-600">Status</th>
-                    <th className="px-6 py-4 text-left text-sm font-medium text-slate-600">Submitted Date</th>
-                    <th className="px-6 py-4 text-left text-sm font-medium text-slate-600">Actions</th>
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-200 text-slate-400 uppercase font-bold tracking-wider">
+                    <th className="px-6 py-3.5">Farmer Info</th>
+                    <th className="px-6 py-3.5">Contact</th>
+                    <th className="px-6 py-3.5">Request ID</th>
+                    <th className="px-6 py-3.5">Service Type</th>
+                    <th className="px-6 py-3.5">Status</th>
+                    <th className="px-6 py-3.5">Submitted</th>
+                    <th className="px-6 py-3.5 text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-slate-100 font-medium">
                   {filteredRequests.map((request) => (
-                    <tr key={request.id} className="hover:bg-slate-50 transition-colors duration-150">
+                    <tr key={request.id} className="hover:bg-slate-50/80 transition-colors">
                       <td className="px-6 py-4">
-                        <input type="checkbox" className="w-4 h-4 rounded border-slate-300" />
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-7 h-7 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-xs">
+                            {request.farmerName ? request.farmerName.charAt(0).toUpperCase() : 'F'}
+                          </div>
+                          <span className="font-semibold text-slate-900">{request.farmerName || 'N/A'}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-slate-500">
+                        <div>{request.farmerPhone || 'N/A'}</div>
+                        <div className="text-[11px] text-slate-400">{request.farmerEmail || 'N/A'}</div>
+                      </td>
+                      <td className="px-6 py-4 font-mono text-slate-600">
+                        {request.service_type === 'property_evaluation' ? 'PROP-EVAL' : (request.requestNumber || request.id)}
+                      </td>
+                      <td className="px-6 py-4 font-semibold text-slate-800">
+                        {request.service_type === 'property_evaluation' ? 'Property Evaluation' :
+                         request.service_type === 'harvest' ? 'Harvesting Day' :
+                         request.service_type === 'pest_management' ? 'Pest Management' :
+                         request.service_type}
                       </td>
                       <td className="px-6 py-4">
-                        <span className="text-sm text-slate-900 font-medium">{request.farmerName || 'N/A'}</span>
+                        {getStatusBadge(request.status)}
                       </td>
-                      <td className="px-6 py-4">
-                        <span className="text-sm text-slate-700">{request.farmerEmail || 'N/A'}</span>
+                      <td className="px-6 py-4 text-slate-500">
+                        {formatDate(request.submittedAt)}
                       </td>
-                      <td className="px-6 py-4">
-                        <span className="text-sm text-slate-700">{request.farmerPhone || 'N/A'}</span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="text-sm text-slate-700 font-mono">
-                          {request.service_type === 'property_evaluation' ? 'Property Eval' : (request.requestNumber || request.id)}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="text-sm text-slate-700">
-                          {request.service_type === 'property_evaluation' ? 'Property Evaluation' :
-                           request.service_type === 'harvest' ? 'Harvesting Day' :
-                           request.service_type === 'pest_management' ? 'Pest Management' :
-                           request.service_type}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium ${getStatusColor(request.status)}`}>
-                          <span className="capitalize">{request.status}</span>
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="text-sm text-slate-700">
-                          {formatDate(request.submittedAt)}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-4 text-right">
                         <button
                           onClick={() => {
                             setSelectedRequest(request);
                             setShowModal(true);
                           }}
-                          className="text-slate-400 hover:text-slate-600 transition-colors"
-                          disabled={actionLoading[request.id]}
+                          className="p-1.5 hover:bg-slate-100 text-slate-600 rounded-lg transition-colors cursor-pointer inline-flex items-center gap-1 font-semibold text-xs border border-slate-200"
                         >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-                          </svg>
+                          <Eye className="w-3.5 h-3.5 text-slate-500" />
+                          <span>View</span>
                         </button>
                       </td>
                     </tr>
@@ -1029,18 +914,16 @@ export default function ServiceRequests() {
               </table>
             </div>
           ) : (
-            <div className="text-center py-20">
-              <div className="w-20 h-20 mx-auto mb-4 bg-slate-100 rounded-2xl flex items-center justify-center">
-                <Filter className="w-10 h-10 text-slate-400" />
-              </div>
-              <h3 className="text-lg font-bold text-slate-900 mb-2">No service requests found</h3>
-              <p className="text-slate-600">Try adjusting your filters or search criteria</p>
+            <div className="p-12 text-center text-slate-400 space-y-2">
+              <FileText className="w-8 h-8 mx-auto text-slate-300" />
+              <p className="text-xs font-semibold text-slate-600">No service requests matching filters.</p>
             </div>
           )}
         </div>
-          
+
       </div>
 
+      {/* Render Modals */}
       {showModal && selectedRequest && (
         <RequestModal
           request={selectedRequest}
