@@ -247,6 +247,13 @@ export default function ServiceRequests() {
             Approved
           </span>
         );
+      case 'in_progress':
+        return (
+          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
+            <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 mr-1.5"></span>
+            In Progress
+          </span>
+        );
       case 'rejected':
         return (
           <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200">
@@ -533,6 +540,18 @@ export default function ServiceRequests() {
                   {Array.isArray(request.equipmentNeeded) ? request.equipmentNeeded.join(', ') : request.equipmentNeeded || 'None'}
                 </span>
               </div>
+              <div className="p-2.5 bg-white rounded-lg border border-slate-200">
+                <span className="text-slate-400 font-semibold block">Harvest Window</span>
+                <span className="font-semibold text-slate-800">
+                  {formatDate(request.harvestDateFrom)} - {formatDate(request.harvestDateTo)}
+                </span>
+              </div>
+              {request.notes && (
+                <div className="p-2.5 bg-white rounded-lg border border-slate-200 col-span-2">
+                  <span className="text-slate-400 font-semibold block">Field Notes</span>
+                  <p className="text-slate-700 mt-1">{request.notes}</p>
+                </div>
+              )}
             </div>
           )}
 
@@ -603,7 +622,35 @@ export default function ServiceRequests() {
             </>
           )}
 
-          {request.status === 'approved' && (
+          {/* HARVEST-SPECIFIC WORKFLOW: approved -> start -> in_progress -> complete -> completed */}
+          {request.status === 'approved' && request.service_type === 'harvest' && (
+            <button
+              onClick={() => {
+                handleHarvestAction('start', request.id, { actual_start_date: new Date().toISOString() });
+                onClose();
+              }}
+              disabled={actionLoading[request.id]}
+              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-semibold text-xs transition-colors shadow-sm disabled:opacity-50"
+            >
+              {actionLoading[request.id] ? 'Updating...' : 'Start Harvest'}
+            </button>
+          )}
+
+          {request.status === 'in_progress' && request.service_type === 'harvest' && (
+            <button
+              onClick={() => {
+                handleHarvestAction('complete', request.id, { completed_at: new Date().toISOString() });
+                onClose();
+              }}
+              disabled={actionLoading[request.id]}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-xs transition-colors shadow-sm disabled:opacity-50"
+            >
+              {actionLoading[request.id] ? 'Updating...' : 'Complete Harvest'}
+            </button>
+          )}
+
+          {/* Non-harvest types keep the original generic completion behavior */}
+          {request.status === 'approved' && request.service_type !== 'harvest' && (
             <button
               onClick={() => {
                 updateRequestStatus(request.id, 'completed');
@@ -813,6 +860,7 @@ export default function ServiceRequests() {
                 <option value="all">All Statuses</option>
                 <option value="pending">Pending</option>
                 <option value="approved">Approved</option>
+                <option value="in_progress">In Progress</option>
                 <option value="completed">Completed</option>
                 <option value="rejected">Rejected</option>
                 <option value="postponed">Postponed</option>
