@@ -143,8 +143,6 @@ const Sidebar = ({ role: propRole }) => {
   ];
 
   const agentLinks = [
-    { to: "/dashboard/agent/profile", icon: User, text: "Profile" },
-    { to: "/dashboard/agent/FarmerList", icon: Users, text: "My Farmers" },
     { to: "/dashboard/agent/HarvestingPlan", icon: Calendar, text: "Schedule Harvesting Plan" },
     { to: "/dashboard/agent/IPMRoutine", icon: Bug, text: "Schedule IPM Routine" },
     { to: "/dashboard/agent/ServiceHistory", icon: ClipboardList, text: "Service History" },
@@ -156,6 +154,8 @@ const Sidebar = ({ role: propRole }) => {
     { to: "/dashboard/agent/Visits", icon: CalendarClock, text: "Farm Visits" },
     { to: "/dashboard/agent/Documents", icon: FileText, text: "My Documents" },
     { to: "/dashboard/agent/ProfileAccessQR", icon: QrCode, text: "Farmer QR Access" },
+    { to: "/dashboard/agent/FarmerList", icon: Users, text: "My Farmers" },
+    { to: "/dashboard/agent/profile", icon: User, text: "Profile" },
   ];
 
   const farmerLinks = [

@@ -139,7 +139,8 @@ export default function FarmerProfileCard({
         farm_sector: farmer_profile?.farm_sector || '',
         farm_cell: farmer_profile?.farm_cell || '',
         farm_village: farmer_profile?.farm_village || '',
-        assistance: farmer_profile?.assistance || []
+        assistance: farmer_profile?.assistance || [],
+        image: farmer_profile?.image || ''
       });
     } catch (err) {
       console.error('Failed to fetch profile:', err);
@@ -163,40 +164,75 @@ export default function FarmerProfileCard({
     setSaveSuccess(false);
     
     try {
-      // Prepare update data with proper type conversions
+      // 1. Strict Schema Keys Match: Exclude account fields (full_name, email, phone, id, user_id, verification_status)
+      const allowedFarmerSchemaKeys = [
+        'age',
+        'id_number',
+        'gender',
+        'marital_status',
+        'education_level',
+        'province',
+        'district',
+        'sector',
+        'cell',
+        'village',
+        'farm_age',
+        'planted',
+        'avocado_type',
+        'mixed_percentage',
+        'farm_size',
+        'tree_count',
+        'upi_number',
+        'farm_province',
+        'farm_district',
+        'farm_sector',
+        'farm_cell',
+        'farm_village',
+        'assistance',
+        'image'
+      ];
+
       const updateData = {};
-      
-      Object.entries(formData).forEach(([key, value]) => {
-        if (value === '' || value === null || typeof value === 'undefined') return;
+
+      allowedFarmerSchemaKeys.forEach((key) => {
+        const value = formData[key];
         
-        // Convert numeric fields
-        if (['age', 'farm_age', 'tree_count', 'hass_trees', 'fuerte_trees'].includes(key)) {
-          updateData[key] = parseInt(value, 10);
-        } else if (['farm_size', 'mixed_percentage'].includes(key)) {
-          updateData[key] = parseFloat(value);
-        } else {
+        // Skip empty or undefined entries so we do not send empty strings as numbers
+        if (value === '' || value === null || typeof value === 'undefined') return;
+
+        // Parse integer schema fields
+        if (['age', 'farm_age', 'tree_count'].includes(key)) {
+          const parsed = parseInt(value, 10);
+          if (!isNaN(parsed)) updateData[key] = parsed;
+        } 
+        // Parse float schema fields
+        else if (['farm_size', 'mixed_percentage'].includes(key)) {
+          const parsed = parseFloat(value);
+          if (!isNaN(parsed)) updateData[key] = parsed;
+        } 
+        // Standard strings or array fields
+        else {
           updateData[key] = value;
         }
       });
 
-      console.log('Sending update:', updateData);
+      console.log('Sending schema-compliant update payload:', updateData);
       
       const response = await updateFarmerInformation(updateData);
       console.log('Update response:', response);
       
       const { user_info, farmer_profile } = response.data || response;
 
-      // Ensure proper defaults for tree counts
-      const hass_trees = farmer_profile?.hass_trees || 0;
-      const fuerte_trees = farmer_profile?.fuerte_trees || 0;
-      const tree_count = farmer_profile?.tree_count || (hass_trees + fuerte_trees);
+      const hass_trees = parseInt(formData.hass_trees, 10) || farmer_profile?.hass_trees || 0;
+      const fuerte_trees = parseInt(formData.fuerte_trees, 10) || farmer_profile?.fuerte_trees || 0;
+      const tree_count = farmer_profile?.tree_count || updateData.tree_count || (hass_trees + fuerte_trees);
 
       // Update local state with new data
       const updatedProfile = {
         ...profileData,
-        full_name: user_info?.full_name || profileData.full_name,
+        full_name: user_info?.full_name || formData.full_name || profileData.full_name,
         email: user_info?.email || profileData.email,
-        phone: user_info?.phone || profileData.phone,
+        phone: user_info?.phone || formData.phone || profileData.phone,
         status: user_info?.status || profileData.status,
         profile: {
           ...farmer_profile,
@@ -237,7 +273,7 @@ export default function FarmerProfileCard({
       
     } catch (err) {
       console.error('Update failed:', err);
-      setSaveError(err?.response?.data?.message || 'Failed to update profile');
+      setSaveError(err?.response?.data?.message || err?.message || 'Failed to update profile');
     } finally {
       setSaving(false);
     }
@@ -1003,7 +1039,7 @@ export default function FarmerProfileCard({
               {formInnerTab === 'personal' && (
                 <div className="farmer-form-grid">
                   <input name="full_name" placeholder="Full Name" value={formData.full_name || ''} onChange={handleInputChange} />
-                  <input name="email" type="email" placeholder="Email" value={formData.email || ''} onChange={handleInputChange} />
+                  <input name="email" type="email" placeholder="Email" value={formData.email || ''} onChange={handleInputChange} disabled />
                   <input name="phone" type="tel" placeholder="Phone" value={formData.phone || ''} onChange={handleInputChange} />
                   <input name="age" type="number" placeholder="Age" value={formData.age || ''} onChange={handleInputChange} />
                   <input name="id_number" placeholder="ID Number" value={formData.id_number || ''} onChange={handleInputChange} />
