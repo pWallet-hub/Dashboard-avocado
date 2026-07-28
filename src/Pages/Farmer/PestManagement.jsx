@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import "../Styles/HarvestingDay.css";
 import DashboardHeader from "../../components/Header/DashboardHeader";
 import { createPestManagementRequest } from '../../services/serviceRequestsService';
 import { uploadSingle } from '../../services/uploadService';
+import { getFarmerInformation } from '../../services/farmer-information';
 
 const diseases = [
   { disease: "Root Rot (Phytophthora Root Rot)", symptoms: "Wilting, leaf yellowing, twig dieback, root decay with brown/black rot, stunted trees" },
@@ -155,13 +156,7 @@ export default function PestManagement() {
         if (secondaryUpload?.data?.url) attachments.push(secondaryUpload.data.url);
       }
 
-      const location = {
-        province: localStorage.getItem('farmerProvince') || 'Eastern Province',
-        district: localStorage.getItem('farmerDistrict') || 'Gatsibo',
-        sector: localStorage.getItem('farmerSector') || 'Kageyo',
-        cell: localStorage.getItem('farmerCell') || 'Karangazi',
-        village: localStorage.getItem('farmerVillage') || 'Nyagatare',
-      };
+      const location = getSubmissionLocation();
 
       await createPestManagementRequest({
         service_type: 'pest_control',
@@ -177,8 +172,8 @@ export default function PestManagement() {
           severity_level: severity,
         },
         farmer_info: {
-          name: localStorage.getItem('farmerName') || 'Unknown Farmer',
-          phone: localStorage.getItem('farmerPhone') || '+250 000 000 000',
+          name: userInfo?.full_name || 'N/A',
+          phone: userInfo?.phone || 'N/A',
           location,
         },
         priority: severity === 'critical' ? 'urgent' : severity,
@@ -192,6 +187,34 @@ export default function PestManagement() {
       setIsSubmitting(false);
     }
   };
+
+  const [profile, setProfile] = useState(null);
+  const [userInfo, setUserInfo] = useState(null);
+
+  useEffect(() => {
+    let mounted = true;
+    const loadProfile = async () => {
+      try {
+        const resp = await getFarmerInformation();
+        const data = resp?.data || resp;
+        if (!mounted) return;
+        setUserInfo(data.user_info || data.user || null);
+        setProfile(data.farmer_profile || null);
+      } catch (err) {
+        console.warn('Failed to load farmer information for pest form', err);
+      }
+    };
+    loadProfile();
+    return () => { mounted = false; };
+  }, []);
+
+  const getSubmissionLocation = () => ({
+    province: profile?.farm_province || profile?.province || 'N/A',
+    district: profile?.farm_district || profile?.district || 'N/A',
+    sector: profile?.farm_sector || profile?.sector || 'N/A',
+    cell: profile?.farm_cell || profile?.cell || 'N/A',
+    village: profile?.farm_village || profile?.village || 'N/A'
+  });
 
   const handleCancel = () => {
     setSelectedDisease('');

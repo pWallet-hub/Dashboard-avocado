@@ -6,7 +6,6 @@ import {
   AlertCircle, FileText, ChevronRight, X
 } from 'lucide-react';
 import { 
-  listServiceRequests, 
   listHarvestRequests,
   approveHarvestRequest,
   rejectHarvestRequest,
@@ -16,8 +15,21 @@ import {
   getPropertyEvaluationRequests,
   approvePropertyEvaluationRequest,
   rejectPropertyEvaluationRequest,
-  rescheduleEvaluationVisit
+  rescheduleEvaluationVisit,
+  listPestManagementRequests,
+  approvePestManagementRequest,
+  rejectPestManagementRequest,
+  startPestManagementTreatment,
+  completePestManagementTreatment,
+  getHarvestingPlanRequests,
+  approveHarvestingPlanRequest,
+  completeHarvestingPlanRequest,
+  getIPMRoutineRequests,
+  approveIPMRoutineRequest,
+  completeIPMRoutineRequest
 } from '../../services/serviceRequestsService';
+import { getFarmerProfileById } from '../../services/farmer-information';
+import { createNotification } from '../../services/notificationsService';
 
 export default function ServiceRequests() {
   const [requests, setRequests] = useState([]);
@@ -38,15 +50,124 @@ export default function ServiceRequests() {
     loadServiceRequests();
   }, []);
 
+  const formatLocation = (location) => {
+    if (!location) return 'N/A';
+    const parts = [];
+    if (location.farm_name) parts.push(location.farm_name);
+    if (location.street_address) parts.push(location.street_address);
+    if (location.village) parts.push(location.village);
+    if (location.cell) parts.push(location.cell);
+    if (location.sector) parts.push(location.sector);
+    if (location.district) parts.push(location.district);
+    if (location.province) parts.push(location.province);
+    if (location.city && !parts.includes(location.city)) parts.push(location.city);
+    return parts.length > 0 ? parts.join(', ') : 'N/A';
+  };
+
+  // Farmer identity can arrive in different shapes depending on request type:
+  // - a populated farmer_id object ({ full_name, phone, email })
+  // - a bare farmer_id string with a separate farmer_info sub-object (pest management)
+  // - already-flattened farmerName/farmerPhone/farmerEmail fields
+  // This checks all of them so real backend data is used instead of silently
+  // falling back to "Unknown" whenever one particular shape isn't populated.
+  const extractFarmerInfo = (req) => {
+    const farmerObj = (req.farmer_id && typeof req.farmer_id === 'object') ? req.farmer_id : null;
+    const farmerInfo = req.farmer_info || {};
+    const farmerName = farmerObj?.full_name || farmerObj?.name || `${farmerObj?.first_name || ''} ${farmerObj?.last_name || ''}`.trim();
+    const infoName = farmerInfo?.full_name || farmerInfo?.name || `${farmerInfo?.first_name || ''} ${farmerInfo?.last_name || ''}`.trim();
+    const locationSource = req.farmerLocation || req.location || farmerInfo?.location || farmerInfo?.farm_location || farmerInfo?.address || farmerInfo?.farm_address;
+
+    return {
+      name: farmerName || infoName || req.farmerName || 'N/A',
+      phone: farmerObj?.phone || farmerInfo?.phone || farmerObj?.phone_number || farmerInfo?.phone_number || req.farmerPhone || 'N/A',
+      email: farmerObj?.email || farmerInfo?.email || farmerObj?.email_address || farmerInfo?.email_address || req.farmerEmail || 'N/A',
+      location: locationSource ? formatLocation(locationSource) : 'N/A'
+    };
+  };
+
+  const getRequestFarmerId = (req) => {
+    if (!req) return null;
+
+    if (req.farmer_id) {
+      return typeof req.farmer_id === 'object'
+        ? req.farmer_id.id || req.farmer_id._id || req.farmer_id.user_id || req.farmer_id.farmer_id || null
+        : req.farmer_id;
+    }
+
+    return req.farmer_info?.id || req.farmer_info?._id || req.farmer_info?.farmer_id || req.farmerId || req.user_id || null;
+  };
+
+  const normalizeFarmerProfile = (rawProfile) => {
+    const payload = rawProfile || {};
+    const data = payload.data || payload;
+    const farmerProfile = data.farmer_profile || data.profile || data;
+    const user = data.user || data.user_info || data;
+    const name = farmerProfile?.full_name || farmerProfile?.name || user?.full_name || user?.name || `${farmerProfile?.first_name || ''} ${farmerProfile?.last_name || ''}`.trim() || `${user?.first_name || ''} ${user?.last_name || ''}`.trim();
+    const phone = farmerProfile?.phone || user?.phone || farmerProfile?.phone_number || user?.phone_number || 'N/A';
+    const email = farmerProfile?.email || user?.email || 'N/A';
+    const locationSource = farmerProfile?.location || farmerProfile?.farm_location || farmerProfile?.address || farmerProfile?.farm_address || user?.location || user?.address;
+
+    return {
+      name: name || 'N/A',
+      phone,
+      email,
+      location: locationSource ? formatLocation(locationSource) : 'N/A'
+    };
+  };
+
+  const loadFarmerProfilesForRequests = async (requests) => {
+    const farmerIds = Array.from(new Set(requests.map(getRequestFarmerId).filter(Boolean)));
+    const profiles = {};
+
+    await Promise.all(farmerIds.map(async (id) => {
+      try {
+        const response = await getFarmerProfileById(id);
+        profiles[id] = normalizeFarmerProfile(response);
+      } catch (err) {
+        console.warn(`Failed to load farmer profile for ${id}:`, err?.message || err);
+      }
+    }));
+
+    return profiles;
+  };
+
+  const normalizeAdminRequest = (req, serviceType, displayType, farmerProfiles = {}) => {
+    const farmer = extractFarmerInfo(req);
+    const farmerId = getRequestFarmerId(req);
+    const profile = farmerId ? farmerProfiles[farmerId] : null;
+
+    return {
+      ...req,
+      service_type: serviceType,
+      type: displayType,
+      farmerName: (farmer.name && farmer.name !== 'N/A') ? farmer.name : profile?.name || 'N/A',
+      farmerPhone: (farmer.phone && farmer.phone !== 'N/A') ? farmer.phone : profile?.phone || 'N/A',
+      farmerEmail: (farmer.email && farmer.email !== 'N/A') ? farmer.email : profile?.email || 'N/A',
+      farmerLocation: (farmer.location && farmer.location !== 'N/A') ? farmer.location : profile?.location || 'N/A',
+      location: (farmer.location && farmer.location !== 'N/A') ? farmer.location : profile?.location || 'N/A',
+      submittedAt: req.created_at || req.submittedAt || req.createdAt,
+      requestNumber: req.request_number || req.requestNumber || req.id || req._id,
+      priority: req.priority || 'medium',
+      notes: req.notes || req.description || ''
+    };
+  };
+
+  // NOTE: previously this called `listServiceRequests()` AND `getPropertyEvaluationRequests()`,
+  // which both hit the exact same '/service-requests/property-evaluation' endpoint under the hood.
+  // That produced duplicate property-evaluation rows and, more importantly, meant pest-management,
+  // harvesting-plan, and IPM-routine requests were never fetched at all. Fixed below: one call per
+  // real endpoint, five endpoints total.
   const loadServiceRequests = async () => {
     setLoading(true);
     setError(null);
     try {
-      const [regularRequests, harvestRequests, propertyEvaluationRequests] = await Promise.all([
-        listServiceRequests().catch((err) => {
-          console.error('Error fetching regular requests:', err);
-          return [];
-        }),
+      const [
+        harvestRequests,
+        propertyEvaluationRequests,
+        pestManagementRequests,
+        harvestingPlanRequests,
+        ipmRoutineRequests
+      ] = await Promise.all([
         listHarvestRequests().catch((err) => {
           console.error('Error fetching harvest requests:', err);
           return { data: [] };
@@ -54,50 +175,44 @@ export default function ServiceRequests() {
         getPropertyEvaluationRequests().catch((err) => {
           console.error('Error fetching property evaluation requests:', err);
           return [];
+        }),
+        listPestManagementRequests().catch((err) => {
+          console.error('Error fetching pest management requests:', err);
+          return { data: [] };
+        }),
+        getHarvestingPlanRequests().catch((err) => {
+          console.error('Error fetching harvesting plan requests:', err);
+          return { data: [] };
+        }),
+        getIPMRoutineRequests().catch((err) => {
+          console.error('Error fetching IPM routine requests:', err);
+          return { data: [] };
         })
       ]);
 
+      const allRequestsRaw = [
+        ...(harvestRequests?.data || []),
+        ...(Array.isArray(propertyEvaluationRequests) ? propertyEvaluationRequests : propertyEvaluationRequests?.data || []),
+        ...(pestManagementRequests?.data || []),
+        ...(harvestingPlanRequests?.data || []),
+        ...(ipmRoutineRequests?.data || [])
+      ];
+
+      const farmerProfiles = await loadFarmerProfilesForRequests(allRequestsRaw);
+
       const allRequests = [
-        ...(Array.isArray(regularRequests) ? regularRequests : regularRequests?.data || []).map(req => ({
-          ...req,
-          service_type: req.service_type || req.type || 'unknown',
-          farmerName: req.farmer_id?.full_name || req.farmerName || 'Unknown',
-          farmerPhone: req.farmer_id?.phone || req.farmerPhone || 'N/A',
-          farmerEmail: req.farmer_id?.email || req.farmerEmail || 'N/A',
-          farmerLocation: req.location ? formatLocation(req.location) : 'N/A',
-          submittedAt: req.created_at || req.submittedAt,
-          requestNumber: req.request_number || req.id
-        })),
         ...(harvestRequests?.data || []).map(req => ({
-          ...req,
-          service_type: 'harvest',
-          type: 'Harvesting Day',
-          farmerName: req.farmer_id?.full_name || req.farmerName || 'Unknown',
-          farmerPhone: req.farmer_id?.phone || req.farmerPhone || 'N/A',
-          farmerEmail: req.farmer_id?.email || req.farmerEmail || 'N/A',
-          farmerLocation: req.location ? formatLocation(req.location) : 'N/A',
-          submittedAt: req.created_at,
-          requestNumber: req.request_number || req.id,
+          ...normalizeAdminRequest(req, 'harvest', 'Harvesting Day', farmerProfiles),
           workersNeeded: req.workersNeeded || req.harvest_details?.workers_needed || 'N/A',
           equipmentNeeded: req.equipmentNeeded || req.harvest_details?.equipment_needed || [],
           treesToHarvest: req.treesToHarvest || req.harvest_details?.trees_to_harvest || 'N/A',
           harvestDateFrom: req.harvestDateFrom || req.harvest_details?.harvest_date_from || 'N/A',
           harvestDateTo: req.harvestDateTo || req.harvest_details?.harvest_date_to || 'N/A',
           hassBreakdown: req.hassBreakdown || req.harvest_details?.hass_breakdown,
-          harvestImages: req.harvestImages || req.harvest_details?.harvest_images || [],
-          priority: req.priority || 'medium',
-          notes: req.notes || ''
+          harvestImages: req.harvestImages || req.harvest_details?.harvest_images || []
         })),
         ...(Array.isArray(propertyEvaluationRequests) ? propertyEvaluationRequests : propertyEvaluationRequests?.data || []).map(req => ({
-          ...req,
-          service_type: 'property_evaluation',
-          type: 'Property Evaluation',
-          farmerName: req.farmer_id?.full_name || req.farmerName || 'Unknown',
-          farmerPhone: req.farmer_id?.phone || req.farmerPhone || 'N/A',
-          farmerEmail: req.farmer_id?.email || req.farmerEmail || 'N/A',
-          farmerLocation: req.location ? formatLocation(req.location) : 'N/A',
-          submittedAt: req.created_at || req.submittedAt,
-          requestNumber: req.request_number || req.id,
+          ...normalizeAdminRequest(req, 'property_evaluation', 'Property Evaluation', farmerProfiles),
           farmName: req.location?.farm_name || 'N/A',
           accessInstructions: req.location?.access_instructions || '',
           evaluationPurpose: req.evaluation_purpose || 'General property assessment',
@@ -107,9 +222,33 @@ export default function ServiceRequests() {
           visitStartDate: req.visit_start_date || req.requested_date || 'TBD',
           visitEndDate: req.visit_end_date || 'TBD',
           propertyDetails: req.property_details || {},
-          priority: req.priority || 'medium',
-          notes: req.notes || '',
           attachments: req.attachments || []
+        })),
+        ...(pestManagementRequests?.data || []).map(req => ({
+          ...normalizeAdminRequest(req, 'pest_management', 'Pest Management', farmerProfiles),
+          pestsDiseases: req.pest_management_details?.pests_diseases || [],
+          firstNoticed: req.pest_management_details?.first_noticed || 'N/A',
+          damageObserved: req.pest_management_details?.damage_observed,
+          damageDetails: req.pest_management_details?.damage_details || 'N/A',
+          controlMethodsTried: req.pest_management_details?.control_methods_tried || 'N/A',
+          severityLevel: req.pest_management_details?.severity_level || 'N/A'
+        })),
+        ...(harvestingPlanRequests?.data || []).map(req => ({
+          ...normalizeAdminRequest(req, 'harvesting_plan', 'Harvesting Plan', farmerProfiles),
+          plannedHarvestDate: req.harvesting_plan_details?.planned_harvest_date || req.plannedHarvestDate || 'N/A',
+          estimatedYield: req.harvesting_plan_details?.estimated_yield || req.estimatedYield || 'N/A',
+          farmSize: req.harvesting_plan_details?.farm_size || req.farmSize || 'N/A',
+          laborRequirement: req.harvesting_plan_details?.labor_requirement || req.laborRequirement || 'N/A',
+          marketTarget: req.harvesting_plan_details?.market_target || req.marketTarget || 'N/A'
+        })),
+        ...(ipmRoutineRequests?.data || []).map(req => ({
+          ...normalizeAdminRequest(req, 'ipm_routine', 'IPM Routine', farmerProfiles),
+          scheduledDate: req.ipm_routine_details?.scheduled_date || req.scheduledDate || 'N/A',
+          farmSize: req.ipm_routine_details?.farm_size || req.farmSize || 'N/A',
+          pestTypes: req.ipm_routine_details?.pest_type || req.pestType || [],
+          ipmMethods: req.ipm_routine_details?.ipm_method || req.ipmMethod || [],
+          laborRequired: req.ipm_routine_details?.labor_required || req.laborRequired || 'N/A',
+          targetArea: req.ipm_routine_details?.target_area || req.targetArea || 'N/A'
         }))
       ];
 
@@ -125,19 +264,6 @@ export default function ServiceRequests() {
     }
   };
 
-  const formatLocation = (location) => {
-    if (!location) return 'N/A';
-    const parts = [];
-    if (location.farm_name) parts.push(location.farm_name);
-    if (location.village) parts.push(location.village);
-    if (location.cell) parts.push(location.cell);
-    if (location.sector) parts.push(location.sector);
-    if (location.district) parts.push(location.district);
-    if (location.province) parts.push(location.province);
-    if (location.city && !parts.includes(location.city)) parts.push(location.city);
-    return parts.length > 0 ? parts.join(', ') : 'N/A';
-  };
-
   useEffect(() => {
     let filtered = requests;
 
@@ -146,7 +272,7 @@ export default function ServiceRequests() {
     }
 
     if (filterType !== 'all') {
-      filtered = filtered.filter(request => request.service_type === filterType.toLowerCase().replace(' ', '_'));
+      filtered = filtered.filter(request => request.service_type === filterType.toLowerCase().replace(/ /g, '_'));
     }
 
     if (searchTerm) {
@@ -172,6 +298,44 @@ export default function ServiceRequests() {
     postponed: requests.filter(r => r.status === 'postponed').length,
   };
 
+  const getFarmerRecipientId = (request) => {
+    if (!request) return null;
+    return request.farmer_id?.id || request.farmer_id?._id || request.farmer_id ||
+      request.farmer_info?.id || request.farmer_info?._id || request.farmer_info?.farmer_id ||
+      request.farmerId || request.farmer_id?.farmer_id || null;
+  };
+
+  const buildNotificationMessage = (request, status, rescheduleDate) => {
+    const label = getServiceTypeLabel(request.service_type);
+    const requestNumber = request.requestNumber || request.id || request._id || 'service request';
+
+    if (status === 'postponed') {
+      return `Your ${label} ${requestNumber} has been postponed${rescheduleDate ? ` to ${new Date(rescheduleDate).toLocaleDateString('en-US')}` : ''}.`;
+    }
+
+    if (status === 'in_progress') {
+      return `Your ${label} ${requestNumber} is now in progress.`;
+    }
+
+    return `Your ${label} ${requestNumber} has been updated to ${status.replace('_', ' ')}.`;
+  };
+
+  const notifyFarmer = async (request, status, rescheduleDate = null) => {
+    const recipientId = getFarmerRecipientId(request);
+    if (!recipientId) return;
+
+    try {
+      await createNotification({
+        recipient_id: recipientId,
+        title: 'Service request status updated',
+        message: buildNotificationMessage(request, status, rescheduleDate),
+        type: 'service_request'
+      });
+    } catch (err) {
+      console.error('Failed to create farmer notification:', err?.message || err);
+    }
+  };
+
   const updateRequestStatus = async (requestId, newStatus, rescheduleDate = null) => {
     setActionLoading(prev => ({ ...prev, [requestId]: true }));
     setError(null);
@@ -182,47 +346,12 @@ export default function ServiceRequests() {
       };
       
       await updateServiceRequestStatusAPI(requestId, statusData);
-      
-      const updatedRequests = requests.map(request => 
-        request.id === requestId 
-          ? { 
-              ...request, 
-              status: newStatus,
-              ...(newStatus === 'postponed' && rescheduleDate && { rescheduleDate }),
-              updatedAt: new Date().toISOString(),
-              statusUpdates: [
-                ...(request.statusUpdates || []),
-                {
-                  status: newStatus,
-                  timestamp: new Date().toISOString(),
-                  note: newStatus === 'postponed' 
-                    ? `Request postponed to ${rescheduleDate ? new Date(rescheduleDate).toLocaleDateString('en-US') : 'TBD'} by admin`
-                    : `Request ${newStatus} by admin`
-                }
-              ]
-            }
-          : request
-      );
-      
-      setRequests(updatedRequests);
-      
-      const request = updatedRequests.find(r => r.id === requestId);
-      const notification = {
-        id: `${requestId}-${Date.now()}`,
-        requestId,
-        farmerId: request.farmerId || request.farmer_id?.id || 'farmer1',
-        message: newStatus === 'postponed'
-          ? `Your ${request.service_type} request (ID: ${requestId}) has been postponed${rescheduleDate ? ` to ${new Date(rescheduleDate).toLocaleDateString('en-US')}` : ''}.`
-          : `Your ${request.service_type} request (ID: ${requestId}) has been ${newStatus}.`,
-        status: newStatus,
-        timestamp: new Date().toISOString(),
-        read: false
-      };
+      await loadServiceRequests();
 
-      const savedNotifications = localStorage.getItem('farmerNotifications');
-      const notifications = savedNotifications ? JSON.parse(savedNotifications) : [];
-      notifications.push(notification);
-      localStorage.setItem('farmerNotifications', JSON.stringify(notifications));
+      const updatedRequest = requests.find(r => r.id === requestId || r._id === requestId);
+      if (updatedRequest) {
+        await notifyFarmer(updatedRequest, newStatus, rescheduleDate);
+      }
     } catch (error) {
       console.error('Error updating request status:', error);
       setError(`Failed to update request status: ${error.message}`);
@@ -295,6 +424,17 @@ export default function ServiceRequests() {
     });
   };
 
+  const getServiceTypeLabel = (serviceType) => {
+    switch (serviceType) {
+      case 'property_evaluation': return 'Property Evaluation';
+      case 'harvest': return 'Harvesting Day';
+      case 'pest_management': return 'Pest Management';
+      case 'harvesting_plan': return 'Harvesting Plan';
+      case 'ipm_routine': return 'IPM Routine';
+      default: return serviceType || 'Unknown';
+    }
+  };
+
   const openRescheduleModal = (request) => {
     setSelectedRequest(request);
     setShowRescheduleModal(true);
@@ -331,7 +471,8 @@ export default function ServiceRequests() {
     }
   };
 
-  const handleHarvestAction = async (action, requestId, additionalData = {}) => {
+  const handleHarvestAction = async (action, request, additionalData = {}) => {
+    const requestId = request.id || request._id;
     setActionLoading(prev => ({ ...prev, [requestId]: true }));
     setError(null);
     try {
@@ -342,20 +483,25 @@ export default function ServiceRequests() {
             notes: 'Approved by admin',
             ...additionalData
           });
+          await notifyFarmer(request, 'approved');
           break;
-        case 'reject':
+        case 'reject': {
           const reason = additionalData.reason || prompt('Please provide a rejection reason:');
           if (!reason) return;
           await rejectHarvestRequest(requestId, {
             rejection_reason: reason,
             notes: 'Rejected by admin'
           });
+          await notifyFarmer(request, 'rejected');
           break;
+        }
         case 'start':
           await startHarvestRequest(requestId, additionalData);
+          await notifyFarmer(request, 'in_progress');
           break;
         case 'complete':
           await completeHarvestRequest(requestId, additionalData);
+          await notifyFarmer(request, 'completed');
           break;
         default:
           throw new Error('Unknown harvest action');
@@ -370,7 +516,8 @@ export default function ServiceRequests() {
     }
   };
 
-  const handlePropertyEvaluationAction = async (action, requestId, additionalData = {}) => {
+  const handlePropertyEvaluationAction = async (action, request, additionalData = {}) => {
+    const requestId = request.id || request._id;
     setActionLoading(prev => ({ ...prev, [requestId]: true }));
     setError(null);
     try {
@@ -380,15 +527,18 @@ export default function ServiceRequests() {
             notes: 'Approved by admin',
             ...additionalData
           });
+          await notifyFarmer(request, 'approved');
           break;
-        case 'reject':
+        case 'reject': {
           const reason = additionalData.reason || prompt('Please provide a rejection reason:');
           if (!reason) return;
           await rejectPropertyEvaluationRequest(requestId, {
             rejection_reason: reason,
             notes: 'Rejected by admin'
           });
+          await notifyFarmer(request, 'rejected');
           break;
+        }
         default:
           throw new Error('Unknown property evaluation action');
       }
@@ -399,6 +549,142 @@ export default function ServiceRequests() {
       setError(`Failed to ${action} property evaluation request: ${error.message}`);
     } finally {
       setActionLoading(prev => ({ ...prev, [requestId]: false }));
+    }
+  };
+
+  const handlePestManagementAction = async (action, request, additionalData = {}) => {
+    const requestId = request.id || request._id;
+    setActionLoading(prev => ({ ...prev, [requestId]: true }));
+    setError(null);
+    try {
+      switch (action) {
+        case 'approve':
+          await approvePestManagementRequest(requestId, {
+            notes: 'Approved by admin',
+            ...additionalData
+          });
+          await notifyFarmer(request, 'approved');
+          break;
+        case 'reject': {
+          const reason = additionalData.reason || prompt('Please provide a rejection reason:');
+          if (!reason) return;
+          await rejectPestManagementRequest(requestId, {
+            rejection_reason: reason,
+            notes: 'Rejected by admin'
+          });
+          await notifyFarmer(request, 'rejected');
+          break;
+        }
+        case 'start':
+          await startPestManagementTreatment(requestId, additionalData);
+          await notifyFarmer(request, 'in_progress');
+          break;
+        case 'complete':
+          await completePestManagementTreatment(requestId, additionalData);
+          await notifyFarmer(request, 'completed');
+          break;
+        default:
+          throw new Error('Unknown pest management action');
+      }
+
+      await loadServiceRequests();
+    } catch (error) {
+      console.error(`Error ${action}ing pest management request:`, error);
+      setError(`Failed to ${action} pest management request: ${error.message}`);
+    } finally {
+      setActionLoading(prev => ({ ...prev, [requestId]: false }));
+    }
+  };
+
+  const handleHarvestingPlanAction = async (action, request, additionalData = {}) => {
+    const requestId = request.id || request._id;
+    setActionLoading(prev => ({ ...prev, [requestId]: true }));
+    setError(null);
+    try {
+      switch (action) {
+        case 'approve':
+          await approveHarvestingPlanRequest(requestId, {
+            notes: 'Approved by admin',
+            ...additionalData
+          });
+          await notifyFarmer(request, 'approved');
+          break;
+        case 'reject': {
+          const reason = additionalData.reason || prompt('Please provide a rejection reason:');
+          if (!reason) return;
+          await updateRequestStatus(requestId, 'rejected');
+          await notifyFarmer(request, 'rejected');
+          return; // updateRequestStatus already reloads local state
+        }
+        case 'complete':
+          await completeHarvestingPlanRequest(requestId, additionalData);
+          await notifyFarmer(request, 'completed');
+          break;
+        default:
+          throw new Error('Unknown harvesting plan action');
+      }
+
+      await loadServiceRequests();
+    } catch (error) {
+      console.error(`Error ${action}ing harvesting plan request:`, error);
+      setError(`Failed to ${action} harvesting plan request: ${error.message}`);
+    } finally {
+      setActionLoading(prev => ({ ...prev, [requestId]: false }));
+    }
+  };
+
+  const handleIPMRoutineAction = async (action, request, additionalData = {}) => {
+    const requestId = request.id || request._id;
+    setActionLoading(prev => ({ ...prev, [requestId]: true }));
+    setError(null);
+    try {
+      switch (action) {
+        case 'approve':
+          await approveIPMRoutineRequest(requestId, {
+            notes: 'Approved by admin',
+            ...additionalData
+          });
+          await notifyFarmer(request, 'approved');
+          break;
+        case 'reject': {
+          const reason = additionalData.reason || prompt('Please provide a rejection reason:');
+          if (!reason) return;
+          await updateRequestStatus(requestId, 'rejected');
+          await notifyFarmer(request, 'rejected');
+          return;
+        }
+        case 'complete':
+          await completeIPMRoutineRequest(requestId, additionalData);
+          await notifyFarmer(request, 'completed');
+          break;
+        default:
+          throw new Error('Unknown IPM routine action');
+      }
+
+      await loadServiceRequests();
+    } catch (error) {
+      console.error(`Error ${action}ing IPM routine request:`, error);
+      setError(`Failed to ${action} IPM routine request: ${error.message}`);
+    } finally {
+      setActionLoading(prev => ({ ...prev, [requestId]: false }));
+    }
+  };
+
+  // Routes an action to the right handler based on service_type
+  const dispatchAction = (action, request) => {
+    switch (request.service_type) {
+      case 'harvest':
+        return handleHarvestAction(action, request);
+      case 'property_evaluation':
+        return handlePropertyEvaluationAction(action, request);
+      case 'pest_management':
+        return handlePestManagementAction(action, request);
+      case 'harvesting_plan':
+        return handleHarvestingPlanAction(action, request);
+      case 'ipm_routine':
+        return handleIPMRoutineAction(action, request);
+      default:
+        return updateRequestStatus(request.id, action === 'approve' ? 'approved' : 'rejected');
     }
   };
 
@@ -415,7 +701,7 @@ export default function ServiceRequests() {
               {getStatusBadge(request.status)}
             </div>
             <h2 className="text-xl font-bold text-slate-900 mt-1">
-              {request.service_type === 'property_evaluation' ? 'Property Evaluation Request' : `Request #${request.requestNumber}`}
+              {getServiceTypeLabel(request.service_type)} {request.requestNumber ? `#${request.requestNumber}` : ''}
             </h2>
           </div>
           <button
@@ -475,9 +761,7 @@ export default function ServiceRequests() {
               <div className="flex justify-between">
                 <span className="text-slate-500">Service Category:</span>
                 <span className="font-semibold text-slate-900 capitalize">
-                  {request.service_type === 'property_evaluation' ? 'Property Evaluation' :
-                   request.service_type === 'harvest' ? 'Harvesting Day' :
-                   request.service_type || 'Unknown'}
+                  {getServiceTypeLabel(request.service_type)}
                 </span>
               </div>
               <div className="flex justify-between">
@@ -509,17 +793,29 @@ export default function ServiceRequests() {
 
           {request.service_type === 'pest_management' && (
             <div className="grid grid-cols-2 gap-3 text-xs">
-              <div className="p-2.5 bg-white rounded-lg border border-slate-200">
-                <span className="text-slate-400 font-semibold block">Pest Category</span>
-                <span className="font-semibold text-slate-800">{request.pestType || 'N/A'}</span>
+              <div className="p-2.5 bg-white rounded-lg border border-slate-200 col-span-2">
+                <span className="text-slate-400 font-semibold block">Pests / Diseases</span>
+                <span className="font-semibold text-slate-800">
+                  {Array.isArray(request.pestsDiseases) && request.pestsDiseases.length > 0
+                    ? request.pestsDiseases.map(p => p.name).filter(Boolean).join(', ')
+                    : 'N/A'}
+                </span>
               </div>
               <div className="p-2.5 bg-white rounded-lg border border-slate-200">
-                <span className="text-slate-400 font-semibold block">Infestation Level</span>
-                <span className="font-semibold text-slate-800">{request.infestationLevel || 'N/A'}</span>
+                <span className="text-slate-400 font-semibold block">Severity Level</span>
+                <span className="font-semibold text-slate-800 capitalize">{request.severityLevel}</span>
+              </div>
+              <div className="p-2.5 bg-white rounded-lg border border-slate-200">
+                <span className="text-slate-400 font-semibold block">First Noticed</span>
+                <span className="font-semibold text-slate-800">{request.firstNoticed}</span>
               </div>
               <div className="p-2.5 bg-white rounded-lg border border-slate-200 col-span-2">
-                <span className="text-slate-400 font-semibold block">Problem Description</span>
-                <p className="text-slate-700 mt-1">{request.description || 'No additional details provided.'}</p>
+                <span className="text-slate-400 font-semibold block">Damage Details</span>
+                <p className="text-slate-700 mt-1">{request.damageDetails}</p>
+              </div>
+              <div className="p-2.5 bg-white rounded-lg border border-slate-200 col-span-2">
+                <span className="text-slate-400 font-semibold block">Control Methods Already Tried</span>
+                <p className="text-slate-700 mt-1">{request.controlMethodsTried}</p>
               </div>
             </div>
           )}
@@ -573,6 +869,76 @@ export default function ServiceRequests() {
               )}
             </div>
           )}
+
+          {request.service_type === 'harvesting_plan' && (
+            <div className="grid grid-cols-2 gap-3 text-xs">
+              <div className="p-2.5 bg-white rounded-lg border border-slate-200">
+                <span className="text-slate-400 font-semibold block">Planned Harvest Date</span>
+                <span className="font-semibold text-slate-800">{formatDate(request.plannedHarvestDate)}</span>
+              </div>
+              <div className="p-2.5 bg-white rounded-lg border border-slate-200">
+                <span className="text-slate-400 font-semibold block">Estimated Yield</span>
+                <span className="font-semibold text-slate-800">{request.estimatedYield}</span>
+              </div>
+              <div className="p-2.5 bg-white rounded-lg border border-slate-200">
+                <span className="text-slate-400 font-semibold block">Farm Size</span>
+                <span className="font-semibold text-slate-800">{request.farmSize}</span>
+              </div>
+              <div className="p-2.5 bg-white rounded-lg border border-slate-200">
+                <span className="text-slate-400 font-semibold block">Labor Requirement</span>
+                <span className="font-semibold text-slate-800">{request.laborRequirement}</span>
+              </div>
+              <div className="p-2.5 bg-white rounded-lg border border-slate-200 col-span-2">
+                <span className="text-slate-400 font-semibold block">Market Target</span>
+                <span className="font-semibold text-slate-800">{request.marketTarget}</span>
+              </div>
+              {request.notes && (
+                <div className="p-2.5 bg-white rounded-lg border border-slate-200 col-span-2">
+                  <span className="text-slate-400 font-semibold block">Field Notes</span>
+                  <p className="text-slate-700 mt-1">{request.notes}</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {request.service_type === 'ipm_routine' && (
+            <div className="grid grid-cols-2 gap-3 text-xs">
+              <div className="p-2.5 bg-white rounded-lg border border-slate-200">
+                <span className="text-slate-400 font-semibold block">Scheduled Date</span>
+                <span className="font-semibold text-slate-800">{formatDate(request.scheduledDate)}</span>
+              </div>
+              <div className="p-2.5 bg-white rounded-lg border border-slate-200">
+                <span className="text-slate-400 font-semibold block">Farm Size</span>
+                <span className="font-semibold text-slate-800">{request.farmSize}</span>
+              </div>
+              <div className="p-2.5 bg-white rounded-lg border border-slate-200">
+                <span className="text-slate-400 font-semibold block">Target Area</span>
+                <span className="font-semibold text-slate-800">{request.targetArea}</span>
+              </div>
+              <div className="p-2.5 bg-white rounded-lg border border-slate-200">
+                <span className="text-slate-400 font-semibold block">Labor Required</span>
+                <span className="font-semibold text-slate-800">{request.laborRequired}</span>
+              </div>
+              <div className="p-2.5 bg-white rounded-lg border border-slate-200 col-span-2">
+                <span className="text-slate-400 font-semibold block">Pest Types</span>
+                <span className="font-semibold text-slate-800">
+                  {Array.isArray(request.pestTypes) ? request.pestTypes.join(', ') : request.pestTypes || 'N/A'}
+                </span>
+              </div>
+              <div className="p-2.5 bg-white rounded-lg border border-slate-200 col-span-2">
+                <span className="text-slate-400 font-semibold block">IPM Methods</span>
+                <span className="font-semibold text-slate-800">
+                  {Array.isArray(request.ipmMethods) ? request.ipmMethods.join(', ') : request.ipmMethods || 'N/A'}
+                </span>
+              </div>
+              {request.notes && (
+                <div className="p-2.5 bg-white rounded-lg border border-slate-200 col-span-2">
+                  <span className="text-slate-400 font-semibold block">Field Notes</span>
+                  <p className="text-slate-700 mt-1">{request.notes}</p>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Action Controls */}
@@ -588,9 +954,7 @@ export default function ServiceRequests() {
             <>
               <button
                 onClick={() => {
-                  if (request.service_type === 'harvest') handleHarvestAction('approve', request.id);
-                  else if (request.service_type === 'property_evaluation') handlePropertyEvaluationAction('approve', request.id);
-                  else updateRequestStatus(request.id, 'approved');
+                  dispatchAction('approve', request);
                   onClose();
                 }}
                 disabled={actionLoading[request.id]}
@@ -601,9 +965,7 @@ export default function ServiceRequests() {
 
               <button
                 onClick={() => {
-                  if (request.service_type === 'harvest') handleHarvestAction('reject', request.id);
-                  else if (request.service_type === 'property_evaluation') handlePropertyEvaluationAction('reject', request.id);
-                  else updateRequestStatus(request.id, 'rejected');
+                  dispatchAction('reject', request);
                   onClose();
                 }}
                 disabled={actionLoading[request.id]}
@@ -626,7 +988,7 @@ export default function ServiceRequests() {
           {request.status === 'approved' && request.service_type === 'harvest' && (
             <button
               onClick={() => {
-                handleHarvestAction('start', request.id, { actual_start_date: new Date().toISOString() });
+                handleHarvestAction('start', request, { actual_start_date: new Date().toISOString() });
                 onClose();
               }}
               disabled={actionLoading[request.id]}
@@ -639,7 +1001,7 @@ export default function ServiceRequests() {
           {request.status === 'in_progress' && request.service_type === 'harvest' && (
             <button
               onClick={() => {
-                handleHarvestAction('complete', request.id, { completed_at: new Date().toISOString() });
+                handleHarvestAction('complete', request, { completed_at: new Date().toISOString() });
                 onClose();
               }}
               disabled={actionLoading[request.id]}
@@ -649,8 +1011,62 @@ export default function ServiceRequests() {
             </button>
           )}
 
-          {/* Non-harvest types keep the original generic completion behavior */}
-          {request.status === 'approved' && request.service_type !== 'harvest' && (
+          {/* PEST MANAGEMENT WORKFLOW: approved -> start -> in_progress -> complete -> completed */}
+          {request.status === 'approved' && request.service_type === 'pest_management' && (
+            <button
+              onClick={() => {
+                handlePestManagementAction('start', request, { actual_start_date: new Date().toISOString() });
+                onClose();
+              }}
+              disabled={actionLoading[request.id]}
+              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-semibold text-xs transition-colors shadow-sm disabled:opacity-50"
+            >
+              {actionLoading[request.id] ? 'Updating...' : 'Start Treatment'}
+            </button>
+          )}
+
+          {request.status === 'in_progress' && request.service_type === 'pest_management' && (
+            <button
+              onClick={() => {
+                handlePestManagementAction('complete', request, { completed_at: new Date().toISOString() });
+                onClose();
+              }}
+              disabled={actionLoading[request.id]}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-xs transition-colors shadow-sm disabled:opacity-50"
+            >
+              {actionLoading[request.id] ? 'Updating...' : 'Complete Treatment'}
+            </button>
+          )}
+
+          {/* HARVESTING PLAN & IPM ROUTINE: approved -> complete (no separate "start" step) */}
+          {request.status === 'approved' && request.service_type === 'harvesting_plan' && (
+            <button
+              onClick={() => {
+                handleHarvestingPlanAction('complete', request, { completed_at: new Date().toISOString() });
+                onClose();
+              }}
+              disabled={actionLoading[request.id]}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-xs transition-colors shadow-sm disabled:opacity-50"
+            >
+              {actionLoading[request.id] ? 'Updating...' : 'Mark Completed'}
+            </button>
+          )}
+
+          {request.status === 'approved' && request.service_type === 'ipm_routine' && (
+            <button
+              onClick={() => {
+                handleIPMRoutineAction('complete', request, { completed_at: new Date().toISOString() });
+                onClose();
+              }}
+              disabled={actionLoading[request.id]}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-xs transition-colors shadow-sm disabled:opacity-50"
+            >
+              {actionLoading[request.id] ? 'Updating...' : 'Mark Completed'}
+            </button>
+          )}
+
+          {/* Property evaluation keeps the original generic completion behavior */}
+          {request.status === 'approved' && request.service_type === 'property_evaluation' && (
             <button
               onClick={() => {
                 updateRequestStatus(request.id, 'completed');
@@ -876,6 +1292,8 @@ export default function ServiceRequests() {
               <option value="pest_management">Pest Management</option>
               <option value="harvest">Harvesting Day</option>
               <option value="property_evaluation">Property Evaluation</option>
+              <option value="harvesting_plan">Harvesting Plan</option>
+              <option value="ipm_routine">IPM Routine</option>
             </select>
 
             {(filterStatus !== 'all' || filterType !== 'all' || searchTerm) && (
@@ -905,9 +1323,9 @@ export default function ServiceRequests() {
               <table className="w-full text-left text-xs">
                 <thead>
                   <tr className="bg-slate-50 border-b border-slate-200 text-slate-400 uppercase font-bold tracking-wider">
-                    <th className="px-6 py-3.5">Farmer Info</th>
-                    <th className="px-6 py-3.5">Contact</th>
-                    <th className="px-6 py-3.5">Request ID</th>
+                    <th className="px-6 py-3.5">Farmer Name</th>
+                    <th className="px-6 py-3.5">Phone</th>
+                    <th className="px-6 py-3.5">Location</th>
                     <th className="px-6 py-3.5">Service Type</th>
                     <th className="px-6 py-3.5">Status</th>
                     <th className="px-6 py-3.5">Submitted</th>
@@ -926,17 +1344,13 @@ export default function ServiceRequests() {
                         </div>
                       </td>
                       <td className="px-6 py-4 text-slate-500">
-                        <div>{request.farmerPhone || 'N/A'}</div>
-                        <div className="text-[11px] text-slate-400">{request.farmerEmail || 'N/A'}</div>
+                        {request.farmerPhone || 'N/A'}
                       </td>
-                      <td className="px-6 py-4 font-mono text-slate-600">
-                        {request.service_type === 'property_evaluation' ? 'PROP-EVAL' : (request.requestNumber || request.id)}
+                      <td className="px-6 py-4 text-slate-600">
+                        {request.location || request.farmerLocation || 'N/A'}
                       </td>
                       <td className="px-6 py-4 font-semibold text-slate-800">
-                        {request.service_type === 'property_evaluation' ? 'Property Evaluation' :
-                         request.service_type === 'harvest' ? 'Harvesting Day' :
-                         request.service_type === 'pest_management' ? 'Pest Management' :
-                         request.service_type}
+                        {getServiceTypeLabel(request.service_type)}
                       </td>
                       <td className="px-6 py-4">
                         {getStatusBadge(request.status)}

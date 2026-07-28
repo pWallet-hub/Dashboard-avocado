@@ -73,6 +73,12 @@ export default function FarmerProfileCard({
     fetchProfile();
   }, []);
 
+  const getProfileLocation = (profile) => {
+    const farmLocation = [profile?.farm_sector, profile?.farm_district, profile?.farm_province].filter(Boolean);
+    const personalLocation = [profile?.sector, profile?.district, profile?.province].filter(Boolean);
+    return farmLocation.length > 0 ? farmLocation.join(', ') : personalLocation.length > 0 ? personalLocation.join(', ') : 'N/A';
+  };
+
   const fetchProfile = async () => {
     setLoading(true);
     setError(null);

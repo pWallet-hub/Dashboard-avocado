@@ -1245,6 +1245,7 @@ export async function getHarvestingPlanRequests(options = {}) {
   if (options.limit) params.limit = options.limit;
   if (options.status) params.status = options.status;
   if (options.priority) params.priority = options.priority;
+  if (options.farmer_id) params.farmer_id = options.farmer_id;
 
   const response = await apiClient.get('/service-requests/harvesting-plan', { params });
   return extractData(response);
@@ -1341,6 +1342,7 @@ export async function getIPMRoutineRequests(options = {}) {
   if (options.limit) params.limit = options.limit;
   if (options.status) params.status = options.status;
   if (options.priority) params.priority = options.priority;
+  if (options.farmer_id) params.farmer_id = options.farmer_id;
 
   const response = await apiClient.get('/service-requests/ipm-routine', { params });
   return extractData(response);
