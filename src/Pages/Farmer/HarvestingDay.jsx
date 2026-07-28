@@ -31,7 +31,6 @@ export default function HarvestingDay() {
       [field]: value
     }));
 
-    // Clear field-specific error when user starts typing
     if (errors[field]) {
       setErrors(prev => ({
         ...prev,
@@ -40,7 +39,6 @@ export default function HarvestingDay() {
     }
   };
 
-  // Helper function to calculate date + 5 days using local date parts to prevent timezone offsets
   const calculateFiveDaysLater = (dateString) => {
     if (!dateString) return "";
     const [year, month, day] = dateString.split("-").map(Number);
@@ -188,7 +186,6 @@ export default function HarvestingDay() {
   }, []);
 
   const getSubmissionLocation = () => {
-    // prefer farm_* fields on profile, then personal location, then empty strings
     const loc = {};
     loc.province = profile?.farm_province || profile?.province || 'N/A';
     loc.district = profile?.farm_district || profile?.district || 'N/A';
@@ -299,66 +296,84 @@ export default function HarvestingDay() {
               <h2>Harvest Details</h2>
             </div>
             <div className="hd-rowFields">
-              <div>
-                <label className="hd-label">How Many VBAs Do You Need<span className="hd-req">*</span></label>
-                <input
-                  type="number"
-                  className={`hd-input ${errors.workersNeeded ? "hd-error" : ""}`}
-                  value={formData.workersNeeded}
-                  onChange={(e) => handleInputChange("workersNeeded", Math.max(1, parseInt(e.target.value) || 1))}
-                  min="1"
-                  placeholder="Enter number of workers"
-                />
-                {errors.workersNeeded && <p className="hd-errorText">{errors.workersNeeded}</p>}
+              
+              {/* Field 1: VBAs Needed */}
+              <div className="hd-fieldGroup">
+                <label className="hd-label">
+                  How Many VBAs Do You Need<span className="hd-req">*</span>
+                </label>
+                <div className="hd-inputWrap">
+                  <input
+                    type="number"
+                    className={`hd-input ${errors.workersNeeded ? "hd-error" : ""}`}
+                    value={formData.workersNeeded}
+                    onChange={(e) => handleInputChange("workersNeeded", Math.max(1, parseInt(e.target.value) || 1))}
+                    min="1"
+                    placeholder="Enter number of workers"
+                  />
+                  {errors.workersNeeded && <p className="hd-errorText">{errors.workersNeeded}</p>}
+                </div>
               </div>
 
-              <div>
-                <label className="hd-label">How many trees to be harvested?<span className="hd-req">*</span></label>
-                <input
-                  type="number"
-                  className={`hd-input ${errors.transportationNeeded ? "hd-error" : ""}`}
-                  value={formData.transportationNeeded}
-                  onChange={(e) => handleInputChange("transportationNeeded", e.target.value)}
-                  placeholder="Enter number of trees"
-                  min="1"
-                />
-                {errors.transportationNeeded && <p className="hd-errorText">{errors.transportationNeeded}</p>}
+              {/* Field 2: Trees to Harvest */}
+              <div className="hd-fieldGroup">
+                <label className="hd-label">
+                  How many trees to be harvested?<span className="hd-req">*</span>
+                </label>
+                <div className="hd-inputWrap">
+                  <input
+                    type="number"
+                    className={`hd-input ${errors.transportationNeeded ? "hd-error" : ""}`}
+                    value={formData.transportationNeeded}
+                    onChange={(e) => handleInputChange("transportationNeeded", e.target.value)}
+                    placeholder="Enter number of trees"
+                    min="1"
+                  />
+                  {errors.transportationNeeded && <p className="hd-errorText">{errors.transportationNeeded}</p>}
+                </div>
               </div>
+
             </div>
           </div>
 
-          {/* Equipment */}
+          {/* Equipment Section */}
           <div className="hd-row">
             <div className="hd-rowLabel">
               <h2>Equipment</h2>
               <p className="hd-rowHint">Optional — select anything you don't already have on hand</p>
             </div>
             <div className="hd-rowFields">
-              <div>
+              
+              <div className="hd-fieldGroup">
                 <label className="hd-label">Which Equipment do You Need?</label>
-                <button
-                  type="button"
-                  className={`hd-input hd-fileTrigger hd-equipTrigger ${formData.equipmentNeeded.length > 0 ? "hd-hasValue" : ""}`}
-                  onClick={() => setShowEquipmentModal(true)}
-                >
-                  <span>
-                    {formData.equipmentNeeded.length > 0
-                      ? `${formData.equipmentNeeded.length} equipment selected`
-                      : "Click to select equipment..."}
-                  </span>
-                  <span className="hd-caret">▾</span>
-                </button>
-                {formData.equipmentNeeded.length > 0 && (
-                  <div className="hd-tags">
-                    {formData.equipmentNeeded.map((equipment) => (
-                      <span key={equipment} className="hd-tag">
-                        {equipment}
-                        <button onClick={() => handleEquipmentChange(equipment, false)} aria-label={`Remove ${equipment}`}>×</button>
-                      </span>
-                    ))}
-                  </div>
-                )}
+                
+                <div className="hd-inputWrap">
+                  <button
+                    type="button"
+                    className={`hd-input hd-fileTrigger hd-equipTrigger ${formData.equipmentNeeded.length > 0 ? "hd-hasValue" : ""}`}
+                    onClick={() => setShowEquipmentModal(true)}
+                  >
+                    <span>
+                      {formData.equipmentNeeded.length > 0
+                        ? `${formData.equipmentNeeded.length} equipment selected`
+                        : "Click to select equipment..."}
+                    </span>
+                    <span className="hd-caret">▾</span>
+                  </button>
+
+                  {formData.equipmentNeeded.length > 0 && (
+                    <div className="hd-tags">
+                      {formData.equipmentNeeded.map((equipment) => (
+                        <span key={equipment} className="hd-tag">
+                          {equipment}
+                          <button onClick={() => handleEquipmentChange(equipment, false)} aria-label={`Remove ${equipment}`}>×</button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
+
             </div>
           </div>
 
@@ -368,9 +383,11 @@ export default function HarvestingDay() {
               <h2>Harvest Date Range (5 days window)<span className="hd-req">*</span></h2>
             </div>
             <div className="hd-rowFields">
-              <div className="hd-fieldPair">
-                <div>
-                  <label className="hd-label">From</label>
+              
+              {/* From Date */}
+              <div className="hd-fieldGroup">
+                <label className="hd-label">From</label>
+                <div className="hd-inputWrap">
                   <input
                     type="date"
                     className={`hd-input ${errors.harvestDateFrom ? "hd-error" : ""}`}
@@ -379,8 +396,12 @@ export default function HarvestingDay() {
                   />
                   {errors.harvestDateFrom && <p className="hd-errorText">{errors.harvestDateFrom}</p>}
                 </div>
-                <div>
-                  <label className="hd-label">To (Auto-calculated 5 days)</label>
+              </div>
+
+              {/* To Date */}
+              <div className="hd-fieldGroup">
+                <label className="hd-label">To (Auto-calculated 5 days)</label>
+                <div className="hd-inputWrap">
                   <input
                     type="date"
                     className={`hd-input ${errors.harvestDateTo ? "hd-error" : ""}`}
@@ -390,6 +411,7 @@ export default function HarvestingDay() {
                   {errors.harvestDateTo && <p className="hd-errorText">{errors.harvestDateTo}</p>}
                 </div>
               </div>
+
               {errors.harvestDateRange && <p className="hd-errorText">{errors.harvestDateRange}</p>}
             </div>
           </div>
@@ -400,38 +422,36 @@ export default function HarvestingDay() {
               <h2>Upload pictures of crops ready for harvest</h2>
             </div>
             <div className="hd-rowFields">
-              <div>
-                <div className="hd-uploadRow">
-                  <input
-                    type="file"
-                    multiple
-                    accept="image/*"
-                    onChange={handleFileUpload}
-                    style={{ display: "none" }}
-                    id="file-upload"
-                  />
-                  <label htmlFor="file-upload" className="hd-fileTrigger">
-                    Choose files…
-                  </label>
-                  <button
-                    type="button"
-                    className="hd-uploadBtn"
-                    onClick={() => document.getElementById("file-upload").click()}
-                  >
-                    Upload
-                  </button>
-                </div>
-                {formData.harvestImages.length > 0 && (
-                  <div>
-                    <p className="hd-fileListTitle">Uploaded files:</p>
-                    <div className="hd-fileList">
-                      {formData.harvestImages.map((file, index) => (
-                        <div key={index} className="hd-fileItem">{file.name}</div>
-                      ))}
-                    </div>
-                  </div>
-                )}
+              <div className="hd-uploadRow">
+                <input
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  onChange={handleFileUpload}
+                  style={{ display: "none" }}
+                  id="file-upload"
+                />
+                <label htmlFor="file-upload" className="hd-fileTrigger">
+                  Choose files…
+                </label>
+                <button
+                  type="button"
+                  className="hd-uploadBtn"
+                  onClick={() => document.getElementById("file-upload").click()}
+                >
+                  Upload
+                </button>
               </div>
+              {formData.harvestImages.length > 0 && (
+                <div>
+                  <p className="hd-fileListTitle">Uploaded files:</p>
+                  <div className="hd-fileList">
+                    {formData.harvestImages.map((file, index) => (
+                      <div key={index} className="hd-fileItem">{file.name}</div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 

@@ -21,13 +21,14 @@
   box-sizing: border-box;
 }
 
+/* --- Animations --- */
 @keyframes hdFadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
 }
 
 @keyframes hdSlideUp {
-  from { opacity: 0; transform: translateY(10px); }
+  from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
@@ -38,45 +39,35 @@
   }
 }
 
-/* --- page / header --- */
-
+/* --- Page & Header --- */
 .hd-wrap {
   max-width: 860px;
   margin: 0 auto;
-  padding: 36px 20px 80px;
+  padding: 24px 16px 48px;
 }
 
 .hd-pageTitle {
-  font-size: 21px;
+  font-size: 20px;
   font-weight: 600;
   color: var(--sf-text);
-  margin: 0 0 4px;
+  margin: 0 0 16px;
   letter-spacing: -0.01em;
 }
 
-.hd-pageSub {
-  font-size: 13.5px;
-  color: var(--sf-text-muted);
-  margin: 0 0 24px;
-}
-
-/* --- card / panel --- */
-
+/* --- Card & Rows --- */
 .hd-card {
   background: var(--sf-card);
   border: 1px solid var(--sf-border);
-  border-radius: 10px;
+  border-radius: 8px;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
   overflow: hidden;
-  animation: hdSlideUp 0.35s ease-out;
+  animation: hdSlideUp 0.25s ease-out;
 }
-
-/* --- section rows --- */
 
 .hd-row {
   display: flex;
-  gap: 40px;
-  padding: 28px 32px;
+  gap: 24px;
+  padding: 18px 24px;
 }
 
 .hd-row + .hd-row {
@@ -85,34 +76,34 @@
 
 .hd-rowLabel {
   flex: none;
-  width: 190px;
+  width: 180px;
 }
 
 .hd-rowLabel h2 {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--sf-text);
   margin: 0;
 }
 
 .hd-rowHint {
-  font-size: 11.5px;
+  font-size: 11px;
   color: var(--sf-text-faint);
-  margin: 6px 0 0;
-  line-height: 1.5;
+  margin: 4px 0 0;
+  line-height: 1.4;
 }
 
 .hd-rowFields {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 18px;
-  max-width: 460px;
+  gap: 12px;
+  max-width: 520px;
 }
 
 .hd-fieldPair {
   display: flex;
-  gap: 16px;
+  gap: 12px;
 }
 
 .hd-fieldPair > * {
@@ -120,21 +111,33 @@
   min-width: 0;
 }
 
-@media (max-width: 640px) {
-  .hd-row { flex-direction: column; gap: 10px; padding: 22px 20px; }
-  .hd-rowLabel { width: auto; }
-  .hd-rowFields { max-width: none; }
-  .hd-fieldPair { flex-direction: column; }
+/* --- Field Group (Inline Labels & Inputs) --- */
+.hd-fieldGroup {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
 }
 
-/* --- fields --- */
-
-.hd-label {
-  display: block;
+.hd-fieldGroup .hd-label {
+  flex: 0 0 200px;
   font-size: 12.5px;
   font-weight: 500;
   color: var(--sf-text-muted);
-  margin-bottom: 6px;
+  margin-bottom: 0;
+  line-height: 36px; /* Vertically aligns text with input height */
+}
+
+.hd-fieldGroup .hd-inputWrap {
+  flex: 1;
+  width: 100%;
+}
+
+.hd-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--sf-text-muted);
+  margin-bottom: 4px;
 }
 
 .hd-req {
@@ -142,13 +145,15 @@
   margin-left: 2px;
 }
 
+/* --- Inputs --- */
 .hd-input,
 .hd-fileTrigger {
   width: 100%;
-  padding: 9px 12px;
+  height: 36px;
+  padding: 0 10px;
   border: 1px solid var(--sf-border-strong);
   border-radius: 6px;
-  font-size: 13.5px;
+  font-size: 13px;
   background: #fff;
   color: var(--sf-text);
   font-family: inherit;
@@ -159,7 +164,7 @@
 .hd-fileTrigger:focus-visible {
   outline: none;
   border-color: var(--sf-accent);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
 }
 
 .hd-input.hd-error {
@@ -167,20 +172,18 @@
 }
 
 .hd-errorText {
-  font-size: 12px;
+  font-size: 11.5px;
   color: var(--sf-error);
-  margin: 6px 0 0;
+  margin: 4px 0 0;
 }
 
-/* --- equipment select --- */
-
+/* --- Equipment Trigger & Tags --- */
 .hd-equipTrigger {
   display: flex;
   align-items: center;
   justify-content: space-between;
   cursor: pointer;
   color: var(--sf-text-faint);
-  text-align: left;
 }
 
 .hd-equipTrigger.hd-hasValue {
@@ -189,25 +192,25 @@
 
 .hd-caret {
   color: var(--sf-text-faint);
-  font-size: 11px;
+  font-size: 10px;
 }
 
 .hd-tags {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 4px;
+  gap: 6px;
+  margin-top: 6px;
 }
 
 .hd-tag {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 6px 4px 10px;
+  gap: 4px;
+  padding: 2px 6px 2px 8px;
   background: var(--sf-accent-soft);
   color: var(--sf-accent-hover);
-  border-radius: 15px;
-  font-size: 12px;
+  border-radius: 12px;
+  font-size: 11.5px;
   font-weight: 500;
 }
 
@@ -216,10 +219,10 @@
   border: none;
   cursor: pointer;
   color: var(--sf-accent-hover);
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
-  font-size: 14px;
+  font-size: 12px;
   line-height: 1;
   display: flex;
   align-items: center;
@@ -230,26 +233,27 @@
   background: rgba(37, 99, 235, 0.15);
 }
 
-/* --- file upload --- */
-
+/* --- File Upload --- */
 .hd-uploadRow {
   display: flex;
-  gap: 10px;
+  gap: 8px;
 }
 
 .hd-fileTrigger {
   flex: 1;
   cursor: pointer;
   color: var(--sf-text-faint);
+  line-height: 34px;
 }
 
 .hd-uploadBtn {
-  padding: 9px 18px;
+  height: 36px;
+  padding: 0 14px;
   background: #fff;
   color: var(--sf-text);
   border: 1px solid var(--sf-border-strong);
   border-radius: 6px;
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 500;
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s;
@@ -262,55 +266,54 @@
 }
 
 .hd-fileListTitle {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--sf-text);
-  margin: 10px 0 6px;
+  margin: 8px 0 4px;
 }
 
 .hd-fileList {
-  margin-top: 4px;
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 4px;
 }
 
 .hd-fileItem {
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--sf-text-muted);
-  padding: 5px 10px;
+  padding: 4px 8px;
   background: #f9fafb;
   border-radius: 4px;
 }
 
-/* --- footer bar --- */
-
+/* --- Footer --- */
 .hd-footer {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 12px;
-  padding: 18px 32px;
+  gap: 10px;
+  padding: 14px 24px;
   border-top: 1px solid var(--sf-border);
   background: #fafbfc;
 }
 
 .hd-submitErr {
   margin-right: auto;
-  font-size: 13px;
+  font-size: 12.5px;
   color: var(--sf-error);
 }
 
 .hd-btnCancel {
-  padding: 9px 16px;
+  height: 36px;
+  padding: 0 14px;
   background: transparent;
   color: var(--sf-text-muted);
   border: none;
   border-radius: 6px;
-  font-size: 13.5px;
+  font-size: 13px;
   font-weight: 500;
   cursor: pointer;
-  transition: background 0.15s, color 0.15s;
+  transition: background 0.15s;
   font-family: inherit;
 }
 
@@ -320,12 +323,13 @@
 }
 
 .hd-submit {
-  padding: 9px 20px;
+  height: 36px;
+  padding: 0 16px;
   border: none;
   border-radius: 6px;
   background: var(--sf-accent);
   color: #fff;
-  font-size: 13.5px;
+  font-size: 13px;
   font-weight: 600;
   cursor: pointer;
   transition: background 0.15s;
@@ -341,8 +345,7 @@
   cursor: not-allowed;
 }
 
-/* --- equipment modal --- */
-
+/* --- Equipment Modal --- */
 .hd-modalOverlay {
   position: fixed;
   inset: 0;
@@ -352,28 +355,28 @@
   justify-content: center;
   z-index: 1000;
   animation: hdFadeIn 0.15s ease-out;
-  padding: 20px;
+  padding: 16px;
 }
 
 .hd-modal {
   background: var(--sf-card);
-  border-radius: 10px;
-  padding: 24px;
-  max-width: 420px;
+  border-radius: 8px;
+  padding: 20px;
+  max-width: 380px;
   width: 100%;
-  box-shadow: 0 20px 50px -12px rgba(15, 23, 42, 0.3);
-  animation: hdSlideUp 0.2s ease-out;
+  box-shadow: 0 12px 30px -8px rgba(15, 23, 42, 0.25);
+  animation: hdSlideUp 0.15s ease-out;
 }
 
 .hd-modalHead {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
 .hd-modalTitle {
-  font-size: 15px;
+  font-size: 14.5px;
   font-weight: 600;
   color: var(--sf-text);
   margin: 0;
@@ -382,11 +385,11 @@
 .hd-modalClose {
   background: none;
   border: none;
-  font-size: 20px;
+  font-size: 18px;
   color: var(--sf-text-faint);
   cursor: pointer;
-  width: 26px;
-  height: 26px;
+  width: 24px;
+  height: 24px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -400,9 +403,9 @@
 .hd-equipOption {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   cursor: pointer;
-  padding: 10px 12px;
+  padding: 8px 10px;
   border-radius: 6px;
   margin-bottom: 6px;
   border: 1px solid var(--sf-border);
@@ -416,100 +419,99 @@
 }
 
 .hd-equipOption input {
-  width: 15px;
-  height: 15px;
+  width: 14px;
+  height: 14px;
   accent-color: var(--sf-accent);
   cursor: pointer;
 }
 
 .hd-equipOption span {
-  font-size: 13.5px;
+  font-size: 13px;
   color: var(--sf-text);
 }
 
 .hd-modalDone {
   width: 100%;
-  padding: 10px;
+  height: 36px;
   background: var(--sf-accent);
   color: #fff;
   border: none;
   border-radius: 6px;
   cursor: pointer;
-  font-size: 13.5px;
+  font-size: 13px;
   font-weight: 600;
   font-family: inherit;
-  margin-top: 6px;
+  margin-top: 4px;
 }
 
 .hd-modalDone:hover {
   background: var(--sf-accent-hover);
 }
 
-/* --- confirmation --- */
-
+/* --- Confirmation Screen --- */
 .hd-confirmWrap {
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 24px;
+  padding: 20px;
 }
 
 .hd-slip {
-  max-width: 420px;
+  max-width: 400px;
   width: 100%;
   background: var(--sf-card);
   border: 1px solid var(--sf-border);
-  border-radius: 10px;
-  padding: 32px 28px;
+  border-radius: 8px;
+  padding: 24px 20px;
   text-align: center;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
-  animation: hdSlideUp 0.3s ease-out;
+  animation: hdSlideUp 0.25s ease-out;
 }
 
 .hd-checkCircle {
-  width: 48px;
-  height: 48px;
+  width: 42px;
+  height: 42px;
   border-radius: 50%;
   background: var(--sf-accent-soft);
   color: var(--sf-accent);
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 0 auto 16px;
+  margin: 0 auto 12px;
 }
 
 .hd-checkCircle svg {
-  width: 22px;
-  height: 22px;
+  width: 20px;
+  height: 20px;
 }
 
 .hd-slipTitle {
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 600;
   color: var(--sf-text);
-  margin: 0 0 8px;
+  margin: 0 0 6px;
 }
 
 .hd-slipText {
-  font-size: 13.5px;
+  font-size: 13px;
   color: var(--sf-text-muted);
-  line-height: 1.6;
-  margin: 0 0 20px;
+  line-height: 1.5;
+  margin: 0 0 16px;
 }
 
 .hd-slipDetails {
   text-align: left;
   border-top: 1px solid var(--sf-border);
-  padding-top: 16px;
+  padding-top: 12px;
 }
 
 .hd-slipRow {
   display: flex;
   justify-content: space-between;
   gap: 12px;
-  padding: 6px 0;
-  font-size: 13px;
+  padding: 4px 0;
+  font-size: 12.5px;
 }
 
 .hd-slipRow dt {
@@ -521,4 +523,32 @@
   color: var(--sf-text);
   font-weight: 500;
   text-align: right;
+}
+
+/* --- Responsive Layout --- */
+@media (max-width: 640px) {
+  .hd-row { 
+    flex-direction: column; 
+    gap: 8px; 
+    padding: 16px; 
+  }
+  .hd-rowLabel { 
+    width: auto; 
+  }
+  .hd-rowFields { 
+    max-width: none; 
+  }
+  .hd-fieldGroup {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+  }
+  .hd-fieldGroup .hd-label {
+    flex: auto;
+    line-height: normal;
+  }
+  .hd-fieldPair { 
+    flex-direction: column; 
+    gap: 8px;
+  }
 }
