@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { 
-  Search, RefreshCw, Filter, MoreVertical, Eye, CheckCircle, XCircle, 
-  Clock, Play, CheckCheck, AlertCircle, ChevronDown, Bell, User, 
-  Package, Trees, Bug, Home, Calendar, MapPin, Phone, Mail, Info
+  Search, RefreshCw, CheckCircle, XCircle, 
+  Clock, Play, CheckCheck, AlertCircle, User, 
+  Package, Trees, Bug, Home, MapPin, Phone, Mail, Info
 } from 'lucide-react';
+import PropTypes from 'prop-types';
 import {
   listServiceRequests, 
   listHarvestRequests,
@@ -21,6 +22,8 @@ import {
   startPestManagementTreatment,
   completePestManagementTreatment
 } from '../../services/serviceRequestsService';
+import { getFarmerProfileById } from '../../services/farmer-information';
+import { createNotification } from '../../services/notificationsService';
 
 const AdminServiceRequestsDashboard = () => {
   const [serviceRequests, setServiceRequests] = useState([]);
@@ -34,7 +37,7 @@ const AdminServiceRequestsDashboard = () => {
   const [statusFilter, setStatusFilter] = useState('All');
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [showModal, setShowModal] = useState(false);
-  const [showActionsMenu, setShowActionsMenu] = useState(null);
+  const [, setShowActionsMenu] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(12);
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
@@ -54,43 +57,47 @@ const AdminServiceRequestsDashboard = () => {
         listPestManagementRequests()
       ]);
 
-      if (propertyResponse.status === 'fulfilled') {
-        const propData = propertyResponse.value;
-        const requests = Array.isArray(propData) ? propData : propData?.data || [];
-        setServiceRequests(requests);
-      } else {
-        setServiceRequests([]);
-      }
+      const propertyRequests = propertyResponse.status === 'fulfilled'
+        ? (Array.isArray(propertyResponse.value) ? propertyResponse.value : propertyResponse.value?.data || [])
+        : [];
+      const harvestRequestsData = harvestResponse.status === 'fulfilled'
+        ? (harvestResponse.value?.success && Array.isArray(harvestResponse.value.data)
+            ? harvestResponse.value.data
+            : Array.isArray(harvestResponse.value?.data)
+            ? harvestResponse.value.data
+            : Array.isArray(harvestResponse.value)
+            ? harvestResponse.value
+            : [])
+        : [];
+      const pestRequests = pestResponse.status === 'fulfilled'
+        ? (pestResponse.value?.success && Array.isArray(pestResponse.value.data)
+            ? pestResponse.value.data
+            : Array.isArray(pestResponse.value?.data)
+            ? pestResponse.value.data
+            : Array.isArray(pestResponse.value)
+            ? pestResponse.value
+            : [])
+        : [];
 
-      if (harvestResponse.status === 'fulfilled') {
-        const harvestData = harvestResponse.value;
-        let requests = [];
-        if (harvestData?.success && Array.isArray(harvestData.data)) {
-          requests = harvestData.data;
-        } else if (Array.isArray(harvestData?.data)) {
-          requests = harvestData.data;
-        } else if (Array.isArray(harvestData)) {
-          requests = harvestData;
-        }
-        setHarvestRequests(requests);
-      } else {
-        setHarvestRequests([]);
-      }
+      const allRequestsRaw = [...propertyRequests, ...harvestRequestsData, ...pestRequests];
+      const farmerProfiles = await loadFarmerProfiles(allRequestsRaw);
 
-      if (pestResponse.status === 'fulfilled') {
-        const pestData = pestResponse.value;
-        let requests = [];
-        if (pestData?.success && Array.isArray(pestData.data)) {
-          requests = pestData.data;
-        } else if (Array.isArray(pestData?.data)) {
-          requests = pestData.data;
-        } else if (Array.isArray(pestData)) {
-          requests = pestData;
-        }
-        setPestManagementRequests(requests);
-      } else {
-        setPestManagementRequests([]);
-      }
+      const enrichRequest = (req, type) => ({
+        ...req,
+        type,
+        farmerName: buildFarmerInfo(req, farmerProfiles).name,
+        farmerPhone: buildFarmerInfo(req, farmerProfiles).phone,
+        farmerEmail: buildFarmerInfo(req, farmerProfiles).email,
+        farmerLocation: buildFarmerInfo(req, farmerProfiles).location
+      });
+
+      const enrichedPropertyRequests = propertyRequests.map(req => enrichRequest(req, 'property'));
+      const enrichedHarvestRequests = harvestRequestsData.map(req => enrichRequest(req, 'harvest'));
+      const enrichedPestRequests = pestRequests.map(req => enrichRequest(req, 'pest'));
+
+      setServiceRequests(enrichedPropertyRequests);
+      setHarvestRequests(enrichedHarvestRequests);
+      setPestManagementRequests(enrichedPestRequests);
 
     } catch (err) {
       setError(err.message);
@@ -106,6 +113,174 @@ const AdminServiceRequestsDashboard = () => {
     }));
   };
 
+  const getFarmerRecipientId = (request) => {
+    if (!request) return null;
+    const farmerId = request.farmer_id;
+    if (farmerId) {
+      if (typeof farmerId === 'object') {
+        return farmerId.id || farmerId._id || farmerId.user_id || farmerId.farmer_id;
+      }
+      return farmerId;
+    }
+
+    return request.farmer_info?.id || request.farmer_info?._id || request.farmer_info?.user_id || request.farmerId || request.user_id || null;
+  };
+
+  const formatLocation = (location) => {
+    if (!location) return 'N/A';
+    if (typeof location === 'string') return location;
+    const parts = [
+      location.farm_name,
+      location.street_address,
+      location.village,
+      location.cell,
+      location.sector,
+      location.district,
+      location.province,
+      location.city
+    ].filter(Boolean);
+    return parts.length > 0 ? parts.join(', ') : 'N/A';
+  };
+
+  const getRequestFarmerId = (request) => {
+    if (!request) return null;
+    if (request.farmer_id) {
+      if (typeof request.farmer_id === 'object') {
+        return request.farmer_id.id || request.farmer_id._id || request.farmer_id.user_id || request.farmer_id.farmer_id || null;
+      }
+      return request.farmer_id;
+    }
+
+    if (request.farmer_info) {
+      return request.farmer_info.id || request.farmer_info._id || request.farmer_info.user_id || request.farmer_info.farmer_id || null;
+    }
+
+    return null;
+  };
+
+  const normalizeFarmerProfile = (response) => {
+    const payload = response?.data ?? response ?? {};
+    const body = payload.data ?? payload;
+    const user = body.user_info || body.user || body;
+    const profile = body.farmer_profile || body;
+    const name = user?.full_name || user?.name || `${user?.first_name || ''} ${user?.last_name || ''}`.trim() || profile?.full_name || profile?.name || 'N/A';
+    const phone = user?.phone || user?.phone_number || profile?.phone || profile?.phone_number || 'N/A';
+    const email = user?.email || profile?.email || 'N/A';
+    const location = formatLocation({
+      province: profile?.farm_province || profile?.province,
+      district: profile?.farm_district || profile?.district,
+      sector: profile?.farm_sector || profile?.sector,
+      cell: profile?.farm_cell || profile?.cell,
+      village: profile?.farm_village || profile?.village
+    }) || formatLocation({
+      province: profile?.province,
+      district: profile?.district,
+      sector: profile?.sector,
+      cell: profile?.cell,
+      village: profile?.village
+    });
+
+    return { name, phone, email, location };
+  };
+
+  const loadFarmerProfiles = async (requestsOrIds) => {
+    const normalized = {};
+    if (!requestsOrIds) return normalized;
+
+    let farmerIds = new Set();
+
+    if (requestsOrIds instanceof Set || Array.isArray(requestsOrIds)) {
+      const values = Array.from(requestsOrIds);
+      if (values.length > 0 && typeof values[0] === 'string') {
+        farmerIds = new Set(values.filter(Boolean));
+      } else {
+        farmerIds = new Set(values.flatMap((req) => {
+          const ids = [];
+          if (req.farmer_id) {
+            if (typeof req.farmer_id === 'object') {
+              ids.push(req.farmer_id.id, req.farmer_id._id, req.farmer_id.user_id, req.farmer_id.farmer_id);
+            } else {
+              ids.push(req.farmer_id);
+            }
+          }
+          if (req.farmer_info) {
+            ids.push(req.farmer_info.id, req.farmer_info._id, req.farmer_info.user_id, req.farmer_info.farmer_id);
+          }
+          return ids.filter(Boolean);
+        }));
+      }
+    }
+
+    if (farmerIds.size === 0) return normalized;
+
+    const fetches = Array.from(farmerIds).map(async (id) => {
+      try {
+        const profile = await getFarmerProfileById(id);
+        return [id, normalizeFarmerProfile(profile)];
+      } catch (err) {
+        console.warn(`Failed to load farmer profile for ${id}:`, err?.message || err);
+        return [id, null];
+      }
+    });
+
+    const results = await Promise.all(fetches);
+    results.forEach(([id, profile]) => {
+      if (profile) normalized[id] = profile;
+    });
+    return normalized;
+  };
+
+  const buildFarmerInfo = (request, lookup = {}) => {
+    const farmerObj = request.farmer_id && typeof request.farmer_id === 'object' ? request.farmer_id : null;
+    const farmerInfoObj = request.farmer_info && typeof request.farmer_info === 'object' ? request.farmer_info : null;
+    const lookupId = getRequestFarmerId(request);
+    const lookupInfo = lookupId ? lookup[lookupId] : null;
+
+    const name = farmerObj?.full_name || farmerObj?.name || farmerInfoObj?.full_name || farmerInfoObj?.name || lookupInfo?.name || request.farmerName || 'N/A';
+    const phone = farmerObj?.phone || farmerObj?.phone_number || farmerInfoObj?.phone || farmerInfoObj?.phone_number || lookupInfo?.phone || request.farmerPhone || 'N/A';
+    const email = farmerObj?.email || farmerInfoObj?.email || lookupInfo?.email || request.farmerEmail || 'N/A';
+    const location = request.location ? formatLocation(request.location)
+      : lookupInfo?.location || request.farmerLocation || (farmerInfoObj ? formatLocation({
+        province: farmerInfoObj.farm_province || farmerInfoObj.province,
+        district: farmerInfoObj.farm_district || farmerInfoObj.district,
+        sector: farmerInfoObj.farm_sector || farmerInfoObj.sector,
+        cell: farmerInfoObj.farm_cell || farmerInfoObj.cell,
+        village: farmerInfoObj.farm_village || farmerInfoObj.village
+      }) : 'N/A');
+
+    return { name, phone, email, location };
+  };
+
+  const buildNotificationMessage = (request, status) => {
+    const requestNumber = request.request_number || request.id || request._id || 'unknown request';
+    const serviceType = request.type === 'harvest'
+      ? 'Harvest'
+      : request.type === 'pest'
+      ? 'Pest Management'
+      : request.type === 'property'
+      ? 'Property Evaluation'
+      : 'Service';
+    const statusText = status === 'in_progress' ? 'started' : status;
+
+    return `${serviceType} request ${requestNumber} has been ${statusText}. Please check your dashboard for the latest update.`;
+  };
+
+  const notifyFarmer = async (request, status) => {
+    const recipientId = getFarmerRecipientId(request);
+    if (!recipientId) return;
+
+    try {
+      await createNotification({
+        recipient_id: recipientId,
+        title: 'Service request update',
+        message: buildNotificationMessage(request, status),
+        type: 'service_request'
+      });
+    } catch (err) {
+      console.warn('Failed to create farmer notification:', err);
+    }
+  };
+
   const handleApproveRequest = async (request, type) => {
     const requestId = request.id || request._id;
     setRequestLoading(requestId, true);
@@ -118,6 +293,7 @@ const AdminServiceRequestsDashboard = () => {
       } else {
         await approvePropertyEvaluationRequest(requestId, { approved_by: 'admin', approval_notes: 'Approved by administrator' });
       }
+      await notifyFarmer(request, 'approved');
       await fetchAllRequests();
       setShowModal(false);
       setShowActionsMenu(null);
@@ -143,6 +319,7 @@ const AdminServiceRequestsDashboard = () => {
       } else {
         await rejectPropertyEvaluationRequest(requestId, { rejection_reason: reason });
       }
+      await notifyFarmer(request, 'rejected');
       await fetchAllRequests();
       setShowModal(false);
       setShowActionsMenu(null);
@@ -165,6 +342,7 @@ const AdminServiceRequestsDashboard = () => {
       } else {
         await startPropertyEvaluation(requestId, { started_by: 'admin', start_notes: 'Started by administrator' });
       }
+      await notifyFarmer(request, 'in_progress');
       await fetchAllRequests();
       setShowModal(false);
       setShowActionsMenu(null);
@@ -189,8 +367,9 @@ const AdminServiceRequestsDashboard = () => {
           treatment_effectiveness: 'effective'
         });
       } else {
-        await completePropertyEvaluation(requestId, { completed_by: 'admin', completion_notes: 'Completed by administrator' });
+        await completePropertyEvaluationRequest(requestId, { completed_by: 'admin', completion_notes: 'Completed by administrator' });
       }
+      await notifyFarmer(request, 'completed');
       await fetchAllRequests();
       setShowModal(false);
       setShowActionsMenu(null);
@@ -210,17 +389,14 @@ const AdminServiceRequestsDashboard = () => {
     });
   };
 
-  const formatLocation = (location) => {
-    if (!location) return 'N/A';
-    if (typeof location === 'string') return location;
-    const parts = [
-      location.village,
-      location.cell,
-      location.sector,
-      location.district,
-      location.province
-    ].filter(Boolean);
-    return parts.length > 0 ? parts.join(', ') : 'N/A';
+  const extractFarmerInfo = (request) => {
+    const farmerObj = request.farmer_id && typeof request.farmer_id === 'object' ? request.farmer_id : null;
+    return {
+      name: request.farmerName || farmerObj?.full_name || farmerObj?.name || request.farmer_info?.full_name || request.farmer_info?.name || 'N/A',
+      phone: request.farmerPhone || farmerObj?.phone || request.farmer_info?.phone || 'N/A',
+      email: request.farmerEmail || farmerObj?.email || request.farmer_info?.email || 'N/A',
+      location: request.farmerLocation || formatLocation(request.location || request.farmer_info?.location)
+    };
   };
 
   const getStatusColor = (status) => {
@@ -272,12 +448,17 @@ const AdminServiceRequestsDashboard = () => {
     
     if (searchTerm) {
       const searchLower = searchTerm.toLowerCase();
-      const farmerName = (request.farmer_id?.full_name || '').toLowerCase();
+      const farmer = extractFarmerInfo(request);
+      const farmerName = (farmer.name || '').toLowerCase();
+      const farmerPhone = (farmer.phone || '').toLowerCase();
+      const farmerEmail = (farmer.email || '').toLowerCase();
       const requestNumber = (request.request_number || request.id || '').toString().toLowerCase();
       const location = formatLocation(request.location).toLowerCase();
       const pestType = (request.pest_type || '').toLowerCase();
       
       return farmerName.includes(searchLower) || 
+             farmerPhone.includes(searchLower) ||
+             farmerEmail.includes(searchLower) ||
              requestNumber.includes(searchLower) || 
              location.includes(searchLower) ||
              pestType.includes(searchLower);
@@ -293,8 +474,8 @@ const AdminServiceRequestsDashboard = () => {
       let bVal = b[sortConfig.key];
       
       if (sortConfig.key === 'farmer') {
-        aVal = a.farmer_id?.full_name || '';
-        bVal = b.farmer_id?.full_name || '';
+        aVal = extractFarmerInfo(a).name || '';
+        bVal = extractFarmerInfo(b).name || '';
       }
       
       if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
@@ -419,31 +600,38 @@ const AdminServiceRequestsDashboard = () => {
                 <User className="w-5 h-5" /> Farmer Information
               </h3>
               <div className="space-y-3">
-                <div className="flex justify-between">
-                  <span className="text-sm text-slate-500">Name</span>
-                  <span className="text-sm font-medium text-slate-900">{request.farmer_id?.full_name || 'N/A'}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-slate-500">Phone</span>
-                  <span className="text-sm font-medium text-slate-900 flex items-center gap-1">
-                    <Phone className="w-3.5 h-3.5" />
-                    {request.farmer_id?.phone || 'N/A'}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-slate-500">Email</span>
-                  <span className="text-sm font-medium text-slate-900 flex items-center gap-1">
-                    <Mail className="w-3.5 h-3.5" />
-                    {request.farmer_id?.email || 'N/A'}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-slate-500">Location</span>
-                  <span className="text-sm font-medium text-slate-900 flex items-center gap-1">
-                    <MapPin className="w-3.5 h-3.5" />
-                    {formatLocation(request.location)}
-                  </span>
-                </div>
+                {(() => {
+                  const farmer = extractFarmerInfo(request);
+                  return (
+                    <>
+                      <div className="flex justify-between">
+                        <span className="text-sm text-slate-500">Name</span>
+                        <span className="text-sm font-medium text-slate-900">{farmer.name}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-slate-500">Phone</span>
+                        <span className="text-sm font-medium text-slate-900 flex items-center gap-1">
+                          <Phone className="w-3.5 h-3.5" />
+                          {farmer.phone}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-slate-500">Email</span>
+                        <span className="text-sm font-medium text-slate-900 flex items-center gap-1">
+                          <Mail className="w-3.5 h-3.5" />
+                          {farmer.email}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-slate-500">Location</span>
+                        <span className="text-sm font-medium text-slate-900 flex items-center gap-1">
+                          <MapPin className="w-3.5 h-3.5" />
+                          {farmer.location}
+                        </span>
+                      </div>
+                    </>
+                  );
+                })()}
               </div>
             </div>
           </div>
@@ -629,6 +817,7 @@ const AdminServiceRequestsDashboard = () => {
                       <th className="px-6 py-3 text-left text-xs font-medium text-slate-600 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('farmer')}>
                         Farmer {sortConfig.key === 'farmer' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                       </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-slate-600 uppercase tracking-wider">Phone</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-slate-600 uppercase tracking-wider">Location</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-slate-600 uppercase tracking-wider">Details</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-slate-600 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('status')}>
@@ -649,13 +838,9 @@ const AdminServiceRequestsDashboard = () => {
                               <span className="text-sm font-medium capitalize">{request.type}</span>
                             </div>
                           </td>
-                          <td className="px-6 py-4">
-                            <div>
-                              <div className="text-sm font-medium text-slate-900">{request.farmer_id?.full_name || 'Unknown'}</div>
-                              <div className="text-xs text-slate-500">{request.farmer_id?.phone || 'No phone'}</div>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 text-sm text-slate-600">{formatLocation(request.location)}</td>
+                          <td className="px-6 py-4 text-sm font-medium text-slate-900">{extractFarmerInfo(request).name}</td>
+                          <td className="px-6 py-4 text-sm text-slate-500">{extractFarmerInfo(request).phone === 'N/A' ? 'No phone' : extractFarmerInfo(request).phone}</td>
+                          <td className="px-6 py-4 text-sm text-slate-600">{extractFarmerInfo(request).location}</td>
                           <td className="px-6 py-4 text-sm text-slate-600">
                             {request.type === 'harvest' && `Trees: ${request.harvest_details?.trees_to_harvest || 'N/A'}`}
                             {request.type === 'pest' && `Pest: ${request.pest_type || 'N/A'}`}

@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import "../Styles/HarvestingDay.css";
 import DashboardHeader from "../../components/Header/DashboardHeader";
 import { createHarvestRequest } from '../../services/serviceRequestsService';
+import { getFarmerInformation } from '../../services/farmer-information';
 
 const initialFormData = {
   workersNeeded: 1,
@@ -127,13 +128,7 @@ export default function HarvestingDay() {
         harvestDateFrom: formData.harvestDateFrom,
         harvestDateTo: formData.harvestDateTo,
         harvestImages: formData.harvestImages.map(file => file.name),
-        location: {
-          province: localStorage.getItem('farmerProvince') || 'Eastern Province',
-          district: localStorage.getItem('farmerDistrict') || 'Gatsibo',
-          sector: localStorage.getItem('farmerSector') || 'Kageyo',
-          cell: localStorage.getItem('farmerCell') || 'Karangazi',
-          village: localStorage.getItem('farmerVillage') || 'Nyagatare'
-        },
+        location: getSubmissionLocation(),
         priority: 'medium',
         notes: `Ready for harvest. Trees are at full maturity with good fruit quality. Request for ${formData.transportationNeeded} trees requiring ${formData.workersNeeded} workers.`
       };
@@ -143,10 +138,10 @@ export default function HarvestingDay() {
       console.log("Harvest request submitted successfully:", response);
       setSubmitted(true);
 
-      const farmerName = localStorage.getItem('farmerName') || 'John Doe';
-      const farmerPhone = localStorage.getItem('farmerPhone') || '+250 123 456 789';
-      const farmerEmail = localStorage.getItem('farmerEmail') || 'farmer@example.com';
-      const farmerLocation = localStorage.getItem('farmerLocation') || 'Kigali, Rwanda';
+      const farmerName = userInfo?.full_name || 'N/A';
+      const farmerPhone = userInfo?.phone || 'N/A';
+      const farmerEmail = userInfo?.email || 'N/A';
+      const farmerLocation = getSubmissionLocationString() || 'N/A';
 
       const newRequest = {
         id: response.id || Date.now().toString(),
@@ -170,6 +165,42 @@ export default function HarvestingDay() {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const [profile, setProfile] = useState(null);
+  const [userInfo, setUserInfo] = useState(null);
+
+  useEffect(() => {
+    let mounted = true;
+    const loadProfile = async () => {
+      try {
+        const resp = await getFarmerInformation();
+        const data = resp?.data || resp;
+        if (!mounted) return;
+        setUserInfo(data.user_info || data.user || null);
+        setProfile(data.farmer_profile || null);
+      } catch (err) {
+        console.warn('Failed to load farmer information for harvesting form', err);
+      }
+    };
+    loadProfile();
+    return () => { mounted = false; };
+  }, []);
+
+  const getSubmissionLocation = () => {
+    // prefer farm_* fields on profile, then personal location, then empty strings
+    const loc = {};
+    loc.province = profile?.farm_province || profile?.province || 'N/A';
+    loc.district = profile?.farm_district || profile?.district || 'N/A';
+    loc.sector = profile?.farm_sector || profile?.sector || 'N/A';
+    loc.cell = profile?.farm_cell || profile?.cell || 'N/A';
+    loc.village = profile?.farm_village || profile?.village || 'N/A';
+    return loc;
+  };
+
+  const getSubmissionLocationString = () => {
+    const parts = [profile?.farm_sector || profile?.sector, profile?.farm_district || profile?.district, profile?.farm_province || profile?.province].filter(Boolean);
+    return parts.length > 0 ? parts.join(', ') : 'N/A';
   };
 
   const handleCancel = () => {
