@@ -1,189 +1,173 @@
-import React, { useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Bell, User, Settings, LogOut, Search, ChevronDown, Camera, X } from 'lucide-react';
-import asr from '../../assets/image/pwallet-logo-new.png';
+/* eslint-disable react/prop-types */
+import { useState, useRef, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { User, Settings, LogOut, ChevronDown, Camera, Menu, ChevronRight } from 'lucide-react';
 import SettingsModal from '../Settings/SettingsModal';
+import { findActiveLink, normalizeRole, ROLE_LABELS, homeRouteFor } from './navConfig';
 import './TopBar.css';
-import { updateProfile } from '../../services/authService';
 
-const TopBar = ({ onLogout, user }) => {
+const PROFILE_ROUTES = {
+  admin: '/dashboard/admin/profile',
+  agent: '/dashboard/agent/profile',
+  farmer: '/dashboard/farmer/profile',
+  'shop-manager': '/dashboard/shop-manager/profile',
+};
+
+const TopBar = ({ onLogout, user, onOpenMobileNav }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [profilePicture, setProfilePicture] = useState(() => {
-    return user?.profile?.picture || localStorage.getItem(`profilePic_${user?.email}`) || null;
-  });
+  const [profilePicture, setProfilePicture] = useState(
+    () => user?.profile?.picture || localStorage.getItem(`profilePic_${user?.email}`) || null
+  );
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState(null);
   const fileInputRef = useRef(null);
+  const menuRef = useRef(null);
+
+  const role = normalizeRole(user?.role || localStorage.getItem('role'));
+  const active = findActiveLink(role, location.pathname);
+  const pageTitle = active?.link.text || 'Dashboard';
+  const displayName = user?.full_name || user?.name || 'N/A';
+
+  // Close the menu on outside click / Escape.
+  useEffect(() => {
+    if (!showProfileMenu) return undefined;
+    const onClick = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) setShowProfileMenu(false);
+    };
+    const onKey = (e) => e.key === 'Escape' && setShowProfileMenu(false);
+    document.addEventListener('mousedown', onClick);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onClick);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [showProfileMenu]);
 
   const handleProfilePictureUpload = async (event) => {
     const file = event.target.files[0];
     if (!file) return;
-
     if (!file.type.startsWith('image/')) {
       setUploadError('Please select an image file');
       return;
     }
-
     if (file.size > 5 * 1024 * 1024) {
       setUploadError('File size must be less than 5MB');
       return;
     }
-
     setIsUploading(true);
     setUploadError(null);
-    
     try {
       const reader = new FileReader();
-      reader.onload = async (e) => {
+      reader.onload = (e) => {
         const imageDataUrl = e.target.result;
         setProfilePicture(imageDataUrl);
         localStorage.setItem(`profilePic_${user?.email}`, imageDataUrl);
       };
       reader.readAsDataURL(file);
-    } catch (err) {
+    } catch {
       setUploadError('Failed to upload image');
     } finally {
       setIsUploading(false);
     }
   };
 
-  const triggerFileUpload = () => {
-    fileInputRef.current?.click();
-  };
-
   const handleNavigateProfile = () => {
     setShowProfileMenu(false);
-    // Navigate based on user role
-    const role = user?.role || localStorage.getItem('role');
-    switch (role) {
-      case 'admin':
-        navigate('/dashboard/admin/profile');
-        break;
-      case 'agent':
-        navigate('/dashboard/agent/profile');
-        break;
-      case 'farmer':
-        navigate('/dashboard/farmer/profile');
-        break;
-      case 'shop_manager':
-        navigate('/dashboard/shop-manager/profile');
-        break;
-      default:
-        navigate('/dashboard');
-        break;
-    }
+    navigate(PROFILE_ROUTES[role] || '/dashboard');
   };
 
+  const menuItem =
+    'flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-100 focus:outline-none focus-visible:bg-slate-100';
+
   return (
-    <div className="topbar">
-      <div className="topbar-container">
-        <div className="topbar-content">
-          <div className="topbar-logo-section">
-            <div className="flex items-center">
-              <img
-                src={asr}
-                alt="Logo"
-                className="topbar-logo"
-              />
-              <h1 className="topbar-title-full">
-                Avocado Society of Rwanda
-              </h1>
-              <h1 className="topbar-title-mobile">
-                ASR
-              </h1>
-            </div>
-          </div>
+    <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center gap-3 border-b border-slate-200 bg-white/90 px-4 backdrop-blur sm:px-6">
+      <button
+        type="button"
+        onClick={onOpenMobileNav}
+        className="-ml-1 rounded-lg p-2 text-slate-600 hover:bg-slate-100 lg:hidden"
+        aria-label="Open menu"
+      >
+        <Menu className="h-5 w-5" />
+      </button>
 
-          <div className="topbar-actions">
-            <div className="relative">
-              <button
-                className="profile-button"
-                onClick={() => setShowProfileMenu(!showProfileMenu)}
-              >
-                <div className="profile-avatar1 relative">
-                  {profilePicture ? (
-                    <img 
-                      src={profilePicture} 
-                      alt="Profile" 
-                      className="w-8 h-8 rounded-full object-cover"
-                    />
-                  ) : (
-                    <User className="profile-avatar-icon" />
-                  )}
-                </div>
-                <span className="profile-name1">{user?.full_name || user?.name || 'N/A'}</span>
-                <ChevronDown className="profile-chevron hidden w-4 h-4" />
-              </button>
-
-              {/* Profile Dropdown */}
-              {showProfileMenu && (
-                <div className="profile-dropdown">
-                  <div className="py-2">
-                    <button 
-                      onClick={triggerFileUpload}
-                      className="profile-dropdown-item"
-                      disabled={isUploading}
-                    >
-                      {isUploading ? (
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                      ) : (
-                        <Camera className="w-4 h-4" />
-                      )}
-                      <span>Upload Photo</span>
-                    </button>
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/*"
-                      onChange={handleProfilePictureUpload}
-                      className="hidden"
-                    />
-                    {uploadError && (
-                      <div className="px-4 py-2 text-red-500 text-sm">
-                        {uploadError}
-                      </div>
-                    )}
-                    <button 
-                      onClick={handleNavigateProfile}
-                      className="profile-dropdown-item"
-                    >
-                      <User className="w-4 h-4" />
-                      <span>Profile</span>
-                    </button>
-                    <button 
-                      onClick={() => {
-                        setShowSettings(true);
-                        setShowProfileMenu(false);
-                      }}
-                      className="profile-dropdown-item"
-                    >
-                      <Settings className="w-4 h-4" />
-                      <span>Settings</span>
-                    </button>
-                    <button
-                      onClick={onLogout}
-                      className="profile-dropdown-item logout-button"
-                    >
-                      <LogOut className="w-4 h-4" />
-                      <span>Logout</span>
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
+      {/* Title + breadcrumb */}
+      <div className="min-w-0 flex-1">
+        <nav aria-label="Breadcrumb" className="hidden items-center gap-1 text-xs text-slate-500 sm:flex">
+          <button type="button" onClick={() => navigate(homeRouteFor(role))} className="hover:text-slate-700">
+            {ROLE_LABELS[role] || 'Dashboard'}
+          </button>
+          {active?.section && (
+            <>
+              <ChevronRight className="h-3 w-3" />
+              <span>{active.section}</span>
+            </>
+          )}
+        </nav>
+        <h1 className="truncate text-base font-semibold text-slate-900 sm:text-lg">{pageTitle}</h1>
       </div>
-      
-      {/* Settings Modal */}
-      <SettingsModal 
-        user={user}
-        isOpen={showSettings}
-        onClose={() => setShowSettings(false)}
-      />
-    </div>
+
+      {/* User menu */}
+      <div className="relative" ref={menuRef}>
+        <button
+          type="button"
+          onClick={() => setShowProfileMenu((v) => !v)}
+          className="flex items-center gap-2 rounded-full py-1 pl-1 pr-2 hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+          aria-haspopup="menu"
+          aria-expanded={showProfileMenu}
+        >
+          {profilePicture ? (
+            <img src={profilePicture} alt="" className="h-8 w-8 rounded-full object-cover ring-1 ring-slate-200" />
+          ) : (
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-100 text-sm font-semibold uppercase text-brand-800">
+              {displayName.charAt(0)}
+            </span>
+          )}
+          <span className="hidden max-w-[12rem] truncate text-sm font-medium text-slate-700 md:block">{displayName}</span>
+          <ChevronDown className="hidden h-4 w-4 text-slate-400 md:block" />
+        </button>
+
+        {showProfileMenu && (
+          <div role="menu" className="absolute right-0 mt-2 w-60 origin-top-right rounded-xl border border-slate-200 bg-white p-1.5 shadow-lg">
+            <div className="px-3 py-2">
+              <p className="truncate text-sm font-medium text-slate-900">{displayName}</p>
+              <p className="truncate text-xs text-slate-500">{ROLE_LABELS[role] || role}</p>
+            </div>
+            <div className="my-1 border-t border-slate-100" />
+            <button role="menuitem" onClick={() => fileInputRef.current?.click()} className={menuItem} disabled={isUploading}>
+              <Camera className="h-4 w-4 text-slate-400" />
+              {isUploading ? 'Uploading…' : 'Upload photo'}
+            </button>
+            <input ref={fileInputRef} type="file" accept="image/*" onChange={handleProfilePictureUpload} className="hidden" />
+            {uploadError && <p className="px-3 py-1 text-xs text-rose-600">{uploadError}</p>}
+            <button role="menuitem" onClick={handleNavigateProfile} className={menuItem}>
+              <User className="h-4 w-4 text-slate-400" />
+              Profile
+            </button>
+            <button
+              role="menuitem"
+              onClick={() => {
+                setShowSettings(true);
+                setShowProfileMenu(false);
+              }}
+              className={menuItem}
+            >
+              <Settings className="h-4 w-4 text-slate-400" />
+              Settings
+            </button>
+            <div className="my-1 border-t border-slate-100" />
+            <button role="menuitem" onClick={onLogout} className={`${menuItem} text-rose-600 hover:bg-rose-50`}>
+              <LogOut className="h-4 w-4" />
+              Logout
+            </button>
+          </div>
+        )}
+      </div>
+
+      <SettingsModal user={user} isOpen={showSettings} onClose={() => setShowSettings(false)} />
+    </header>
   );
 };
 

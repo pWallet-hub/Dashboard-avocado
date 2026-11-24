@@ -15,6 +15,7 @@ import {
 } from '../../services/marketPricesService';
 import { useToast } from '../../components/Ui/Toast';
 import { useConfirm } from '../../components/Ui/ConfirmDialog';
+import { Page, PageHeader, Card, StatGrid, Badge, Button, Field, inputClass, EmptyState, Table, Td } from '../../components/Ui/kit';
 
 const LINE_COLORS = { farm_gate: '#15803d', wholesale: '#2563eb', retail: '#d97706', export: '#7c3aed' };
 const PROVINCES = ['Kigali City', 'Eastern Province', 'Northern Province', 'Southern Province', 'Western Province'];
@@ -34,9 +35,9 @@ const emptyForm = () => ({
 });
 
 const ChangeBadge = ({ value }) => {
-  if (value === null || value === undefined) return <span className="text-xs text-gray-400">no prior data</span>;
+  if (value === null || value === undefined) return <span className="text-xs text-slate-400">No prior data</span>;
   const Icon = value > 0 ? TrendingUp : value < 0 ? TrendingDown : Minus;
-  const color = value > 0 ? 'text-green-600' : value < 0 ? 'text-red-600' : 'text-gray-500';
+  const color = value > 0 ? 'text-brand-700' : value < 0 ? 'text-rose-600' : 'text-slate-500';
   return (
     <span className={`inline-flex items-center text-xs font-medium ${color}`}>
       <Icon className="h-3.5 w-3.5 mr-1" />
@@ -129,251 +130,210 @@ const MarketPrices = ({ role = 'farmer' }) => {
     }
   };
 
-  const input = 'w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500';
+  const input = inputClass;
 
   return (
-    <div className="space-y-6 p-4 bg-gradient-to-b from-green-50 to-green-50 min-h-screen">
-      {/* Header */}
-      <div className="bg-white rounded-xl shadow-lg p-6 ring-1 ring-green-100">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div>
-            <h2 className="text-2xl font-bold text-green-800 flex items-center">
-              <LineChartIcon className="h-7 w-7 mr-3 text-green-600" />
-              Avocado Market Prices
-            </h2>
-            <p className="text-green-600 mt-1">
-              What buyers are paying per kg across Rwanda&apos;s markets, so you can sell at a fair price.
-            </p>
-          </div>
-          <div className="flex gap-2">
+    <Page>
+      <PageHeader
+        icon={LineChartIcon}
+        title="Avocado Market Prices"
+        subtitle="What buyers are paying per kg across Rwanda's markets, so you can sell at a fair price."
+        actions={
+          <>
             {canRecord && (
-              <button
-                onClick={() => setShowForm((v) => !v)}
-                className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm"
-              >
-                {showForm ? <X className="h-4 w-4 mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
+              <Button icon={showForm ? X : Plus} onClick={() => setShowForm((v) => !v)}>
                 {showForm ? 'Close' : 'Record price'}
-              </button>
+              </Button>
             )}
-            <button
-              onClick={load}
-              disabled={loading}
-              className="flex items-center px-4 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 text-sm"
-            >
-              <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+            <Button variant="secondary" icon={RefreshCw} onClick={load} loading={loading}>
               Refresh
-            </button>
-          </div>
-        </div>
+            </Button>
+          </>
+        }
+      />
 
-        {/* Filters */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-5">
+      {/* Filters */}
+      <div className="grid grid-cols-1 gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:grid-cols-3">
+        <Field label="Variety">
           <select className={input} value={filters.variety} onChange={(e) => setFilter('variety', e.target.value)} aria-label="Variety">
             {['Hass', 'Fuerte', 'Ettinger', 'Local'].map((v) => (
               <option key={v} value={v}>{v}</option>
             ))}
           </select>
+        </Field>
+        <Field label="District">
           <select className={input} value={filters.district} onChange={(e) => setFilter('district', e.target.value)} aria-label="District">
             <option value="">All districts</option>
             {districts.map((d) => (
               <option key={d} value={d}>{d}</option>
             ))}
           </select>
+        </Field>
+        <Field label="Price type">
           <select className={input} value={filters.price_type} onChange={(e) => setFilter('price_type', e.target.value)} aria-label="Price type">
             <option value="">All price types</option>
             {PRICE_TYPES.map((t) => (
               <option key={t.value} value={t.value}>{t.label}</option>
             ))}
           </select>
-        </div>
+        </Field>
       </div>
 
       {/* Record form */}
       {canRecord && showForm && (
-        <form onSubmit={submit} className="bg-white rounded-xl shadow-lg p-6 ring-1 ring-green-100">
-          <h3 className="text-lg font-semibold text-green-800 mb-4">Record a market price observation</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            <label className="text-sm text-gray-700">
-              Price per kg (RWF) *
-              <input type="number" min="1" step="1" required className={input} value={form.price_per_kg}
-                onChange={(e) => setForm({ ...form, price_per_kg: e.target.value })} />
-            </label>
-            <label className="text-sm text-gray-700">
-              Price type
-              <select className={input} value={form.price_type} onChange={(e) => setForm({ ...form, price_type: e.target.value })}>
-                {PRICE_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
-              </select>
-            </label>
-            <label className="text-sm text-gray-700">
-              Grade
-              <select className={input} value={form.grade} onChange={(e) => setForm({ ...form, grade: e.target.value })}>
-                {GRADES.map((g) => <option key={g.value} value={g.value}>{g.label}</option>)}
-              </select>
-            </label>
-            <label className="text-sm text-gray-700">
-              Variety
-              <input className={input} value={form.variety} onChange={(e) => setForm({ ...form, variety: e.target.value })} />
-            </label>
-            <label className="text-sm text-gray-700">
-              Province *
-              <select className={input} value={form.province} onChange={(e) => setForm({ ...form, province: e.target.value })}>
-                {PROVINCES.map((p) => <option key={p} value={p}>{p}</option>)}
-              </select>
-            </label>
-            <label className="text-sm text-gray-700">
-              District *
-              <input required className={input} value={form.district} placeholder="e.g. Rwamagana"
-                onChange={(e) => setForm({ ...form, district: e.target.value })} />
-            </label>
-            <label className="text-sm text-gray-700">
-              Market / buyer
-              <input className={input} value={form.market_name} placeholder="e.g. Rwamagana Market"
-                onChange={(e) => setForm({ ...form, market_name: e.target.value })} />
-            </label>
-            <label className="text-sm text-gray-700">
-              Source
-              <input className={input} value={form.source} placeholder="e.g. Field survey"
-                onChange={(e) => setForm({ ...form, source: e.target.value })} />
-            </label>
-            <label className="text-sm text-gray-700">
-              Date observed
-              <input type="date" max={today()} className={input} value={form.price_date}
-                onChange={(e) => setForm({ ...form, price_date: e.target.value })} />
-            </label>
-          </div>
-          <div className="flex justify-end mt-4">
-            <button type="submit" disabled={saving} className="px-5 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-60 text-sm">
-              {saving ? 'Saving…' : 'Save price'}
-            </button>
-          </div>
-        </form>
+        <Card title="Record a market price observation" subtitle="Prices are in RWF per kilogram.">
+          <form onSubmit={submit}>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <Field label="Price per kg (RWF)" required>
+                <input type="number" min="1" step="1" required className={input} value={form.price_per_kg}
+                  onChange={(e) => setForm({ ...form, price_per_kg: e.target.value })} />
+              </Field>
+              <Field label="Price type">
+                <select className={input} value={form.price_type} onChange={(e) => setForm({ ...form, price_type: e.target.value })}>
+                  {PRICE_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+                </select>
+              </Field>
+              <Field label="Grade">
+                <select className={input} value={form.grade} onChange={(e) => setForm({ ...form, grade: e.target.value })}>
+                  {GRADES.map((g) => <option key={g.value} value={g.value}>{g.label}</option>)}
+                </select>
+              </Field>
+              <Field label="Variety">
+                <input className={input} value={form.variety} onChange={(e) => setForm({ ...form, variety: e.target.value })} />
+              </Field>
+              <Field label="Province" required>
+                <select className={input} value={form.province} onChange={(e) => setForm({ ...form, province: e.target.value })}>
+                  {PROVINCES.map((p) => <option key={p} value={p}>{p}</option>)}
+                </select>
+              </Field>
+              <Field label="District" required>
+                <input required className={input} value={form.district} placeholder="e.g. Rwamagana"
+                  onChange={(e) => setForm({ ...form, district: e.target.value })} />
+              </Field>
+              <Field label="Market / buyer">
+                <input className={input} value={form.market_name} placeholder="e.g. Rwamagana Market"
+                  onChange={(e) => setForm({ ...form, market_name: e.target.value })} />
+              </Field>
+              <Field label="Source">
+                <input className={input} value={form.source} placeholder="e.g. Field survey"
+                  onChange={(e) => setForm({ ...form, source: e.target.value })} />
+              </Field>
+              <Field label="Date observed">
+                <input type="date" max={today()} className={input} value={form.price_date}
+                  onChange={(e) => setForm({ ...form, price_date: e.target.value })} />
+              </Field>
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <Button variant="secondary" onClick={() => setShowForm(false)}>Cancel</Button>
+              <Button type="submit" loading={saving}>{saving ? 'Saving…' : 'Save price'}</Button>
+            </div>
+          </form>
+        </Card>
       )}
 
       {/* Summary cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <StatGrid>
         {PRICE_TYPES.map((t) => {
           const s = summary.find((x) => x.price_type === t.value) || {};
           return (
-            <div key={t.value} className="bg-white rounded-xl shadow-lg p-5 ring-1 ring-green-100">
-              <p className="text-sm text-green-600">{t.label} · national avg (30 days)</p>
-              <p className="text-2xl font-bold text-green-800 mt-1">{rwf(s.average_price)}<span className="text-sm font-normal text-gray-500"> /kg</span></p>
-              <p className="text-xs text-gray-500 mt-1">
-                {s.observations ? `${s.observations} observations · range ${rwf(s.min_price)} – ${rwf(s.max_price)}` : 'No observations yet'}
+            <div key={t.value} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="flex items-center gap-2">
+                <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: LINE_COLORS[t.value] }} />
+                <p className="text-sm font-medium text-slate-500">{t.label}</p>
+              </div>
+              <p className="mt-2 text-2xl font-semibold text-slate-900">
+                {rwf(s.average_price)}<span className="text-sm font-normal text-slate-500"> /kg</span>
+              </p>
+              <p className="mt-1 text-xs text-slate-500">
+                {s.observations ? `National avg, 30 days · ${s.observations} obs · ${rwf(s.min_price)} – ${rwf(s.max_price)}` : 'No observations yet'}
               </p>
               <div className="mt-2"><ChangeBadge value={s.change_pct} /></div>
             </div>
           );
         })}
-      </div>
+      </StatGrid>
 
       {/* Trend chart */}
-      <div className="bg-white rounded-xl shadow-lg p-6 ring-1 ring-green-100">
-        <h3 className="text-lg font-semibold text-green-800 mb-1">Weekly average price · last 90 days</h3>
-        <p className="text-sm text-gray-500 mb-4">{filters.variety}{filters.district ? ` · ${filters.district}` : ' · all districts'}</p>
+      <Card title="Weekly average price · last 90 days" subtitle={`${filters.variety}${filters.district ? ` · ${filters.district}` : ' · all districts'}`}>
         {trend.length === 0 ? (
-          <p className="text-gray-500 text-sm py-10 text-center">No price data for this selection yet.</p>
+          <EmptyState icon={LineChartIcon} title="No price data yet" description="No observations match this selection in the last 90 days." />
         ) : (
           <div className="h-72">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={trend} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis dataKey="period" tick={{ fontSize: 12 }} tickFormatter={(d) => new Date(d).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} />
-                <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => v.toLocaleString()} />
-                <Tooltip formatter={(v, name) => [rwf(v), labelFor(PRICE_TYPES, name)]} labelFormatter={(d) => `Week of ${new Date(d).toLocaleDateString()}`} />
-                <Legend formatter={(name) => labelFor(PRICE_TYPES, name)} />
+              <LineChart data={trend} margin={{ top: 5, right: 16, left: 4, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                <XAxis dataKey="period" tick={{ fontSize: 12, fill: '#64748b' }} tickLine={false} axisLine={{ stroke: '#e2e8f0' }}
+                  tickFormatter={(d) => new Date(d).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} />
+                <YAxis tick={{ fontSize: 12, fill: '#64748b' }} tickLine={false} axisLine={false} width={48} tickFormatter={(v) => v.toLocaleString()} />
+                <Tooltip
+                  contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0', boxShadow: '0 4px 12px rgba(15,23,42,.08)' }}
+                  formatter={(v, name) => [rwf(v), labelFor(PRICE_TYPES, name)]}
+                  labelFormatter={(d) => `Week of ${new Date(d).toLocaleDateString()}`}
+                />
+                <Legend iconType="circle" formatter={(name) => <span className="text-sm text-slate-600">{labelFor(PRICE_TYPES, name)}</span>} />
                 {visibleTypes.map((type) => (
-                  <Line key={type} type="monotone" dataKey={type} stroke={LINE_COLORS[type]} strokeWidth={2} dot={false} connectNulls />
+                  <Line key={type} type="monotone" dataKey={type} stroke={LINE_COLORS[type]} strokeWidth={2.5} dot={false} connectNulls />
                 ))}
               </LineChart>
             </ResponsiveContainer>
           </div>
         )}
-      </div>
+      </Card>
 
       {/* Latest prices per market */}
-      <div className="bg-white rounded-xl shadow-lg p-6 ring-1 ring-green-100">
-        <h3 className="text-lg font-semibold text-green-800 mb-4">Latest price by market</h3>
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-sm">
-            <thead>
-              <tr className="text-left text-gray-500 border-b">
-                <th className="py-2 pr-4">District</th>
-                <th className="py-2 pr-4">Market</th>
-                <th className="py-2 pr-4">Type</th>
-                <th className="py-2 pr-4">Grade</th>
-                <th className="py-2 pr-4 text-right">Price / kg</th>
-                <th className="py-2">Date</th>
+      <Card title="Latest price by market" padded={false}>
+        {latest.length === 0 ? (
+          <EmptyState icon={LineChartIcon} title="No recent prices" />
+        ) : (
+          <Table head={['District', 'Market', 'Type', 'Grade', 'Price / kg', 'Date']}>
+            {latest.map((p) => (
+              <tr key={p.id} className="hover:bg-slate-50">
+                <Td className="font-medium text-slate-900">{p.district}</Td>
+                <Td className="text-slate-500">{p.market_name || '—'}</Td>
+                <Td><Badge tone={p.price_type === 'export' ? 'blue' : 'slate'}>{labelFor(PRICE_TYPES, p.price_type)}</Badge></Td>
+                <Td>{labelFor(GRADES, p.grade)}</Td>
+                <Td className="font-semibold text-slate-900">{rwf(p.price_per_kg)}</Td>
+                <Td className="text-slate-500">{new Date(p.price_date).toLocaleDateString()}</Td>
               </tr>
-            </thead>
-            <tbody>
-              {latest.length === 0 && (
-                <tr><td colSpan={6} className="py-6 text-center text-gray-500">No recent prices.</td></tr>
-              )}
-              {latest.map((p) => (
-                <tr key={p.id} className="border-b last:border-0">
-                  <td className="py-2 pr-4 font-medium text-gray-800">{p.district}</td>
-                  <td className="py-2 pr-4 text-gray-600">{p.market_name || '—'}</td>
-                  <td className="py-2 pr-4">{labelFor(PRICE_TYPES, p.price_type)}</td>
-                  <td className="py-2 pr-4">{labelFor(GRADES, p.grade)}</td>
-                  <td className="py-2 pr-4 text-right font-semibold text-green-800">{rwf(p.price_per_kg)}</td>
-                  <td className="py-2 text-gray-500">{new Date(p.price_date).toLocaleDateString()}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+            ))}
+          </Table>
+        )}
+      </Card>
 
       {/* History (staff only) */}
       {canRecord && (
-        <div className="bg-white rounded-xl shadow-lg p-6 ring-1 ring-green-100">
-          <h3 className="text-lg font-semibold text-green-800 mb-4">All observations</h3>
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
-              <thead>
-                <tr className="text-left text-gray-500 border-b">
-                  <th className="py-2 pr-4">Date</th>
-                  <th className="py-2 pr-4">District</th>
-                  <th className="py-2 pr-4">Type</th>
-                  <th className="py-2 pr-4 text-right">Price / kg</th>
-                  <th className="py-2 pr-4">Source</th>
-                  <th className="py-2 pr-4">Recorded by</th>
-                  {canDelete && <th className="py-2" />}
-                </tr>
-              </thead>
-              <tbody>
-                {history.data.map((p) => (
-                  <tr key={p.id} className="border-b last:border-0">
-                    <td className="py-2 pr-4">{new Date(p.price_date).toLocaleDateString()}</td>
-                    <td className="py-2 pr-4">{p.district}</td>
-                    <td className="py-2 pr-4">{labelFor(PRICE_TYPES, p.price_type)}</td>
-                    <td className="py-2 pr-4 text-right">{rwf(p.price_per_kg)}</td>
-                    <td className="py-2 pr-4 text-gray-500">{p.source || '—'}</td>
-                    <td className="py-2 pr-4 text-gray-500">{p.recorder?.full_name || '—'}</td>
-                    {canDelete && (
-                      <td className="py-2 text-right">
-                        <button onClick={() => remove(p)} className="text-red-600 hover:text-red-800" aria-label="Delete price">
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </td>
-                    )}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <div className="flex justify-between items-center mt-4 text-sm">
-            <span className="text-gray-500">
+        <Card title="All observations" padded={false}>
+          <Table head={['Date', 'District', 'Type', 'Price / kg', 'Source', 'Recorded by', ...(canDelete ? [''] : [])]}>
+            {history.data.map((p) => (
+              <tr key={p.id} className="hover:bg-slate-50">
+                <Td>{new Date(p.price_date).toLocaleDateString()}</Td>
+                <Td>{p.district}</Td>
+                <Td>{labelFor(PRICE_TYPES, p.price_type)}</Td>
+                <Td className="font-medium text-slate-900">{rwf(p.price_per_kg)}</Td>
+                <Td className="text-slate-500">{p.source || '—'}</Td>
+                <Td className="text-slate-500">{p.recorder?.full_name || '—'}</Td>
+                {canDelete && (
+                  <Td className="text-right">
+                    <button onClick={() => remove(p)} className="rounded-md p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600" aria-label="Delete price">
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </Td>
+                )}
+              </tr>
+            ))}
+          </Table>
+          <div className="flex items-center justify-between border-t border-slate-100 px-5 py-3 text-sm">
+            <span className="text-slate-500">
               Page {history.pagination.page || page} of {Math.max(1, history.pagination.totalPages || 1)}
             </span>
             <div className="flex gap-2">
-              <button disabled={page <= 1} onClick={() => setPage((p) => p - 1)} className="px-3 py-1 rounded border disabled:opacity-40">Previous</button>
-              <button disabled={!history.pagination.hasNext} onClick={() => setPage((p) => p + 1)} className="px-3 py-1 rounded border disabled:opacity-40">Next</button>
+              <Button size="sm" variant="secondary" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>Previous</Button>
+              <Button size="sm" variant="secondary" disabled={!history.pagination.hasNext} onClick={() => setPage((p) => p + 1)}>Next</Button>
             </div>
           </div>
-        </div>
+        </Card>
       )}
-    </div>
+    </Page>
   );
 };
 
