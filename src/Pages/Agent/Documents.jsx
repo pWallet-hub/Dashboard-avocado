@@ -1,413 +1,323 @@
-import React, { useEffect, useState } from 'react';
-import { FileText, Download, Eye, PenTool, UploadCloud, Leaf, RefreshCw } from 'lucide-react';
-import {
-  listDocuments,
-  getDocument,
-  downloadDocument,
-  attachSignature,
-  uploadNotarizedCopy,
-} from '../../services/documentsService';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { FileText, Download, Eye, PenTool, UploadCloud, RefreshCw, Eraser } from 'lucide-react';
+import { listDocuments, getDocument, downloadDocument, attachSignature, uploadNotarizedCopy } from '../../services/documentsService';
 import { useToast } from '../../components/Ui/Toast';
+import {
+  Page, PageHeader, Card, Badge, Button, Field, inputClass, EmptyState, ErrorState, Spinner, Table, Td, Dialog, Tabs,
+} from '../../components/Ui/kit';
 
-const DOCUMENT_TYPES = [
-  { value: 'all', label: 'All Types' },
-  { value: 'profile_card', label: 'Profile Card' },
-  { value: 'contract', label: 'Contract' },
-  { value: 'ipm_form', label: 'IPM Form' },
-  { value: 'notarized_upload', label: 'Notarized Upload' },
-  { value: 'other', label: 'Other' },
-];
+const TYPE_LABEL = {
+  profile_card: 'Profile card',
+  contract: 'Contract',
+  ipm_form: 'IPM form',
+  notarized_upload: 'Notarized upload',
+  other: 'Other',
+};
+const TYPE_FILTERS = [{ id: '', label: 'All' }, ...Object.entries(TYPE_LABEL).slice(0, 3).map(([id, label]) => ({ id, label }))];
+const STATUS = {
+  generated: { label: 'Generated', tone: 'slate' },
+  pending_notarization: { label: 'Pending review', tone: 'amber' },
+  notarized: { label: 'Notarized', tone: 'brand' },
+  rejected: { label: 'Rejected', tone: 'rose' },
+};
+const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
+const MAX_BYTES = 5 * 1024 * 1024;
+const EXT = { 'application/pdf': 'pdf', 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp' };
 
-const statusBadgeClass = (status) => {
-  switch ((status || '').toLowerCase()) {
-    case 'approved':
-      return 'bg-green-200 text-green-800 ring-green-500';
-    case 'rejected':
-      return 'bg-red-200 text-red-800 ring-red-500';
-    case 'pending':
-      return 'bg-yellow-200 text-yellow-800 ring-yellow-500';
-    default:
-      return 'bg-gray-200 text-gray-800 ring-gray-500';
-  }
+const fmtDate = (v) => {
+  if (!v) return '—';
+  const d = new Date(v);
+  return Number.isNaN(d.getTime()) ? '—' : d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+};
+const fileName = (doc) => `${doc.type || 'document'}-v${doc.version || 1}.${EXT[doc.mimetype] || 'pdf'}`;
+const checkFile = (file, imagesOnly = false) => {
+  if (!file) return 'Please choose a file';
+  const types = imagesOnly ? ALLOWED_TYPES.filter((t) => t.startsWith('image/')) : ALLOWED_TYPES;
+  if (!types.includes(file.type)) return imagesOnly ? 'Use a PNG, JPEG or WEBP image' : 'Use a PDF, PNG, JPEG or WEBP file';
+  if (file.size > MAX_BYTES) return 'File must be 5 MB or smaller';
+  return null;
 };
 
-const Documents = () => {
-  const toast = useToast();
-  const [documents, setDocuments] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [typeFilter, setTypeFilter] = useState('all');
-
-  const [metadataDoc, setMetadataDoc] = useState(null);
-  const [metadataLoading, setMetadataLoading] = useState(false);
-
-  const [signatureTarget, setSignatureTarget] = useState(null);
-  const [signatureFile, setSignatureFile] = useState(null);
-  const [signatureSubmitting, setSignatureSubmitting] = useState(false);
-
-  const [notarizeTarget, setNotarizeTarget] = useState(null);
-  const [notarizeFile, setNotarizeFile] = useState(null);
-  const [notarizeSubmitting, setNotarizeSubmitting] = useState(false);
-
-  const [downloadingId, setDownloadingId] = useState(null);
-
+/** Minimal pointer-driven signature pad. Exposes the drawing via onChange(hasInk). */
+function SignaturePad({ canvasRef, onChange }) {
+  const drawing = useRef(false);
   useEffect(() => {
-    loadDocuments();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [typeFilter]);
+    const c = canvasRef.current;
+    const ratio = window.devicePixelRatio || 1;
+    c.width = c.offsetWidth * ratio;
+    c.height = c.offsetHeight * ratio;
+    const ctx = c.getContext('2d');
+    ctx.scale(ratio, ratio);
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = '#0f172a';
+  }, [canvasRef]);
+  const pos = (e) => {
+    const r = canvasRef.current.getBoundingClientRect();
+    return [e.clientX - r.left, e.clientY - r.top];
+  };
+  return (
+    <canvas
+      ref={canvasRef}
+      aria-label="Signature pad — draw your signature"
+      className="h-40 w-full touch-none rounded-lg border border-dashed border-slate-300 bg-white"
+      onPointerDown={(e) => {
+        drawing.current = true;
+        e.currentTarget.setPointerCapture(e.pointerId);
+        const ctx = canvasRef.current.getContext('2d');
+        ctx.beginPath();
+        ctx.moveTo(...pos(e));
+      }}
+      onPointerMove={(e) => {
+        if (!drawing.current) return;
+        const ctx = canvasRef.current.getContext('2d');
+        ctx.lineTo(...pos(e));
+        ctx.stroke();
+        onChange(true);
+      }}
+      onPointerUp={() => { drawing.current = false; }}
+      onPointerLeave={() => { drawing.current = false; }}
+    />
+  );
+}
 
-  const loadDocuments = async () => {
+export default function Documents() {
+  const toast = useToast();
+  const [docs, setDocs] = useState([]);
+  const [type, setType] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [rowBusy, setRowBusy] = useState(null);
+
+  const [viewing, setViewing] = useState(null);
+  const [signing, setSigning] = useState(null); // { doc, mode: 'draw'|'upload', file, hasInk }
+  const [notarizing, setNotarizing] = useState(null); // { doc, file }
+  const [busy, setBusy] = useState(false);
+  const padRef = useRef(null);
+
+  const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const options = {};
-      if (typeFilter !== 'all') options.type = typeFilter;
-      const data = await listDocuments(options);
-      setDocuments(Array.isArray(data) ? data : []);
+      setDocs(await listDocuments(type ? { type } : {}));
     } catch (err) {
-      console.error('Error loading documents:', err);
-      setError(err.message || 'Failed to load documents');
-      setDocuments([]);
+      setError(err.message);
     } finally {
       setLoading(false);
     }
-  };
+  }, [type]);
 
-  const handleViewMetadata = async (doc) => {
-    setMetadataLoading(true);
+  useEffect(() => { load(); }, [load]);
+
+  const view = async (doc) => {
+    setRowBusy(doc.id);
     try {
-      const fullDoc = await getDocument(doc.id);
-      setMetadataDoc(fullDoc || doc);
+      setViewing(await getDocument(doc.id));
     } catch (err) {
-      console.error('Error fetching document metadata:', err);
-      setMetadataDoc(doc);
+      toast.error(err.message);
     } finally {
-      setMetadataLoading(false);
+      setRowBusy(null);
     }
   };
 
-  const handleDownload = async (doc) => {
-    setDownloadingId(doc.id);
+  const download = async (doc) => {
+    setRowBusy(doc.id);
     try {
-      await downloadDocument(doc.id, doc.file_name || doc.name || `document-${doc.id}`);
-      toast.success('Download started');
+      await downloadDocument(doc.id, fileName(doc));
     } catch (err) {
-      console.error('Error downloading document:', err);
-      toast.error('Error downloading document: ' + err.message);
+      toast.error(err.message);
     } finally {
-      setDownloadingId(null);
+      setRowBusy(null);
     }
   };
 
-  const openSignatureModal = (doc) => {
-    setSignatureFile(null);
-    setSignatureTarget(doc);
-  };
-
-  const handleAttachSignature = async () => {
-    if (!signatureFile) {
-      toast.error('Please select a signature image');
-      return;
+  const submitSignature = async (e) => {
+    e.preventDefault();
+    let file = signing.file;
+    if (signing.mode === 'draw') {
+      if (!signing.hasInk) return toast.error('Please draw your signature first');
+      const blob = await new Promise((resolve) => padRef.current.toBlob(resolve, 'image/png'));
+      file = new File([blob], 'signature.png', { type: 'image/png' });
+    } else {
+      const problem = checkFile(file, true);
+      if (problem) return toast.error(problem);
     }
-    setSignatureSubmitting(true);
+    setBusy(true);
     try {
-      await attachSignature(signatureTarget.id, signatureFile);
-      toast.success('Signature attached successfully');
-      setSignatureTarget(null);
-      setSignatureFile(null);
-      await loadDocuments();
+      await attachSignature(signing.doc.id, file);
+      toast.success('Signature attached');
+      setSigning(null);
+      load();
     } catch (err) {
-      console.error('Error attaching signature:', err);
-      toast.error('Error attaching signature: ' + err.message);
+      toast.error(err.message);
     } finally {
-      setSignatureSubmitting(false);
+      setBusy(false);
     }
   };
 
-  const openNotarizeModal = (doc) => {
-    setNotarizeFile(null);
-    setNotarizeTarget(doc);
-  };
-
-  const handleUploadNotarized = async () => {
-    if (!notarizeFile) {
-      toast.error('Please select the notarized document file');
-      return;
-    }
-    setNotarizeSubmitting(true);
+  const submitNotarized = async (e) => {
+    e.preventDefault();
+    const problem = checkFile(notarizing.file);
+    if (problem) return toast.error(problem);
+    setBusy(true);
     try {
-      await uploadNotarizedCopy(notarizeTarget.id, notarizeFile);
-      toast.success('Notarized copy uploaded. Awaiting admin review.');
-      setNotarizeTarget(null);
-      setNotarizeFile(null);
-      await loadDocuments();
+      await uploadNotarizedCopy(notarizing.doc.id, notarizing.file);
+      toast.success('Notarized copy submitted for admin review');
+      setNotarizing(null);
+      load();
     } catch (err) {
-      console.error('Error uploading notarized copy:', err);
-      toast.error('Error uploading notarized copy: ' + err.message);
+      toast.error(err.message);
     } finally {
-      setNotarizeSubmitting(false);
+      setBusy(false);
     }
+  };
+
+  const clearPad = () => {
+    const c = padRef.current;
+    c?.getContext('2d').clearRect(0, 0, c.width, c.height);
+    setSigning((s) => ({ ...s, hasInk: false }));
   };
 
   return (
-    <div className="space-y-6 p-4 bg-gradient-to-b from-green-50 to-green-50 min-h-screen">
-      {/* Header */}
-      <div className="bg-white rounded-xl shadow-lg p-6 ring-1 ring-green-100">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h2 className="text-2xl font-bold text-green-800 flex items-center">
-              <FileText className="h-7 w-7 mr-3 text-green-600" />
-              My Documents
-            </h2>
-            <p className="text-green-600 mt-1">View, download, sign, and submit notarized copies of your documents</p>
-            {error && (
-              <div className="mt-2 p-2 bg-yellow-100 border border-yellow-400 rounded text-sm text-yellow-700">
-                {error}
-              </div>
-            )}
-          </div>
-          <button
-            onClick={loadDocuments}
-            className="flex items-center px-4 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-all"
-            disabled={loading}
-          >
-            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-            Refresh
-          </button>
+    <Page>
+      <PageHeader
+        icon={FileText}
+        title="My Documents"
+        subtitle="Your profile card, contract and forms. Sign them or upload a notarized copy for review."
+        actions={<Button variant="secondary" icon={RefreshCw} onClick={load} disabled={loading}>Refresh</Button>}
+      />
+
+      <Card padded={false}>
+        <div className="border-b border-slate-100 p-4">
+          <Tabs tabs={TYPE_FILTERS} value={type} onChange={setType} />
         </div>
-      </div>
-
-      {/* Filter */}
-      <div className="bg-white rounded-xl shadow-lg p-6 ring-1 ring-green-100">
-        <label className="block text-sm font-medium text-green-700 mb-2">Filter by Type</label>
-        <select
-          value={typeFilter}
-          onChange={(e) => setTypeFilter(e.target.value)}
-          className="w-full sm:w-64 p-2 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500"
-        >
-          {DOCUMENT_TYPES.map((t) => (
-            <option key={t.value} value={t.value}>{t.label}</option>
-          ))}
-        </select>
-      </div>
-
-      {/* Documents Table */}
-      <div className="bg-white rounded-xl shadow-lg overflow-hidden ring-1 ring-green-100">
         {loading ? (
-          <div className="p-8 text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto"></div>
-            <p className="mt-2 text-green-600">Loading documents...</p>
-          </div>
-        ) : documents.length === 0 ? (
-          <div className="p-8 text-center">
-            <Leaf className="h-12 w-12 text-green-400 mx-auto mb-4" />
-            <p className="text-green-600 text-lg font-medium mb-2">No documents found</p>
-            <p className="text-green-500 text-sm">Documents assigned to you will appear here.</p>
-          </div>
+          <Spinner label="Loading documents…" />
+        ) : error ? (
+          <ErrorState message={error} onRetry={load} />
+        ) : docs.length === 0 ? (
+          <EmptyState
+            icon={FileText}
+            title="No documents yet"
+            description="Documents generated for your account (profile card, contract, IPM forms) will appear here."
+          />
         ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-green-100">
-              <thead className="bg-green-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-green-700 uppercase tracking-wider">Type</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-green-700 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-green-700 uppercase tracking-wider">Created</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-green-700 uppercase tracking-wider">Actions</th>
+          <Table head={['Document', 'Status', 'Version', 'Signed', 'Updated', 'Actions']}>
+            {docs.map((d) => {
+              const st = STATUS[d.status] || { label: d.status || 'Unknown', tone: 'slate' };
+              const canNotarize = d.status === 'generated' || d.status === 'rejected';
+              return (
+                <tr key={d.id}>
+                  <Td className="font-medium text-slate-900">{TYPE_LABEL[d.type] || d.type || 'Document'}</Td>
+                  <Td>
+                    <Badge tone={st.tone}>{st.label}</Badge>
+                    {d.status === 'rejected' && d.rejection_reason && (
+                      <p className="mt-1 max-w-[220px] truncate text-xs text-rose-600" title={d.rejection_reason}>{d.rejection_reason}</p>
+                    )}
+                  </Td>
+                  <Td>v{d.version || 1}</Td>
+                  <Td>{d.signature_id ? <Badge tone="brand">Signed</Badge> : <span className="text-slate-400">Not signed</span>}</Td>
+                  <Td>{fmtDate(d.updated_at || d.created_at)}</Td>
+                  <Td>
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="ghost" icon={Eye} disabled={rowBusy === d.id} onClick={() => view(d)}>Details</Button>
+                      <Button size="sm" variant="secondary" icon={Download} loading={rowBusy === d.id} onClick={() => download(d)}>Download</Button>
+                      {!d.signature_id && (
+                        <Button size="sm" variant="secondary" icon={PenTool} onClick={() => setSigning({ doc: d, mode: 'draw', file: null, hasInk: false })}>Sign</Button>
+                      )}
+                      {canNotarize && (
+                        <Button size="sm" icon={UploadCloud} onClick={() => setNotarizing({ doc: d, file: null })}>Upload notarized</Button>
+                      )}
+                    </div>
+                  </Td>
                 </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-green-100">
-                {documents.map((doc) => (
-                  <tr key={doc.id} className="hover:bg-green-50 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-green-900">
-                        {(doc.type || 'other').replace(/_/g, ' ')}
-                      </div>
-                      <div className="text-xs text-green-500">{doc.id}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ring-1 ${statusBadgeClass(doc.notarization_status || doc.status)}`}>
-                        {(doc.notarization_status || doc.status || 'N/A').toString().replace(/_/g, ' ')}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-green-900">
-                        {doc.created_at ? new Date(doc.created_at).toLocaleDateString() : 'N/A'}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <div className="flex space-x-3">
-                        <button
-                          onClick={() => handleViewMetadata(doc)}
-                          className="text-green-600 hover:text-green-800 transform hover:scale-110 transition"
-                          title="View metadata"
-                          aria-label="View metadata"
-                        >
-                          <Eye className="h-5 w-5" />
-                        </button>
-                        <button
-                          onClick={() => handleDownload(doc)}
-                          className="text-blue-600 hover:text-blue-800 transform hover:scale-110 transition disabled:opacity-50"
-                          title="Download"
-                          aria-label="Download"
-                          disabled={downloadingId === doc.id}
-                        >
-                          <Download className="h-5 w-5" />
-                        </button>
-                        <button
-                          onClick={() => openSignatureModal(doc)}
-                          className="text-purple-600 hover:text-purple-800 transform hover:scale-110 transition"
-                          title="Attach signature"
-                          aria-label="Attach signature"
-                        >
-                          <PenTool className="h-5 w-5" />
-                        </button>
-                        <button
-                          onClick={() => openNotarizeModal(doc)}
-                          className="text-orange-600 hover:text-orange-800 transform hover:scale-110 transition"
-                          title="Upload notarized copy"
-                          aria-label="Upload notarized copy"
-                        >
-                          <UploadCloud className="h-5 w-5" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+              );
+            })}
+          </Table>
         )}
-      </div>
+      </Card>
 
-      {/* Metadata Modal */}
-      {metadataDoc && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-8 w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl ring-1 ring-green-200">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-semibold text-green-800">Document Metadata</h3>
-              <button
-                onClick={() => setMetadataDoc(null)}
-                className="text-green-400 hover:text-green-600 text-2xl"
-                aria-label="Close"
-              >
-                &times;
-              </button>
-            </div>
-            {metadataLoading ? (
-              <div className="text-center py-4 text-green-600">Loading...</div>
-            ) : (
-              <div className="space-y-2 text-sm">
-                {Object.entries(metadataDoc).map(([key, value]) => (
-                  <div key={key} className="flex justify-between border-b border-green-50 py-2">
-                    <span className="font-medium text-green-700 mr-4">{key.replace(/_/g, ' ')}</span>
-                    <span className="text-green-600 text-right break-all">
-                      {typeof value === 'object' && value !== null ? JSON.stringify(value) : String(value ?? 'N/A')}
-                    </span>
-                  </div>
-                ))}
+      {viewing && (
+        <Dialog
+          title={TYPE_LABEL[viewing.type] || 'Document'}
+          subtitle={`Version ${viewing.version || 1}`}
+          onClose={() => setViewing(null)}
+          footer={<Button icon={Download} onClick={() => download(viewing)}>Download</Button>}
+        >
+          <dl className="space-y-3 text-sm">
+            {[
+              ['Status', <Badge key="s" tone={(STATUS[viewing.status] || {}).tone}>{(STATUS[viewing.status] || {}).label || viewing.status}</Badge>],
+              ['Signed', viewing.signature_id ? 'Yes' : 'No'],
+              ['File type', viewing.mimetype || '—'],
+              ['Created', fmtDate(viewing.created_at)],
+              ['Last updated', fmtDate(viewing.updated_at)],
+              ...(viewing.rejection_reason ? [['Rejection reason', viewing.rejection_reason]] : []),
+            ].map(([k, v]) => (
+              <div key={k} className="flex justify-between gap-4">
+                <dt className="font-medium text-slate-500">{k}</dt>
+                <dd className="text-right text-slate-900">{v}</dd>
               </div>
+            ))}
+          </dl>
+        </Dialog>
+      )}
+
+      {signing && (
+        <Dialog
+          title="Sign document"
+          subtitle={TYPE_LABEL[signing.doc.type] || 'Document'}
+          onClose={() => !busy && setSigning(null)}
+          footer={
+            <>
+              <Button variant="secondary" onClick={() => setSigning(null)} disabled={busy}>Cancel</Button>
+              <Button type="submit" form="sign-form" icon={PenTool} loading={busy}>Attach signature</Button>
+            </>
+          }
+        >
+          <form id="sign-form" onSubmit={submitSignature} className="space-y-4">
+            <Tabs
+              tabs={[{ id: 'draw', label: 'Draw' }, { id: 'upload', label: 'Upload image' }]}
+              value={signing.mode}
+              onChange={(mode) => setSigning({ ...signing, mode, hasInk: false })}
+            />
+            {signing.mode === 'draw' ? (
+              <div className="space-y-2">
+                <SignaturePad canvasRef={padRef} onChange={(hasInk) => setSigning((s) => (s.hasInk === hasInk ? s : { ...s, hasInk }))} />
+                <div className="flex items-center justify-between text-xs text-slate-500">
+                  <span>Sign with your finger or mouse.</span>
+                  <Button size="sm" variant="ghost" icon={Eraser} onClick={clearPad}>Clear</Button>
+                </div>
+              </div>
+            ) : (
+              <Field label="Signature image" required hint="PNG, JPEG or WEBP, up to 5 MB.">
+                <input type="file" accept="image/png,image/jpeg,image/webp" className={inputClass} onChange={(e) => setSigning({ ...signing, file: e.target.files?.[0] || null })} />
+              </Field>
             )}
-            <div className="flex justify-end mt-6">
-              <button
-                onClick={() => setMetadataDoc(null)}
-                className="px-6 py-3 border border-green-300 rounded-lg text-green-700 hover:bg-green-50 transition-all"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
+            <p className="text-xs text-slate-500">A document can be signed once; the signature cannot be replaced afterwards.</p>
+          </form>
+        </Dialog>
       )}
 
-      {/* Attach Signature Modal */}
-      {signatureTarget && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-8 w-full max-w-md shadow-2xl ring-1 ring-green-200">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-semibold text-green-800">Attach Signature</h3>
-              <button
-                onClick={() => setSignatureTarget(null)}
-                className="text-green-400 hover:text-green-600 text-2xl"
-                aria-label="Close"
-              >
-                &times;
-              </button>
-            </div>
-            <p className="text-sm text-green-600 mb-4">
-              Upload an image of your signature for document{' '}
-              <span className="font-medium">{signatureTarget.id}</span>.
-            </p>
-            <input
-              type="file"
-              accept="image/*"
-              onChange={(e) => setSignatureFile(e.target.files?.[0] || null)}
-              className="w-full p-2 border border-green-300 rounded-lg"
-            />
-            <div className="flex justify-end space-x-4 mt-8">
-              <button
-                onClick={() => setSignatureTarget(null)}
-                className="px-6 py-3 border border-green-300 rounded-lg text-green-700 hover:bg-green-50 transition-all"
-                disabled={signatureSubmitting}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleAttachSignature}
-                className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all"
-                disabled={signatureSubmitting}
-              >
-                {signatureSubmitting ? 'Uploading...' : 'Attach Signature'}
-              </button>
-            </div>
-          </div>
-        </div>
+      {notarizing && (
+        <Dialog
+          title="Upload notarized copy"
+          subtitle={TYPE_LABEL[notarizing.doc.type] || 'Document'}
+          onClose={() => !busy && setNotarizing(null)}
+          footer={
+            <>
+              <Button variant="secondary" onClick={() => setNotarizing(null)} disabled={busy}>Cancel</Button>
+              <Button type="submit" form="notarize-form" icon={UploadCloud} loading={busy}>Submit for review</Button>
+            </>
+          }
+        >
+          <form id="notarize-form" onSubmit={submitNotarized} className="space-y-4">
+            <p className="text-sm text-slate-600">Upload a scan or photo of the stamped document. An admin reviews it before it is marked notarized.</p>
+            <Field label="Notarized file" required hint="PDF, PNG, JPEG or WEBP, up to 5 MB.">
+              <input type="file" accept="application/pdf,image/png,image/jpeg,image/webp" className={inputClass} onChange={(e) => setNotarizing({ ...notarizing, file: e.target.files?.[0] || null })} />
+            </Field>
+          </form>
+        </Dialog>
       )}
-
-      {/* Upload Notarized Copy Modal */}
-      {notarizeTarget && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-8 w-full max-w-md shadow-2xl ring-1 ring-green-200">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-semibold text-green-800">Upload Notarized Copy</h3>
-              <button
-                onClick={() => setNotarizeTarget(null)}
-                className="text-green-400 hover:text-green-600 text-2xl"
-                aria-label="Close"
-              >
-                &times;
-              </button>
-            </div>
-            <p className="text-sm text-green-600 mb-4">
-              Upload the physically notarized copy of document{' '}
-              <span className="font-medium">{notarizeTarget.id}</span> for admin review.
-            </p>
-            <input
-              type="file"
-              accept="image/*,.pdf"
-              onChange={(e) => setNotarizeFile(e.target.files?.[0] || null)}
-              className="w-full p-2 border border-green-300 rounded-lg"
-            />
-            <div className="flex justify-end space-x-4 mt-8">
-              <button
-                onClick={() => setNotarizeTarget(null)}
-                className="px-6 py-3 border border-green-300 rounded-lg text-green-700 hover:bg-green-50 transition-all"
-                disabled={notarizeSubmitting}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleUploadNotarized}
-                className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all"
-                disabled={notarizeSubmitting}
-              >
-                {notarizeSubmitting ? 'Uploading...' : 'Upload'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+    </Page>
   );
-};
-
-export default Documents;
+}

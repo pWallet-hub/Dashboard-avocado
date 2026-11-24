@@ -77,7 +77,6 @@ import ShopProducts from './Pages/ShopManager/ShopProducts';
 
 import ProtectedRoute from './components/Layout/ProtectedRoute';
 import RoleBasedRoute from './components/Layout/RoleBasedRoute';
-import AdminServiceRequestsDashboard from './components/Dashboard/AdminServiceRequestsDashboard';
 import ErrorBoundary from './components/ErrorBoundary';
 import { ToastProvider } from './components/Ui/Toast';
 import { ConfirmProvider } from './components/Ui/ConfirmDialog';
@@ -110,7 +109,6 @@ function App() {
                 <Route path="admin/shops" element={<RoleBasedRoute allowedRoles={['admin']}><ShopView/></RoleBasedRoute>} />
                 <Route path="admin/statistics" element={<RoleBasedRoute allowedRoles={['admin']}><Statistics/></RoleBasedRoute>} />
                 <Route path="admin/service-requests" element={<RoleBasedRoute allowedRoles={['admin']}><ServiceRequests/></RoleBasedRoute>} />
-                <Route path="admin/service-requests-dashboard" element={<AdminServiceRequestsDashboard />} />
                 <Route path="admin/shop-managers" element={<RoleBasedRoute allowedRoles={['admin']}><ShopManagers/></RoleBasedRoute>} />
                 <Route path="admin/transactions" element={<RoleBasedRoute allowedRoles={['admin']}><Transactions/></RoleBasedRoute>} />
                 <Route path="admin/farms" element={<RoleBasedRoute allowedRoles={['admin']}><AdminFarms/></RoleBasedRoute>} />

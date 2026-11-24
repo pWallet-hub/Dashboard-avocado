@@ -86,15 +86,12 @@ export async function getProfile() {
     if (userRole === 'farmer') {
       // Farmers use the enhanced profile endpoint with flattened data
       endpoint = '/users/me';
-      console.log('Fetching farmer profile from /users/me');
     } else {
       // Other roles use the standard auth profile endpoint
       endpoint = '/auth/profile';
-      console.log('Fetching profile from /auth/profile for role:', userRole);
     }
     
     const response = await apiClient.get(endpoint);
-    console.log('Profile response:', response);
     return extractData(response);
   } catch (error) {
     console.error('Error fetching profile:', error);

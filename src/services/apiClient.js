@@ -14,8 +14,17 @@ const getBaseURL = () => {
   return '/api';
 };
 
-console.log('🌍 Environment:', import.meta.env.MODE);
-console.log('🔗 API Base URL:', getBaseURL());
+// Debug logging only in development — in production the console would expose
+// tokens and farmers' personal data to anyone with devtools open.
+const debug = (...args) => {
+  if (import.meta.env.DEV) console.log(...args); // eslint-disable-line no-console
+};
+const debugError = (...args) => {
+  if (import.meta.env.DEV) console.error(...args); // eslint-disable-line no-console
+};
+
+debug('🌍 Environment:', import.meta.env.MODE);
+debug('🔗 API Base URL:', getBaseURL());
 
 // Create axios instance with base configuration
 const apiClient = axios.create({
@@ -58,11 +67,11 @@ apiClient.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
-    console.log(`🔵 API Request: ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`);
+    debug(`🔵 API Request: ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`);
     return config;
   },
   (error) => {
-    console.error('❌ Request error:', error);
+    debugError('❌ Request error:', error);
     return Promise.reject(error);
   }
 );
@@ -70,7 +79,7 @@ apiClient.interceptors.request.use(
 // Response interceptor to handle errors and token refresh
 apiClient.interceptors.response.use(
   (response) => {
-    console.log(`✅ API Response: ${response.status}`, response.data);
+    debug(`✅ API Response: ${response.status}`, response.data);
     // If response has success: false, reject with error message
     if (response.data && response.data.success === false) {
       return rejectWithResponse(response.data.message || 'API request failed', { response });
@@ -78,7 +87,7 @@ apiClient.interceptors.response.use(
     return response;
   },
   async (error) => {
-    console.error('❌ API Error:', {
+    debugError('❌ API Error:', {
       message: error.message,
       status: error.response?.status,
       data: error.response?.data,
@@ -175,7 +184,7 @@ apiClient.interceptors.response.use(
     
     if (error.response?.status === 404) {
       const endpoint = error.config?.url || 'endpoint';
-      console.error('🚨 404 Not Found:', {
+      debugError('🚨 404 Not Found:', {
         endpoint,
         baseURL: error.config?.baseURL,
         fullURL: `${error.config?.baseURL}${endpoint}`,
@@ -185,7 +194,7 @@ apiClient.interceptors.response.use(
     }
     
     if (error.response?.status === 500) {
-      console.error('🚨 500 Server Error:', {
+      debugError('🚨 500 Server Error:', {
         endpoint: error.config?.url,
         method: error.config?.method,
         requestData: error.config?.data,

@@ -9,7 +9,9 @@
  *     <Card title="Table"> … </Card>
  *   </Page>
  */
-import { Loader2 } from 'lucide-react';
+import { useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
+import { Loader2, X, AlertTriangle, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const cx = (...c) => c.filter(Boolean).join(' ');
 
@@ -171,3 +173,103 @@ export const Table = ({ head, children }) => (
 );
 
 export const Td = ({ children, className }) => <td className={cx('whitespace-nowrap px-4 py-3 text-slate-700', className)}>{children}</td>;
+
+/**
+ * Modal dialog (portal to <body>, above Leaflet maps). Closes on Esc and
+ * backdrop click; bottom sheet on phones.
+ *   <Dialog open title="Edit user" onClose={…} footer={<Button>Save</Button>} size="lg">…</Dialog>
+ */
+export const Dialog = ({ open = true, title, subtitle, onClose, children, footer, size = 'md' }) => {
+  const panelRef = useRef(null);
+  useEffect(() => {
+    if (!open) return undefined;
+    const onKey = (e) => e.key === 'Escape' && onClose?.();
+    window.addEventListener('keydown', onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    panelRef.current?.focus();
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [open, onClose]);
+  if (!open) return null;
+  const sizes = { sm: 'sm:max-w-sm', md: 'sm:max-w-lg', lg: 'sm:max-w-2xl', xl: 'sm:max-w-4xl' };
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[1100] flex items-end justify-center bg-slate-900/50 backdrop-blur-sm sm:items-center sm:p-4"
+      onMouseDown={(e) => e.target === e.currentTarget && onClose?.()}
+    >
+      <div
+        ref={panelRef}
+        tabIndex={-1}
+        role="dialog"
+        aria-modal="true"
+        aria-label={typeof title === 'string' ? title : undefined}
+        className={cx('flex max-h-[92vh] w-full flex-col rounded-t-2xl bg-white shadow-2xl outline-none sm:rounded-2xl', sizes[size] || sizes.md)}
+      >
+        <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-5 py-4">
+          <div className="min-w-0">
+            <h2 className="truncate text-base font-semibold text-slate-900">{title}</h2>
+            {subtitle && <p className="mt-0.5 text-sm text-slate-500">{subtitle}</p>}
+          </div>
+          <button type="button" onClick={onClose} aria-label="Close" className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto px-5 py-4">{children}</div>
+        {footer && <div className="flex flex-wrap justify-end gap-2 border-t border-slate-100 px-5 py-3">{footer}</div>}
+      </div>
+    </div>,
+    document.body
+  );
+};
+
+/** Previous/next pager. page is 1-based. */
+export const Pagination = ({ page, totalPages, total, onChange }) => (
+  <div className="flex flex-col items-center justify-between gap-2 border-t border-slate-100 px-4 py-3 text-sm sm:flex-row">
+    <span className="text-slate-500">{total !== undefined ? `${Number(total).toLocaleString()} results · ` : ''}Page {page} of {Math.max(1, totalPages || 1)}</span>
+    <div className="flex gap-2">
+      <Button variant="secondary" size="sm" icon={ChevronLeft} disabled={page <= 1} onClick={() => onChange(page - 1)}>Previous</Button>
+      <Button variant="secondary" size="sm" disabled={page >= (totalPages || 1)} onClick={() => onChange(page + 1)}>
+        Next <ChevronRight className="h-4 w-4" />
+      </Button>
+    </div>
+  </div>
+);
+
+/** Segmented tabs. tabs: [{ id, label, icon? , count? }] */
+export const Tabs = ({ tabs, value, onChange }) => (
+  <nav className="inline-flex max-w-full overflow-x-auto rounded-xl bg-slate-100 p-1" role="tablist">
+    {tabs.map((t) => (
+      <button
+        key={t.id}
+        role="tab"
+        aria-selected={value === t.id}
+        onClick={() => onChange(t.id)}
+        className={cx(
+          'inline-flex shrink-0 items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition',
+          value === t.id ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+        )}
+      >
+        {t.icon && <t.icon className="h-4 w-4" />}
+        {t.label}
+        {t.count !== undefined && <span className="rounded-full bg-slate-200 px-1.5 text-xs text-slate-700">{t.count}</span>}
+      </button>
+    ))}
+  </nav>
+);
+
+/** Inline error with optional retry. */
+export const ErrorState = ({ title = 'Something went wrong', message, onRetry }) => (
+  <div className="flex flex-col items-center justify-center px-6 py-12 text-center">
+    <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-rose-50 text-rose-600">
+      <AlertTriangle className="h-6 w-6" />
+    </div>
+    <p className="font-medium text-slate-900">{title}</p>
+    {message && <p className="mt-1 max-w-sm text-sm text-slate-500">{message}</p>}
+    {onRetry && <div className="mt-4"><Button variant="secondary" onClick={onRetry}>Try again</Button></div>}
+  </div>
+);
+
+export const textareaClass = inputClass + ' min-h-[90px]';

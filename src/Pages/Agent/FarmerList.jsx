@@ -1,1342 +1,455 @@
-import { useEffect, useState } from 'react';
-import { User, Phone, Mail, MapPin, TreePine, Calendar, Search, Filter, Download, Plus, Eye, X, AlertCircle } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
 import * as XLSX from 'xlsx';
-import { listFarmers, createFarmer } from '../../services/usersService';
-import { getAgentInformation } from '../../services/agent-information';
+import { Users, UserPlus, Search, Download, Eye, RefreshCw, UserCheck, ShieldCheck, KeyRound, Copy } from 'lucide-react';
+import { createFarmer, listUsersPage } from '../../services/usersService';
+import { listFarmsPage } from '../../services/farmsService';
+import { LocationFields } from './Farms';
+import { useToast } from '../../components/Ui/Toast';
+import {
+  Page, PageHeader, Card, StatGrid, StatCard, Badge, Button, Field, inputClass,
+  EmptyState, ErrorState, Spinner, Table, Td, Dialog, Pagination,
+} from '../../components/Ui/kit';
 
+const PAGE_SIZE = 15;
+const GENDERS = ['Male', 'Female', 'Other'];
+const MARITAL = ['Single', 'Married', 'Divorced', 'Widowed'];
+const EDUCATION = ['None', 'Primary', 'Secondary', 'University'];
+const AVOCADO_TYPES = ['Hass', 'Fuerte', 'Bacon', 'Zutano', 'Mixed'];
+const ASSISTANCE_OPTIONS = ['irrigation', 'fertilizers', 'training', 'equipment', 'seedlings', 'pest_control'];
+const VERIFY_TONE = { verified: 'brand', pending: 'amber', rejected: 'rose' };
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PHONE_RE = /^\+?[\d\s\-()]{10,15}$/;
+
+const cap = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1).replace(/_/g, ' ') : '—');
+const placeOf = (f) => [f?.sector, f?.district].filter(Boolean).join(', ') || f?.province || '—';
+const emptyLocation = { province: '', district: '', sector: '', cell: '', village: '' };
+const emptyFarmer = () => ({
+  full_name: '', email: '', phone: '', gender: '', age: '', marital_status: '', education_level: '', id_number: '',
+  home: { ...emptyLocation }, farm: { ...emptyLocation }, farmSameAsHome: true,
+  farm_size: '', tree_count: '', avocado_type: '', mixed_percentage: '', planted: '', upi_number: '', assistance: [],
+});
+
+const Detail = ({ label, value }) => (
+  <div>
+    <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</dt>
+    <dd className="mt-0.5 text-sm text-slate-900">{value === null || value === undefined || value === '' ? '—' : value}</dd>
+  </div>
+);
 
 export default function FarmerList() {
+  const toast = useToast();
   const [farmers, setFarmers] = useState([]);
-  const [allFarmers, setAllFarmers] = useState([]); // Store all farmers from API
-  const [agentTerritories, setAgentTerritories] = useState([]); // Store agent's territories
-  const [loading, setLoading] = useState(false);
+  const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0 });
+  const [counts, setCounts] = useState({ all: null, active: null, inactive: null });
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState('');
+  const [debounced, setDebounced] = useState('');
+  const [status, setStatus] = useState('');
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [selectedFarmer, setSelectedFarmer] = useState(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterBy, setFilterBy] = useState('all');
-  const [pagination, setPagination] = useState({
-    currentPage: 1,
-    totalPages: 1,
-    totalItems: 0,
-    itemsPerPage: 10
-  });
-  const [newFarmer, setNewFarmer] = useState({
-    full_name: '',
-    email: '',
-    phone: '',
-    age: '',
-    gender: 'Male',
-    marital_status: 'Single',
-    education_level: 'Secondary',
-    province: '',
-    district: '',
-    sector: '',
-    cell: '',
-    village: '',
-    farm_province: '',
-    farm_district: '',
-    farm_sector: '',
-    farm_cell: '',
-    farm_village: '',
-    farm_age: '',
-    planted: '',
-    avocado_type: '',
-    mixed_percentage: '',
-    farm_size: '',
-    tree_count: '',
-    upi_number: '',
-    assistance: ''
-  });
+  const [exporting, setExporting] = useState(false);
 
-  // Mock data for demonstration
-  const mockFarmers = [
-    {
-      id: 1,
-      full_name: "Jean Baptiste Uwimana",
-      email: "jean.uwimana@email.com",
-      telephone: "+250788123456",
-      province: "Kigali",
-      district: "Gasabo",
-      sector: "Remera",
-      farm_province: "Kigali",
-      farm_district: "Gasabo",
-      farm_sector: "Remera",
-      farm_cell: "Rukiri",
-      farm_village: "Karama",
-      farm_age: 5,
-      planted: "2019-03-15",
-      avocado_type: "Hass",
-      mixed_percentage: "80%",
-      farm_size: "2.5 hectares",
-      tree_count: 150,
-      upi_number: "UPI001234567",
-      assistance: ["Training", "Equipment", "Fertilizer"]
-    },
-    {
-      id: 2,
-      full_name: "Marie Claire Mukamana",
-      email: "marie.mukamana@email.com",
-      telephone: "+250788765432",
-      province: "Northern",
-      district: "Musanze",
-      sector: "Cyuve",
-      farm_province: "Northern",
-      farm_district: "Musanze",
-      farm_sector: "Cyuve",
-      farm_cell: "Rugengabari",
-      farm_village: "Nyange",
-      farm_age: 3,
-      planted: "2021-06-20",
-      avocado_type: "Fuerte",
-      mixed_percentage: "60%",
-      farm_size: "1.8 hectares",
-      tree_count: 95,
-      upi_number: "UPI002345678",
-      assistance: ["Seeds", "Training"]
-    },
-    {
-      id: 3,
-      full_name: "Paul Nzeyimana",
-      email: "paul.nzeyimana@email.com",
-      telephone: "+250788654321",
-      province: "Eastern",
-      district: "Nyagatare",
-      sector: "Karangazi",
-      farm_province: "Eastern",
-      farm_district: "Nyagatare",
-      farm_sector: "Karangazi",
-      farm_cell: "Nyagihanga",
-      farm_village: "Rugarama",
-      farm_age: 7,
-      planted: "2017-01-10",
-      avocado_type: "Mixed",
-      mixed_percentage: "45%",
-      farm_size: "3.2 hectares",
-      tree_count: 200,
-      upi_number: "UPI003456789",
-      assistance: ["Equipment", "Fertilizer", "Pesticides"]
-    }
-  ];
-
-  // Fetch agent's territory information on mount
-  useEffect(() => {
-    const fetchAgentTerritory = async () => {
-      try {
-        const agentData = await getAgentInformation();
-        
-        // Extract territories from agent profile
-        if (agentData?.agent_profile?.territory && Array.isArray(agentData.agent_profile.territory)) {
-          setAgentTerritories(agentData.agent_profile.territory);
-          console.log('Agent territories loaded:', agentData.agent_profile.territory);
-        } else {
-          console.warn('No territories found for agent');
-          setAgentTerritories([]);
-        }
-      } catch (err) {
-        console.error('Error fetching agent territory:', err);
-        // If we can't fetch agent territory, show all farmers (fallback)
-        setAgentTerritories([]);
-      }
-    };
-
-    fetchAgentTerritory();
-  }, []);
+  const [viewing, setViewing] = useState(null);
+  const [viewFarms, setViewFarms] = useState({ loading: false, data: [] });
+  const [form, setForm] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [created, setCreated] = useState(null);
 
   useEffect(() => {
-    const fetchFarmers = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const options = {
-          page: pagination.currentPage,
-          limit: pagination.itemsPerPage,
-          search: searchTerm || undefined,
-          status: filterBy !== 'all' ? filterBy : undefined
-        };
-        
-        const response = await listFarmers(options);
-        
-        if (response.data && Array.isArray(response.data)) {
-          // Store all farmers from API
-          setAllFarmers(response.data);
-          
-          // Filter farmers based on agent's territory
-          const filteredByTerritory = filterFarmersByTerritory(response.data, agentTerritories);
-          setFarmers(filteredByTerritory);
-          
-          console.log('Total farmers from API:', response.data.length);
-          console.log('Farmers in agent territory:', filteredByTerritory.length);
-        } else {
-          setAllFarmers([]);
-          setFarmers([]);
-        }
-        
-        // Handle pagination from meta.pagination
-        if (response.meta?.pagination) {
-          setPagination({
-            currentPage: response.meta.pagination.page,
-            totalPages: response.meta.pagination.totalPages,
-            totalItems: response.meta.pagination.total,
-            itemsPerPage: response.meta.pagination.limit
-          });
-        }
-      } catch (err) {
-        console.error('Error fetching farmers:', err);
-        setError(err.message || 'Failed to load farmers');
-        setAllFarmers([]);
-        setFarmers([]);
-      } finally {
-        setLoading(false);
-      }
-    };
+    const t = setTimeout(() => setDebounced(search.trim()), 350);
+    return () => clearTimeout(t);
+  }, [search]);
 
-    fetchFarmers();
-  }, [pagination.currentPage, pagination.itemsPerPage, searchTerm, filterBy, agentTerritories]);
-
-  // Filter farmers based on agent's territory (district and sector match)
-  const filterFarmersByTerritory = (farmersList, territories) => {
-    // If no territories defined, show all farmers (for admin or when territory not loaded)
-    if (!territories || territories.length === 0) {
-      return farmersList;
-    }
-
-    return farmersList.filter(farmer => {
-      // Check if farmer's location matches any of the agent's territories
-      const farmerDistrict = farmer.profile?.district;
-      const farmerSector = farmer.profile?.sector;
-
-      // Skip farmers without location data
-      if (!farmerDistrict || !farmerSector) {
-        return false;
-      }
-
-      // Check if farmer's district and sector match any agent territory
-      return territories.some(territory => {
-        const districtMatch = territory.district?.toLowerCase() === farmerDistrict.toLowerCase();
-        const sectorMatch = territory.sector?.toLowerCase() === farmerSector.toLowerCase();
-        
-        return districtMatch && sectorMatch;
-      });
-    });
-  };
-
-  // Remove Airtable preview effect as services are no longer available
-
-  const exportToExcel = () => {
-    // Calculate statistics for summary report
-    const totalFarmers = farmers.length;
-    const totalTrees = farmers.reduce((sum, f) => sum + (f.profile?.farm_details?.tree_count || 0), 0);
-    const uniqueDistricts = new Set(farmers.map(f => f.profile?.district).filter(d => d));
-    const uniqueSectors = new Set(farmers.map(f => f.profile?.sector).filter(s => s));
-    const totalFarmArea = farmers.reduce((sum, f) => sum + (parseFloat(f.profile?.farm_details?.farm_size) || 0), 0);
-
-    // Sheet 1: Summary Report
-    const summaryData = [
-      { 'Metric': 'Total Farmers in Territory', 'Value': totalFarmers },
-      { 'Metric': 'Total Number of Trees', 'Value': totalTrees },
-      { 'Metric': 'Number of Districts', 'Value': uniqueDistricts.size },
-      { 'Metric': 'Number of Sectors', 'Value': uniqueSectors.size },
-      { 'Metric': 'Total Farm Area (hectares)', 'Value': totalFarmArea.toFixed(2) },
-      { 'Metric': '', 'Value': '' }, // Empty row
-      { 'Metric': 'Districts Covered', 'Value': Array.from(uniqueDistricts).join(', ') || 'N/A' },
-      { 'Metric': 'Sectors Covered', 'Value': Array.from(uniqueSectors).join(', ') || 'N/A' },
-      { 'Metric': '', 'Value': '' }, // Empty row
-      { 'Metric': 'Report Generated', 'Value': new Date().toLocaleString() },
-    ];
-
-    // Sheet 2: Farmers List - Prepare data for Excel export
-    const farmersData = farmers.map(farmer => ({
-      'ID': farmer.id,
-      'Full Name': farmer.full_name,
-      'Email': farmer.email,
-      'Phone': farmer.phone || 'N/A',
-      'UPI Number': farmer.profile?.farm_details?.upi_number || 'N/A',
-      'Province': farmer.profile?.province || 'N/A',
-      'District': farmer.profile?.district || 'N/A',
-      'Sector': farmer.profile?.sector || 'N/A',
-      'Farm District': farmer.profile?.farm_details?.farm_district || 'N/A',
-      'Farm Sector': farmer.profile?.farm_details?.farm_sector || 'N/A',
-      'Farm Cell': farmer.profile?.farm_details?.farm_cell || 'N/A',
-      'Farm Village': farmer.profile?.farm_details?.farm_village || 'N/A',
-      'Farm Size (ha)': farmer.profile?.farm_details?.farm_size || 'N/A',
-      'Tree Count': farmer.profile?.farm_details?.tree_count || 0,
-      'Avocado Type': farmer.profile?.farm_details?.avocado_type || 'N/A',
-      'Farm Age': farmer.profile?.farm_details?.farm_age || 'N/A',
-      'Date Planted': farmer.profile?.farm_details?.planted || 'N/A',
-    }));
-
-    // Create workbook
-    const wb = XLSX.utils.book_new();
-
-    // Create Summary Report worksheet
-    const wsSummary = XLSX.utils.json_to_sheet(summaryData);
-    
-    // Style summary sheet columns
-    wsSummary['!cols'] = [
-      { width: 35 }, // Metric column
-      { width: 50 }  // Value column
-    ];
-
-    // Create Farmers List worksheet
-    const wsFarmers = XLSX.utils.json_to_sheet(farmersData);
-
-    // Auto-size columns for farmers sheet
-    const colWidths = [];
-    const keys = Object.keys(farmersData[0] || {});
-    keys.forEach((key) => {
-      const maxLength = Math.max(
-        key.length,
-        ...farmersData.map(row => String(row[key] || '').length)
-      );
-      colWidths.push({ width: Math.min(maxLength + 2, 50) });
-    });
-    wsFarmers['!cols'] = colWidths;
-
-    // Add worksheets to workbook
-    XLSX.utils.book_append_sheet(wb, wsSummary, 'Summary Report');
-    XLSX.utils.book_append_sheet(wb, wsFarmers, 'Farmers List');
-
-    // Generate filename with current date
-    const currentDate = new Date().toISOString().split('T')[0];
-    const filename = `farmers_report_${currentDate}.xlsx`;
-
-    // Save file
-    XLSX.writeFile(wb, filename);
-  };
-
-  const openModal = (farmer) => {
-    setSelectedFarmer(farmer);
-    setIsModalOpen(true);
-  };
-
-  const closeModal = () => {
-    setIsModalOpen(false);
-    setSelectedFarmer(null);
-  };
-
-  const openAddModal = () => {
-    setIsAddModalOpen(true);
-  };
-
-  const closeAddModal = () => {
-    setIsAddModalOpen(false);
-    setNewFarmer({
-      full_name: '',
-      email: '',
-      phone: '',
-      age: '',
-      gender: 'Male',
-      marital_status: 'Single',
-      education_level: 'Secondary',
-      province: '',
-      district: '',
-      sector: '',
-      cell: '',
-      village: '',
-      farm_province: '',
-      farm_district: '',
-      farm_sector: '',
-      farm_cell: '',
-      farm_village: '',
-      farm_age: '',
-      planted: '',
-      avocado_type: '',
-      mixed_percentage: '',
-      farm_size: '',
-      tree_count: '',
-      upi_number: '',
-      assistance: ''
-    });
-  };
-
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setNewFarmer(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-
-  const addFarmer = async () => {
-    if (!newFarmer.full_name || !newFarmer.email || !newFarmer.gender) {
-      alert('Please fill in all required fields (Name, Email, Gender)');
-      return;
-    }
-
+  const load = useCallback(async () => {
     setLoading(true);
     setError(null);
-
     try {
-      // Prepare farmer data for API
-      const farmerData = {
-        full_name: newFarmer.full_name,
-        email: newFarmer.email,
-        phone: newFarmer.phone || undefined,
-        age: newFarmer.age ? parseInt(newFarmer.age) : undefined,
-        gender: newFarmer.gender,
-        marital_status: newFarmer.marital_status || undefined,
-        education_level: newFarmer.education_level || undefined,
-        province: newFarmer.province || undefined,
-        district: newFarmer.district || undefined,
-        sector: newFarmer.sector || undefined,
-        cell: newFarmer.cell || undefined,
-        village: newFarmer.village || undefined,
-        farm_province: newFarmer.farm_province || undefined,
-        farm_district: newFarmer.farm_district || undefined,
-        farm_sector: newFarmer.farm_sector || undefined,
-        farm_cell: newFarmer.farm_cell || undefined,
-        farm_village: newFarmer.farm_village || undefined,
-        farm_age: newFarmer.farm_age ? parseInt(newFarmer.farm_age) : undefined,
-        planted: newFarmer.planted || undefined,
-        avocado_type: newFarmer.avocado_type || undefined,
-        mixed_percentage: newFarmer.mixed_percentage ? parseInt(newFarmer.mixed_percentage) : undefined,
-        farm_size: newFarmer.farm_size ? parseFloat(newFarmer.farm_size) : undefined,
-        tree_count: newFarmer.tree_count ? parseInt(newFarmer.tree_count) : undefined,
-        upi_number: newFarmer.upi_number || undefined,
-        assistance: newFarmer.assistance || undefined
-      };
-
-      // Remove undefined values
-      Object.keys(farmerData).forEach(key => 
-        farmerData[key] === undefined && delete farmerData[key]
-      );
-
-      const response = await createFarmer(farmerData);
-      
-      if (response.data) {
-        alert(`Farmer created successfully! Default password: ${response.data.default_password || 'FarmerPass123!'}`);
-        closeAddModal();
-        
-        // Refresh the farmers list
-        const refreshOptions = {
-          page: pagination.currentPage,
-          limit: pagination.itemsPerPage,
-          search: searchTerm || undefined,
-          status: filterBy !== 'all' ? filterBy : undefined
-        };
-        const refreshResponse = await listFarmers(refreshOptions);
-        if (refreshResponse.data) {
-          setAllFarmers(refreshResponse.data);
-          const filteredByTerritory = filterFarmersByTerritory(refreshResponse.data, agentTerritories);
-          setFarmers(filteredByTerritory);
-        }
-        if (refreshResponse.meta?.pagination) {
-          setPagination({
-            currentPage: refreshResponse.meta.pagination.page,
-            totalPages: refreshResponse.meta.pagination.totalPages,
-            totalItems: refreshResponse.meta.pagination.total,
-            itemsPerPage: refreshResponse.meta.pagination.limit
-          });
-        }
-      }
+      const res = await listUsersPage('farmers', { page, limit: PAGE_SIZE, search: debounced || undefined, status: status || undefined });
+      setFarmers(res.data);
+      setPagination({ page: res.pagination.page || page, totalPages: res.pagination.totalPages || 1, total: res.pagination.total ?? res.data.length });
     } catch (err) {
-      console.error('Error adding farmer:', err);
-      const errorMessage = err.response?.data?.message || err.message || 'Failed to add farmer';
-      setError(errorMessage);
-      alert(`Error: ${errorMessage}`);
+      setError(err.response?.data?.message || err.message || 'Failed to load farmers');
     } finally {
       setLoading(false);
     }
+  }, [page, debounced, status]);
+
+  const loadCounts = useCallback(async () => {
+    try {
+      const [all, active, inactive] = await Promise.all(
+        [undefined, 'active', 'inactive'].map((s) => listUsersPage('farmers', { limit: 1, status: s }))
+      );
+      setCounts({ all: all.pagination.total ?? 0, active: active.pagination.total ?? 0, inactive: inactive.pagination.total ?? 0 });
+    } catch {
+      setCounts({ all: null, active: null, inactive: null });
+    }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+  useEffect(() => { loadCounts(); }, [loadCounts]);
+  useEffect(() => { setPage(1); }, [debounced, status]);
+
+  const openView = async (farmer) => {
+    setViewing(farmer);
+    setViewFarms({ loading: true, data: [] });
+    try {
+      const res = await listFarmsPage({ farmer_id: farmer.id, limit: 20 });
+      setViewFarms({ loading: false, data: res.data });
+    } catch {
+      setViewFarms({ loading: false, data: [], error: true });
+    }
   };
 
-  // Since filtering is done server-side, just use farmers directly
-  const filteredFarmers = farmers;
-
-  const handlePageChange = (newPage) => {
-    setPagination(prev => ({ ...prev, currentPage: newPage }));
+  // Export every farmer matching the current filters (pages through the API).
+  const exportExcel = async () => {
+    setExporting(true);
+    try {
+      const rows = [];
+      let p = 1;
+      let totalPages = 1;
+      do {
+        const res = await listUsersPage('farmers', { page: p, limit: 100, search: debounced || undefined, status: status || undefined });
+        rows.push(...res.data);
+        totalPages = res.pagination.totalPages || 1;
+        p += 1;
+      } while (p <= totalPages && p <= 50);
+      if (rows.length === 0) {
+        toast.info('No farmers to export');
+        return;
+      }
+      const sheet = XLSX.utils.json_to_sheet(rows.map((f) => ({
+        'Full name': f.full_name,
+        Email: f.email,
+        Phone: f.phone || '',
+        Gender: f.gender || '',
+        Age: f.age ?? '',
+        Province: f.province || '',
+        District: f.district || '',
+        Sector: f.sector || '',
+        Cell: f.cell || '',
+        Village: f.village || '',
+        'Farm size (ha)': f.farm_size ?? '',
+        Trees: f.tree_count ?? '',
+        'Avocado type': f.avocado_type || '',
+        Planted: f.planted || '',
+        'UPI number': f.upi_number || '',
+        Verification: f.verification_status || '',
+        Status: f.status,
+        Registered: f.created_at ? new Date(f.created_at).toISOString().slice(0, 10) : '',
+      })));
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, sheet, 'Farmers');
+      XLSX.writeFile(wb, `farmers_${new Date().toISOString().slice(0, 10)}.xlsx`);
+      toast.success(`Exported ${rows.length} farmer${rows.length === 1 ? '' : 's'}`);
+    } catch (err) {
+      toast.error(err.response?.data?.message || err.message || 'Export failed');
+    } finally {
+      setExporting(false);
+    }
   };
 
-  const handleSearchChange = (e) => {
-    setSearchTerm(e.target.value);
-    setPagination(prev => ({ ...prev, currentPage: 1 })); // Reset to first page on search
+  const setF = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+  const toggleAssist = (opt) =>
+    setForm((f) => ({ ...f, assistance: f.assistance.includes(opt) ? f.assistance.filter((a) => a !== opt) : [...f.assistance, opt] }));
+
+  const submitFarmer = async (e) => {
+    e.preventDefault();
+    const f = form;
+    if (!f.full_name.trim() || f.full_name.trim().length < 2) return toast.error('Full name is required');
+    if (!EMAIL_RE.test(f.email.trim())) return toast.error('Enter a valid email address');
+    if (!f.gender) return toast.error('Select a gender');
+    if (f.phone && !PHONE_RE.test(f.phone.trim())) return toast.error('Phone must have 10–15 digits, e.g. +250788123456');
+    if (f.age && (Number(f.age) < 0 || Number(f.age) > 150)) return toast.error('Age must be between 0 and 150');
+    if (f.mixed_percentage && (Number(f.mixed_percentage) < 0 || Number(f.mixed_percentage) > 100)) return toast.error('Mixed percentage must be 0–100');
+
+    const farm = f.farmSameAsHome ? f.home : f.farm;
+    const payload = {
+      full_name: f.full_name.trim(),
+      email: f.email.trim(),
+      phone: f.phone.trim() || undefined,
+      gender: f.gender,
+      age: f.age ? parseInt(f.age, 10) : undefined,
+      marital_status: f.marital_status || undefined,
+      education_level: f.education_level || undefined,
+      id_number: f.id_number.trim() || undefined,
+      ...Object.fromEntries(Object.entries(f.home).map(([k, v]) => [k, v || undefined])),
+      ...Object.fromEntries(Object.entries(farm).map(([k, v]) => [`farm_${k}`, v || undefined])),
+      farm_size: f.farm_size ? parseFloat(f.farm_size) : undefined,
+      tree_count: f.tree_count ? parseInt(f.tree_count, 10) : undefined,
+      avocado_type: f.avocado_type || undefined,
+      mixed_percentage: f.avocado_type === 'Mixed' && f.mixed_percentage ? parseFloat(f.mixed_percentage) : undefined,
+      planted: f.planted || undefined,
+      upi_number: f.upi_number.trim() || undefined,
+      assistance: f.assistance.length ? f.assistance : undefined,
+    };
+    Object.keys(payload).forEach((k) => payload[k] === undefined && delete payload[k]);
+
+    setSaving(true);
+    try {
+      const result = await createFarmer(payload);
+      setForm(null);
+      setCreated(result);
+      toast.success(`${result?.full_name || 'Farmer'} registered`);
+      setPage(1);
+      load();
+      loadCounts();
+    } catch (err) {
+      const data = err.response?.data;
+      const detail = Array.isArray(data?.errors) && data.errors.length ? data.errors.map((x) => x.msg).join('; ') : null;
+      toast.error(detail || data?.message || err.message || 'Failed to register farmer');
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleFilterChange = (e) => {
-    setFilterBy(e.target.value);
-    setPagination(prev => ({ ...prev, currentPage: 1 })); // Reset to first page on filter
+  const copy = async (text) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success('Copied');
+    } catch {
+      toast.error('Could not copy — select and copy manually');
+    }
   };
+
+  const fmt = (n) => (n === null || n === undefined ? '—' : Number(n).toLocaleString());
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-green-50 to-green-50">
-      <div className="px-4 py-8 mx-auto max-w-7xl sm:px-6 lg:px-8">
-        {/* Modern Header */}
-        <div className="mb-8">
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-            <div className="space-y-2">
-              <h1 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-green-800 via-green-700 to-green-600">
-                Farmer Management
-              </h1>
-              <p className="text-gray-600">Manage and track your registered farmers</p>
-            </div>
-            
-            <div className="flex flex-wrap gap-3">
-              <button
-                onClick={openAddModal}
-                className="inline-flex items-center gap-2 px-6 py-3 text-white font-medium rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-300"
-                style={{ background: '#1F310A' }}
-                onMouseEnter={(e) => e.target.style.background = '#2A4A0D'}
-                onMouseLeave={(e) => e.target.style.background = '#1F310A'}
-              >
-                <Plus size={20} />
-                Add Farmer
-              </button>
-              <button 
-                onClick={exportToExcel}
-                className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-green-600 to-green-600 text-white font-medium rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-300 hover:from-green-700 hover:to-green-700"
-                disabled={filteredFarmers.length === 0}
-              >
-                <Download size={20} />
-                Export to Excel
-              </button>
-            </div>
+    <Page>
+      <PageHeader
+        icon={Users}
+        title="My Farmers"
+        subtitle="Registered avocado farmers you can serve. Register new farmers and export the list."
+        actions={
+          <>
+            <Button variant="secondary" icon={RefreshCw} onClick={() => { load(); loadCounts(); }} disabled={loading}>Refresh</Button>
+            <Button variant="secondary" icon={Download} loading={exporting} onClick={exportExcel}>Export Excel</Button>
+            <Button icon={UserPlus} onClick={() => setForm(emptyFarmer())}>Register farmer</Button>
+          </>
+        }
+      />
+
+      <StatGrid cols={3}>
+        <StatCard label="Farmers" value={fmt(counts.all)} icon={Users} />
+        <StatCard label="Active accounts" value={fmt(counts.active)} icon={UserCheck} tone="blue" />
+        <StatCard label="Inactive accounts" value={fmt(counts.inactive)} icon={ShieldCheck} tone="slate" />
+      </StatGrid>
+
+      <Card padded={false}>
+        <div className="flex flex-col gap-3 border-b border-slate-100 p-4 sm:flex-row">
+          <div className="relative flex-1">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <input
+              className={inputClass + ' pl-9'}
+              placeholder="Search by name or email…"
+              aria-label="Search farmers"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
           </div>
+          <select className={inputClass + ' sm:w-48'} aria-label="Filter by status" value={status} onChange={(e) => setStatus(e.target.value)}>
+            <option value="">All statuses</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+          </select>
         </div>
 
-        {/* Territory Filter Info */}
-        {agentTerritories.length > 0 && (
-          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-xl">
-            <div className="flex items-start gap-3">
-              <MapPin className="w-5 h-5 text-blue-600 mt-0.5" />
-              <div className="flex-1">
-                <h3 className="text-sm font-semibold text-blue-900 mb-2">
-                  Showing farmers in your assigned territories
-                </h3>
-                <div className="flex flex-wrap gap-2">
-                  {agentTerritories.map((territory, index) => (
-                    <span
-                      key={index}
-                      className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-full"
-                    >
-                      {territory.district} - {territory.sector}
-                      {territory.isPrimary && (
-                        <span className="ml-1 px-1.5 py-0.5 bg-blue-600 text-white rounded-full text-[10px]">
-                          Primary
-                        </span>
-                      )}
-                    </span>
+        {loading ? (
+          <Spinner label="Loading farmers…" />
+        ) : error ? (
+          <ErrorState message={error} onRetry={load} />
+        ) : farmers.length === 0 ? (
+          <EmptyState
+            icon={Users}
+            title={debounced || status ? 'No farmers match your filters' : 'No farmers yet'}
+            description={debounced || status ? 'Try a different search or status.' : 'Register the first farmer to get started.'}
+            action={!debounced && !status && <Button icon={UserPlus} onClick={() => setForm(emptyFarmer())}>Register farmer</Button>}
+          />
+        ) : (
+          <>
+            <Table head={['Farmer', 'Phone', 'Location', 'Farm', 'Verification', 'Status', '']}>
+              {farmers.map((f) => (
+                <tr key={f.id} className="hover:bg-slate-50">
+                  <Td>
+                    <p className="font-medium text-slate-900">{f.full_name || '—'}</p>
+                    <p className="text-xs text-slate-500">{f.email}</p>
+                  </Td>
+                  <Td>{f.phone || '—'}</Td>
+                  <Td>{placeOf(f)}</Td>
+                  <Td>
+                    {f.farm_size != null ? `${f.farm_size} ha` : '—'}
+                    <span className="text-slate-400"> · </span>
+                    {f.tree_count != null ? `${f.tree_count} trees` : '—'}
+                  </Td>
+                  <Td><Badge tone={VERIFY_TONE[f.verification_status] || 'slate'}>{cap(f.verification_status || 'unknown')}</Badge></Td>
+                  <Td><Badge tone={f.status === 'active' ? 'brand' : 'slate'}>{cap(f.status)}</Badge></Td>
+                  <Td className="text-right">
+                    <Button variant="ghost" size="sm" icon={Eye} onClick={() => openView(f)} aria-label={`View ${f.full_name}`}>View</Button>
+                  </Td>
+                </tr>
+              ))}
+            </Table>
+            <Pagination page={pagination.page} totalPages={pagination.totalPages} total={pagination.total} onChange={setPage} />
+          </>
+        )}
+      </Card>
+
+      {/* Farmer details */}
+      <Dialog open={!!viewing} title={viewing?.full_name || 'Farmer'} subtitle={viewing?.email} onClose={() => setViewing(null)} size="lg"
+        footer={<Button variant="secondary" onClick={() => setViewing(null)}>Close</Button>}>
+        {viewing && (
+          <div className="space-y-5">
+            <dl className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <Detail label="Phone" value={viewing.phone} />
+              <Detail label="Gender" value={viewing.gender} />
+              <Detail label="Age" value={viewing.age} />
+              <Detail label="Marital status" value={viewing.marital_status} />
+              <Detail label="Education" value={viewing.education_level} />
+              <Detail label="National ID" value={viewing.id_number} />
+              <Detail label="Home" value={[viewing.village, viewing.cell, viewing.sector, viewing.district, viewing.province].filter(Boolean).join(', ')} />
+              <Detail label="Farm location" value={[viewing.farm_village, viewing.farm_cell, viewing.farm_sector, viewing.farm_district, viewing.farm_province].filter(Boolean).join(', ')} />
+              <Detail label="UPI number" value={viewing.upi_number} />
+              <Detail label="Farm size" value={viewing.farm_size != null ? `${viewing.farm_size} ha` : null} />
+              <Detail label="Trees" value={viewing.tree_count} />
+              <Detail label="Avocado type" value={viewing.avocado_type} />
+              <Detail label="Planted" value={viewing.planted} />
+              <Detail label="Assistance needed" value={(viewing.assistance || []).map(cap).join(', ')} />
+              <Detail label="Registered" value={viewing.created_at ? new Date(viewing.created_at).toLocaleDateString() : null} />
+            </dl>
+            <div>
+              <h3 className="mb-2 text-sm font-semibold text-slate-900">Farms</h3>
+              {viewFarms.loading ? (
+                <Spinner label="Loading farms…" />
+              ) : viewFarms.error ? (
+                <p className="text-sm text-rose-600">Could not load this farmer&apos;s farms.</p>
+              ) : viewFarms.data.length === 0 ? (
+                <p className="text-sm text-slate-500">No farms registered yet. Add one from the Farms page.</p>
+              ) : (
+                <ul className="divide-y divide-slate-100 rounded-xl border border-slate-200">
+                  {viewFarms.data.map((farm) => (
+                    <li key={farm.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm">
+                      <span className="font-medium text-slate-900">{farm.farmName || farm.farm_name || 'Unnamed farm'}</span>
+                      <span className="text-slate-500">
+                        {farm.farm_size ?? '—'} ha · {farm.tree_count ?? 0} trees · <Badge>{cap(farm.status)}</Badge>
+                      </span>
+                    </li>
                   ))}
-                </div>
-                <p className="text-xs text-blue-700 mt-2">
-                  {farmers.length} of {allFarmers.length} total farmers match your territory
-                </p>
-              </div>
+                </ul>
+              )}
             </div>
           </div>
         )}
+      </Dialog>
 
-        {/* Enhanced Stats Cards */}
-        <div className="grid grid-cols-2 gap-4 mb-8 md:grid-cols-3 lg:grid-cols-5">
-          <div className="p-4 bg-white rounded-xl shadow-lg border border-gray-100 hover:shadow-xl transition-shadow duration-300">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-medium text-gray-500">
-                  {agentTerritories.length > 0 ? 'Farmers in Territory' : 'Total Farmers'}
-                </p>
-                <p className="text-2xl font-bold text-gray-800">{farmers.length}</p>
-                {agentTerritories.length > 0 && allFarmers.length > farmers.length && (
-                  <p className="text-[10px] text-gray-500 mt-1">of {allFarmers.length} total</p>
+      {/* Register farmer */}
+      <Dialog open={!!form} title="Register farmer" subtitle="Creates the farmer's account, profile and first farm." onClose={() => !saving && setForm(null)} size="xl"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setForm(null)} disabled={saving}>Cancel</Button>
+            <Button type="submit" form="farmer-form" icon={UserPlus} loading={saving}>Register farmer</Button>
+          </>
+        }>
+        {form && (
+          <form id="farmer-form" onSubmit={submitFarmer} className="space-y-6" noValidate>
+            <section>
+              <h3 className="mb-3 text-sm font-semibold text-slate-900">Personal details</h3>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <Field label="Full name" required><input className={inputClass} value={form.full_name} onChange={(e) => setF('full_name', e.target.value)} placeholder="e.g. Jean Mukeshimana" /></Field>
+                <Field label="Email" required hint="Used to sign in."><input type="email" className={inputClass} value={form.email} onChange={(e) => setF('email', e.target.value)} placeholder="farmer@example.com" /></Field>
+                <Field label="Phone"><input type="tel" className={inputClass} value={form.phone} onChange={(e) => setF('phone', e.target.value)} placeholder="+250788123456" /></Field>
+                <Field label="Gender" required>
+                  <select className={inputClass} value={form.gender} onChange={(e) => setF('gender', e.target.value)}>
+                    <option value="">Select gender</option>
+                    {GENDERS.map((g) => <option key={g} value={g}>{g}</option>)}
+                  </select>
+                </Field>
+                <Field label="Age"><input type="number" min="0" max="150" className={inputClass} value={form.age} onChange={(e) => setF('age', e.target.value)} /></Field>
+                <Field label="National ID"><input className={inputClass} value={form.id_number} onChange={(e) => setF('id_number', e.target.value)} /></Field>
+                <Field label="Marital status">
+                  <select className={inputClass} value={form.marital_status} onChange={(e) => setF('marital_status', e.target.value)}>
+                    <option value="">—</option>
+                    {MARITAL.map((g) => <option key={g} value={g}>{g}</option>)}
+                  </select>
+                </Field>
+                <Field label="Education level">
+                  <select className={inputClass} value={form.education_level} onChange={(e) => setF('education_level', e.target.value)}>
+                    <option value="">—</option>
+                    {EDUCATION.map((g) => <option key={g} value={g}>{g}</option>)}
+                  </select>
+                </Field>
+              </div>
+            </section>
+
+            <section>
+              <h3 className="mb-3 text-sm font-semibold text-slate-900">Home location</h3>
+              <LocationFields value={form.home} onChange={(v) => setF('home', v)} />
+            </section>
+
+            <section>
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <h3 className="text-sm font-semibold text-slate-900">Farm</h3>
+                <label className="inline-flex items-center gap-2 text-sm text-slate-700">
+                  <input type="checkbox" className="h-4 w-4 rounded border-slate-300 text-brand-600" checked={form.farmSameAsHome} onChange={(e) => setF('farmSameAsHome', e.target.checked)} />
+                  Farm is at the home location
+                </label>
+              </div>
+              {!form.farmSameAsHome && <div className="mb-3"><LocationFields value={form.farm} onChange={(v) => setF('farm', v)} /></div>}
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <Field label="Farm size (ha)"><input type="number" min="0" step="0.01" className={inputClass} value={form.farm_size} onChange={(e) => setF('farm_size', e.target.value)} /></Field>
+                <Field label="Number of trees"><input type="number" min="0" className={inputClass} value={form.tree_count} onChange={(e) => setF('tree_count', e.target.value)} /></Field>
+                <Field label="Year planted"><input type="number" min="1950" max={new Date().getFullYear()} className={inputClass} value={form.planted} onChange={(e) => setF('planted', e.target.value)} placeholder="e.g. 2019" /></Field>
+                <Field label="Avocado type">
+                  <select className={inputClass} value={form.avocado_type} onChange={(e) => setF('avocado_type', e.target.value)}>
+                    <option value="">—</option>
+                    {AVOCADO_TYPES.map((g) => <option key={g} value={g}>{g}</option>)}
+                  </select>
+                </Field>
+                {form.avocado_type === 'Mixed' && (
+                  <Field label="Hass share (%)"><input type="number" min="0" max="100" className={inputClass} value={form.mixed_percentage} onChange={(e) => setF('mixed_percentage', e.target.value)} /></Field>
                 )}
+                <Field label="UPI number"><input className={inputClass} value={form.upi_number} onChange={(e) => setF('upi_number', e.target.value)} /></Field>
               </div>
-              <div className="p-2 rounded-full" style={{ backgroundColor: '#1F310A20' }}>
-                <User className="w-6 h-6" style={{ color: '#1F310A' }} />
-              </div>
-            </div>
-          </div>
-          
-          <div className="p-4 bg-white rounded-xl shadow-lg border border-gray-100 hover:shadow-xl transition-shadow duration-300">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-medium text-gray-500">Total Numbers of Trees</p>
-                <p className="text-2xl font-bold text-gray-800">
-                  {farmers.reduce((sum, f) => sum + (f.profile?.farm_details?.tree_count || 0), 0)}
-                </p>
-              </div>
-              <div className="p-2 bg-green-100 rounded-full">
-                <TreePine className="w-6 h-6 text-green-600" />
-              </div>
-            </div>
-          </div>
-          
-          <div className="p-4 bg-white rounded-xl shadow-lg border border-gray-100 hover:shadow-xl transition-shadow duration-300">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-medium text-gray-500"> Number of Districts</p>
-                <p className="text-2xl font-bold text-gray-800">
-                  {(() => {
-                    const uniqueDistricts = new Set(
-                      farmers
-                        .map(f => f.profile?.district)
-                        .filter(d => d)
-                    );
-                    return uniqueDistricts.size || 0;
-                  })()}
-                </p>
-              </div>
-              <div className="p-2 bg-purple-100 rounded-full">
-                <MapPin className="w-6 h-6 text-purple-600" />
-              </div>
-            </div>
-          </div>
-          
-          <div className="p-4 bg-white rounded-xl shadow-lg border border-gray-100 hover:shadow-xl transition-shadow duration-300">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-medium text-gray-500">Number of Sectors</p>
-                <p className="text-2xl font-bold text-gray-800">
-                  {(() => {
-                    const uniqueSectors = new Set(
-                      farmers
-                        .map(f => f.profile?.sector)
-                        .filter(s => s)
-                    );
-                    return uniqueSectors.size || 0;
-                  })()}
-                </p>
-              </div>
-              <div className="p-2 bg-purple-100 rounded-full">
-                <MapPin className="w-6 h-6 text-purple-600" />
-              </div>
-            </div>
-          </div>
-          
-          <div className="p-4 bg-white rounded-xl shadow-lg border border-gray-100 hover:shadow-xl transition-shadow duration-300">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-medium text-gray-500">Farm Hectarage</p>
-                <p className="text-2xl font-bold text-gray-800">
-                  {farmers.length > 0 
-                    ? (farmers.reduce((sum, f) => sum + (parseFloat(f.profile?.farm_details?.farm_size) || 0), 0)).toFixed(1)
-                    : '0'}ha
-                </p>
-              </div>
-              <div className="p-2 bg-orange-100 rounded-full">
-                <Calendar className="w-6 h-6 text-orange-600" />
-              </div>
-            </div>
-          </div>
-        </div>
+            </section>
 
-        {/* Search and Filter Bar */}
-        {/* <div className="mb-6 bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-              <input
-                type="text"
-                placeholder="Search farmers by name or email..."
-                value={searchTerm}
-                onChange={handleSearchChange}
-                className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:border-transparent transition-all duration-200"
-                style={{ '--tw-ring-color': '#1F310A' }}
-                onFocus={(e) => e.target.style.borderColor = '#1F310A'}
-              />
-            </div>
-            
-            <div className="flex items-center gap-2">
-              <Filter className="text-gray-400" size={20} />
-              <select
-                value={filterBy}
-                onChange={handleFilterChange}
-                className="px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:border-transparent transition-all duration-200"
-                style={{ '--tw-ring-color': '#1F310A' }}
-                onFocus={(e) => e.target.style.borderColor = '#1F310A'}
-              >
-                <option value="all">All Status</option>
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-              </select>
-            </div>
-          </div>
-        </div> */}
-
-        {/* Export Info */}
-        {filteredFarmers.length > 0 && (
-          <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-            <div className="flex items-center gap-2 text-blue-700">
-              <Download size={16} />
-              <span className="text-sm">
-                Ready to export {filteredFarmers.length} farmer{filteredFarmers.length !== 1 ? 's' : ''} to Excel
-              </span>
-            </div>
-          </div>
+            <section>
+              <h3 className="mb-3 text-sm font-semibold text-slate-900">Assistance needed</h3>
+              <div className="flex flex-wrap gap-2">
+                {ASSISTANCE_OPTIONS.map((opt) => {
+                  const on = form.assistance.includes(opt);
+                  return (
+                    <button key={opt} type="button" aria-pressed={on} onClick={() => toggleAssist(opt)}
+                      className={`rounded-full px-3 py-1.5 text-sm ring-1 ring-inset transition ${on ? 'bg-brand-600 text-white ring-brand-600' : 'bg-white text-slate-700 ring-slate-300 hover:bg-slate-50'}`}>
+                      {cap(opt)}
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+          </form>
         )}
+      </Dialog>
 
-        {/* Modern Table */}
-        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
-          <div className="overflow-x-auto">
-            {loading ? (
-              <div className="p-12 text-center">
-                <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2" style={{ borderColor: '#1F310A' }}></div>
-                <p className="mt-4 text-gray-600">Loading farmers...</p>
-              </div>
-            ) : error ? (
-              <div className="p-12 text-center">
-                <div className="w-16 h-16 mx-auto mb-4 bg-red-100 rounded-full flex items-center justify-center">
-                  <X className="w-8 h-8 text-red-600" />
+      {/* Registration result */}
+      <Dialog open={!!created} title="Farmer registered" onClose={() => setCreated(null)} size="md"
+        footer={<Button onClick={() => setCreated(null)}>Done</Button>}>
+        {created && (
+          <div className="space-y-4 text-sm">
+            <p className="text-slate-700">
+              <span className="font-medium text-slate-900">{created.full_name}</span> can now sign in with <span className="font-medium">{created.email}</span>.
+              A first farm was created from the details you entered.
+            </p>
+            {created.default_password && (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+                <p className="flex items-center gap-2 font-medium text-amber-900"><KeyRound className="h-4 w-4" /> Temporary password</p>
+                <div className="mt-2 flex items-center gap-2">
+                  <code className="rounded bg-white px-2 py-1 font-mono text-slate-900 ring-1 ring-amber-200">{created.default_password}</code>
+                  <Button variant="secondary" size="sm" icon={Copy} onClick={() => copy(created.default_password)} aria-label="Copy password">Copy</Button>
                 </div>
-                <p className="text-red-600 font-medium">{error}</p>
-              </div>
-            ) : filteredFarmers.length > 0 ? (
-              <table className="min-w-full">
-                <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
-                  <tr>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Farmer</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Contact</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Location</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Farm Info</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {filteredFarmers.map((farmer, index) => (
-                    <tr key={farmer.id} className="hover:bg-gray-50 transition-colors duration-200">
-                      <td className="px-6 py-4">
-                        <div className="flex items-center">
-                          <div className="flex-shrink-0 w-12 h-12">
-                            <div className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-lg" style={{ background: '#1F310A' }}>
-                              {farmer.full_name.charAt(0)}
-                            </div>
-                          </div>
-                          <div className="ml-4">
-                            <div className="text-sm font-semibold text-gray-900">{farmer.full_name}</div>
-                            <div className="text-sm text-gray-500">ID: {farmer.profile?.farm_details?.upi_number || farmer.id}</div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="space-y-1">
-                          <div className="flex items-center text-sm text-gray-900">
-                            <Mail className="w-4 h-4 mr-2 text-gray-400" />
-                            {farmer.email}
-                          </div>
-                          <div className="flex items-center text-sm text-gray-900">
-                            <Phone className="w-4 h-4 mr-2 text-gray-400" />
-                            {farmer.phone || 'N/A'}
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="space-y-1">
-                          <div className="text-sm font-medium text-gray-900">{farmer.profile?.province || 'N/A'}</div>
-                          <div className="text-sm text-gray-500">{farmer.profile?.district || 'N/A'}, {farmer.profile?.sector || 'N/A'}</div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="space-y-1">
-                          <div className="text-sm font-medium text-gray-900">
-                            {farmer.profile?.farm_details?.farm_size ? `${farmer.profile.farm_details.farm_size} ha` : 'N/A'}
-                          </div>
-                          <div className="text-sm text-gray-500">
-                            {farmer.profile?.farm_details?.tree_count || 0} trees • {farmer.profile?.farm_details?.avocado_type || 'N/A'}
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <button
-                          onClick={() => openModal(farmer)}
-                          className="inline-flex items-center gap-2 px-4 py-2 text-white text-sm font-medium rounded-lg transition-all duration-200 shadow-md hover:shadow-lg"
-                          style={{ background: '#1F310A' }}
-                          onMouseEnter={(e) => e.target.style.background = '#2A4A0D'}
-                          onMouseLeave={(e) => e.target.style.background = '#1F310A'}
-                        >
-                          <Eye size={16} />
-                          View Details
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            ) : (
-              <div className="p-12 text-center">
-                <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
-                  <User className="w-8 h-8 text-gray-400" />
-                </div>
-                <p className="text-gray-600">No farmers found matching your criteria.</p>
-                <p className="text-sm text-gray-500 mt-2">
-                  {searchTerm || filterBy !== 'all' 
-                    ? 'Try adjusting your search or filter criteria.' 
-                    : 'No farmers have been added yet. Click "Add New Farmer" to create one.'}
-                </p>
+                <p className="mt-2 text-amber-900">Share it with the farmer privately and ask them to change it after their first sign-in.</p>
               </div>
             )}
           </div>
-
-          {/* Pagination */}
-          {pagination.totalPages > 1 && (
-            <div className="mt-6 flex items-center justify-between border-t border-gray-200 pt-4">
-              <div className="text-sm text-gray-700">
-                Showing <span className="font-medium">{((pagination.currentPage - 1) * pagination.itemsPerPage) + 1}</span> to{' '}
-                <span className="font-medium">
-                  {Math.min(pagination.currentPage * pagination.itemsPerPage, pagination.totalItems)}
-                </span> of{' '}
-                <span className="font-medium">{pagination.totalItems}</span> farmers
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => handlePageChange(pagination.currentPage - 1)}
-                  disabled={pagination.currentPage === 1}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Previous
-                </button>
-                <div className="flex items-center gap-1">
-                  {Array.from({ length: pagination.totalPages }, (_, i) => i + 1).map((page) => (
-                    <button
-                      key={page}
-                      onClick={() => handlePageChange(page)}
-                      className={`px-3 py-2 text-sm font-medium rounded-lg ${
-                        page === pagination.currentPage
-                          ? 'text-white'
-                          : 'text-gray-700 hover:bg-gray-50'
-                      }`}
-                      style={{
-                        background: page === pagination.currentPage ? '#1F310A' : 'white',
-                        border: '1px solid #e5e7eb'
-                      }}
-                    >
-                      {page}
-                    </button>
-                  ))}
-                </div>
-                <button
-                  onClick={() => handlePageChange(pagination.currentPage + 1)}
-                  disabled={pagination.currentPage === pagination.totalPages}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Next
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Enhanced Modal */}
-      {isModalOpen && selectedFarmer && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm">
-          <div className="relative w-full max-w-4xl max-h-[90vh] mx-4 bg-white rounded-2xl shadow-2xl overflow-hidden">
-            {/* Modal Header */}
-            <div className="px-6 py-4 text-white" style={{ background: '#1F310A' }}>
-              <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-bold">Farmer Details</h2>
-                <button
-                  onClick={closeModal}
-                  className="p-2 hover:bg-white hover:bg-opacity-20 rounded-full transition-colors duration-200"
-                >
-                  <X size={24} />
-                </button>
-              </div>
-            </div>
-
-            {/* Modal Content */}
-            <div className="p-6 overflow-y-auto max-h-[calc(90vh-80px)]">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* Personal Information */}
-                <div className="space-y-6">
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                      <User className="w-5 h-5" style={{ color: '#1F310A' }} />
-                      Personal Information
-                    </h3>
-                    <div className="space-y-3 bg-gray-50 p-4 rounded-xl">
-                      <div className="flex justify-between">
-                        <span className="font-medium text-gray-600">Full Name:</span>
-                        <span className="text-gray-900">{selectedFarmer.full_name}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="font-medium text-gray-600">Email:</span>
-                        <span className="text-gray-900">{selectedFarmer.email}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="font-medium text-gray-600">Phone:</span>
-                        <span className="text-gray-900">{selectedFarmer.phone || 'N/A'}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="font-medium text-gray-600">UPI Number:</span>
-                        <span className="text-gray-900">{selectedFarmer.profile?.farm_details?.upi_number || selectedFarmer.id}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="font-medium text-gray-600">Age:</span>
-                        <span className="text-gray-900">{selectedFarmer.profile?.age || 'N/A'}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="font-medium text-gray-600">Gender:</span>
-                        <span className="text-gray-900">{selectedFarmer.profile?.gender || 'N/A'}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="font-medium text-gray-600">Status:</span>
-                        <span className={`px-2 py-1 rounded-full text-xs font-bold ${
-                          selectedFarmer.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                        }`}>
-                          {selectedFarmer.status || 'N/A'}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Location Information */}
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                      <MapPin className="w-5 h-5 text-purple-600" />
-                      Location
-                    </h3>
-                    <div className="space-y-3 bg-gray-50 p-4 rounded-xl">
-                      <div className="flex justify-between">
-                        <span className="font-medium text-gray-600">Province:</span>
-                        <span className="text-gray-900">{selectedFarmer.profile?.province || 'N/A'}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="font-medium text-gray-600">District:</span>
-                        <span className="text-gray-900">{selectedFarmer.profile?.district || 'N/A'}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="font-medium text-gray-600">Sector:</span>
-                        <span className="text-gray-900">{selectedFarmer.profile?.sector || 'N/A'}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="font-medium text-gray-600">Cell:</span>
-                        <span className="text-gray-900">{selectedFarmer.profile?.cell || 'N/A'}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="font-medium text-gray-600">Village:</span>
-                        <span className="text-gray-900">{selectedFarmer.profile?.village || 'N/A'}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Farm Information */}
-                <div className="space-y-6">
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                      <TreePine className="w-5 h-5" style={{ color: '#1F310A' }} />
-                      Farm Information
-                    </h3>
-                    <div className="space-y-3 bg-gray-50 p-4 rounded-xl">
-                      <div className="flex justify-between">
-                        <span className="font-medium text-gray-600">Farm Size:</span>
-                        <span className="text-gray-900">{selectedFarmer.profile?.farm_details?.farm_size ? `${selectedFarmer.profile.farm_details.farm_size} ha` : 'N/A'}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="font-medium text-gray-600">Tree Count:</span>
-                        <span className="text-gray-900">{selectedFarmer.profile?.farm_details?.tree_count || 'N/A'}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="font-medium text-gray-600">Avocado Type:</span>
-                        <span className="text-gray-900">{selectedFarmer.profile?.farm_details?.avocado_type || 'N/A'}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="font-medium text-gray-600">Mixed %:</span>
-                        <span className="text-gray-900">{selectedFarmer.profile?.farm_details?.mixed_percentage ? `${selectedFarmer.profile.farm_details.mixed_percentage}%` : 'N/A'}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="font-medium text-gray-600">Farm Age:</span>
-                        <span className="text-gray-900">{selectedFarmer.profile?.farm_details?.farm_age ? `${selectedFarmer.profile.farm_details.farm_age} years` : 'N/A'}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="font-medium text-gray-600">Planted:</span>
-                        <span className="text-gray-900">{selectedFarmer.profile?.farm_details?.planted || 'N/A'}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Farm Location */}
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                      <MapPin className="w-5 h-5" style={{ color: '#1F310A' }} />
-                      Farm Location
-                    </h3>
-                    <div className="space-y-3 bg-gray-50 p-4 rounded-xl">
-                      <div className="flex justify-between">
-                        <span className="font-medium text-gray-600">Province:</span>
-                        <span className="text-gray-900">{selectedFarmer.profile?.farm_details?.farm_location?.province || 'N/A'}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="font-medium text-gray-600">District:</span>
-                        <span className="text-gray-900">{selectedFarmer.profile?.farm_details?.farm_location?.district || 'N/A'}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="font-medium text-gray-600">Sector:</span>
-                        <span className="text-gray-900">{selectedFarmer.profile?.farm_details?.farm_location?.sector || 'N/A'}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="font-medium text-gray-600">Cell:</span>
-                        <span className="text-gray-900">{selectedFarmer.profile?.farm_details?.farm_location?.cell || 'N/A'}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="font-medium text-gray-600">Village:</span>
-                        <span className="text-gray-900">{selectedFarmer.profile?.farm_details?.farm_location?.village || 'N/A'}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Assistance Section */}
-              {selectedFarmer.profile?.farm_details?.assistance && (
-                <div className="mt-8">
-                  <h3 className="text-lg font-semibold text-gray-800 mb-4">Assistance Provided</h3>
-                  <div className="flex flex-wrap gap-2">
-                    <span
-                      className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium text-white"
-                      style={{ background: '#1F310A' }}
-                    >
-                      {selectedFarmer.profile.farm_details.assistance}
-                    </span>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Modal Footer */}
-            <div className="bg-gray-50 px-6 py-4 flex justify-end">
-              <button
-                onClick={closeModal}
-                className="px-6 py-2 text-white rounded-lg transition-colors duration-200"
-                style={{ background: '#1F310A' }}
-                onMouseEnter={(e) => e.target.style.background = '#2A4A0D'}
-                onMouseLeave={(e) => e.target.style.background = '#1F310A'}
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Add Farmer Modal */}
-      {isAddModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm">
-          <div className="relative w-full max-w-4xl max-h-[90vh] mx-4 bg-white rounded-2xl shadow-2xl overflow-hidden">
-            {/* Modal Header */}
-            <div className="px-6 py-4 text-white" style={{ background: '#1F310A' }}>
-              <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-bold">Add New Farmer</h2>
-                <button
-                  onClick={closeAddModal}
-                  className="p-2 hover:bg-white hover:bg-opacity-20 rounded-full transition-colors duration-200"
-                >
-                  <X size={24} />
-                </button>
-              </div>
-            </div>
-
-            {/* Modal Content */}
-            <div className="p-6 overflow-y-auto max-h-[calc(90vh-160px)]">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* Personal Information */}
-                <div className="space-y-6">
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                      <User className="w-5 h-5" style={{ color: '#1F310A' }} />
-                      Personal Information
-                    </h3>
-                    <div className="space-y-4 bg-gray-50 p-4 rounded-xl">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Full Name <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                          type="text"
-                          name="full_name"
-                          value={newFarmer.full_name}
-                          onChange={handleInputChange}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200"
-                          style={{ '--tw-ring-color': '#1F310A' }}
-                          placeholder="Enter full name"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Email <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                          type="email"
-                          name="email"
-                          value={newFarmer.email}
-                          onChange={handleInputChange}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200"
-                          style={{ '--tw-ring-color': '#1F310A' }}
-                          placeholder="Enter email address"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Phone <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                          type="tel"
-                          name="telephone"
-                          value={newFarmer.telephone}
-                          onChange={handleInputChange}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200"
-                          style={{ '--tw-ring-color': '#1F310A' }}
-                          placeholder="+250788123456"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Location Information */}
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                      <MapPin className="w-5 h-5 text-purple-600" />
-                      Personal Location
-                    </h3>
-                    <div className="space-y-4 bg-gray-50 p-4 rounded-xl">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Province</label>
-                        <select
-                          name="province"
-                          value={newFarmer.province}
-                          onChange={handleInputChange}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200"
-                          style={{ '--tw-ring-color': '#1F310A' }}
-                        >
-                          <option value="">Select Province</option>
-                          <option value="Kigali">Kigali</option>
-                          <option value="Northern">Northern</option>
-                          <option value="Southern">Southern</option>
-                          <option value="Eastern">Eastern</option>
-                          <option value="Western">Western</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">District</label>
-                        <input
-                          type="text"
-                          name="district"
-                          value={newFarmer.district}
-                          onChange={handleInputChange}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200"
-                          style={{ '--tw-ring-color': '#1F310A' }}
-                          placeholder="Enter district"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Sector</label>
-                        <input
-                          type="text"
-                          name="sector"
-                          value={newFarmer.sector}
-                          onChange={handleInputChange}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200"
-                          style={{ '--tw-ring-color': '#1F310A' }}
-                          placeholder="Enter sector"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Farm Information */}
-                <div className="space-y-6">
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                      <TreePine className="w-5 h-5" style={{ color: '#1F310A' }} />
-                      Farm Information
-                    </h3>
-                    <div className="space-y-4 bg-gray-50 p-4 rounded-xl">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Farm Size</label>
-                        <input
-                          type="text"
-                          name="farm_size"
-                          value={newFarmer.farm_size}
-                          onChange={handleInputChange}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200"
-                          style={{ '--tw-ring-color': '#1F310A' }}
-                          placeholder="2.5 hectares"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Tree Count</label>
-                        <input
-                          type="number"
-                          name="tree_count"
-                          value={newFarmer.tree_count}
-                          onChange={handleInputChange}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200"
-                          style={{ '--tw-ring-color': '#1F310A' }}
-                          placeholder="150"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Avocado Type</label>
-                        <select
-                          name="avocado_type"
-                          value={newFarmer.avocado_type}
-                          onChange={handleInputChange}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200"
-                          style={{ '--tw-ring-color': '#1F310A' }}
-                        >
-                          <option value="">Select Type</option>
-                          <option value="Hass">Hass</option>
-                          <option value="Fuerte">Fuerte</option>
-                          <option value="Mixed">Mixed</option>
-                          <option value="Other">Other</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Mixed Percentage</label>
-                        <input
-                          type="text"
-                          name="mixed_percentage"
-                          value={newFarmer.mixed_percentage}
-                          onChange={handleInputChange}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200"
-                          style={{ '--tw-ring-color': '#1F310A' }}
-                          placeholder="80%"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Farm Age (years)</label>
-                        <input
-                          type="number"
-                          name="farm_age"
-                          value={newFarmer.farm_age}
-                          onChange={handleInputChange}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200"
-                          style={{ '--tw-ring-color': '#1F310A' }}
-                          placeholder="5"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Date Planted</label>
-                        <input
-                          type="date"
-                          name="planted"
-                          value={newFarmer.planted}
-                          onChange={handleInputChange}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200"
-                          style={{ '--tw-ring-color': '#1F310A' }}
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Farm Location */}
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                      <MapPin className="w-5 h-5" style={{ color: '#1F310A' }} />
-                      Farm Location
-                    </h3>
-                    <div className="space-y-4 bg-gray-50 p-4 rounded-xl">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Farm Province</label>
-                        <select
-                          name="farm_province"
-                          value={newFarmer.farm_province}
-                          onChange={handleInputChange}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200"
-                          style={{ '--tw-ring-color': '#1F310A' }}
-                        >
-                          <option value="">Select Province</option>
-                          <option value="Kigali">Kigali</option>
-                          <option value="Northern">Northern</option>
-                          <option value="Southern">Southern</option>
-                          <option value="Eastern">Eastern</option>
-                          <option value="Western">Western</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Farm District</label>
-                        <input
-                          type="text"
-                          name="farm_district"
-                          value={newFarmer.farm_district}
-                          onChange={handleInputChange}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200"
-                          style={{ '--tw-ring-color': '#1F310A' }}
-                          placeholder="Enter district"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Farm Sector</label>
-                        <input
-                          type="text"
-                          name="farm_sector"
-                          value={newFarmer.farm_sector}
-                          onChange={handleInputChange}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200"
-                          style={{ '--tw-ring-color': '#1F310A' }}
-                          placeholder="Enter sector"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Farm Cell</label>
-                        <input
-                          type="text"
-                          name="farm_cell"
-                          value={newFarmer.farm_cell}
-                          onChange={handleInputChange}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200"
-                          style={{ '--tw-ring-color': '#1F310A' }}
-                          placeholder="Enter cell"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Farm Village</label>
-                        <input
-                          type="text"
-                          name="farm_village"
-                          value={newFarmer.farm_village}
-                          onChange={handleInputChange}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200"
-                          style={{ '--tw-ring-color': '#1F310A' }}
-                          placeholder="Enter village"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Assistance Section */}
-              <div className="mt-8">
-                <h3 className="text-lg font-semibold text-gray-800 mb-4">Assistance Needed</h3>
-                <div className="bg-gray-50 p-4 rounded-xl">
-                  <div className="flex flex-wrap gap-3">
-                    {['Training', 'Equipment', 'Fertilizer', 'Seeds', 'Pesticides', 'Financial Support'].map((assistance) => (
-                      <label key={assistance} className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={newFarmer.assistance.includes(assistance)}
-                          onChange={() => handleAssistanceChange(assistance)}
-                          className="rounded border-gray-300 text-green-600 focus:ring-green-500"
-                        />
-                        <span className="text-sm text-gray-700">{assistance}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Modal Footer */}
-            <div className="bg-gray-50 px-6 py-4 flex justify-end gap-3">
-              <button
-                onClick={closeAddModal}
-                className="px-6 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors duration-200"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={addFarmer}
-                className="px-6 py-2 text-white rounded-lg transition-colors duration-200"
-                style={{ background: '#1F310A' }}
-                onMouseEnter={(e) => e.target.style.background = '#2A4A0D'}
-                onMouseLeave={(e) => e.target.style.background = '#1F310A'}
-              >
-                Add Farmer
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+        )}
+      </Dialog>
+    </Page>
   );
 }

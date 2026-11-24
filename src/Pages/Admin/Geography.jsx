@@ -1,36 +1,118 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { MapPin, ChevronDown, ChevronRight, Plus, Edit, Trash2, X, Globe2 } from 'lucide-react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { MapPin, ChevronDown, ChevronRight, Plus, Pencil, Trash2, Globe2, RefreshCw, Search } from 'lucide-react';
 import {
   getFullGeography,
+  listProvinces,
+  listDistricts,
   createProvince, updateProvince, deleteProvince,
   createDistrict, updateDistrict,
   createSector,
   createCell,
-  createVillage
+  createVillage,
 } from '../../services/geographyService';
 import { useToast } from '../../components/Ui/Toast';
 import { useConfirm } from '../../components/Ui/ConfirmDialog';
+import { Page, PageHeader, Card, StatCard, Badge, Button, Field, inputClass, EmptyState, ErrorState, Spinner, Dialog } from '../../components/Ui/kit';
 
-// Full-tree responses may use either lowercase or capitalized keys for child
-// collections depending on serialization - check both defensively.
-const getChildren = (node, keys) => {
-  for (const key of keys) {
-    if (node && Array.isArray(node[key])) return node[key];
-  }
-  return [];
+const LEVEL_LABELS = { province: 'Province', district: 'District', sector: 'Sector', cell: 'Cell', village: 'Village' };
+const CHILD_LEVEL = { province: 'district', district: 'sector', sector: 'cell', cell: 'village' };
+const CHILD_KEY = { province: 'districts', district: 'sectors', sector: 'cells', cell: 'villages' };
+
+const childrenOf = (node, level) => (Array.isArray(node?.[CHILD_KEY[level]]) ? node[CHILD_KEY[level]] : []);
+const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+
+const iconBtn = 'rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500';
+
+/** One row of the hierarchy tree, recursing into its children when expanded. */
+const TreeNode = ({ node, level, depth, expanded, onToggle, onAdd, onEdit, onDelete, filter }) => {
+  const childLevel = CHILD_LEVEL[level];
+  const children = childLevel ? childrenOf(node, level) : [];
+  const key = `${level}:${node.id}`;
+  const isOpen = expanded.has(key) || Boolean(filter);
+  const editable = level === 'province' || level === 'district';
+
+  return (
+    <li>
+      <div className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-slate-50" style={{ paddingLeft: `${depth * 1.25 + 0.5}rem` }}>
+        {childLevel ? (
+          <button
+            type="button"
+            onClick={() => onToggle(key)}
+            aria-expanded={isOpen}
+            aria-label={`${isOpen ? 'Collapse' : 'Expand'} ${node.name}`}
+            className="flex min-w-0 flex-1 items-center gap-2 text-left"
+          >
+            {isOpen ? <ChevronDown className="h-4 w-4 shrink-0 text-slate-400" /> : <ChevronRight className="h-4 w-4 shrink-0 text-slate-400" />}
+            <span className={`truncate ${depth === 0 ? 'font-semibold text-slate-900' : 'text-slate-800'}`}>{node.name}</span>
+            {node.code && <span className="shrink-0 text-xs text-slate-400">({node.code})</span>}
+            <Badge className="hidden shrink-0 sm:inline-flex">{plural(children.length, LEVEL_LABELS[childLevel].toLowerCase())}</Badge>
+          </button>
+        ) : (
+          <span className="flex min-w-0 flex-1 items-center gap-2">
+            <MapPin className="h-4 w-4 shrink-0 text-slate-300" />
+            <span className="truncate text-slate-700">{node.name}</span>
+          </span>
+        )}
+        <div className="flex shrink-0 items-center gap-1">
+          {childLevel && (
+            <button type="button" className={iconBtn} onClick={() => onAdd(childLevel, node)} aria-label={`Add ${LEVEL_LABELS[childLevel].toLowerCase()} to ${node.name}`} title={`Add ${LEVEL_LABELS[childLevel].toLowerCase()}`}>
+              <Plus className="h-4 w-4" />
+            </button>
+          )}
+          {editable && (
+            <button type="button" className={iconBtn} onClick={() => onEdit(level, node)} aria-label={`Edit ${node.name}`} title="Edit">
+              <Pencil className="h-4 w-4" />
+            </button>
+          )}
+          {level === 'province' && (
+            <button type="button" className={`${iconBtn} hover:text-rose-600`} onClick={() => onDelete(node)} aria-label={`Delete ${node.name}`} title="Delete">
+              <Trash2 className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+      </div>
+      {isOpen && childLevel && (
+        children.length === 0 ? (
+          <p className="py-1 text-xs text-slate-400" style={{ paddingLeft: `${(depth + 1) * 1.25 + 1.75}rem` }}>
+            No {LEVEL_LABELS[childLevel].toLowerCase()}s yet.
+          </p>
+        ) : (
+          <ul>
+            {children.map((child) => (
+              <TreeNode
+                key={child.id}
+                node={child}
+                level={childLevel}
+                depth={depth + 1}
+                expanded={expanded}
+                onToggle={onToggle}
+                onAdd={onAdd}
+                onEdit={onEdit}
+                onDelete={onDelete}
+                filter={filter}
+              />
+            ))}
+          </ul>
+        )
+      )}
+    </li>
+  );
 };
 
-const getDistricts = (province) => getChildren(province, ['districts', 'Districts']);
-const getSectors = (district) => getChildren(district, ['sectors', 'Sectors']);
-const getCells = (sector) => getChildren(sector, ['cells', 'Cells']);
-const getVillages = (cell) => getChildren(cell, ['villages', 'Villages']);
-
-const LEVEL_LABELS = {
-  province: 'Province',
-  district: 'District',
-  sector: 'Sector',
-  cell: 'Cell',
-  village: 'Village'
+// Keep only branches that contain a match for the search term (case-insensitive).
+const filterTree = (nodes, level, term) => {
+  if (!term) return nodes;
+  return nodes.reduce((acc, node) => {
+    if ((node.name || '').toLowerCase().includes(term)) {
+      acc.push(node);
+      return acc;
+    }
+    const childLevel = CHILD_LEVEL[level];
+    if (!childLevel) return acc;
+    const kids = filterTree(childrenOf(node, level), childLevel, term);
+    if (kids.length) acc.push({ ...node, [CHILD_KEY[level]]: kids });
+    return acc;
+  }, []);
 };
 
 const AdminGeography = () => {
@@ -38,88 +120,111 @@ const AdminGeography = () => {
   const confirm = useConfirm();
 
   const [provinces, setProvinces] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [expanded, setExpanded] = useState(() => new Set());
+  const [search, setSearch] = useState('');
 
-  const [expandedProvinces, setExpandedProvinces] = useState(new Set());
-  const [expandedDistricts, setExpandedDistricts] = useState(new Set());
-  const [expandedSectors, setExpandedSectors] = useState(new Set());
-  const [expandedCells, setExpandedCells] = useState(new Set());
-
-  // modal: { level, mode: 'add'|'edit', parentId, parentLabel, data: {id,name,code} }
+  // modal: { level, mode: 'add'|'edit', parent: {id,name}|null, id?, name, code }
   const [modal, setModal] = useState(null);
   const [saving, setSaving] = useState(false);
 
-  const loadGeography = useCallback(async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await getFullGeography();
-      const list = Array.isArray(data) ? data : (Array.isArray(data?.provinces) ? data.provinces : []);
-      setProvinces(list);
+      // The full tree has no codes, so merge province codes from the flat list.
+      const [tree, flat] = await Promise.all([getFullGeography(), listProvinces().catch(() => [])]);
+      const codes = Object.fromEntries(flat.map((p) => [p.id, p.code]));
+      const list = Array.isArray(tree) ? tree : [];
+      setProvinces(list.map((p) => ({ ...p, code: codes[p.id] || p.code || null })));
     } catch (err) {
-      console.error('Error loading geography:', err);
       setError(err.message || 'Failed to load geography data');
-      setProvinces([]);
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    loadGeography();
-  }, [loadGeography]);
+    load();
+  }, [load]);
 
-  const toggle = (set, setSet, id) => {
-    const next = new Set(set);
-    if (next.has(id)) next.delete(id); else next.add(id);
-    setSet(next);
+  const totals = useMemo(() => {
+    const t = { provinces: provinces.length, districts: 0, sectors: 0, cells: 0, villages: 0 };
+    provinces.forEach((p) => childrenOf(p, 'province').forEach((d) => {
+      t.districts += 1;
+      childrenOf(d, 'district').forEach((s) => {
+        t.sectors += 1;
+        childrenOf(s, 'sector').forEach((c) => {
+          t.cells += 1;
+          t.villages += childrenOf(c, 'cell').length;
+        });
+      });
+    }));
+    return t;
+  }, [provinces]);
+
+  const term = search.trim().toLowerCase();
+  const visible = useMemo(() => filterTree(provinces, 'province', term), [provinces, term]);
+
+  const toggle = (key) => setExpanded((prev) => {
+    const next = new Set(prev);
+    if (next.has(key)) next.delete(key); else next.add(key);
+    return next;
+  });
+
+  const openAdd = (level, parent = null) => setModal({ level, mode: 'add', parent, name: '', code: '' });
+
+  const openEdit = async (level, node) => {
+    setModal({ level, mode: 'edit', id: node.id, name: node.name || '', code: node.code || '', loadingCode: level === 'district' });
+    if (level === 'district') {
+      // District codes aren't in the tree; look them up from the province's district list.
+      const province = provinces.find((p) => childrenOf(p, 'province').some((d) => d.id === node.id));
+      try {
+        const districts = province ? await listDistricts(province.id) : [];
+        const match = districts.find((d) => d.id === node.id);
+        setModal((m) => (m && m.id === node.id ? { ...m, code: match?.code || '', loadingCode: false } : m));
+      } catch {
+        setModal((m) => (m && m.id === node.id ? { ...m, loadingCode: false } : m));
+      }
+    }
   };
 
-  // ---- Modal helpers ----
-  const openAdd = (level, parentId, parentLabel) => {
-    setModal({ level, mode: 'add', parentId, parentLabel, data: { name: '', code: '' } });
-  };
+  const closeModal = () => !saving && setModal(null);
 
-  const openEdit = (level, node, parentId, parentLabel) => {
-    setModal({ level, mode: 'edit', parentId, parentLabel, data: { id: node.id, name: node.name || '', code: node.code || '' } });
-  };
-
-  const closeModal = () => setModal(null);
-
-  const handleSave = async () => {
+  const handleSave = async (e) => {
+    e.preventDefault();
     if (!modal) return;
-    if (!modal.data.name.trim()) {
+    const name = modal.name.trim();
+    if (!name) {
       toast.error('Name is required');
       return;
     }
+    const code = modal.code.trim();
     setSaving(true);
     try {
-      const { level, mode, parentId, data } = modal;
+      const { level, mode, parent, id } = modal;
       if (level === 'province') {
-        if (mode === 'add') {
-          await createProvince({ name: data.name.trim(), code: data.code?.trim() || undefined });
-        } else {
-          await updateProvince(data.id, { name: data.name.trim(), code: data.code?.trim() || undefined });
-        }
+        if (mode === 'add') await createProvince({ name, ...(code ? { code } : {}) });
+        else await updateProvince(id, { name, code });
       } else if (level === 'district') {
-        if (mode === 'add') {
-          await createDistrict({ name: data.name.trim(), province_id: parentId, code: data.code?.trim() || undefined });
-        } else {
-          await updateDistrict(data.id, { name: data.name.trim(), code: data.code?.trim() || undefined });
-        }
+        if (mode === 'add') await createDistrict({ name, province_id: parent.id, ...(code ? { code } : {}) });
+        else await updateDistrict(id, { name, code });
       } else if (level === 'sector') {
-        await createSector({ name: data.name.trim(), district_id: parentId });
+        await createSector({ name, district_id: parent.id });
       } else if (level === 'cell') {
-        await createCell({ name: data.name.trim(), sector_id: parentId });
+        await createCell({ name, sector_id: parent.id });
       } else if (level === 'village') {
-        await createVillage({ name: data.name.trim(), cell_id: parentId });
+        await createVillage({ name, cell_id: parent.id });
       }
-      toast.success(`${LEVEL_LABELS[level]} ${mode === 'add' ? 'created' : 'updated'} successfully`);
-      closeModal();
-      await loadGeography();
+      if (parent) {
+        const parentLevel = Object.keys(CHILD_LEVEL).find((k) => CHILD_LEVEL[k] === level);
+        setExpanded((prev) => new Set(prev).add(`${parentLevel}:${parent.id}`));
+      }
+      toast.success(`${LEVEL_LABELS[level]} ${mode === 'add' ? 'created' : 'updated'}`);
+      setModal(null);
+      await load();
     } catch (err) {
-      console.error(`Error saving ${modal.level}:`, err);
       toast.error(err.message || `Failed to save ${LEVEL_LABELS[modal.level].toLowerCase()}`);
     } finally {
       setSaving(false);
@@ -127,211 +232,133 @@ const AdminGeography = () => {
   };
 
   const handleDeleteProvince = async (province) => {
-    const ok = await confirm(`Delete province "${province.name}"? This is only possible if it has no districts.`, { title: 'Delete Province' });
+    if (childrenOf(province, 'province').length > 0) {
+      toast.error(`"${province.name}" still has districts. Only empty provinces can be deleted.`);
+      return;
+    }
+    const ok = await confirm(`Delete province "${province.name}"? This cannot be undone.`, { title: 'Delete province', confirmLabel: 'Delete' });
     if (!ok) return;
     try {
       await deleteProvince(province.id);
       toast.success('Province deleted');
-      await loadGeography();
+      await load();
     } catch (err) {
-      console.error('Error deleting province:', err);
-      toast.error(err.message || 'Failed to delete province. It may still have districts assigned to it.');
+      toast.error(err.message || 'Failed to delete province');
     }
   };
 
   return (
-    <div className="space-y-6 p-4 bg-gradient-to-b from-green-50 to-green-50 min-h-screen">
-      <div className="bg-white rounded-xl shadow-lg p-6 ring-1 ring-green-100">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h2 className="text-2xl font-bold text-green-800 flex items-center">
-              <Globe2 className="h-7 w-7 mr-3 text-green-600" />
-              Geography Management
-            </h2>
-            <p className="text-green-600 mt-1">Manage the administrative location hierarchy: Province → District → Sector → Cell → Village</p>
-            {error && (
-              <div className="mt-2 p-2 bg-yellow-100 border border-yellow-400 rounded text-sm text-yellow-700">{error}</div>
-            )}
+    <Page>
+      <PageHeader
+        icon={Globe2}
+        title="Geography"
+        subtitle="Administrative hierarchy: Province → District → Sector → Cell → Village"
+        actions={
+          <>
+            <Button variant="secondary" icon={RefreshCw} onClick={load} disabled={loading}>Refresh</Button>
+            <Button icon={Plus} onClick={() => openAdd('province')}>Add province</Button>
+          </>
+        }
+      />
+
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+        <StatCard label="Provinces" value={totals.provinces} />
+        <StatCard label="Districts" value={totals.districts} />
+        <StatCard label="Sectors" value={totals.sectors} />
+        <StatCard label="Cells" value={totals.cells} />
+        <StatCard label="Villages" value={totals.villages} />
+      </div>
+
+      <Card
+        title="Location hierarchy"
+        subtitle="Provinces and districts can be renamed; sectors, cells and villages can currently only be added (the API has no edit/delete for them)."
+        padded={false}
+      >
+        <div className="border-b border-slate-100 p-4">
+          <div className="relative max-w-sm">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <input
+              type="search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search any location…"
+              aria-label="Search locations"
+              className={`${inputClass} pl-9`}
+            />
           </div>
-          <button
-            onClick={() => openAdd('province', null, null)}
-            className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all transform hover:scale-105 shadow-lg"
-          >
-            <Plus className="h-5 w-5 mr-2" />
-            Add Province
-          </button>
         </div>
-      </div>
-
-      <div className="bg-white rounded-xl shadow-lg p-4 ring-1 ring-green-100">
-        {loading ? (
-          <div className="p-8 text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto"></div>
-            <p className="mt-2 text-green-600">Loading geography data...</p>
-          </div>
-        ) : provinces.length === 0 ? (
-          <div className="p-8 text-center">
-            <MapPin className="h-12 w-12 text-green-400 mx-auto mb-4" />
-            <p className="text-green-600 text-lg font-medium">No provinces yet</p>
-          </div>
+        {loading && provinces.length === 0 ? (
+          <Spinner label="Loading geography…" />
+        ) : error ? (
+          <ErrorState message={error} onRetry={load} />
+        ) : visible.length === 0 ? (
+          term ? (
+            <EmptyState icon={Search} title="No matches" description={`Nothing matches "${search}".`} />
+          ) : (
+            <EmptyState icon={MapPin} title="No provinces yet" description="Start by adding a province." action={<Button icon={Plus} onClick={() => openAdd('province')}>Add province</Button>} />
+          )
         ) : (
-          <div className="space-y-2">
-            {provinces.map((province) => {
-              const isProvinceOpen = expandedProvinces.has(province.id);
-              const districts = getDistricts(province);
-              return (
-                <div key={province.id} className="border border-green-100 rounded-lg">
-                  <div className="flex items-center justify-between px-3 py-2 hover:bg-green-50 rounded-lg">
-                    <button onClick={() => toggle(expandedProvinces, setExpandedProvinces, province.id)} className="flex items-center flex-1 text-left">
-                      {isProvinceOpen ? <ChevronDown className="h-4 w-4 mr-2 text-green-600" /> : <ChevronRight className="h-4 w-4 mr-2 text-green-600" />}
-                      <span className="font-semibold text-green-900">{province.name}</span>
-                      {province.code && <span className="ml-2 text-xs text-green-500">({province.code})</span>}
-                      <span className="ml-2 text-xs text-gray-400">{districts.length} district{districts.length !== 1 ? 's' : ''}</span>
-                    </button>
-                    <div className="flex items-center gap-2">
-                      <button onClick={() => openAdd('district', province.id, province.name)} className="p-1.5 text-green-600 hover:bg-green-100 rounded" title="Add District"><Plus className="h-4 w-4" /></button>
-                      <button onClick={() => openEdit('province', province, null, null)} className="p-1.5 text-blue-600 hover:bg-blue-100 rounded" title="Edit Province"><Edit className="h-4 w-4" /></button>
-                      <button onClick={() => handleDeleteProvince(province)} className="p-1.5 text-red-600 hover:bg-red-100 rounded" title="Delete Province"><Trash2 className="h-4 w-4" /></button>
-                    </div>
-                  </div>
-
-                  {isProvinceOpen && (
-                    <div className="pl-8 pr-2 pb-2 space-y-1">
-                      {districts.length === 0 && <p className="text-xs text-gray-400 py-1">No districts yet.</p>}
-                      {districts.map((district) => {
-                        const isDistrictOpen = expandedDistricts.has(district.id);
-                        const sectors = getSectors(district);
-                        return (
-                          <div key={district.id} className="border border-green-50 rounded-lg">
-                            <div className="flex items-center justify-between px-3 py-1.5 hover:bg-green-50 rounded-lg">
-                              <button onClick={() => toggle(expandedDistricts, setExpandedDistricts, district.id)} className="flex items-center flex-1 text-left">
-                                {isDistrictOpen ? <ChevronDown className="h-3.5 w-3.5 mr-2 text-green-600" /> : <ChevronRight className="h-3.5 w-3.5 mr-2 text-green-600" />}
-                                <span className="text-sm font-medium text-green-800">{district.name}</span>
-                                {district.code && <span className="ml-2 text-xs text-green-500">({district.code})</span>}
-                                <span className="ml-2 text-xs text-gray-400">{sectors.length} sector{sectors.length !== 1 ? 's' : ''}</span>
-                              </button>
-                              <div className="flex items-center gap-2">
-                                <button onClick={() => openAdd('sector', district.id, district.name)} className="p-1.5 text-green-600 hover:bg-green-100 rounded" title="Add Sector"><Plus className="h-3.5 w-3.5" /></button>
-                                <button onClick={() => openEdit('district', district, province.id, province.name)} className="p-1.5 text-blue-600 hover:bg-blue-100 rounded" title="Edit District"><Edit className="h-3.5 w-3.5" /></button>
-                              </div>
-                            </div>
-
-                            {isDistrictOpen && (
-                              <div className="pl-8 pr-2 pb-2 space-y-1">
-                                {sectors.length === 0 && <p className="text-xs text-gray-400 py-1">No sectors yet.</p>}
-                                {sectors.map((sector) => {
-                                  const isSectorOpen = expandedSectors.has(sector.id);
-                                  const cells = getCells(sector);
-                                  return (
-                                    <div key={sector.id} className="border border-green-50 rounded-lg">
-                                      <div className="flex items-center justify-between px-3 py-1.5 hover:bg-green-50 rounded-lg">
-                                        <button onClick={() => toggle(expandedSectors, setExpandedSectors, sector.id)} className="flex items-center flex-1 text-left">
-                                          {isSectorOpen ? <ChevronDown className="h-3.5 w-3.5 mr-2 text-green-600" /> : <ChevronRight className="h-3.5 w-3.5 mr-2 text-green-600" />}
-                                          <span className="text-sm text-green-800">{sector.name}</span>
-                                          <span className="ml-2 text-xs text-gray-400">{cells.length} cell{cells.length !== 1 ? 's' : ''}</span>
-                                        </button>
-                                        <button onClick={() => openAdd('cell', sector.id, sector.name)} className="p-1.5 text-green-600 hover:bg-green-100 rounded" title="Add Cell"><Plus className="h-3.5 w-3.5" /></button>
-                                      </div>
-
-                                      {isSectorOpen && (
-                                        <div className="pl-8 pr-2 pb-2 space-y-1">
-                                          {cells.length === 0 && <p className="text-xs text-gray-400 py-1">No cells yet.</p>}
-                                          {cells.map((cell) => {
-                                            const isCellOpen = expandedCells.has(cell.id);
-                                            const villages = getVillages(cell);
-                                            return (
-                                              <div key={cell.id} className="border border-green-50 rounded-lg">
-                                                <div className="flex items-center justify-between px-3 py-1.5 hover:bg-green-50 rounded-lg">
-                                                  <button onClick={() => toggle(expandedCells, setExpandedCells, cell.id)} className="flex items-center flex-1 text-left">
-                                                    {isCellOpen ? <ChevronDown className="h-3.5 w-3.5 mr-2 text-green-600" /> : <ChevronRight className="h-3.5 w-3.5 mr-2 text-green-600" />}
-                                                    <span className="text-sm text-green-800">{cell.name}</span>
-                                                    <span className="ml-2 text-xs text-gray-400">{villages.length} village{villages.length !== 1 ? 's' : ''}</span>
-                                                  </button>
-                                                  <button onClick={() => openAdd('village', cell.id, cell.name)} className="p-1.5 text-green-600 hover:bg-green-100 rounded" title="Add Village"><Plus className="h-3.5 w-3.5" /></button>
-                                                </div>
-
-                                                {isCellOpen && (
-                                                  <div className="pl-8 pr-2 pb-2">
-                                                    {villages.length === 0 ? (
-                                                      <p className="text-xs text-gray-400 py-1">No villages yet.</p>
-                                                    ) : (
-                                                      <ul className="list-disc list-inside space-y-0.5">
-                                                        {villages.map((village) => (
-                                                          <li key={village.id} className="text-sm text-green-700">{village.name}</li>
-                                                        ))}
-                                                      </ul>
-                                                    )}
-                                                  </div>
-                                                )}
-                                              </div>
-                                            );
-                                          })}
-                                        </div>
-                                      )}
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+          <ul className="p-2 text-sm">
+            {visible.map((p) => (
+              <TreeNode
+                key={p.id}
+                node={p}
+                level="province"
+                depth={0}
+                expanded={expanded}
+                onToggle={toggle}
+                onAdd={openAdd}
+                onEdit={openEdit}
+                onDelete={handleDeleteProvince}
+                filter={term}
+              />
+            ))}
+          </ul>
         )}
-      </div>
+      </Card>
 
-      {/* Add / Edit Modal */}
       {modal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-8 w-full max-w-md shadow-2xl ring-1 ring-green-200">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-semibold text-green-800">
-                {modal.mode === 'add' ? `Add ${LEVEL_LABELS[modal.level]}` : `Edit ${LEVEL_LABELS[modal.level]}`}
-              </h3>
-              <button onClick={closeModal} className="text-green-400 hover:text-green-600" aria-label="Close"><X className="h-6 w-6" /></button>
-            </div>
-            {modal.parentLabel && (
-              <p className="text-sm text-green-600 mb-4">Under: <span className="font-medium">{modal.parentLabel}</span></p>
-            )}
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-green-700 mb-1">Name *</label>
+        <Dialog
+          title={`${modal.mode === 'add' ? 'Add' : 'Edit'} ${LEVEL_LABELS[modal.level].toLowerCase()}`}
+          subtitle={modal.parent ? `In ${modal.parent.name}` : undefined}
+          onClose={closeModal}
+          size="sm"
+          footer={
+            <>
+              <Button variant="secondary" onClick={closeModal} disabled={saving}>Cancel</Button>
+              <Button type="submit" form="geo-form" loading={saving}>Save</Button>
+            </>
+          }
+        >
+          <form id="geo-form" onSubmit={handleSave} className="space-y-4">
+            <Field label="Name" required>
+              <input
+                type="text"
+                value={modal.name}
+                onChange={(e) => setModal((m) => ({ ...m, name: e.target.value }))}
+                className={inputClass}
+                placeholder={`${LEVEL_LABELS[modal.level]} name`}
+                maxLength={100}
+                autoFocus
+                required
+              />
+            </Field>
+            {(modal.level === 'province' || modal.level === 'district') && (
+              <Field label="Code" hint={modal.loadingCode ? 'Loading current code…' : 'Optional short code'}>
                 <input
                   type="text"
-                  value={modal.data.name}
-                  onChange={(e) => setModal(prev => ({ ...prev, data: { ...prev.data, name: e.target.value } }))}
-                  className="w-full p-2.5 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500"
-                  placeholder={`Enter ${LEVEL_LABELS[modal.level].toLowerCase()} name`}
+                  value={modal.code}
+                  onChange={(e) => setModal((m) => ({ ...m, code: e.target.value }))}
+                  className={inputClass}
+                  maxLength={20}
+                  disabled={modal.loadingCode}
                 />
-              </div>
-              {(modal.level === 'province' || modal.level === 'district') && (
-                <div>
-                  <label className="block text-sm font-medium text-green-700 mb-1">Code</label>
-                  <input
-                    type="text"
-                    value={modal.data.code}
-                    onChange={(e) => setModal(prev => ({ ...prev, data: { ...prev.data, code: e.target.value } }))}
-                    className="w-full p-2.5 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500"
-                    placeholder="Optional short code"
-                  />
-                </div>
-              )}
-            </div>
-            <div className="flex justify-end space-x-4 mt-8">
-              <button onClick={closeModal} className="px-6 py-3 border border-green-300 rounded-lg text-green-700 hover:bg-green-50 transition-all" disabled={saving}>Cancel</button>
-              <button onClick={handleSave} className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all" disabled={saving}>
-                {saving ? 'Saving...' : 'Save'}
-              </button>
-            </div>
-          </div>
-        </div>
+              </Field>
+            )}
+          </form>
+        </Dialog>
       )}
-    </div>
+    </Page>
   );
 };
 

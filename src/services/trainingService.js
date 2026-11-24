@@ -14,7 +14,8 @@ import apiClient, { extractData } from './apiClient';
  * - PUT    /training/{id}/archive Archive a training item (admin)
  */
 
-const CONTENT_TYPES = ['article', 'video', 'pdf', 'quiz'];
+// Must match the backend TrainingContentType enum (dash-api prisma/schema.prisma).
+export const CONTENT_TYPES = ['article', 'video', 'guide', 'checklist', 'faq'];
 const STATUSES = ['draft', 'published', 'archived'];
 
 // List training content (published only for farmers, all statuses visible to admin per backend rules)
@@ -23,6 +24,10 @@ export async function listTraining(options = {}) {
     const params = {};
     if (options.content_type) params.content_type = options.content_type;
     if (options.status) params.status = options.status;
+    if (options.category) params.category = options.category;
+    if (options.search) params.search = options.search;
+    if (options.page) params.page = options.page;
+    if (options.limit) params.limit = options.limit;
 
     const response = await apiClient.get('/training', { params });
     const extractedData = extractData(response);
@@ -57,6 +62,22 @@ export async function listAllTraining(options = {}) {
     return [];
   } catch (error) {
     console.error('Error in listAllTraining:', error);
+    throw new Error(error.response?.data?.message || error.message || 'Failed to load training content');
+  }
+}
+
+// Paginated list of all training content regardless of status (admin).
+// Returns { data, pagination } with pagination taken from the response meta.
+// Note: the backend's /training/all ignores status/content_type filters.
+export async function listAllTrainingPaged({ page = 1, limit = 100 } = {}) {
+  try {
+    const response = await apiClient.get('/training/all', { params: { page, limit } });
+    const body = response.data || {};
+    return {
+      data: Array.isArray(body.data) ? body.data : [],
+      pagination: body.meta?.pagination || { page, limit, total: 0, totalPages: 1 },
+    };
+  } catch (error) {
     throw new Error(error.response?.data?.message || error.message || 'Failed to load training content');
   }
 }

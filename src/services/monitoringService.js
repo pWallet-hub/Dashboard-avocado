@@ -10,7 +10,6 @@ export async function getServiceHealth() {
     const response = await axios.get(`${origin}/health`);
     return extractData(response);
   } catch (error) {
-    console.error('Error in getServiceHealth:', error);
     throw new Error(error.response?.data?.message || error.message || 'Failed to load service health');
   }
 }
@@ -21,7 +20,6 @@ export async function getMonitoringHealth() {
     const response = await apiClient.get('/monitoring/health');
     return extractData(response);
   } catch (error) {
-    console.error('Error in getMonitoringHealth:', error);
     throw new Error(error.response?.data?.message || error.message || 'Failed to load health status');
   }
 }
@@ -32,7 +30,6 @@ export async function getSystemInfo() {
     const response = await apiClient.get('/monitoring/system');
     return extractData(response);
   } catch (error) {
-    console.error('Error in getSystemInfo:', error);
     throw new Error(error.response?.data?.message || error.message || 'Failed to load system information');
   }
 }
@@ -47,7 +44,6 @@ export async function getUsageStats(period = '24h') {
     const response = await apiClient.get('/monitoring/usage', { params });
     return extractData(response);
   } catch (error) {
-    console.error('Error in getUsageStats:', error);
     throw new Error(error.response?.data?.message || error.message || 'Failed to load usage statistics');
   }
 }
@@ -58,7 +54,6 @@ export async function getDatabaseStatus() {
     const response = await apiClient.get('/monitoring/database');
     return extractData(response);
   } catch (error) {
-    console.error('Error in getDatabaseStatus:', error);
     throw new Error(error.response?.data?.message || error.message || 'Failed to load database status');
   }
 }

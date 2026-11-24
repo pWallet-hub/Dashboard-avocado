@@ -85,11 +85,15 @@ export async function removeCartItem(productId) {
   }
 }
 
-// Checkout — converts the current cart into an Order
-export async function checkout(notes) {
+// Checkout — converts the current cart into an Order.
+// `details` may carry shipping_address, payment_method and customer_id.
+export async function checkout(notes, details = {}) {
   try {
     const payload = {};
     if (notes) payload.notes = notes;
+    if (details.shipping_address) payload.shipping_address = details.shipping_address;
+    if (details.payment_method) payload.payment_method = details.payment_method;
+    if (details.customer_id) payload.customer_id = details.customer_id;
 
     const response = await apiClient.post('/cart/checkout', payload);
     return extractData(response);

@@ -104,13 +104,32 @@ export async function compareForecast(options = {}) {
 }
 
 // Aggregated forecast vs actual by district/province (admin/agent)
-export async function getRegionalForecast() {
+export async function getRegionalForecast(options = {}) {
   try {
-    const response = await apiClient.get('/forecasting/regional');
+    const params = {};
+    if (options.forecast_year) params.forecast_year = options.forecast_year;
+    const response = await apiClient.get('/forecasting/regional', { params });
     const extractedData = extractData(response);
     return Array.isArray(extractedData) ? extractedData : (extractedData?.data || []);
   } catch (error) {
     console.error('Error in getRegionalForecast:', error);
     throw new Error(error.response?.data?.message || error.message || 'Failed to load regional forecast data');
+  }
+}
+
+// Paginated list of forecasts: returns { data, pagination } (pagination = meta.pagination).
+export async function listForecastsPage(options = {}) {
+  const params = {};
+  ['page', 'limit', 'farm_id', 'province', 'district', 'forecast_year'].forEach((k) => {
+    if (options[k]) params[k] = options[k];
+  });
+  try {
+    const response = await apiClient.get('/forecasting', { params });
+    return {
+      data: Array.isArray(response.data?.data) ? response.data.data : [],
+      pagination: response.data?.meta?.pagination || {},
+    };
+  } catch (error) {
+    throw new Error(error.response?.data?.message || error.message || 'Failed to load harvest forecasts');
   }
 }

@@ -35,7 +35,7 @@ describe('marketStorageService', () => {
       const result = await marketStorageService.getSuppliers();
 
       // Assert
-      expect(apiClient.get).toHaveBeenCalledWith('/suppliers');
+      expect(apiClient.get).toHaveBeenCalledWith('/suppliers', { params: {} });
       expect(result).toEqual(mockSuppliers);
     });
 

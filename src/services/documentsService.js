@@ -34,6 +34,38 @@ export async function listDocuments(options = {}) {
   }
 }
 
+// Paginated variant: returns { data, pagination }. Admins pass owner_id to see
+// another user's documents (without it the API returns the caller's own).
+export async function listDocumentsPage(options = {}) {
+  const params = {};
+  ['type', 'owner_id', 'page', 'limit'].forEach((k) => {
+    if (options[k]) params[k] = options[k];
+  });
+  try {
+    const response = await apiClient.get('/documents', { params });
+    return {
+      data: Array.isArray(response.data?.data) ? response.data.data : [],
+      pagination: response.data?.meta?.pagination || {},
+    };
+  } catch (error) {
+    throw new Error(error.response?.data?.message || error.message || 'Failed to load documents');
+  }
+}
+
+// Fetch a private document's file as a Blob (authenticated), for in-app viewing.
+export async function fetchDocumentBlob(documentId) {
+  if (!documentId) {
+    throw new Error('Document ID is required');
+  }
+  try {
+    const response = await apiClient.get(`/documents/${documentId}/download`, { responseType: 'blob' });
+    const type = response.headers?.['content-type'] || response.data?.type || 'application/octet-stream';
+    return new Blob([response.data], { type });
+  } catch (error) {
+    throw new Error(error.response?.data?.message || error.message || 'Failed to load document file');
+  }
+}
+
 // Get a document's metadata
 export async function getDocument(documentId) {
   if (!documentId) {

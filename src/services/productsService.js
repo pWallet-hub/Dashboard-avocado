@@ -13,7 +13,7 @@ const extractPaginatedData = (response) => {
   if (response.data?.success) {
     return {
       data: response.data.data || [],
-      pagination: response.data.pagination || {}
+      pagination: response.data.meta?.pagination || response.data.pagination || {}
     };
   }
   return {
@@ -31,7 +31,6 @@ const extractPaginatedData = (response) => {
  */
 export async function getAllProducts(options = {}) {
   try {
-    console.log('🔄 Fetching products with options:', options);
     
     const params = {};
     
@@ -51,10 +50,8 @@ export async function getAllProducts(options = {}) {
     if (options.search) params.search = options.search;
     if (options.sort) params.sort = options.sort;
     
-    console.log('📤 Request params:', params);
     
     const response = await apiClient.get('/products', { params });
-    console.log('✅ Products fetched successfully:', response.data);
     
     return extractPaginatedData(response);
   } catch (error) {
@@ -79,7 +76,6 @@ export async function getProductsByCategory(category, options = {}) {
       throw new Error("Category is required");
     }
     
-    console.log(`🔄 Fetching ${category} products...`);
     
     const requestOptions = {
       ...options,
@@ -139,10 +135,8 @@ export async function getProductById(productId) {
   }
   
   try {
-    console.log(`🔄 Fetching product: ${productId}`);
     
     const response = await apiClient.get(`/products/${productId}`);
-    console.log('✅ Product fetched successfully:', response.data);
     
     return extractData(response);
   } catch (error) {
@@ -163,7 +157,6 @@ export async function getProduct(productId) {
  */
 export async function createProduct(productData) {
   try {
-    console.log('🔄 Creating product:', productData);
     
     // Validate required fields
     if (!productData || typeof productData !== 'object') {
@@ -215,9 +208,7 @@ export async function createProduct(productData) {
     }
 
 
-    console.log('📦 Sending product data to API:', JSON.stringify(productData, null, 2));
     const response = await apiClient.post('/products', productData);
-    console.log('✅ Product created successfully:', response.data);
     
     return extractData(response);
   } catch (error) {
@@ -239,10 +230,8 @@ export async function updateProduct(productId, updateData) {
   }
   
   try {
-    console.log(`🔄 Updating product ${productId}:`, updateData);
     
     const response = await apiClient.put(`/products/${productId}`, updateData);
-    console.log('✅ Product updated successfully:', response.data);
     
     return extractData(response);
   } catch (error) {
@@ -260,10 +249,8 @@ export async function deleteProduct(productId) {
   }
   
   try {
-    console.log(`🔄 Deleting product: ${productId}`);
     
     const response = await apiClient.delete(`/products/${productId}`);
-    console.log('✅ Product deleted successfully');
     
     return extractData(response);
   } catch (error) {
@@ -275,7 +262,7 @@ export async function deleteProduct(productId) {
 /**
  * Update product stock
  */
-export async function updateProductStock(productId, quantity) {
+export async function updateProductStock(productId, quantity, { reason, notes } = {}) {
   if (!productId) {
     throw new Error("Product ID is required");
   }
@@ -289,10 +276,11 @@ export async function updateProductStock(productId, quantity) {
   }
   
   try {
-    console.log(`🔄 Updating stock for product ${productId}: ${quantity}`);
     
-    const response = await apiClient.put(`/products/${productId}/stock`, { quantity });
-    console.log('✅ Product stock updated successfully');
+    const body = { quantity };
+    if (reason) body.reason = reason;
+    if (notes) body.notes = notes;
+    const response = await apiClient.put(`/products/${productId}/stock`, body);
     
     return extractData(response);
   } catch (error) {
@@ -310,7 +298,6 @@ export async function getProductStockHistory(productId, options = {}) {
   }
 
   try {
-    console.log(`🔄 Fetching stock history for product: ${productId}`);
 
     const params = {};
     if (options.page) params.page = options.page;
@@ -318,7 +305,6 @@ export async function getProductStockHistory(productId, options = {}) {
     if (options.sort) params.sort = options.sort;
 
     const response = await apiClient.get(`/products/${productId}/stock-history`, { params });
-    console.log('✅ Stock history fetched successfully:', response.data);
 
     return extractPaginatedData(response);
   } catch (error) {
@@ -332,7 +318,6 @@ export async function getProductStockHistory(productId, options = {}) {
  */
 export async function searchProducts(query, options = {}) {
   try {
-    console.log(`🔄 Searching products with query: "${query}"`);
     
     const params = {
       ...options,
@@ -340,7 +325,6 @@ export async function searchProducts(query, options = {}) {
     };
     
     const response = await apiClient.get('/products', { params });
-    console.log('✅ Product search completed:', response.data);
     
     return extractPaginatedData(response);
   } catch (error) {

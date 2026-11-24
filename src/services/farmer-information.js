@@ -347,6 +347,7 @@ export const listFarmerProfiles = async (options = {}) => {
     if (options.verification_status) params.verification_status = options.verification_status;
     if (options.province) params.province = options.province;
     if (options.district) params.district = options.district;
+    if (options.status) params.status = options.status;
 
     const response = await apiClient.get(FARMER_INFO_ENDPOINT, { params });
     return response.data;

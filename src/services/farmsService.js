@@ -52,6 +52,24 @@ export async function listFarms(options = {}) {
   }
 }
 
+// Paginated variant: returns { data, pagination } where pagination = meta.pagination
+// ({ page, limit, total, totalPages, hasNext, hasPrev }).
+export async function listFarmsPage(options = {}) {
+  const params = {};
+  ['page', 'limit', 'farmer_id', 'status'].forEach((k) => {
+    if (options[k]) params[k] = options[k];
+  });
+  try {
+    const response = await apiClient.get('/farms', { params });
+    return {
+      data: Array.isArray(response.data?.data) ? response.data.data : [],
+      pagination: response.data?.meta?.pagination || {},
+    };
+  } catch (error) {
+    throw new Error(error.response?.data?.message || error.message || 'Failed to load farms');
+  }
+}
+
 // Register a new farm (admin/agent)
 export async function createFarm(farmData) {
   try {

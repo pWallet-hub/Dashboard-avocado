@@ -75,14 +75,32 @@ export async function deleteDiseaseRegistryEntry(diseaseId) {
 export async function listDiseaseCases(options = {}) {
   try {
     const params = {};
-    if (options.status) params.status = options.status;
-    if (options.farm_id) params.farm_id = options.farm_id;
+    ['status', 'severity', 'farm_id', 'page', 'limit'].forEach((k) => {
+      if (options[k]) params[k] = options[k];
+    });
 
     const response = await apiClient.get('/diseases/cases', { params });
     const extractedData = extractData(response);
     return Array.isArray(extractedData) ? extractedData : (extractedData?.data || []);
   } catch (error) {
     console.error('Error in listDiseaseCases:', error);
+    throw new Error(error.response?.data?.message || error.message || 'Failed to load disease cases');
+  }
+}
+
+// Paginated variant: returns { data, pagination } (pagination = meta.pagination)
+export async function listDiseaseCasesPage(options = {}) {
+  const params = {};
+  ['status', 'severity', 'farm_id', 'page', 'limit'].forEach((k) => {
+    if (options[k]) params[k] = options[k];
+  });
+  try {
+    const response = await apiClient.get('/diseases/cases', { params });
+    return {
+      data: Array.isArray(response.data?.data) ? response.data.data : [],
+      pagination: response.data?.meta?.pagination || {},
+    };
+  } catch (error) {
     throw new Error(error.response?.data?.message || error.message || 'Failed to load disease cases');
   }
 }
@@ -111,11 +129,8 @@ export async function reportDiseaseCase(caseData) {
     if (!caseData.farm_id) {
       throw new Error('Farm is required');
     }
-    if (!caseData.disease_id) {
-      throw new Error('Disease is required');
-    }
-    if (!caseData.severity) {
-      throw new Error('Severity is required');
+    if (!caseData.disease_name) {
+      throw new Error('Disease name is required');
     }
 
     const response = await apiClient.post('/diseases/cases', caseData);
@@ -181,14 +196,9 @@ export async function declareDiseaseOutbreak(outbreakData) {
     if (!outbreakData || typeof outbreakData !== 'object') {
       throw new Error('Outbreak data is required');
     }
-    if (!outbreakData.disease_id) {
-      throw new Error('Disease is required');
-    }
-    if (!outbreakData.location) {
-      throw new Error('Location is required');
-    }
-    if (!outbreakData.started_at) {
-      throw new Error('Start date is required');
+    // Backend body: { disease_name, severity?, province?, district?, description?, response_plan? }
+    if (!outbreakData.disease_name) {
+      throw new Error('Disease name is required');
     }
 
     const response = await apiClient.post('/diseases/outbreaks', outbreakData);
@@ -230,4 +240,31 @@ export async function getDiseaseStatistics() {
     console.error('Error in getDiseaseStatistics:', error);
     throw new Error(error.response?.data?.message || error.message || 'Failed to load disease statistics');
   }
+}
+
+// Paginated variants returning { data, pagination } (pagination = meta.pagination).
+const pagedGet = async (path, options, keys, fallback) => {
+  const params = {};
+  keys.forEach((k) => {
+    if (options[k] !== undefined && options[k] !== '') params[k] = options[k];
+  });
+  try {
+    const response = await apiClient.get(path, { params });
+    return {
+      data: Array.isArray(response.data?.data) ? response.data.data : [],
+      pagination: response.data?.meta?.pagination || {},
+    };
+  } catch (error) {
+    throw new Error(error.response?.data?.message || error.message || fallback);
+  }
+};
+
+// options: { page, limit, search, is_active }
+export function listDiseaseRegistryPage(options = {}) {
+  return pagedGet('/diseases/registry', options, ['page', 'limit', 'search', 'is_active'], 'Failed to load disease registry');
+}
+
+// options: { page, limit, status, province }
+export function listDiseaseOutbreaksPage(options = {}) {
+  return pagedGet('/diseases/outbreaks', options, ['page', 'limit', 'status', 'province'], 'Failed to load disease outbreaks');
 }

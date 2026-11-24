@@ -32,13 +32,13 @@ export function ToastProvider({ children }) {
   return (
     <ToastContext.Provider value={toast}>
       {children}
-      <div className="fixed z-50 flex flex-col gap-2 bottom-4 right-4" aria-live="polite" aria-atomic="true">
+      <div className="fixed inset-x-4 bottom-4 z-[1300] flex flex-col items-end gap-2 sm:inset-x-auto sm:right-4" aria-live="polite" aria-atomic="true">
         {toasts.map((t) => (
           <div
             key={t.id}
-            role="status"
-            className={`px-4 py-3 rounded shadow-lg text-sm text-white min-w-[240px] max-w-sm flex items-center justify-between gap-3 ${
-              t.type === 'success' ? 'bg-green-600' : t.type === 'error' ? 'bg-red-600' : 'bg-gray-800'
+            role={t.type === 'error' ? 'alert' : 'status'}
+            className={`flex w-full max-w-sm items-center justify-between gap-3 rounded-xl px-4 py-3 text-sm text-white shadow-lg sm:min-w-[260px] ${
+              t.type === 'success' ? 'bg-brand-700' : t.type === 'error' ? 'bg-rose-600' : 'bg-slate-800'
             }`}
           >
             <span>{t.message}</span>

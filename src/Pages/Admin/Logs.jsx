@@ -1,25 +1,21 @@
-import React, { useEffect, useState } from 'react';
-import { FileText, Filter, Download, Trash2, AlertCircle, AlertTriangle, Info, Bug, Globe } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { FileText, Download, Trash2, RefreshCw, AlertCircle, AlertTriangle, Info, CalendarDays } from 'lucide-react';
 import { listLogs, exportLogs, getLogStatistics, cleanupLogs } from '../../services/logsService';
 import { useToast } from '../../components/Ui/Toast';
 import { useConfirm } from '../../components/Ui/ConfirmDialog';
+import {
+  Page, PageHeader, Card, StatGrid, StatCard, Badge, Button, Field, inputClass, EmptyState, ErrorState, Spinner, Table, Td, Dialog, Pagination,
+} from '../../components/Ui/kit';
 
-const LEVEL_OPTIONS = ['error', 'warn', 'info', 'http', 'debug'];
+const LEVELS = ['error', 'warn', 'info', 'http', 'debug'];
+const LEVEL_TONES = { error: 'rose', warn: 'amber', info: 'blue', http: 'slate', debug: 'slate' };
+const PAGE_SIZE = 25;
 
-const LEVEL_ICONS = {
-  error: AlertCircle,
-  warn: AlertTriangle,
-  info: Info,
-  http: Globe,
-  debug: Bug,
-};
-
-const LEVEL_COLORS = {
-  error: 'bg-red-200 text-red-800 ring-red-500',
-  warn: 'bg-yellow-200 text-yellow-800 ring-yellow-500',
-  info: 'bg-blue-200 text-blue-800 ring-blue-500',
-  http: 'bg-purple-200 text-purple-800 ring-purple-500',
-  debug: 'bg-gray-200 text-gray-800 ring-gray-500',
+const fmtTime = (t) => (t ? new Date(t).toLocaleString() : '—');
+const metaSummary = (meta) => {
+  if (!meta || typeof meta !== 'object') return '';
+  const parts = [meta.method, meta.url, meta.status, meta.duration, meta.role].filter((v) => v !== undefined && v !== null && v !== '');
+  return parts.join(' · ');
 };
 
 const Logs = () => {
@@ -27,71 +23,77 @@ const Logs = () => {
   const confirm = useConfirm();
 
   const [logs, setLogs] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0 });
+  const [page, setPage] = useState(1);
+  const [level, setLevel] = useState('');
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [levelFilter, setLevelFilter] = useState('all');
-  const [pagination, setPagination] = useState({ currentPage: 1, totalPages: 1, totalItems: 0, itemsPerPage: 20 });
 
-  const [statistics, setStatistics] = useState(null);
-  const [statsLoading, setStatsLoading] = useState(true);
+  const [stats, setStats] = useState(null);
+  const [selected, setSelected] = useState(null);
 
+  const [exportRange, setExportRange] = useState({ start_date: '', end_date: '' });
   const [exporting, setExporting] = useState(false);
-  const [cleanupDays, setCleanupDays] = useState(30);
-  const [cleanupLoading, setCleanupLoading] = useState(false);
+  const [cleanupDays, setCleanupDays] = useState('30');
+  const [cleaning, setCleaning] = useState(false);
 
-  const loadLogs = async (page = 1) => {
+  const loadLogs = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const options = { page, limit: 20, ...(levelFilter !== 'all' && { level: levelFilter }) };
-      const response = await listLogs(options);
-      setLogs(Array.isArray(response.data) ? response.data : []);
-      setPagination(response.pagination);
+      const res = await listLogs({ page, limit: PAGE_SIZE, level: level || undefined });
+      setLogs(res.data);
+      setPagination(res.pagination);
     } catch (err) {
-      console.error('Error loading logs:', err);
       setError(err.message || 'Failed to load logs');
-      setLogs([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, level]);
 
-  const loadStatistics = async () => {
-    setStatsLoading(true);
+  const loadStats = useCallback(async () => {
     try {
-      const data = await getLogStatistics();
-      setStatistics(data);
+      setStats(await getLogStatistics());
     } catch (err) {
-      console.error('Error loading log statistics:', err);
       toast.error(err.message || 'Failed to load log statistics');
-    } finally {
-      setStatsLoading(false);
     }
+  }, [toast]);
+
+  useEffect(() => {
+    loadLogs();
+  }, [loadLogs]);
+
+  useEffect(() => {
+    loadStats();
+  }, [loadStats]);
+
+  const refresh = () => {
+    loadLogs();
+    loadStats();
   };
-
-  useEffect(() => {
-    loadLogs(1);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [levelFilter]);
-
-  useEffect(() => {
-    loadStatistics();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   const handleExport = async () => {
+    if (exportRange.start_date && exportRange.end_date && exportRange.start_date > exportRange.end_date) {
+      toast.error('Start date must be before end date');
+      return;
+    }
     setExporting(true);
     try {
-      const blob = await exportLogs(levelFilter !== 'all' ? { level: levelFilter } : {});
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `logs-export-${new Date().toISOString().split('T')[0]}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
-      toast.success('Logs exported successfully');
+      const blob = await exportLogs({
+        level: level || undefined,
+        start_date: exportRange.start_date || undefined,
+        // Include the whole end day.
+        end_date: exportRange.end_date ? `${exportRange.end_date}T23:59:59` : undefined,
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `logs-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      toast.success('Logs exported');
     } catch (err) {
       toast.error(err.message || 'Failed to export logs');
     } finally {
@@ -100,201 +102,142 @@ const Logs = () => {
   };
 
   const handleCleanup = async () => {
-    const days = parseInt(cleanupDays, 10);
+    const days = Number(cleanupDays);
     if (!Number.isInteger(days) || days < 1) {
-      toast.error('Please enter a valid number of days');
+      toast.error('Enter a whole number of days (1 or more)');
       return;
     }
-    const ok = await confirm(
-      `Delete all logs older than ${days} day${days === 1 ? '' : 's'}? This cannot be undone.`,
-      { title: 'Clean Up Logs', confirmLabel: 'Delete Logs' }
-    );
+    const ok = await confirm(`Delete all logs older than ${days} day${days === 1 ? '' : 's'}? This cannot be undone.`, {
+      title: 'Clean up logs',
+      confirmLabel: 'Delete logs',
+    });
     if (!ok) return;
-
-    setCleanupLoading(true);
+    setCleaning(true);
     try {
-      await cleanupLogs(days);
-      toast.success(`Logs older than ${days} days deleted`);
-      await loadLogs(1);
-      await loadStatistics();
+      const res = await cleanupLogs(days);
+      toast.success(`${Number(res?.deleted_count ?? 0).toLocaleString()} log entries deleted`);
+      setPage(1);
+      refresh();
     } catch (err) {
       toast.error(err.message || 'Failed to clean up logs');
     } finally {
-      setCleanupLoading(false);
+      setCleaning(false);
     }
   };
 
-  const handlePageChange = (page) => loadLogs(page);
-
-  const formatStatus = (level) => (level ? level.charAt(0).toUpperCase() + level.slice(1) : 'Unknown');
-
-  const statEntries = statistics && typeof statistics === 'object' && !Array.isArray(statistics)
-    ? (statistics.byLevel || statistics.levels || statistics)
-    : {};
+  const n = (v) => (v === undefined || v === null ? '—' : Number(v).toLocaleString());
+  const nothingStored = stats && Number(stats.total_count) === 0;
 
   return (
-    <div className="space-y-6 p-4 bg-gradient-to-b from-green-50 to-green-50 min-h-screen">
-      {/* Header */}
-      <div className="bg-white rounded-xl shadow-lg p-6 ring-1 ring-green-100">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h2 className="text-2xl font-bold text-green-800 flex items-center">
-              <FileText className="h-7 w-7 mr-3 text-green-600" />
-              System Logs
-            </h2>
-            <p className="text-green-600 mt-1">Review, export, and clean up application logs</p>
-            {error && (
-              <div className="mt-2 p-2 bg-yellow-100 border border-yellow-400 rounded text-sm text-yellow-700">{error}</div>
-            )}
-          </div>
-          <button
-            onClick={handleExport}
-            disabled={exporting}
-            className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all transform hover:scale-105 shadow-lg disabled:opacity-50"
+    <Page>
+      <PageHeader
+        icon={FileText}
+        title="System Logs"
+        subtitle="Application log entries stored by the API"
+        actions={<Button variant="secondary" icon={RefreshCw} onClick={refresh} disabled={loading}>Refresh</Button>}
+      />
+
+      <StatGrid>
+        <StatCard label="Total entries" value={n(stats?.total_count)} hint={stats ? `${n(stats.today_count)} today · ${n(stats.last_7_days)} last 7 days` : undefined} icon={FileText} tone="slate" />
+        <StatCard label="Errors" value={n(stats?.error_count)} icon={AlertCircle} tone="rose" />
+        <StatCard label="Warnings" value={n(stats?.warn_count)} icon={AlertTriangle} tone="amber" />
+        <StatCard label="Info" value={n(stats?.info_count)} hint={stats ? `${n(stats.debug_count)} debug` : undefined} icon={Info} tone="blue" />
+      </StatGrid>
+
+      <Card padded={false}>
+        <div className="flex flex-col gap-3 border-b border-slate-100 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <select
+            className={`${inputClass} sm:w-48`}
+            aria-label="Filter by level"
+            value={level}
+            onChange={(e) => {
+              setLevel(e.target.value);
+              setPage(1);
+            }}
           >
-            <Download className="h-5 w-5 mr-2" />
-            {exporting ? 'Exporting...' : 'Export CSV'}
-          </button>
+            <option value="">All levels</option>
+            {LEVELS.map((l) => (
+              <option key={l} value={l}>{l}</option>
+            ))}
+          </select>
+          <span className="text-sm text-slate-500">Newest first · click a row for details</span>
         </div>
-      </div>
 
-      {/* Statistics cards */}
-      <div className="bg-white rounded-xl shadow-lg p-6 ring-1 ring-green-100">
-        <h3 className="text-lg font-semibold text-green-800 mb-4">Log Level Statistics</h3>
-        {statsLoading ? (
-          <p className="text-green-600 text-sm">Loading statistics...</p>
-        ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-            {LEVEL_OPTIONS.map((level) => {
-              const Icon = LEVEL_ICONS[level];
-              const value = (statEntries && (statEntries[level] ?? statEntries[level.toUpperCase()])) ?? 0;
-              return (
-                <div key={level} className="bg-green-50 rounded-xl p-4 border border-green-100">
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs font-medium text-green-600 uppercase">{level}</p>
-                    <Icon className="h-4 w-4 text-green-500" />
-                  </div>
-                  <p className="text-xl font-bold text-green-900 mt-1">
-                    {typeof value === 'number' ? value.toLocaleString() : value}
-                  </p>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      {/* Filter + cleanup */}
-      <div className="bg-white rounded-xl shadow-lg p-6 ring-1 ring-green-100">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="relative">
-            <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-green-400" />
-            <select
-              value={levelFilter}
-              onChange={(e) => setLevelFilter(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent appearance-none transition-all"
-              aria-label="Filter by level"
-            >
-              <option value="all">All Levels</option>
-              {LEVEL_OPTIONS.map((l) => (
-                <option key={l} value={l}>{formatStatus(l)}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <label className="text-sm text-green-700 whitespace-nowrap">Delete logs older than</label>
-            <input
-              type="number"
-              min="1"
-              value={cleanupDays}
-              onChange={(e) => setCleanupDays(e.target.value)}
-              className="w-24 p-2 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500"
-            />
-            <span className="text-sm text-green-700">days</span>
-            <button
-              onClick={handleCleanup}
-              disabled={cleanupLoading}
-              className="flex items-center px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-all disabled:opacity-50"
-            >
-              <Trash2 className="h-4 w-4 mr-2" />
-              {cleanupLoading ? 'Cleaning...' : 'Cleanup'}
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Table */}
-      <div className="bg-white rounded-xl shadow-lg overflow-hidden ring-1 ring-green-100">
         {loading ? (
-          <div className="p-8 text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto"></div>
-            <p className="mt-2 text-green-600">Loading logs...</p>
-          </div>
+          <Spinner label="Loading logs…" />
+        ) : error ? (
+          <ErrorState message={error} onRetry={loadLogs} />
         ) : logs.length === 0 ? (
-          <div className="p-8 text-center">
-            <FileText className="h-12 w-12 text-green-400 mx-auto mb-4" />
-            <p className="text-green-600 text-lg font-medium mb-2">No logs found</p>
-          </div>
+          <EmptyState
+            icon={FileText}
+            title={level ? `No ${level} entries` : 'No log entries stored'}
+            description={
+              nothingStored
+                ? 'The API currently writes its logs to the server console only, so nothing has been recorded in the database yet.'
+                : 'Try another level filter.'
+            }
+          />
         ) : (
           <>
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-green-100">
-                <thead className="bg-green-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-green-700 uppercase tracking-wider">Timestamp</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-green-700 uppercase tracking-wider">Level</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-green-700 uppercase tracking-wider">Message</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-green-100">
-                  {logs.map((log, idx) => (
-                    <tr key={log.id || idx} className="hover:bg-green-50 transition-colors">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-green-900">
-                        {log.timestamp || log.createdAt ? new Date(log.timestamp || log.createdAt).toLocaleString() : 'N/A'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ring-1 ${LEVEL_COLORS[log.level] || 'bg-gray-200 text-gray-800 ring-gray-500'}`}>
-                          {formatStatus(log.level)}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-green-700 max-w-xl truncate">{log.message}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {pagination.totalPages > 1 && (
-              <div className="bg-green-50 px-6 py-3 flex items-center justify-between border-t border-green-100">
-                <div className="flex items-center text-sm text-green-600">
-                  Showing {((pagination.currentPage - 1) * pagination.itemsPerPage) + 1} to{' '}
-                  {Math.min(pagination.currentPage * pagination.itemsPerPage, pagination.totalItems)} of{' '}
-                  {pagination.totalItems} results
-                </div>
-                <div className="flex items-center space-x-2">
-                  <button
-                    onClick={() => handlePageChange(pagination.currentPage - 1)}
-                    disabled={pagination.currentPage === 1}
-                    className="px-3 py-1 border border-green-300 rounded-lg text-green-700 hover:bg-green-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Previous
-                  </button>
-                  <span className="text-green-700">Page {pagination.currentPage} of {pagination.totalPages}</span>
-                  <button
-                    onClick={() => handlePageChange(pagination.currentPage + 1)}
-                    disabled={pagination.currentPage === pagination.totalPages}
-                    className="px-3 py-1 border border-green-300 rounded-lg text-green-700 hover:bg-green-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Next
-                  </button>
-                </div>
-              </div>
-            )}
+            <Table head={['Time', 'Level', 'Message', 'Details']}>
+              {logs.map((log) => (
+                <tr
+                  key={log.id}
+                  className="cursor-pointer hover:bg-slate-50"
+                  onClick={() => setSelected(log)}
+                  onKeyDown={(e) => e.key === 'Enter' && setSelected(log)}
+                  tabIndex={0}
+                >
+                  <Td className="text-slate-500">{fmtTime(log.timestamp)}</Td>
+                  <Td><Badge tone={LEVEL_TONES[log.level] || 'slate'}>{log.level || 'unknown'}</Badge></Td>
+                  <Td className="max-w-md truncate text-slate-900">{log.message}</Td>
+                  <Td className="max-w-xs truncate font-mono text-xs text-slate-500">{metaSummary(log.meta) || '—'}</Td>
+                </tr>
+              ))}
+            </Table>
+            <Pagination page={pagination.page} totalPages={pagination.totalPages} total={pagination.total} onChange={setPage} />
           </>
         )}
+      </Card>
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <Card title="Export CSV" subtitle="Uses the level filter above plus an optional date range">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Field label="From">
+              <input type="date" className={inputClass} value={exportRange.start_date} onChange={(e) => setExportRange((r) => ({ ...r, start_date: e.target.value }))} />
+            </Field>
+            <Field label="To">
+              <input type="date" className={inputClass} value={exportRange.end_date} onChange={(e) => setExportRange((r) => ({ ...r, end_date: e.target.value }))} />
+            </Field>
+          </div>
+          <Button className="mt-4" icon={Download} loading={exporting} onClick={handleExport}>Download CSV</Button>
+        </Card>
+
+        <Card title="Clean up" subtitle="Permanently delete old log entries">
+          <Field label="Delete entries older than (days)">
+            <input type="number" min="1" step="1" className={inputClass} value={cleanupDays} onChange={(e) => setCleanupDays(e.target.value)} />
+          </Field>
+          <Button className="mt-4" variant="danger" icon={Trash2} loading={cleaning} onClick={handleCleanup}>Delete old logs</Button>
+        </Card>
       </div>
-    </div>
+
+      {selected && (
+        <Dialog title="Log entry" subtitle={fmtTime(selected.timestamp)} onClose={() => setSelected(null)} size="lg">
+          <div className="space-y-4 text-sm">
+            <div className="flex items-center gap-2">
+              <Badge tone={LEVEL_TONES[selected.level] || 'slate'}>{selected.level}</Badge>
+              <span className="inline-flex items-center gap-1 text-slate-500"><CalendarDays className="h-4 w-4" />{fmtTime(selected.timestamp)}</span>
+            </div>
+            <p className="break-words text-slate-900">{selected.message}</p>
+            {selected.meta ? (
+              <pre className="overflow-x-auto rounded-lg bg-slate-50 p-3 text-xs text-slate-700">{JSON.stringify(selected.meta, null, 2)}</pre>
+            ) : (
+              <p className="text-slate-500">No extra details.</p>
+            )}
+          </div>
+        </Dialog>
+      )}
+    </Page>
   );
 };
 

@@ -106,9 +106,9 @@ export function initializeStorage() {
 }
 
 // Supplier management
-export async function getSuppliers() {
+export async function getSuppliers(params = {}) {
   try {
-    const response = await apiClient.get('/suppliers');
+    const response = await apiClient.get('/suppliers', { params });
     return extractData(response);
   } catch (error) {
     console.error('Error fetching suppliers:', error);
@@ -213,8 +213,9 @@ export async function createSupplierEvaluation(supplierId, evaluationData) {
     throw new Error('Valid evaluation data is required');
   }
 
-  if (!evaluationData.rating || evaluationData.rating < 1 || evaluationData.rating > 5) {
-    throw new Error('Rating is required and must be between 1 and 5');
+  const score = Number(evaluationData.overall_score);
+  if (!score || score < 1 || score > 5) {
+    throw new Error('Overall score is required and must be between 1 and 5');
   }
 
   try {
@@ -400,9 +401,9 @@ export async function getFarmerToShopTransactions() {
 }
 
 // Shop customers
-export async function getShopCustomers() {
+export async function getShopCustomers(params = {}) {
   try {
-    const response = await apiClient.get('/customers');
+    const response = await apiClient.get('/customers', { params });
     return extractData(response);
   } catch (error) {
     console.error('Error fetching customers:', error);
@@ -519,4 +520,31 @@ export function calculateExpiryDate(harvestDate, category) {
 
   date.setDate(date.getDate() + daysToAdd);
   return date.toISOString().split('T')[0];
+}
+
+// Paginated transaction list (admin sees all). Returns { data, pagination }.
+export async function listTransactionsPage(params = {}) {
+  const response = await apiClient.get('/transactions', { params });
+  return {
+    data: Array.isArray(response.data?.data) ? response.data.data : [],
+    pagination: response.data?.meta?.pagination || {},
+  };
+}
+
+// Paginated customer list (shop managers only see their own shop's). Returns { data, pagination }.
+export async function listCustomersPage(params = {}) {
+  const response = await apiClient.get('/customers', { params });
+  return {
+    data: Array.isArray(response.data?.data) ? response.data.data : [],
+    pagination: response.data?.meta?.pagination || {},
+  };
+}
+
+// Paginated supplier directory. Returns { data, pagination }.
+export async function listSuppliersPage(params = {}) {
+  const response = await apiClient.get('/suppliers', { params });
+  return {
+    data: Array.isArray(response.data?.data) ? response.data.data : [],
+    pagination: response.data?.meta?.pagination || {},
+  };
 }

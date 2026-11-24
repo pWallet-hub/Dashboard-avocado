@@ -12,6 +12,8 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react()],
+    // Separate caches let several dev servers run side by side (QA, agents).
+    cacheDir: env.VITE_CACHE_DIR || 'node_modules/.vite',
     server: {
       proxy: {
         '/api': proxy,

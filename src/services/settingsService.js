@@ -16,7 +16,6 @@ export async function listSettings(category) {
     }
     return [];
   } catch (error) {
-    console.error('Error in listSettings:', error);
     throw new Error(error.response?.data?.message || error.message || 'Failed to load settings');
   }
 }
@@ -39,7 +38,6 @@ export async function createSetting(settingData) {
     const response = await apiClient.post('/settings', settingData);
     return extractData(response);
   } catch (error) {
-    console.error('Error in createSetting:', error);
     throw new Error(error.response?.data?.message || error.message || 'Failed to create setting');
   }
 }
@@ -50,7 +48,6 @@ export async function initializeSettings() {
     const response = await apiClient.get('/settings/initialize');
     return extractData(response);
   } catch (error) {
-    console.error('Error in initializeSettings:', error);
     throw new Error(error.response?.data?.message || error.message || 'Failed to initialize settings');
   }
 }
@@ -65,7 +62,6 @@ export async function getSetting(key) {
     const response = await apiClient.get(`/settings/${key}`);
     return extractData(response);
   } catch (error) {
-    console.error('Error in getSetting:', error);
     throw new Error(error.response?.data?.message || error.message || 'Failed to get setting');
   }
 }
@@ -81,14 +77,14 @@ export async function updateSetting(key, settingData) {
       throw new Error('Valid setting data is required');
     }
 
-    if (settingData.value === undefined || settingData.value === null || settingData.value === '') {
+    // Empty strings are allowed (e.g. clearing notification_email).
+    if (settingData.value === undefined || settingData.value === null) {
       throw new Error('Setting value is required');
     }
 
     const response = await apiClient.put(`/settings/${key}`, settingData);
     return extractData(response);
   } catch (error) {
-    console.error('Error in updateSetting:', error);
     throw new Error(error.response?.data?.message || error.message || 'Failed to update setting');
   }
 }
@@ -103,7 +99,6 @@ export async function deleteSetting(key) {
     const response = await apiClient.delete(`/settings/${key}`);
     return extractData(response);
   } catch (error) {
-    console.error('Error in deleteSetting:', error);
     throw new Error(error.response?.data?.message || error.message || 'Failed to delete setting');
   }
 }

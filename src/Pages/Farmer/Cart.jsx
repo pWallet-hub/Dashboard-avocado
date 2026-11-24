@@ -1,304 +1,248 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ShoppingCart, Minus, Plus, Trash2, ArrowLeft, CheckCircle, Package } from 'lucide-react';
+import { ShoppingCart, Minus, Plus, Trash2, Package, CheckCircle2, ArrowLeft } from 'lucide-react';
 import { getCart, updateCartItem, removeCartItem, clearCart, checkout } from '../../services/cartService';
-import { getProductById } from '../../services/productsService';
+import { getFarmerInformation } from '../../services/farmer-information';
 import { useToast } from '../../components/Ui/Toast';
 import { useConfirm } from '../../components/Ui/ConfirmDialog';
+import { Page, PageHeader, Card, Button, Field, inputClass, textareaClass, EmptyState, ErrorState, Spinner, Table, Td, Dialog } from '../../components/Ui/kit';
+import { rwf, errMsg, farmLocationFromProfile } from './farmerShared';
 
-const Cart = () => {
+const PAYMENT_METHODS = [
+  { value: 'cash', label: 'Cash on delivery' },
+  { value: 'mobile_money', label: 'Mobile money' },
+  { value: 'bank_transfer', label: 'Bank transfer' },
+];
+
+export default function Cart() {
   const toast = useToast();
   const confirm = useConfirm();
 
-  const [items, setItems] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [cart, setCart] = useState(null); // { cart: { items }, total, item_count }
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [updatingId, setUpdatingId] = useState(null);
-  const [notes, setNotes] = useState('');
+  const [busyId, setBusyId] = useState(null);
+  const [showCheckout, setShowCheckout] = useState(false);
+  const [form, setForm] = useState({ shipping_address: '', payment_method: 'cash', notes: '' });
+  const [formError, setFormError] = useState('');
   const [checkingOut, setCheckingOut] = useState(false);
   const [completedOrder, setCompletedOrder] = useState(null);
 
-  const loadCart = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const cart = await getCart();
-      const rawItems = Array.isArray(cart?.items) ? cart.items : [];
-
-      // Cart items only carry product_id/unit_price — enrich with product details for display
-      const enriched = await Promise.all(
-        rawItems.map(async (item) => {
-          try {
-            const product = await getProductById(item.product_id);
-            return {
-              ...item,
-              product_name: product?.name || item.product_id,
-              product_image: product?.images?.[0] || product?.image || null,
-            };
-          } catch (err) {
-            console.error('Error loading product for cart item:', err);
-            return { ...item, product_name: item.product_id, product_image: null };
-          }
-        })
-      );
-
-      setItems(enriched);
-    } catch (err) {
-      console.error('Error loading cart:', err);
-      setError(err.message || 'Failed to load cart');
-      setItems([]);
+      setCart(await getCart());
+    } catch (e) {
+      setError(errMsg(e, 'Failed to load cart'));
     } finally {
       setLoading(false);
     }
-  };
-
-  useEffect(() => {
-    loadCart();
   }, []);
 
-  const handleQuantityChange = async (productId, quantity) => {
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  // Pre-fill the delivery address with the farm location.
+  useEffect(() => {
+    getFarmerInformation()
+      .then((res) => {
+        const loc = farmLocationFromProfile((res?.data || res)?.farmer_profile);
+        const address = [loc.village, loc.cell, loc.sector, loc.district, loc.province].filter(Boolean).join(', ');
+        if (address) setForm((f) => (f.shipping_address ? f : { ...f, shipping_address: address }));
+      })
+      .catch(() => {});
+  }, []);
+
+  const items = cart?.cart?.items || [];
+  const total = cart?.total ?? items.reduce((s, i) => s + i.quantity * (i.product?.price || 0), 0);
+
+  const applyResult = (res) => {
+    if (res?.cart) setCart(res);
+    else load();
+  };
+
+  const changeQty = async (item, quantity) => {
     if (quantity < 1) return;
-    setUpdatingId(productId);
+    const stock = item.product?.quantity;
+    if (stock !== undefined && quantity > stock) {
+      toast.error(`Only ${stock} in stock`);
+      return;
+    }
+    setBusyId(item.product_id);
     try {
-      await updateCartItem(productId, quantity);
-      await loadCart();
-    } catch (err) {
-      console.error('Error updating cart item:', err);
-      toast.error(err.message || 'Failed to update quantity');
+      applyResult(await updateCartItem(item.product_id, quantity));
+    } catch (e) {
+      toast.error(errMsg(e, 'Failed to update quantity'));
     } finally {
-      setUpdatingId(null);
+      setBusyId(null);
     }
   };
 
-  const handleRemove = async (item) => {
-    const ok = await confirm(`Remove "${item.product_name}" from your cart?`, {
-      title: 'Remove Item',
-      confirmLabel: 'Remove',
-    });
+  const remove = async (item) => {
+    const ok = await confirm(`Remove “${item.product?.name || 'this item'}” from your cart?`, { title: 'Remove item', confirmLabel: 'Remove' });
     if (!ok) return;
-
-    setUpdatingId(item.product_id);
+    setBusyId(item.product_id);
     try {
       await removeCartItem(item.product_id);
-      toast.success('Item removed from cart');
-      await loadCart();
-    } catch (err) {
-      console.error('Error removing cart item:', err);
-      toast.error(err.message || 'Failed to remove item');
+      toast.success('Item removed');
+      await load();
+    } catch (e) {
+      toast.error(errMsg(e, 'Failed to remove item'));
     } finally {
-      setUpdatingId(null);
+      setBusyId(null);
     }
   };
 
-  const handleClearCart = async () => {
-    const ok = await confirm('Clear all items from your cart?', {
-      title: 'Clear Cart',
-      confirmLabel: 'Clear',
-    });
+  const empty = async () => {
+    const ok = await confirm('Remove all items from your cart?', { title: 'Clear cart', confirmLabel: 'Clear cart' });
     if (!ok) return;
-
     try {
       await clearCart();
       toast.success('Cart cleared');
-      await loadCart();
-    } catch (err) {
-      console.error('Error clearing cart:', err);
-      toast.error(err.message || 'Failed to clear cart');
+      await load();
+    } catch (e) {
+      toast.error(errMsg(e, 'Failed to clear cart'));
     }
   };
 
-  const handleCheckout = async () => {
+  const submitCheckout = async () => {
+    if (!form.shipping_address.trim()) {
+      setFormError('Delivery address is required');
+      return;
+    }
+    setFormError('');
     setCheckingOut(true);
     try {
-      const order = await checkout(notes);
-      setCompletedOrder(order);
-      toast.success('Checkout successful! Your order has been placed.');
-      setItems([]);
-      setNotes('');
-    } catch (err) {
-      console.error('Error during checkout:', err);
-      toast.error(err.message || 'Failed to checkout');
+      const res = await checkout(form.notes.trim(), { shipping_address: form.shipping_address.trim(), payment_method: form.payment_method });
+      setCompletedOrder(res?.order || res);
+      setShowCheckout(false);
+      setForm((f) => ({ ...f, notes: '' }));
+      toast.success('Order placed');
+      await load();
+    } catch (e) {
+      setFormError(errMsg(e, 'Checkout failed'));
     } finally {
       setCheckingOut(false);
     }
   };
 
-  const total = items.reduce((sum, item) => sum + (item.quantity || 0) * (item.unit_price || 0), 0);
-
   return (
-    <div className="space-y-6 p-4 bg-gradient-to-b from-green-50 to-green-50 min-h-screen">
-      {/* Header */}
-      <div className="bg-white rounded-xl shadow-lg p-6 ring-1 ring-green-100">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h2 className="text-2xl font-bold text-green-800 flex items-center">
-              <ShoppingCart className="h-7 w-7 mr-3 text-green-600" />
-              My Cart
-            </h2>
-            <p className="text-green-600 mt-1">Review your items before checking out</p>
-            {error && (
-              <div className="mt-2 p-2 bg-yellow-100 border border-yellow-400 rounded text-sm text-yellow-700">
-                {error}
-              </div>
-            )}
-          </div>
-          <Link
-            to="/dashboard/farmer/market"
-            className="flex items-center px-4 py-2 border border-green-300 text-green-700 rounded-lg hover:bg-green-50 transition-all"
-          >
-            <ArrowLeft className="h-5 w-5 mr-2" />
-            Back to Market
+    <Page>
+      <PageHeader
+        icon={ShoppingCart}
+        title="My Cart"
+        subtitle="Review your items, then check out to place one order."
+        actions={
+          <Link to="/dashboard/farmer/market" className="inline-flex h-10 items-center gap-2 rounded-lg px-4 text-sm font-medium text-slate-700 ring-1 ring-inset ring-slate-300 hover:bg-slate-50">
+            <ArrowLeft className="h-4 w-4" /> Continue shopping
           </Link>
-        </div>
-      </div>
+        }
+      />
 
-      {/* Checkout success banner */}
       {completedOrder && (
-        <div className="bg-green-50 border border-green-300 rounded-xl p-6 flex items-start gap-4">
-          <CheckCircle className="h-8 w-8 text-green-600 flex-shrink-0" />
-          <div>
-            <h3 className="text-lg font-semibold text-green-800">Order placed successfully!</h3>
-            <p className="text-sm text-green-700 mt-1">
-              Order Number: <span className="font-mono font-semibold">{completedOrder.order_number || completedOrder.id}</span>
+        <div className="flex items-start gap-3 rounded-2xl border border-brand-200 bg-brand-50 p-4 text-sm text-brand-900" role="status">
+          <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" />
+          <div className="flex-1">
+            <p className="font-medium">Order placed successfully</p>
+            <p>
+              Order number <span className="font-mono">{completedOrder.order_number || completedOrder.id}</span>
+              {completedOrder.total_amount !== undefined && <> · Total {rwf(completedOrder.total_amount)}</>}. The shop will contact you about delivery.
             </p>
-            {completedOrder.total_amount !== undefined && (
-              <p className="text-sm text-green-700">
-                Total: <span className="font-semibold">{Number(completedOrder.total_amount).toLocaleString()} RWF</span>
-              </p>
-            )}
-            <button
-              onClick={() => setCompletedOrder(null)}
-              className="mt-3 text-sm underline text-green-700"
-            >
-              Dismiss
-            </button>
           </div>
+          <Button variant="ghost" size="sm" onClick={() => setCompletedOrder(null)}>Dismiss</Button>
         </div>
       )}
 
-      {/* Cart Table */}
-      <div className="bg-white rounded-xl shadow-lg overflow-hidden ring-1 ring-green-100">
+      <Card padded={false}>
         {loading ? (
-          <div className="p-8 text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto"></div>
-            <p className="mt-2 text-green-600">Loading cart...</p>
-          </div>
+          <Spinner label="Loading cart…" />
+        ) : error ? (
+          <ErrorState message={error} onRetry={load} />
         ) : items.length === 0 ? (
-          <div className="p-8 text-center">
-            <Package className="h-12 w-12 text-green-400 mx-auto mb-4" />
-            <p className="text-green-600 text-lg font-medium mb-2">Your cart is empty</p>
-            <Link
-              to="/dashboard/farmer/market"
-              className="mt-4 inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all"
-            >
-              Browse Products
-            </Link>
-          </div>
+          <EmptyState
+            icon={Package}
+            title="Your cart is empty"
+            description="Browse the market and add the inputs you need."
+            action={<Link to="/dashboard/farmer/market" className="inline-flex h-10 items-center rounded-lg bg-brand-600 px-4 text-sm font-medium text-white hover:bg-brand-700">Browse products</Link>}
+          />
         ) : (
           <>
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-green-100">
-                <thead className="bg-green-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-green-700 uppercase tracking-wider">Product</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-green-700 uppercase tracking-wider">Price</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-green-700 uppercase tracking-wider">Quantity</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-green-700 uppercase tracking-wider">Subtotal</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-green-700 uppercase tracking-wider">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-green-100">
-                  {items.map((item) => (
-                    <tr key={item.id || item.product_id} className="hover:bg-green-50 transition-colors">
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          {item.product_image && (
-                            <img src={item.product_image} alt={item.product_name} className="w-12 h-12 object-cover rounded-lg" />
-                          )}
-                          <span className="text-sm font-medium text-green-900">{item.product_name}</span>
+            <Table head={['Product', 'Price', 'Quantity', 'Subtotal', '']}>
+              {items.map((item) => {
+                const p = item.product || {};
+                const busy = busyId === item.product_id;
+                return (
+                  <tr key={item.id || item.product_id}>
+                    <Td>
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-slate-100 text-slate-400">
+                          {p.images?.[0] ? <img src={p.images[0]} alt="" className="h-full w-full object-cover" /> : <Package className="h-5 w-5" />}
                         </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-green-900">
-                        {Number(item.unit_price || 0).toLocaleString()} RWF
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => handleQuantityChange(item.product_id, item.quantity - 1)}
-                            disabled={updatingId === item.product_id || item.quantity <= 1}
-                            className="p-1 bg-green-100 border border-green-300 rounded hover:bg-green-200 disabled:opacity-50"
-                            aria-label="Decrease quantity"
-                          >
-                            <Minus className="w-3 h-3" />
-                          </button>
-                          <span className="w-8 text-center text-sm font-medium">{item.quantity}</span>
-                          <button
-                            onClick={() => handleQuantityChange(item.product_id, item.quantity + 1)}
-                            disabled={updatingId === item.product_id}
-                            className="p-1 bg-green-100 border border-green-300 rounded hover:bg-green-200 disabled:opacity-50"
-                            aria-label="Increase quantity"
-                          >
-                            <Plus className="w-3 h-3" />
-                          </button>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-green-900">
-                        {(Number(item.unit_price || 0) * Number(item.quantity || 0)).toLocaleString()} RWF
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <button
-                          onClick={() => handleRemove(item)}
-                          disabled={updatingId === item.product_id}
-                          className="text-red-600 hover:text-red-800 transform hover:scale-110 transition disabled:opacity-50"
-                          title="Remove item"
-                          aria-label="Remove item"
-                        >
-                          <Trash2 className="h-5 w-5" />
+                        <Link to={`/dashboard/farmer/product?id=${item.product_id}`} className="font-medium text-slate-900 hover:underline">{p.name || 'Product'}</Link>
+                      </div>
+                    </Td>
+                    <Td>{rwf(p.price)}</Td>
+                    <Td>
+                      <div className="inline-flex items-center rounded-lg ring-1 ring-inset ring-slate-300">
+                        <button type="button" className="p-1.5 text-slate-600 disabled:opacity-40" aria-label={`Decrease quantity of ${p.name}`} disabled={busy || item.quantity <= 1} onClick={() => changeQty(item, item.quantity - 1)}>
+                          <Minus className="h-3.5 w-3.5" />
                         </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="bg-green-50 px-6 py-4 border-t border-green-100 space-y-4">
-              <div className="flex justify-between items-center">
-                <button
-                  onClick={handleClearCart}
-                  className="text-sm text-red-600 hover:text-red-800 underline"
-                >
-                  Clear Cart
-                </button>
-                <div className="text-lg font-bold text-green-800">
-                  Total: {total.toLocaleString()} RWF
-                </div>
+                        <span className="w-8 text-center text-sm font-medium">{item.quantity}</span>
+                        <button type="button" className="p-1.5 text-slate-600 disabled:opacity-40" aria-label={`Increase quantity of ${p.name}`} disabled={busy} onClick={() => changeQty(item, item.quantity + 1)}>
+                          <Plus className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </Td>
+                    <Td className="font-medium text-slate-900">{rwf(item.quantity * (p.price || 0))}</Td>
+                    <Td>
+                      <button type="button" onClick={() => remove(item)} disabled={busy} aria-label={`Remove ${p.name}`} className="rounded-lg p-1.5 text-rose-600 hover:bg-rose-50 disabled:opacity-40">
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </Td>
+                  </tr>
+                );
+              })}
+            </Table>
+            <div className="flex flex-col gap-3 border-t border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+              <Button variant="ghost" icon={Trash2} onClick={empty}>Clear cart</Button>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                <p className="text-lg font-semibold text-slate-900">Total: {rwf(total)}</p>
+                <Button icon={ShoppingCart} onClick={() => { setFormError(''); setShowCheckout(true); }}>Checkout</Button>
               </div>
-
-              <div>
-                <label className="block text-sm font-medium text-green-700 mb-2">Order Notes (optional)</label>
-                <textarea
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  rows="2"
-                  className="w-full p-3 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500"
-                  placeholder="Add any notes for this order..."
-                />
-              </div>
-
-              <button
-                onClick={handleCheckout}
-                disabled={checkingOut || items.length === 0}
-                className="w-full flex items-center justify-center px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all transform hover:scale-[1.01] shadow-lg disabled:opacity-50"
-              >
-                {checkingOut ? 'Processing Checkout...' : 'Checkout'}
-              </button>
             </div>
           </>
         )}
-      </div>
-    </div>
-  );
-};
+      </Card>
 
-export default Cart;
+      <Dialog
+        open={showCheckout}
+        title="Checkout"
+        subtitle={`${cart?.item_count || 0} item(s) · ${rwf(total)}`}
+        onClose={() => !checkingOut && setShowCheckout(false)}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setShowCheckout(false)} disabled={checkingOut}>Cancel</Button>
+            <Button onClick={submitCheckout} loading={checkingOut}>Place order</Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          {formError && <p role="alert" className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700 ring-1 ring-rose-200">{formError}</p>}
+          <Field label="Delivery address" required>
+            <textarea className={textareaClass} value={form.shipping_address} onChange={(e) => setForm({ ...form, shipping_address: e.target.value })} placeholder="Village, cell, sector, district" />
+          </Field>
+          <Field label="Payment method" required>
+            <select className={inputClass} value={form.payment_method} onChange={(e) => setForm({ ...form, payment_method: e.target.value })}>
+              {PAYMENT_METHODS.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
+            </select>
+          </Field>
+          <Field label="Notes for the shop">
+            <textarea className={textareaClass} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} placeholder="Optional" maxLength={500} />
+          </Field>
+        </div>
+      </Dialog>
+    </Page>
+  );
+}

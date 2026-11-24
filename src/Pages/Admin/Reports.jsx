@@ -1,736 +1,460 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { ClipLoader } from 'react-spinners';
+import { useCallback, useEffect, useState } from 'react';
+import { FileText, Clock, CheckCircle2, AlertTriangle, Eye, Pencil, Trash2, Download, Plus, RefreshCw, Loader } from 'lucide-react';
 import {
-  FileText, Clock, CheckCircle2, AlertTriangle,
-  X, Eye, Pencil, Trash2, Download, Paperclip, RefreshCcw,
-} from 'lucide-react';
-import {
-  listReports,
+  listReportsPage,
   getReportStatistics,
   createReport,
   updateReport,
   deleteReport,
-  uploadReportAttachments,
   exportReports,
 } from '../../services/reportsService';
-import '../Styles/Report.css';
+import { listUsersPage } from '../../services/usersService';
+import { useToast } from '../../components/Ui/Toast';
+import { useConfirm } from '../../components/Ui/ConfirmDialog';
+import {
+  Page, PageHeader, Card, StatGrid, StatCard, Badge, Button, Field, inputClass, textareaClass,
+  EmptyState, ErrorState, Spinner, Table, Td, Dialog, Pagination,
+} from '../../components/Ui/kit';
 
+// Backend enums (dash-api prisma/schema.prisma: ReportType, ReportStatus, ReportPriority).
 const REPORT_TYPES = ['inspection', 'audit', 'assessment', 'survey', 'other'];
 const STATUSES = ['pending', 'in_progress', 'completed', 'cancelled'];
 const PRIORITIES = ['low', 'medium', 'high', 'urgent'];
+const STATUS_TONES = { pending: 'amber', in_progress: 'blue', completed: 'brand', cancelled: 'slate' };
+const PRIORITY_TONES = { low: 'slate', medium: 'blue', high: 'amber', urgent: 'rose' };
 
-const emptyForm = {
-  title: '',
-  description: '',
-  report_type: 'inspection',
-  agent_id: '',
-  farmer_id: '',
-  scheduled_date: '',
-  location: '',
-  findings: '',
-  recommendations: '',
-  notes: '',
-  priority: 'low',
-  status: 'pending',
+const label = (v) => (v ? v.split('_').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') : '—');
+const formatDate = (v, withTime = false) => {
+  if (!v) return '—';
+  const d = new Date(v);
+  if (Number.isNaN(d.getTime())) return '—';
+  return d.toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', ...(withTime ? { hour: '2-digit', minute: '2-digit' } : {}) });
+};
+// location is JSON on the backend: a plain string from this page, or {lat, lng, address} from other clients.
+const formatLocation = (loc) => {
+  if (!loc) return '—';
+  if (typeof loc === 'string') return loc;
+  if (loc.address) return loc.address;
+  if (loc.lat !== undefined && loc.lng !== undefined) return `${Number(loc.lat).toFixed(4)}, ${Number(loc.lng).toFixed(4)}`;
+  return '—';
+};
+const toDateTimeLocal = (v) => {
+  const d = new Date(v);
+  if (Number.isNaN(d.getTime())) return '';
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 };
 
-export default function Reports() {
+const emptyForm = {
+  title: '', description: '', report_type: 'inspection', priority: 'medium', status: 'pending',
+  agent_id: '', farmer_id: '', scheduled_date: '', location: '', findings: '', recommendations: '', notes: '',
+};
+const emptyFilters = { report_type: '', status: '', agent_id: '', date_from: '', date_to: '' };
+
+const Reports = () => {
+  const toast = useToast();
+  const confirm = useConfirm();
+
   const [reports, setReports] = useState([]);
-  const [stats, setStats] = useState(null); // from /reports/statistics
-  const [loading, setLoading] = useState(false);
+  const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0 });
+  const [page, setPage] = useState(1);
+  const [filters, setFilters] = useState(emptyFilters);
+  const [stats, setStats] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  const [agents, setAgents] = useState([]);
+  const [farmers, setFarmers] = useState([]);
+
+  const [view, setView] = useState(null);
+  const [statusSaving, setStatusSaving] = useState(false);
+  const [form, setForm] = useState(null); // { id?, values }
   const [saving, setSaving] = useState(false);
   const [exporting, setExporting] = useState(false);
 
-  const [selectedReport, setSelectedReport] = useState(null);
-  const [viewReport, setViewReport] = useState(null);
-  const [editingReport, setEditingReport] = useState(null);
-  const [isFormModalOpen, setIsFormModalOpen] = useState(false);
-  const [form, setForm] = useState(emptyForm);
-
-  // Filters (mirror listReports' supported params)
-  const [filters, setFilters] = useState({
-    report_type: '',
-    status: '',
-    agent_id: '',
-    date_from: '',
-    date_to: '',
-  });
-
-  // Attachment upload (inside view modal)
-  const [attachFiles, setAttachFiles] = useState([]);
-  const [uploadingAttachments, setUploadingAttachments] = useState(false);
-
-  const fetchAll = async (activeFilters = filters) => {
+  const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const cleanFilters = {};
-      Object.entries(activeFilters).forEach(([k, v]) => {
-        if (v) cleanFilters[k] = v;
-      });
-
-      const [reportsData, statsData] = await Promise.all([
-        listReports(cleanFilters),
-        getReportStatistics().catch(() => null), // stats endpoint is a bonus, don't block the page if it fails
+      const [list, st] = await Promise.all([
+        listReportsPage({ ...filters, page, limit: 15 }),
+        getReportStatistics().catch(() => null),
       ]);
-
-      setReports(Array.isArray(reportsData) ? reportsData : []);
-      setStats(statsData);
-
-      if (Array.isArray(reportsData) && reportsData.length > 0) {
-        setSelectedReport(prev => prev || reportsData[0]);
-      }
+      setReports(list.data);
+      setPagination(list.pagination);
+      setStats(st);
     } catch (err) {
-      console.error('Error fetching reports:', err);
-      setError(err.message || 'There was an error fetching reports.');
+      setError(err.message);
       setReports([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters, page]);
 
   useEffect(() => {
-    fetchAll();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    load();
+  }, [load]);
+
+  useEffect(() => {
+    listUsersPage('agents', { limit: 100 }).then((r) => setAgents(r.data)).catch(() => setAgents([]));
+    listUsersPage('farmers', { limit: 100 }).then((r) => setFarmers(r.data)).catch(() => setFarmers([]));
   }, []);
 
-  const handleFilterChange = (e) => {
-    const { name, value } = e.target;
-    setFilters(prev => ({ ...prev, [name]: value }));
+  const agentName = (id, fallback) => fallback?.full_name || agents.find((a) => a.id === id)?.full_name || '—';
+  const farmerName = (id) => (id ? farmers.find((f) => f.id === id)?.full_name || 'Unknown farmer' : '—');
+
+  const setFilter = (k, v) => {
+    setFilters((f) => ({ ...f, [k]: v }));
+    setPage(1);
   };
 
-  const applyFilters = () => {
-    fetchAll(filters);
-  };
-
-  const resetFilters = () => {
-    const cleared = { report_type: '', status: '', agent_id: '', date_from: '', date_to: '' };
-    setFilters(cleared);
-    fetchAll(cleared);
-  };
-
-  const openAddModal = () => {
-    setEditingReport(null);
-    setForm(emptyForm);
-    setIsFormModalOpen(true);
-  };
-
-  const openEditModal = (report) => {
-    setEditingReport(report);
-    setForm({
-      title: report.title || '',
-      description: report.description || '',
-      report_type: report.report_type || 'inspection',
-      agent_id: report.agent_id || '',
-      farmer_id: report.farmer_id || '',
-      scheduled_date: report.scheduled_date ? toDateTimeLocal(report.scheduled_date) : '',
-      location: report.location || '',
-      findings: report.findings || '',
-      recommendations: report.recommendations || '',
-      notes: report.notes || '',
-      priority: report.priority || 'low',
-      status: report.status || 'pending',
-    });
-    setIsFormModalOpen(true);
-  };
-
-  const closeFormModal = () => {
-    setIsFormModalOpen(false);
-    setEditingReport(null);
-    setForm(emptyForm);
-  };
-
-  const handleFormChange = (e) => {
-    const { name, value } = e.target;
-    setForm(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handleSubmitForm = async (e) => {
-    e.preventDefault();
-    setSaving(true);
-    setError(null);
-    try {
-      const payload = {
-        ...form,
-        scheduled_date: form.scheduled_date ? new Date(form.scheduled_date).toISOString() : undefined,
-      };
-      // status is only meaningful on update — creation defaults server-side to "pending"
-      if (!editingReport) delete payload.status;
-
-      Object.keys(payload).forEach(key => {
-        if (payload[key] === '' || payload[key] === undefined) delete payload[key];
+  const openForm = (report) => {
+    if (report) {
+      setForm({
+        id: report.id,
+        completedDate: report.completed_date,
+        values: {
+          title: report.title || '',
+          description: report.description || '',
+          report_type: report.report_type || 'inspection',
+          priority: report.priority || 'medium',
+          status: report.status || 'pending',
+          agent_id: report.agent_id || '',
+          farmer_id: report.farmer_id || '',
+          scheduled_date: report.scheduled_date ? toDateTimeLocal(report.scheduled_date) : '',
+          location: formatLocation(report.location) === '—' ? '' : formatLocation(report.location),
+          findings: report.findings || '',
+          recommendations: report.recommendations || '',
+          notes: report.notes || '',
+        },
       });
+    } else {
+      setForm({ values: { ...emptyForm, agent_id: agents.length === 1 ? agents[0].id : '' } });
+    }
+  };
+  const setValue = (k, v) => setForm((f) => ({ ...f, values: { ...f.values, [k]: v } }));
 
-      if (editingReport) {
-        const updated = await updateReport(editingReport.id, payload);
-        setReports(prev => prev.map(r => (r.id === editingReport.id ? { ...r, ...updated } : r)));
+  const submitForm = async (e) => {
+    e.preventDefault();
+    const v = form.values;
+    if (!v.title.trim() || !v.description.trim() || !v.location.trim() || !v.scheduled_date || !v.agent_id) {
+      toast.error('Title, description, agent, scheduled date and location are required');
+      return;
+    }
+    const payload = {
+      title: v.title.trim(),
+      description: v.description.trim(),
+      report_type: v.report_type,
+      priority: v.priority,
+      agent_id: v.agent_id,
+      farmer_id: v.farmer_id || null,
+      scheduled_date: new Date(v.scheduled_date).toISOString(),
+      location: v.location.trim(),
+      findings: v.findings.trim() || null,
+      recommendations: v.recommendations.trim() || null,
+      notes: v.notes.trim() || null,
+    };
+    setSaving(true);
+    try {
+      if (form.id) {
+        payload.status = v.status;
+        // Record the completion time the first time a report is marked completed.
+        if (v.status === 'completed' && !form.completedDate) payload.completed_date = new Date().toISOString();
+        await updateReport(form.id, payload);
+        toast.success('Report updated');
       } else {
-        const created = await createReport(payload);
-        setReports(prev => [created, ...prev]);
+        await createReport(payload);
+        toast.success('Report created');
       }
-      closeFormModal();
-      fetchAll(); // refresh stats too
+      setForm(null);
+      load();
     } catch (err) {
-      console.error('Error saving report:', err);
-      setError(err.message || 'There was an error saving the report.');
+      toast.error(err.message);
     } finally {
       setSaving(false);
     }
   };
 
-  const handleDelete = async (report) => {
-    if (!window.confirm(`Delete report "${report.title}"? This cannot be undone.`)) return;
-    setError(null);
+  const changeStatus = async (report, status) => {
+    setStatusSaving(true);
     try {
-      await deleteReport(report.id);
-      setReports(prev => prev.filter(r => r.id !== report.id));
-      if (selectedReport?.id === report.id) setSelectedReport(null);
+      const payload = { status };
+      if (status === 'completed' && !report.completed_date) payload.completed_date = new Date().toISOString();
+      const updated = await updateReport(report.id, payload);
+      setView((cur) => (cur ? { ...cur, ...updated } : cur));
+      toast.success(`Report marked ${label(status).toLowerCase()}`);
+      load();
     } catch (err) {
-      console.error('Error deleting report:', err);
-      setError(err.message || 'There was an error deleting the report.');
+      toast.error(err.message);
+    } finally {
+      setStatusSaving(false);
     }
   };
 
-  const handleExport = async (format) => {
-    setExporting(true);
-    setError(null);
+  const remove = async (report) => {
+    const ok = await confirm(`Delete report “${report.title}”? This cannot be undone.`, { title: 'Delete report', confirmLabel: 'Delete' });
+    if (!ok) return;
     try {
-      const cleanFilters = {};
-      if (filters.report_type) cleanFilters.report_type = filters.report_type;
-      if (filters.status) cleanFilters.status = filters.status;
-      if (filters.agent_id) cleanFilters.agent_id = filters.agent_id;
-      if (filters.date_from) cleanFilters.from = filters.date_from;
-      if (filters.date_to) cleanFilters.to = filters.date_to;
-
-      await exportReports({ ...cleanFilters, format });
+      await deleteReport(report.id);
+      toast.success('Report deleted');
+      if (reports.length === 1 && page > 1) setPage(page - 1);
+      else load();
     } catch (err) {
-      console.error('Error exporting reports:', err);
-      setError(err.message || 'There was an error exporting reports.');
+      toast.error(err.message);
+    }
+  };
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      await exportReports({
+        format: 'csv',
+        report_type: filters.report_type,
+        status: filters.status,
+        agent_id: filters.agent_id,
+        from: filters.date_from,
+        to: filters.date_to,
+      });
+    } catch (err) {
+      toast.error(err.message);
     } finally {
       setExporting(false);
     }
   };
 
-  const handleAttachmentUpload = async () => {
-    if (!viewReport || attachFiles.length === 0) return;
-    setUploadingAttachments(true);
-    setError(null);
-    try {
-      await uploadReportAttachments(viewReport.id, attachFiles);
-      setAttachFiles([]);
-      alert('Attachments uploaded successfully.');
-    } catch (err) {
-      console.error('Error uploading attachments:', err);
-      setError(err.message || 'There was an error uploading attachments.');
-    } finally {
-      setUploadingAttachments(false);
-    }
-  };
-
-  // ---- Stats: prefer the backend /reports/statistics payload, fall back to client-derived ----
-  const byStatus = stats?.by_status || {};
-  const byPriority = stats?.by_priority || {};
-
-  const totalReports = stats?.total ?? reports.length;
-  const pendingCount = byStatus.pending ?? reports.filter(r => r.status === 'pending').length;
-  const completedCount = byStatus.completed ?? reports.filter(r => r.status === 'completed').length;
-  const highPriorityCount = (byPriority.high ?? reports.filter(r => r.priority === 'high').length)
-    + (byPriority.urgent ?? reports.filter(r => r.priority === 'urgent').length);
-
-  const inProgressCount = byStatus.in_progress ?? reports.filter(r => r.status === 'in_progress').length;
-  const completionRate = totalReports > 0 ? Math.round((completedCount / totalReports) * 100) : 0;
-
-  const priorityCounts = useMemo(() => {
-    const counts = { low: 0, medium: 0, high: 0, urgent: 0 };
-    if (Object.keys(byPriority).length > 0) {
-      PRIORITIES.forEach(p => { counts[p] = byPriority[p] || 0; });
-    } else {
-      reports.forEach(r => {
-        if (counts[r.priority] !== undefined) counts[r.priority] += 1;
-      });
-    }
-    return counts;
-  }, [reports, byPriority]);
-  const maxPriorityCount = Math.max(1, ...Object.values(priorityCounts));
+  const byStatus = stats?.byStatus || {};
+  const byPriority = stats?.byPriority || {};
+  const hasFilters = Object.values(filters).some(Boolean);
 
   return (
-    <div className="container">
-      <div className="reports-wrapper">
-        {/* Header */}
-        <div className="header-section">
-          <div className="header-content">
-            <div>
-              <h1>Field Reports</h1>
-              <p className="header-subtitle">Inspections, audits, and assessments logged by field agents</p>
-            </div>
-            <div className="action-buttons">
-              <button onClick={() => handleExport('csv')} disabled={exporting} className="btn btn-secondary">
-                <Download size={16} style={{ marginRight: 6 }} />
-                {exporting ? 'Exporting...' : 'Export CSV'}
-              </button>
-              <button onClick={openAddModal} className="btn btn-primary">
-                + New Report
-              </button>
-            </div>
-          </div>
+    <Page>
+      <PageHeader
+        icon={FileText}
+        title="Field reports"
+        subtitle="Inspections, audits and assessments logged by field agents"
+        actions={
+          <>
+            <Button variant="secondary" icon={RefreshCw} onClick={load} disabled={loading}>Refresh</Button>
+            <Button variant="secondary" icon={Download} onClick={handleExport} loading={exporting}>Export CSV</Button>
+            <Button icon={Plus} onClick={() => openForm(null)}>New report</Button>
+          </>
+        }
+      />
 
-          {/* Stat cards — sourced from /reports/statistics where available */}
-          <div className="stats-grid stats-grid-4">
-            <div className="stat-card">
-              <div className="stat-icon-wrap stat-icon-indigo">
-                <FileText size={22} />
-              </div>
-              <div className="stat-text">
-                <p className="stat-value">{totalReports}</p>
-                <p className="stat-label">Total Reports</p>
-              </div>
-            </div>
+      <StatGrid>
+        <StatCard label="Total reports" value={stats ? stats.total ?? 0 : '—'} icon={FileText} />
+        <StatCard label="Pending" value={stats ? byStatus.pending || 0 : '—'} icon={Clock} tone="amber" />
+        <StatCard label="In progress" value={stats ? byStatus.in_progress || 0 : '—'} icon={Loader} tone="blue" />
+        <StatCard
+          label="Completed"
+          value={stats ? byStatus.completed || 0 : '—'}
+          hint={stats ? `${(byPriority.high || 0) + (byPriority.urgent || 0)} high/urgent priority overall` : undefined}
+          icon={CheckCircle2}
+        />
+      </StatGrid>
 
-            <div className="stat-card">
-              <div className="stat-icon-wrap stat-icon-amber">
-                <Clock size={22} />
-              </div>
-              <div className="stat-text">
-                <p className="stat-value">{pendingCount}</p>
-                <p className="stat-label">Pending</p>
-              </div>
-            </div>
-
-            <div className="stat-card">
-              <div className="stat-icon-wrap stat-icon-blue">
-                <AlertTriangle size={22} />
-              </div>
-              <div className="stat-text">
-                <p className="stat-value">{highPriorityCount}</p>
-                <p className="stat-label">High Priority</p>
-              </div>
-            </div>
-
-            <div className="stat-card">
-              <div className="stat-icon-wrap stat-icon-teal">
-                <CheckCircle2 size={22} />
-              </div>
-              <div className="stat-text">
-                <p className="stat-value">{completedCount}</p>
-                <p className="stat-label">Completed</p>
-              </div>
-            </div>
-          </div>
+      <Card padded={false}>
+        <div className="grid grid-cols-1 gap-3 border-b border-slate-100 p-4 sm:grid-cols-2 lg:grid-cols-6">
+          <select className={inputClass} value={filters.report_type} onChange={(e) => setFilter('report_type', e.target.value)} aria-label="Filter by type">
+            <option value="">All types</option>
+            {REPORT_TYPES.map((t) => <option key={t} value={t}>{label(t)}</option>)}
+          </select>
+          <select className={inputClass} value={filters.status} onChange={(e) => setFilter('status', e.target.value)} aria-label="Filter by status">
+            <option value="">All statuses</option>
+            {STATUSES.map((s) => <option key={s} value={s}>{label(s)}</option>)}
+          </select>
+          <select className={inputClass} value={filters.agent_id} onChange={(e) => setFilter('agent_id', e.target.value)} aria-label="Filter by agent">
+            <option value="">All agents</option>
+            {agents.map((a) => <option key={a.id} value={a.id}>{a.full_name || a.email}</option>)}
+          </select>
+          <input type="date" className={inputClass} value={filters.date_from} onChange={(e) => setFilter('date_from', e.target.value)} aria-label="Scheduled from" title="Scheduled from" />
+          <input type="date" className={inputClass} value={filters.date_to} onChange={(e) => setFilter('date_to', e.target.value)} aria-label="Scheduled to" title="Scheduled to" />
+          <Button variant="secondary" onClick={() => { setFilters(emptyFilters); setPage(1); }} disabled={!hasFilters}>Clear filters</Button>
         </div>
 
-        {error && <div className="error-wrap error-banner">{error}</div>}
-
-        {/* Filter bar */}
-        <div className="filter-bar">
-          <select name="report_type" value={filters.report_type} onChange={handleFilterChange}>
-            <option value="">All Types</option>
-            {REPORT_TYPES.map(t => <option key={t} value={t}>{formatLabel(t)}</option>)}
-          </select>
-          <select name="status" value={filters.status} onChange={handleFilterChange}>
-            <option value="">All Statuses</option>
-            {STATUSES.map(s => <option key={s} value={s}>{formatLabel(s)}</option>)}
-          </select>
-          <input
-            type="text"
-            name="agent_id"
-            placeholder="Agent ID"
-            value={filters.agent_id}
-            onChange={handleFilterChange}
+        {loading ? (
+          <Spinner label="Loading reports…" />
+        ) : error ? (
+          <ErrorState message={error} onRetry={load} />
+        ) : reports.length === 0 ? (
+          <EmptyState
+            icon={FileText}
+            title={hasFilters ? 'No reports match these filters' : 'No reports yet'}
+            description={hasFilters ? 'Try clearing the filters.' : 'Reports created by agents (or by you) appear here.'}
+            action={!hasFilters && <Button icon={Plus} onClick={() => openForm(null)}>New report</Button>}
           />
-          <input type="date" name="date_from" value={filters.date_from} onChange={handleFilterChange} />
-          <input type="date" name="date_to" value={filters.date_to} onChange={handleFilterChange} />
-          <button onClick={applyFilters} className="btn btn-primary btn-small">Apply</button>
-          <button onClick={resetFilters} className="btn btn-cancel btn-small">
-            <RefreshCcw size={14} style={{ marginRight: 4 }} />
-            Reset
-          </button>
-        </div>
+        ) : (
+          <>
+            <Table head={['Title', 'Type', 'Status', 'Priority', 'Agent', 'Location', 'Scheduled', 'Actions']}>
+              {reports.map((r) => (
+                <tr key={r.id} className="hover:bg-slate-50">
+                  <Td className="max-w-[16rem]">
+                    <button type="button" onClick={() => setView(r)} className="block max-w-full truncate text-left font-medium text-slate-900 hover:text-brand-700">
+                      {r.title}
+                    </button>
+                  </Td>
+                  <Td>{label(r.report_type)}</Td>
+                  <Td><Badge tone={STATUS_TONES[r.status]}>{label(r.status)}</Badge></Td>
+                  <Td><Badge tone={PRIORITY_TONES[r.priority]}>{label(r.priority)}</Badge></Td>
+                  <Td>{agentName(r.agent_id, r.agent)}</Td>
+                  <Td className="max-w-[12rem] truncate">{formatLocation(r.location)}</Td>
+                  <Td>{formatDate(r.scheduled_date)}</Td>
+                  <Td>
+                    <div className="flex gap-1">
+                      <Button size="sm" variant="ghost" icon={Eye} onClick={() => setView(r)} aria-label={`View ${r.title}`} />
+                      <Button size="sm" variant="ghost" icon={Pencil} onClick={() => openForm(r)} aria-label={`Edit ${r.title}`} />
+                      <Button size="sm" variant="ghost" icon={Trash2} onClick={() => remove(r)} aria-label={`Delete ${r.title}`} className="text-rose-600 hover:bg-rose-50" />
+                    </div>
+                  </Td>
+                </tr>
+              ))}
+            </Table>
+            <Pagination page={page} totalPages={pagination.totalPages} total={pagination.total} onChange={setPage} />
+          </>
+        )}
+      </Card>
 
-        {/* Middle row: snapshot + table */}
-        <div className="dashboard-row">
-          <div className="panel-card snapshot-card">
-            <div className="panel-card-header">
-              <h2>Report Snapshot</h2>
+      {view && (
+        <Dialog
+          title={view.title}
+          subtitle={`${label(view.report_type)} · scheduled ${formatDate(view.scheduled_date, true)}`}
+          size="lg"
+          onClose={() => setView(null)}
+          footer={
+            <>
+              <Button variant="secondary" onClick={() => setView(null)}>Close</Button>
+              <Button variant="secondary" icon={Pencil} onClick={() => { openForm(view); setView(null); }}>Edit</Button>
+            </>
+          }
+        >
+          <div className="space-y-5 text-sm">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge tone={STATUS_TONES[view.status]}>{label(view.status)}</Badge>
+              <Badge tone={PRIORITY_TONES[view.priority]}>{label(view.priority)} priority</Badge>
             </div>
-            {selectedReport ? (
-              <div className="snapshot-body">
-                <h3 className="snapshot-title">{selectedReport.title}</h3>
-                <div className="snapshot-badges">
-                  <span className={`status-badge status-${selectedReport.status || 'pending'}`}>
-                    {formatLabel(selectedReport.status || 'pending')}
-                  </span>
-                  <span className={`priority-badge priority-${selectedReport.priority || 'low'}`}>
-                    {(selectedReport.priority || 'low').toUpperCase()}
-                  </span>
-                </div>
-
-                <div className="snapshot-fields">
-                  <div className="snapshot-field">
-                    <span className="snapshot-label">Type</span>
-                    <span className="snapshot-value">{formatLabel(selectedReport.report_type)}</span>
-                  </div>
-                  <div className="snapshot-field">
-                    <span className="snapshot-label">Location</span>
-                    <span className="snapshot-value">{selectedReport.location || 'N/A'}</span>
-                  </div>
-                  <div className="snapshot-field">
-                    <span className="snapshot-label">Scheduled</span>
-                    <span className="snapshot-value">{formatDate(selectedReport.scheduled_date)}</span>
-                  </div>
-                  <div className="snapshot-field">
-                    <span className="snapshot-label">Agent ID</span>
-                    <span className="snapshot-value">{selectedReport.agent_id || 'N/A'}</span>
-                  </div>
-                  <div className="snapshot-field">
-                    <span className="snapshot-label">Farmer ID</span>
-                    <span className="snapshot-value">{selectedReport.farmer_id || 'N/A'}</span>
-                  </div>
-                </div>
-
-                {selectedReport.description && (
-                  <div className="snapshot-description">
-                    <span className="snapshot-label">Description</span>
-                    <p>{selectedReport.description}</p>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="empty-state">Select a report to preview it here.</div>
-            )}
-          </div>
-
-          {/* Reports table */}
-          <div className="table-container">
-            <div className="table-container-header">
-              <h2>All Reports</h2>
-            </div>
-            <div className="overflow-x-auto">
-              {loading ? (
-                <div className="loading-wrap">
-                  <ClipLoader color="#16a34a" loading={loading} size={44} />
-                </div>
-              ) : reports.length > 0 ? (
-                <table className="table">
-                  <thead className="table-header">
-                    <tr>
-                      <th>No.</th>
-                      <th>Title</th>
-                      <th>Type</th>
-                      <th>Status</th>
-                      <th>Priority</th>
-                      <th>Location</th>
-                      <th>Scheduled</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {reports.map((report, idx) => (
-                      <tr
-                        key={report.id || idx}
-                        className={`table-row selectable-row ${selectedReport?.id === report.id ? 'row-selected' : ''}`}
-                        onClick={() => setSelectedReport(report)}
-                      >
-                        <td className="table-cell cell-muted">{idx + 1}</td>
-                        <td className="table-cell cell-name">{report.title}</td>
-                        <td className="table-cell cell-muted">{formatLabel(report.report_type)}</td>
-                        <td className="table-cell">
-                          <span className={`status-badge status-${report.status || 'pending'}`}>
-                            {formatLabel(report.status || 'pending')}
-                          </span>
-                        </td>
-                        <td className="table-cell">
-                          <span className={`priority-badge priority-${report.priority || 'low'}`}>
-                            {(report.priority || 'low').toUpperCase()}
-                          </span>
-                        </td>
-                        <td className="table-cell cell-muted">{report.location || 'N/A'}</td>
-                        <td className="table-cell cell-muted">{formatDate(report.scheduled_date)}</td>
-                        <td className="table-cell action-cell" onClick={(e) => e.stopPropagation()}>
-                          <button onClick={() => setViewReport(report)} className="icon-btn icon-btn-view" title="View">
-                            <Eye size={16} />
-                          </button>
-                          <button onClick={() => openEditModal(report)} className="icon-btn icon-btn-edit" title="Edit">
-                            <Pencil size={16} />
-                          </button>
-                          <button onClick={() => handleDelete(report)} className="icon-btn icon-btn-delete" title="Delete">
-                            <Trash2 size={16} />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              ) : (
-                <div className="empty-state">No reports match the current filters.</div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Bottom row: chart + trend cards */}
-        <div className="dashboard-row bottom-row">
-          <div className="panel-card chart-card">
-            <div className="panel-card-header">
-              <h2>Reports by Priority</h2>
-            </div>
-            <div className="bar-chart">
-              {PRIORITIES.map(p => (
-                <div className="bar-chart-column" key={p}>
-                  <div className="bar-chart-track">
-                    <div
-                      className={`bar-chart-fill bar-fill-${p}`}
-                      style={{ height: `${(priorityCounts[p] / maxPriorityCount) * 100}%` }}
-                    />
-                  </div>
-                  <span className="bar-chart-value">{priorityCounts[p]}</span>
-                  <span className="bar-chart-label">{p.charAt(0).toUpperCase() + p.slice(1)}</span>
+            <dl className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
+              {[
+                ['Agent', agentName(view.agent_id, view.agent)],
+                ['Farmer', farmerName(view.farmer_id)],
+                ['Location', formatLocation(view.location)],
+                ['Completed', formatDate(view.completed_date, true)],
+                ['Created', formatDate(view.created_at, true)],
+                ['Last updated', formatDate(view.updated_at, true)],
+              ].map(([k, v]) => (
+                <div key={k}>
+                  <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">{k}</dt>
+                  <dd className="mt-0.5 text-slate-900">{v}</dd>
                 </div>
               ))}
-            </div>
-          </div>
-
-          <div className="trend-stack">
-            <div className="trend-card">
-              <span className="trend-label">IN PROGRESS</span>
-              <div className="trend-value-row">
-                <span className="trend-value">{inProgressCount}</span>
+            </dl>
+            {[['Description', view.description], ['Findings', view.findings], ['Recommendations', view.recommendations], ['Notes', view.notes]]
+              .filter(([, v]) => v)
+              .map(([k, v]) => (
+                <div key={k}>
+                  <h3 className="text-xs font-medium uppercase tracking-wide text-slate-500">{k}</h3>
+                  <p className="mt-1 whitespace-pre-line text-slate-800">{v}</p>
+                </div>
+              ))}
+            {Array.isArray(view.attachments) && view.attachments.length > 0 && (
+              <div>
+                <h3 className="text-xs font-medium uppercase tracking-wide text-slate-500">Attachments</h3>
+                <ul className="mt-1 list-inside list-disc text-slate-700">
+                  {view.attachments.map((a) => <li key={a} className="truncate">{a.split('/').pop()}</li>)}
+                </ul>
               </div>
-              <span className="trend-sub">reports currently being worked</span>
-            </div>
-
-            <div className="trend-card">
-              <span className="trend-label">COMPLETION RATE</span>
-              <div className="trend-value-row">
-                <span className="trend-value">{completionRate}%</span>
-              </div>
-              <span className="trend-sub">{completedCount} of {totalReports} reports completed</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Add / Edit Report Modal */}
-      {isFormModalOpen && (
-        <div className="modal-overlay">
-          <div className="modal-content modal-content-wide">
-            <div className="modal-header">
-              <h2 className="modal-title">{editingReport ? 'Edit Report' : 'New Report'}</h2>
-              <button onClick={closeFormModal} className="modal-close">&times;</button>
-            </div>
-            <form onSubmit={handleSubmitForm} className="report-form">
-              <div className="form-grid">
-                <div className="form-field form-field-full">
-                  <label>Title *</label>
-                  <input type="text" name="title" value={form.title} onChange={handleFormChange} required />
-                </div>
-
-                <div className="form-field form-field-full">
-                  <label>Description *</label>
-                  <textarea name="description" value={form.description} onChange={handleFormChange} rows={2} required />
-                </div>
-
-                <div className="form-field">
-                  <label>Report Type *</label>
-                  <select name="report_type" value={form.report_type} onChange={handleFormChange} required>
-                    {REPORT_TYPES.map(t => (
-                      <option key={t} value={t}>{formatLabel(t)}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="form-field">
-                  <label>Priority</label>
-                  <select name="priority" value={form.priority} onChange={handleFormChange}>
-                    {PRIORITIES.map(p => (
-                      <option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>
-                    ))}
-                  </select>
-                </div>
-
-                {editingReport && (
-                  <div className="form-field">
-                    <label>Status</label>
-                    <select name="status" value={form.status} onChange={handleFormChange}>
-                      {STATUSES.map(s => (
-                        <option key={s} value={s}>{formatLabel(s)}</option>
-                      ))}
-                    </select>
-                  </div>
+            )}
+            <div className="rounded-xl bg-slate-50 p-4">
+              <h3 className="mb-2 text-sm font-medium text-slate-900">Review</h3>
+              <div className="flex flex-wrap gap-2">
+                {view.status !== 'in_progress' && view.status !== 'completed' && (
+                  <Button size="sm" variant="secondary" onClick={() => changeStatus(view, 'in_progress')} disabled={statusSaving}>Mark in progress</Button>
                 )}
-
-                <div className="form-field">
-                  <label>Agent ID {editingReport ? '' : '(admin only — leave blank to self-assign)'}</label>
-                  <input type="text" name="agent_id" value={form.agent_id} onChange={handleFormChange} placeholder="Agent ID" />
-                </div>
-
-                <div className="form-field">
-                  <label>Farmer ID</label>
-                  <input type="text" name="farmer_id" value={form.farmer_id} onChange={handleFormChange} placeholder="Farmer ID" />
-                </div>
-
-                <div className="form-field">
-                  <label>Scheduled Date *</label>
-                  <input type="datetime-local" name="scheduled_date" value={form.scheduled_date} onChange={handleFormChange} required />
-                </div>
-
-                <div className="form-field">
-                  <label>Location *</label>
-                  <input type="text" name="location" value={form.location} onChange={handleFormChange} placeholder="Farm / site location" required />
-                </div>
-
-                <div className="form-field form-field-full">
-                  <label>Findings</label>
-                  <textarea name="findings" value={form.findings} onChange={handleFormChange} rows={3} />
-                </div>
-
-                <div className="form-field form-field-full">
-                  <label>Recommendations</label>
-                  <textarea name="recommendations" value={form.recommendations} onChange={handleFormChange} rows={3} />
-                </div>
-
-                <div className="form-field form-field-full">
-                  <label>Notes</label>
-                  <textarea name="notes" value={form.notes} onChange={handleFormChange} rows={2} />
-                </div>
+                {view.status !== 'completed' && (
+                  <Button size="sm" icon={CheckCircle2} onClick={() => changeStatus(view, 'completed')} disabled={statusSaving}>Mark completed</Button>
+                )}
+                {view.status !== 'cancelled' && view.status !== 'completed' && (
+                  <Button size="sm" variant="secondary" icon={AlertTriangle} onClick={() => changeStatus(view, 'cancelled')} disabled={statusSaving}>Cancel report</Button>
+                )}
+                {(view.status === 'completed' || view.status === 'cancelled') && (
+                  <Button size="sm" variant="secondary" onClick={() => changeStatus(view, 'pending')} disabled={statusSaving}>Reopen</Button>
+                )}
               </div>
-
-              <div className="modal-actions">
-                <button type="button" onClick={closeFormModal} className="btn btn-cancel">Cancel</button>
-                <button type="submit" disabled={saving} className="btn btn-confirm">
-                  {saving ? 'Saving...' : editingReport ? 'Save Changes' : 'Create Report'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* View Report Modal */}
-      {viewReport && (
-        <div className="modal-overlay">
-          <div className="modal-content modal-content-wide">
-            <div className="modal-header">
-              <h2 className="modal-title">{viewReport.title}</h2>
-              <button onClick={() => { setViewReport(null); setAttachFiles([]); }} className="modal-close">
-                <X size={20} />
-              </button>
-            </div>
-            <div className="view-grid">
-              <div className="view-field">
-                <span className="snapshot-label">Type</span>
-                <span className="snapshot-value">{formatLabel(viewReport.report_type)}</span>
-              </div>
-              <div className="view-field">
-                <span className="snapshot-label">Status</span>
-                <span className={`status-badge status-${viewReport.status || 'pending'}`}>
-                  {formatLabel(viewReport.status || 'pending')}
-                </span>
-              </div>
-              <div className="view-field">
-                <span className="snapshot-label">Priority</span>
-                <span className={`priority-badge priority-${viewReport.priority || 'low'}`}>
-                  {(viewReport.priority || 'low').toUpperCase()}
-                </span>
-              </div>
-              <div className="view-field">
-                <span className="snapshot-label">Location</span>
-                <span className="snapshot-value">{viewReport.location || 'N/A'}</span>
-              </div>
-              <div className="view-field">
-                <span className="snapshot-label">Scheduled Date</span>
-                <span className="snapshot-value">{formatDate(viewReport.scheduled_date)}</span>
-              </div>
-              <div className="view-field">
-                <span className="snapshot-label">Agent ID</span>
-                <span className="snapshot-value">{viewReport.agent_id || 'N/A'}</span>
-              </div>
-              <div className="view-field">
-                <span className="snapshot-label">Farmer ID</span>
-                <span className="snapshot-value">{viewReport.farmer_id || 'N/A'}</span>
-              </div>
-            </div>
-
-            {viewReport.description && (
-              <div className="view-block">
-                <span className="snapshot-label">Description</span>
-                <p>{viewReport.description}</p>
-              </div>
-            )}
-            {viewReport.findings && (
-              <div className="view-block">
-                <span className="snapshot-label">Findings</span>
-                <p>{viewReport.findings}</p>
-              </div>
-            )}
-            {viewReport.recommendations && (
-              <div className="view-block">
-                <span className="snapshot-label">Recommendations</span>
-                <p>{viewReport.recommendations}</p>
-              </div>
-            )}
-            {viewReport.notes && (
-              <div className="view-block">
-                <span className="snapshot-label">Notes</span>
-                <p>{viewReport.notes}</p>
-              </div>
-            )}
-
-            {/* Attachment upload */}
-            <div className="view-block attachment-block">
-              <span className="snapshot-label">Attachments</span>
-              <div className="attachment-row">
-                <input
-                  type="file"
-                  multiple
-                  onChange={(e) => setAttachFiles(Array.from(e.target.files || []))}
-                />
-                <button
-                  onClick={handleAttachmentUpload}
-                  disabled={uploadingAttachments || attachFiles.length === 0}
-                  className="btn btn-confirm btn-small"
-                >
-                  <Paperclip size={14} style={{ marginRight: 4 }} />
-                  {uploadingAttachments ? 'Uploading...' : 'Upload'}
-                </button>
-              </div>
-            </div>
-
-            <div className="modal-actions">
-              <button onClick={() => { setViewReport(null); setAttachFiles([]); }} className="btn btn-cancel">Close</button>
             </div>
           </div>
-        </div>
+        </Dialog>
       )}
-    </div>
+
+      {form && (
+        <Dialog
+          title={form.id ? 'Edit report' : 'New report'}
+          size="lg"
+          onClose={() => !saving && setForm(null)}
+          footer={
+            <>
+              <Button variant="secondary" onClick={() => setForm(null)} disabled={saving}>Cancel</Button>
+              <Button type="submit" form="report-form" loading={saving}>{form.id ? 'Save changes' : 'Create report'}</Button>
+            </>
+          }
+        >
+          <form id="report-form" onSubmit={submitForm} className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Field label="Title" required className="sm:col-span-2">
+              <input className={inputClass} value={form.values.title} onChange={(e) => setValue('title', e.target.value)} maxLength={200} required />
+            </Field>
+            <Field label="Description" required className="sm:col-span-2">
+              <textarea className={textareaClass} value={form.values.description} onChange={(e) => setValue('description', e.target.value)} required />
+            </Field>
+            <Field label="Type" required>
+              <select className={inputClass} value={form.values.report_type} onChange={(e) => setValue('report_type', e.target.value)}>
+                {REPORT_TYPES.map((t) => <option key={t} value={t}>{label(t)}</option>)}
+              </select>
+            </Field>
+            <Field label="Priority">
+              <select className={inputClass} value={form.values.priority} onChange={(e) => setValue('priority', e.target.value)}>
+                {PRIORITIES.map((p) => <option key={p} value={p}>{label(p)}</option>)}
+              </select>
+            </Field>
+            <Field label="Agent" required>
+              <select className={inputClass} value={form.values.agent_id} onChange={(e) => setValue('agent_id', e.target.value)} required>
+                <option value="">Select agent…</option>
+                {agents.map((a) => <option key={a.id} value={a.id}>{a.full_name || a.email}</option>)}
+              </select>
+            </Field>
+            <Field label="Farmer">
+              <select className={inputClass} value={form.values.farmer_id} onChange={(e) => setValue('farmer_id', e.target.value)}>
+                <option value="">None</option>
+                {form.values.farmer_id && !farmers.some((f) => f.id === form.values.farmer_id) && (
+                  <option value={form.values.farmer_id}>Current farmer</option>
+                )}
+                {farmers.map((f) => <option key={f.id} value={f.id}>{f.full_name || f.email}</option>)}
+              </select>
+            </Field>
+            <Field label="Scheduled date" required>
+              <input type="datetime-local" className={inputClass} value={form.values.scheduled_date} onChange={(e) => setValue('scheduled_date', e.target.value)} required />
+            </Field>
+            <Field label="Location" required>
+              <input className={inputClass} value={form.values.location} onChange={(e) => setValue('location', e.target.value)} placeholder="Farm / site location" required />
+            </Field>
+            {form.id && (
+              <Field label="Status">
+                <select className={inputClass} value={form.values.status} onChange={(e) => setValue('status', e.target.value)}>
+                  {STATUSES.map((s) => <option key={s} value={s}>{label(s)}</option>)}
+                </select>
+              </Field>
+            )}
+            <Field label="Findings" className="sm:col-span-2">
+              <textarea className={textareaClass} value={form.values.findings} onChange={(e) => setValue('findings', e.target.value)} />
+            </Field>
+            <Field label="Recommendations" className="sm:col-span-2">
+              <textarea className={textareaClass} value={form.values.recommendations} onChange={(e) => setValue('recommendations', e.target.value)} />
+            </Field>
+            <Field label="Notes" className="sm:col-span-2">
+              <textarea className={textareaClass} value={form.values.notes} onChange={(e) => setValue('notes', e.target.value)} />
+            </Field>
+          </form>
+        </Dialog>
+      )}
+    </Page>
   );
-}
+};
 
-// ---- helpers ----
-function formatLabel(value) {
-  if (!value) return 'N/A';
-  return value
-    .split('_')
-    .map(w => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(' ');
-}
-
-function formatDate(dateStr) {
-  if (!dateStr) return 'N/A';
-  const d = new Date(dateStr);
-  if (isNaN(d.getTime())) return 'N/A';
-  return d.toLocaleString(undefined, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
-
-function toDateTimeLocal(dateStr) {
-  const d = new Date(dateStr);
-  if (isNaN(d.getTime())) return '';
-  const pad = (n) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
+export default Reports;

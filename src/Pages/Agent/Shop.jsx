@@ -1,675 +1,468 @@
-import { useEffect, useState, useCallback, useMemo } from 'react';
-import { ShoppingCart, X, CheckCircle, Loader2, Minus, Plus, Trash2, Filter, Search, User, Users, Heart, Package } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ShoppingBag, ShoppingCart, Search, Package, Plus, Minus, Trash2, User, Users, RefreshCw, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { getAllProducts } from '../../services/productsService';
 import { listFarmers } from '../../services/usersService';
-import { getAgentInformation } from '../../services/agent-information';
-import AgentShopHeader from '../../components/AgentShop/AgentShopHeader';
-import AgentShopProductGrid from '../../components/AgentShop/AgentShopProductGrid';
-import AgentShopModeSelection from '../../components/AgentShop/AgentShopModeSelection';
-import AgentShopFarmerSelection from '../../components/AgentShop/AgentShopFarmerSelection';
+import { getProfile } from '../../services/authService';
+import { getCart, addCartItem, updateCartItem, removeCartItem, clearCart, checkout } from '../../services/cartService';
+import { useToast } from '../../components/Ui/Toast';
+import { useConfirm } from '../../components/Ui/ConfirmDialog';
+import {
+  Page, PageHeader, Card, Badge, Button, Field, inputClass, textareaClass,
+  EmptyState, ErrorState, Spinner, Dialog, Pagination, Tabs,
+} from '../../components/Ui/kit';
 
-// Cart Service (same as HarvestingKit)
-const CartService = {
-  cart: [],
-  addToCart: (product) => {
-    const existingItem = CartService.cart.find((item) => item.id === product.id);
-    if (existingItem) {
-      existingItem.quantity += 1;
-    } else {
-      CartService.cart.push({ ...product, quantity: 1 });
-    }
-  },
-  getCartItems: () => CartService.cart,
-  getCartCount: () => CartService.cart.reduce((count, item) => count + item.quantity, 0),
-  updateCartQuantity: (productId, quantity) => {
-    const item = CartService.cart.find((item) => item.id === productId);
-    if (item) {
-      if (quantity <= 0) {
-        CartService.cart = CartService.cart.filter((item) => item.id !== productId);
-      } else {
-        item.quantity = quantity;
-      }
-    }
-  },
-  removeFromCart: (productId) => {
-    CartService.cart = CartService.cart.filter((item) => item.id !== productId);
-  },
-  getCartSummary: () => {
-    const subtotal = CartService.cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-    const totalDiscount = CartService.cart.reduce(
-      (sum, item) => sum + (item.originalPrice ? (item.originalPrice - item.price) * item.quantity : 0),
-      0
-    );
-    return {
-      isEmpty: CartService.cart.length === 0,
-      subtotal,
-      totalDiscount,
-      total: subtotal - totalDiscount,
-    };
-  },
-  clearCart: () => {
-    CartService.cart = [];
-  },
-};
+const CATEGORIES = [
+  { id: '', label: 'All categories' },
+  { id: 'seeds', label: 'Seeds' },
+  { id: 'fertilizers', label: 'Fertilizers' },
+  { id: 'pest-management', label: 'Pest management' },
+  { id: 'protection', label: 'Protection' },
+  { id: 'tools', label: 'Tools' },
+  { id: 'irrigation', label: 'Irrigation' },
+  { id: 'harvesting', label: 'Harvesting' },
+  { id: 'containers', label: 'Containers' },
+];
+const PAYMENT_METHODS = [
+  { id: 'cash', label: 'Cash on delivery' },
+  { id: 'mobile_money', label: 'Mobile money' },
+  { id: 'bank_transfer', label: 'Bank transfer' },
+];
+const PAGE_SIZE = 12;
 
-// Cart Sidebar Component
-function CartSidebar({ isCartOpen, setIsCartOpen, cartItems, cartCount, updateCartQuantity, removeFromCart, handleCheckout }) {
-  const cartSummary = CartService.getCartSummary();
-  return (
-    <div className={`fixed inset-0 z-50 overflow-hidden transition-all duration-300 ${isCartOpen ? 'visible' : 'invisible'}`}>
-      <div className={`absolute inset-0 bg-black transition-opacity duration-300 ${isCartOpen ? 'bg-opacity-50' : 'bg-opacity-0'}`} onClick={() => setIsCartOpen(false)}></div>
-      <div className={`absolute right-0 top-0 h-full w-full max-w-md bg-white shadow-xl transform transition-transform duration-300 ${isCartOpen ? 'translate-x-0' : 'translate-x-full'}`}>
-        <div className="flex h-full flex-col">
-          <div className="flex items-center justify-between border-b border-gray-200 p-3">
-            <div className="flex items-center space-x-2">
-              <ShoppingCart className="h-5 w-5 text-green-600" />
-              <h2 className="text-base font-semibold text-gray-900">Shopping Cart</h2>
-              <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">{cartCount}</span>
-            </div>
-            <button onClick={() => setIsCartOpen(false)} className="rounded-full p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600">
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-          <div className="flex-1 overflow-y-auto p-3">
-            {cartSummary.isEmpty ? (
-              <div className="flex h-full flex-col items-center justify-center text-center">
-                <ShoppingCart className="h-12 w-12 text-gray-300 mb-3" />
-                <h3 className="text-base font-medium text-gray-900 mb-1">Your cart is empty</h3>
-                <p className="text-sm text-gray-500">Add some products!</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {cartItems.map((item) => (
-                  <div key={item.id} className="flex items-center space-x-3 rounded-lg border border-gray-200 p-3">
-                    <div className="h-14 w-14 bg-gradient-to-br from-green-100 to-green-200 rounded-lg flex items-center justify-center">
-                      <Package className="h-6 w-6 text-green-700" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-sm font-medium text-gray-900 truncate">{item.name}</h3>
-                      <div className="flex items-center space-x-2 mt-0.5">
-                        <span className="text-base font-bold text-green-600">{item.price.toLocaleString()} RWF</span>
-                      </div>
-                      <p className="text-xs text-gray-500 mt-0.5">{item.capacity || `${item.quantity} ${item.unit}`}</p>
-                    </div>
-                    <div className="flex flex-col items-end space-y-1.5">
-                      <div className="flex items-center space-x-1.5">
-                        <button onClick={() => updateCartQuantity(item.id, item.quantity - 1)} className="rounded-full p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600">
-                          <Minus className="h-3.5 w-3.5" />
-                        </button>
-                        <span className="w-7 text-center text-sm font-medium">{item.quantity}</span>
-                        <button onClick={() => updateCartQuantity(item.id, item.quantity + 1)} className="rounded-full p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600">
-                          <Plus className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                      <button onClick={() => removeFromCart(item.id)} className="rounded-full p-1 text-red-400 hover:bg-red-50 hover:text-red-600">
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-          {!cartSummary.isEmpty && (
-            <div className="border-t border-gray-200 p-3 space-y-3">
-              <div className="space-y-1.5">
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Subtotal</span>
-                  <span className="font-medium">{cartSummary.subtotal.toLocaleString()} RWF</span>
-                </div>
-                {cartSummary.totalDiscount > 0 && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Discount</span>
-                    <span className="font-medium text-green-600">-{cartSummary.totalDiscount.toLocaleString()} RWF</span>
-                  </div>
-                )}
-                <div className="flex justify-between text-base font-bold border-t border-gray-200 pt-1.5">
-                  <span>Total</span>
-                  <span className="text-green-600">{cartSummary.total.toLocaleString()} RWF</span>
-                </div>
-              </div>
-              <button onClick={handleCheckout} className="w-full flex items-center justify-center space-x-2 rounded-lg py-2.5 px-4 text-white font-semibold transition-all duration-300 hover:scale-105 shadow-lg hover:shadow-xl" style={{ background: 'linear-gradient(to right, #1F310A, #0f5132)' }}>
-                <ShoppingCart className="w-4 h-4" />
-                <span>Checkout</span>
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
+const rwf = (n) => `${Math.round(Number(n) || 0).toLocaleString()} RWF`;
+const labelOf = (cat) => CATEGORIES.find((c) => c.id === cat)?.label || cat || 'Other';
+const emptyCart = { items: [], total: 0, item_count: 0 };
+const normaliseCart = (data) => ({
+  items: data?.cart?.items || [],
+  total: data?.total || 0,
+  item_count: data?.item_count || 0,
+});
+
+const addressFrom = (person) => ({
+  full_name: person?.full_name || '',
+  phone: person?.phone || '',
+  street_address: [person?.village || person?.profile?.village, person?.cell || person?.profile?.cell].filter(Boolean).join(', '),
+  city: person?.sector || person?.profile?.sector || person?.district || person?.profile?.district || '',
+  district: person?.district || person?.profile?.district || '',
+  province: person?.province || person?.profile?.province || '',
+  country: 'Rwanda',
+});
 
 export default function Shop() {
-  // Purchase mode state
-  const [purchaseMode, setPurchaseMode] = useState('self'); // 'self' or 'behalf'
-  
-  // Farmer selection state (for 'behalf' mode)
-  const [currentStep, setCurrentStep] = useState(1); // 1: Select Mode, 2: Select Farmer (if behalf), 3: Shop
+  const toast = useToast();
+  const confirm = useConfirm();
+
+  // Who the order is for
+  const [mode, setMode] = useState('self'); // 'self' | 'farmer'
+  const [me, setMe] = useState(null);
+  const [farmerQuery, setFarmerQuery] = useState('');
   const [farmers, setFarmers] = useState([]);
-  const [filteredFarmers, setFilteredFarmers] = useState([]);
-  const [selectedFarmer, setSelectedFarmer] = useState(null);
-  const [searchFarmerTerm, setSearchFarmerTerm] = useState('');
-  const [agentInfo, setAgentInfo] = useState(null);
-  const [agentTerritories, setAgentTerritories] = useState([]);
-  
-  // Location filters for farmers
-  const [selectedDistrict, setSelectedDistrict] = useState('');
-  const [selectedSector, setSelectedSector] = useState('');
-  const [selectedCell, setSelectedCell] = useState('');
-  
-  // Product and cart state
+  const [farmersLoading, setFarmersLoading] = useState(false);
+  const [farmer, setFarmer] = useState(null);
+
+  // Catalogue
+  const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [category, setCategory] = useState('');
+  const [page, setPage] = useState(1);
   const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState('all');
-  const [isCartOpen, setIsCartOpen] = useState(false);
-  const [cartItems, setCartItems] = useState(CartService.getCartItems());
-  const [cartCount, setCartCount] = useState(CartService.getCartCount());
-  const [justAdded, setJustAdded] = useState(null);
-  const [addingToCart, setAddingToCart] = useState(null);
-  
-  // Payment state
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [paymentPhone, setPhoneNumber] = useState('');
-  const [mobileProvider, setMobileProvider] = useState('');
-  const [paymentStep, setPaymentStep] = useState('provider');
-  const [paymentProcessing, setPaymentProcessing] = useState(false);
-  const [paymentSuccess, setPaymentSuccess] = useState(false);
-  const [paymentError, setPaymentError] = useState('');
-  const [pendingOrder, setPendingOrder] = useState(null);
+  const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0 });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  const categories = useMemo(() => ['all', ...new Set(products.map(p => p.category))], [products]);
+  // Server cart
+  const [cart, setCart] = useState(emptyCart);
+  const [cartBusy, setCartBusy] = useState(null); // product id being changed
+  const [cartOpen, setCartOpen] = useState(false);
 
-  const filteredProducts = useMemo(() => {
-    return products
-      .filter(product => product.name.toLowerCase().includes(searchTerm.toLowerCase()))
-      .filter(product => categoryFilter === 'all' ? true : product.category === categoryFilter)
-      .filter(product => product.status === 'available' && (product.quantity || 0) > 0);
-  }, [products, searchTerm, categoryFilter]);
+  // Checkout
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [address, setAddress] = useState(addressFrom(null));
+  const [paymentMethod, setPaymentMethod] = useState('cash');
+  const [notes, setNotes] = useState('');
+  const [placing, setPlacing] = useState(false);
+  const [checkoutError, setCheckoutError] = useState('');
+  const [placedOrder, setPlacedOrder] = useState(null);
 
-  // Filter farmers by agent's territory
-  const filterFarmersByTerritory = (farmersList, territories) => {
-    if (!territories || territories.length === 0) {
-      return farmersList;
-    }
-
-    return farmersList.filter(farmer => {
-      const farmerDistrict = farmer.profile?.district;
-      const farmerSector = farmer.profile?.sector;
-
-      if (!farmerDistrict || !farmerSector) return false;
-
-      return territories.some(territory => {
-        const districtMatch = territory.district?.toLowerCase() === farmerDistrict.toLowerCase();
-        const sectorMatch = territory.sector?.toLowerCase() === farmerSector.toLowerCase();
-        return districtMatch && sectorMatch;
-      });
-    });
-  };
-
-  // Fetch agent information
   useEffect(() => {
-    const fetchAgentInfo = async () => {
-      try {
-        const data = await getAgentInformation();
-        setAgentInfo(data);
-        
-        if (data?.agent_profile?.territory && Array.isArray(data.agent_profile.territory)) {
-          setAgentTerritories(data.agent_profile.territory);
-        } else {
-          setAgentTerritories([]);
-        }
-      } catch (error) {
-        console.error('Error fetching agent info:', error);
-        setAgentTerritories([]);
-      }
-    };
-    fetchAgentInfo();
+    getProfile().then(setMe).catch(() => setMe(null));
   }, []);
 
-  // Fetch farmers when in behalf mode
   useEffect(() => {
-    if (purchaseMode === 'behalf' && currentStep === 2) {
-      const fetchFarmers = async () => {
-        setLoading(true);
-        try {
-          const response = await listFarmers({ limit: 100 });
-          const farmersList = response.data || [];
-          const territoryFilteredFarmers = filterFarmersByTerritory(farmersList, agentTerritories);
-          setFarmers(territoryFilteredFarmers);
-          setFilteredFarmers(territoryFilteredFarmers);
-        } catch (error) {
-          console.error('Error fetching farmers:', error);
-          setFarmers([]);
-          setFilteredFarmers([]);
-        } finally {
-          setLoading(false);
-        }
-      };
-      
-      if (agentInfo !== null) {
-        fetchFarmers();
-      }
-    }
-  }, [purchaseMode, currentStep, agentInfo, agentTerritories]);
+    const t = setTimeout(() => setDebouncedSearch(search.trim()), 350);
+    return () => clearTimeout(t);
+  }, [search]);
 
-  // Filter farmers based on search and location
-  useEffect(() => {
-    let filtered = farmers;
+  useEffect(() => setPage(1), [debouncedSearch, category]);
 
-    if (selectedDistrict) {
-      filtered = filtered.filter(farmer => 
-        (farmer.profile?.district || farmer.district)?.toLowerCase() === selectedDistrict.toLowerCase()
-      );
-    }
-
-    if (selectedSector) {
-      filtered = filtered.filter(farmer => 
-        (farmer.profile?.sector || farmer.sector)?.toLowerCase() === selectedSector.toLowerCase()
-      );
-    }
-
-    if (selectedCell) {
-      filtered = filtered.filter(farmer => 
-        (farmer.profile?.cell || farmer.cell)?.toLowerCase() === selectedCell.toLowerCase()
-      );
-    }
-
-    if (searchFarmerTerm.trim() !== '') {
-      filtered = filtered.filter(farmer => 
-        farmer.full_name?.toLowerCase().includes(searchFarmerTerm.toLowerCase()) ||
-        farmer.email?.toLowerCase().includes(searchFarmerTerm.toLowerCase()) ||
-        farmer.phone?.includes(searchFarmerTerm)
-      );
-    }
-
-    setFilteredFarmers(filtered);
-  }, [searchFarmerTerm, selectedDistrict, selectedSector, selectedCell, farmers]);
-
-  // Get unique districts, sectors, cells
-  const getUniqueDistricts = () => {
-    const districts = farmers
-      .map(f => f.profile?.district || f.district)
-      .filter(d => d && d.trim() !== '');
-    return [...new Set(districts)].sort();
-  };
-
-  const getUniqueSectors = () => {
-    let sectors = farmers;
-    if (selectedDistrict) {
-      sectors = farmers.filter(f => 
-        (f.profile?.district || f.district)?.toLowerCase() === selectedDistrict.toLowerCase()
-      );
-    }
-    const sectorList = sectors
-      .map(f => f.profile?.sector || f.sector)
-      .filter(s => s && s.trim() !== '');
-    return [...new Set(sectorList)].sort();
-  };
-
-  const getUniqueCells = () => {
-    let cells = farmers;
-    if (selectedDistrict) {
-      cells = cells.filter(f => 
-        (f.profile?.district || f.district)?.toLowerCase() === selectedDistrict.toLowerCase()
-      );
-    }
-    if (selectedSector) {
-      cells = cells.filter(f => 
-        (f.profile?.sector || f.sector)?.toLowerCase() === selectedSector.toLowerCase()
-      );
-    }
-    const cellList = cells
-      .map(f => f.profile?.cell || f.cell)
-      .filter(c => c && c.trim() !== '');
-    return [...new Set(cellList)].sort();
-  };
-
-  // Fetch products
-  useEffect(() => {
-    if (currentStep === 3 || (currentStep === 1 && purchaseMode === 'self')) {
-      fetchProducts();
-    }
-  }, [currentStep, purchaseMode]);
-
-  const fetchProducts = async () => {
+  const loadProducts = useCallback(async () => {
     setLoading(true);
-    setError(null);
-    
+    setError('');
     try {
-      const response = await getAllProducts({ limit: 100, sort: '-created_at' });
-      const productsData = response.data || response || [];
-      
-      const transformedProducts = productsData.map(product => ({
-        id: String(product.id || product._id),
-        name: product.name || 'Unknown Product',
-        description: product.description || 'No description available',
-        price: Number(product.price) || 0,
-        originalPrice: product.originalPrice ? Number(product.originalPrice) : null,
-        image: (product.images && product.images.length > 0) 
-          ? product.images[0] 
-          : product.image_url,
-        capacity: `${product.quantity || 0} ${product.unit || 'piece'}`,
-        inStock: product.status === 'available' && (product.quantity || 0) > 0,
-        unit: product.unit || 'piece',
-        quantity: Number(product.quantity) || 0,
-        category: product.category || 'general',
-        status: product.status || 'available'
-      }));
-      
-      setProducts(transformedProducts.filter(p => p.inStock));
+      const res = await getAllProducts({ page, limit: PAGE_SIZE, category, search: debouncedSearch, in_stock: 'true' });
+      setProducts(res.data || []);
+      setPagination(res.pagination || { page, totalPages: 1 });
     } catch (err) {
-      console.error('Error fetching products:', err);
       setError(err.message || 'Failed to load products');
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, category, debouncedSearch]);
 
-  // Cart functions
-  const addToCart = (product) => {
-    setAddingToCart(product.id);
-    setTimeout(() => {
-      CartService.addToCart(product);
-      setCartItems(CartService.getCartItems());
-      setCartCount(CartService.getCartCount());
-      setJustAdded(product.id);
-      setAddingToCart(null);
-      setTimeout(() => setJustAdded(null), 2000);
-    }, 500);
-  };
+  useEffect(() => {
+    loadProducts();
+  }, [loadProducts]);
 
-  const updateCartQuantity = (productId, quantity) => {
-    CartService.updateCartQuantity(productId, quantity);
-    setCartItems(CartService.getCartItems());
-    setCartCount(CartService.getCartCount());
-  };
+  const loadCart = useCallback(async () => {
+    try {
+      setCart(normaliseCart(await getCart()));
+    } catch (err) {
+      toast.error(err.message || 'Failed to load cart');
+    }
+  }, [toast]);
 
-  const removeFromCart = (productId) => {
-    CartService.removeFromCart(productId);
-    setCartItems(CartService.getCartItems());
-    setCartCount(CartService.getCartCount());
-  };
+  useEffect(() => {
+    loadCart();
+  }, [loadCart]);
 
-  // Checkout and payment
-  const handleCheckout = () => {
-    const cartSummary = CartService.getCartSummary();
-    setPendingOrder({
-      id: `ORDER-${Date.now()}`,
-      items: cartItems,
-      totalAmount: cartSummary.total,
-      buyer: purchaseMode === 'self' ? 'agent' : selectedFarmer,
-    });
-    setIsCartOpen(false);
-    setShowPaymentModal(true);
-  };
+  // Farmer search (only in "on behalf" mode)
+  useEffect(() => {
+    if (mode !== 'farmer') return undefined;
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      setFarmersLoading(true);
+      try {
+        const res = await listFarmers({ limit: 20, search: farmerQuery.trim() || undefined });
+        if (!cancelled) setFarmers(Array.isArray(res?.data) ? res.data : []);
+      } catch (err) {
+        if (!cancelled) toast.error(err.response?.data?.message || err.message || 'Failed to load farmers');
+      } finally {
+        if (!cancelled) setFarmersLoading(false);
+      }
+    }, 300);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [mode, farmerQuery, toast]);
 
-  const handleProviderSelect = (provider) => {
-    setMobileProvider(provider);
-    setPaymentStep('phone');
-  };
+  const cartQty = useMemo(() => Object.fromEntries(cart.items.map((i) => [i.product_id, i.quantity])), [cart.items]);
 
-  const handlePhoneSubmit = () => {
-    if (/^07[0-9]{8}$/.test(paymentPhone)) {
-      setPaymentStep('confirm');
-    } else {
-      setPaymentError('Please enter a valid Rwandan phone number (e.g., 078xxxxxxxx)');
+  const changeCart = async (productId, fn, successMsg) => {
+    setCartBusy(productId);
+    try {
+      setCart(normaliseCart(await fn()));
+      if (successMsg) toast.success(successMsg);
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setCartBusy(null);
     }
   };
 
-  const handlePaymentComplete = async () => {
-    setPaymentProcessing(true);
-    setPaymentError('');
-    setTimeout(() => {
-      setPaymentProcessing(false);
-      setPaymentSuccess(true);
-      CartService.clearCart();
-      setCartItems([]);
-      setCartCount(0);
-    }, 2000);
+  const addToCart = (p) => {
+    if ((cartQty[p.id] || 0) + 1 > (p.quantity || 0)) {
+      toast.error(`Only ${p.quantity} ${p.unit || 'units'} of ${p.name} in stock`);
+      return;
+    }
+    changeCart(p.id, () => addCartItem(p.id, 1), `${p.name} added to cart`);
   };
 
-  const closePaymentModal = () => {
-    setShowPaymentModal(false);
-    setPaymentStep('provider');
-    setMobileProvider('');
-    setPhoneNumber('');
-    setPaymentError('');
-    setPaymentSuccess(false);
-    setPaymentProcessing(false);
-    setPendingOrder(null);
+  const setQty = (item, qty) => {
+    if (qty > (item.product?.quantity || 0)) {
+      toast.error(`Only ${item.product?.quantity} in stock`);
+      return;
+    }
+    changeCart(item.product_id, () => (qty <= 0 ? removeCartItem(item.product_id) : updateCartItem(item.product_id, qty)));
   };
 
-  const handleModeSelection = (mode) => {
-    setPurchaseMode(mode);
-    if (mode === 'self') {
-      setCurrentStep(3); // Go directly to shop
-      setSelectedFarmer(null);
-    } else {
-      setCurrentStep(2); // Go to farmer selection
+  const emptyTheCart = async () => {
+    const ok = await confirm('Remove all items from the cart?', { confirmLabel: 'Empty cart' });
+    if (!ok) return;
+    setCartBusy('all');
+    try {
+      await clearCart();
+      setCart(emptyCart);
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setCartBusy(null);
     }
   };
 
-  const handleFarmerSelection = (farmer) => {
-    setSelectedFarmer(farmer);
-    setCurrentStep(3); // Go to shop
+  const openCheckout = () => {
+    if (mode === 'farmer' && !farmer) {
+      toast.error('Choose the farmer you are ordering for first');
+      return;
+    }
+    setAddress(addressFrom(mode === 'farmer' ? farmer : me));
+    setNotes('');
+    setCheckoutError('');
+    setCartOpen(false);
+    setCheckoutOpen(true);
   };
 
-  const handleBackToMode = () => {
-    setCurrentStep(1);
-    setSelectedFarmer(null);
-    setPurchaseMode('self');
+  const placeOrder = async (e) => {
+    e.preventDefault();
+    const missing = ['full_name', 'phone', 'street_address', 'city', 'province'].filter((k) => !address[k]?.trim());
+    if (missing.length) {
+      setCheckoutError('Please fill in the recipient name, phone, address, city/sector and province.');
+      return;
+    }
+    const who = mode === 'farmer'
+      ? `Ordered by agent ${me?.full_name || ''} on behalf of farmer ${farmer.full_name}${farmer.phone ? ` (${farmer.phone})` : ''}`
+      : `Ordered by agent ${me?.full_name || ''} for own use`;
+    setPlacing(true);
+    setCheckoutError('');
+    try {
+      const res = await checkout([who.trim(), notes.trim()].filter(Boolean).join(' — '), {
+        shipping_address: address,
+        payment_method: paymentMethod,
+      });
+      setPlacedOrder(res?.order || res);
+      setCheckoutOpen(false);
+      toast.success('Order placed');
+      loadCart();
+      loadProducts();
+    } catch (err) {
+      setCheckoutError(err.message || 'Checkout failed');
+    } finally {
+      setPlacing(false);
+    }
   };
 
-  const handleBackToFarmers = () => {
-    setCurrentStep(2);
-    setSelectedFarmer(null);
-  };
+  const setAddr = (k) => (e) => setAddress((a) => ({ ...a, [k]: e.target.value }));
 
-  // STEP 1: Purchase Mode Selection
-  if (currentStep === 1) {
-    return <AgentShopModeSelection onSelectMode={handleModeSelection} />;
-  }
-
-  // STEP 2: Farmer Selection (only if behalf mode)
-  if (currentStep === 2 && purchaseMode === 'behalf') {
-    return (
-      <AgentShopFarmerSelection
-        farmers={filteredFarmers}
-        loading={loading}
-        searchTerm={searchFarmerTerm}
-        onSearchChange={setSearchFarmerTerm}
-        districts={getUniqueDistricts()}
-        selectedDistrict={selectedDistrict}
-        onDistrictChange={(district) => {
-          setSelectedDistrict(district);
-          setSelectedSector('');
-          setSelectedCell('');
-        }}
-        sectors={getUniqueSectors()}
-        selectedSector={selectedSector}
-        onSectorChange={(sector) => {
-          setSelectedSector(sector);
-          setSelectedCell('');
-        }}
-        cells={getUniqueCells()}
-        selectedCell={selectedCell}
-        onCellChange={setSelectedCell}
-        onClearFilters={() => {
-          setSelectedDistrict('');
-          setSelectedSector('');
-          setSelectedCell('');
-          setSearchFarmerTerm('');
-        }}
-        onSelectFarmer={handleFarmerSelection}
-        onBack={handleBackToMode}
-      />
-    );
-  }
-
-  // STEP 3: Shop Products
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Cart Sidebar */}
-      <CartSidebar
-        isCartOpen={isCartOpen}
-        setIsCartOpen={setIsCartOpen}
-        cartItems={cartItems}
-        cartCount={cartCount}
-        updateCartQuantity={updateCartQuantity}
-        removeFromCart={removeFromCart}
-        handleCheckout={handleCheckout}
+    <Page>
+      <PageHeader
+        icon={ShoppingBag}
+        title="Agent Shop"
+        subtitle="Order farm inputs for yourself or on behalf of a farmer."
+        actions={
+          <>
+            <Button variant="secondary" icon={RefreshCw} onClick={() => { loadProducts(); loadCart(); }}>Refresh</Button>
+            <Button icon={ShoppingCart} onClick={() => setCartOpen(true)} aria-label={`Open cart, ${cart.item_count} items`}>
+              Cart{cart.item_count ? ` (${cart.item_count})` : ''}
+            </Button>
+          </>
+        }
       />
 
-      {/* Payment Modal (same as HarvestingKit) */}
-      {showPaymentModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl max-w-md w-full mx-4 p-6 shadow-2xl">
-            {paymentSuccess ? (
-              <div className="text-center">
-                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <CheckCircle className="w-10 h-10 text-green-600" />
-                </div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-2">Payment Successful!</h3>
-                <p className="text-gray-600 mb-6">Your order has been placed successfully</p>
-                <button
-                  onClick={closePaymentModal}
-                  className="w-full py-3 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700"
-                >
-                  Continue Shopping
-                </button>
-              </div>
-            ) : paymentStep === 'provider' ? (
-              <div>
-                <h3 className="text-xl font-bold text-gray-900 mb-4">Select Payment Provider</h3>
-                <div className="space-y-3">
-                  <button
-                    onClick={() => handleProviderSelect('mtn')}
-                    className="w-full p-4 border-2 border-gray-200 rounded-lg hover:border-yellow-500 hover:bg-yellow-50 transition-all text-left"
-                  >
-                    <div className="font-semibold text-gray-900">MTN Mobile Money</div>
-                    <div className="text-sm text-gray-600">Pay with MTN MoMo</div>
-                  </button>
-                  <button
-                    onClick={() => handleProviderSelect('airtel')}
-                    className="w-full p-4 border-2 border-gray-200 rounded-lg hover:border-red-500 hover:bg-red-50 transition-all text-left"
-                  >
-                    <div className="font-semibold text-gray-900">Airtel Money</div>
-                    <div className="text-sm text-gray-600">Pay with Airtel Money</div>
-                  </button>
-                </div>
-                <button
-                  onClick={closePaymentModal}
-                  className="w-full mt-4 py-2 text-gray-600 hover:text-gray-800"
-                >
-                  Cancel
-                </button>
-              </div>
-            ) : paymentStep === 'phone' ? (
-              <div>
-                <h3 className="text-xl font-bold text-gray-900 mb-4">Enter Phone Number</h3>
-                <input
-                  type="tel"
-                  value={paymentPhone}
-                  onChange={(e) => setPhoneNumber(e.target.value)}
-                  placeholder="078XXXXXXX"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 mb-2"
-                />
-                {paymentError && (
-                  <p className="text-sm text-red-600 mb-3">{paymentError}</p>
-                )}
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => setPaymentStep('provider')}
-                    className="flex-1 py-3 border border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50"
-                  >
-                    Back
-                  </button>
-                  <button
-                    onClick={handlePhoneSubmit}
-                    className="flex-1 py-3 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700"
-                  >
-                    Continue
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div>
-                <h3 className="text-xl font-bold text-gray-900 mb-4">Confirm Payment</h3>
-                <div className="bg-gray-50 rounded-lg p-4 mb-4">
-                  <div className="flex justify-between mb-2">
-                    <span className="text-gray-600">Provider:</span>
-                    <span className="font-semibold">{mobileProvider === 'mtn' ? 'MTN MoMo' : 'Airtel Money'}</span>
-                  </div>
-                  <div className="flex justify-between mb-2">
-                    <span className="text-gray-600">Phone:</span>
-                    <span className="font-semibold">{paymentPhone}</span>
-                  </div>
-                  <div className="flex justify-between mb-2">
-                    <span className="text-gray-600">Buying for:</span>
-                    <span className="font-semibold">{purchaseMode === 'self' ? 'Myself (Agent)' : selectedFarmer?.full_name}</span>
-                  </div>
-                  <div className="flex justify-between pt-2 border-t border-gray-300">
-                    <span className="text-gray-900 font-bold">Total Amount:</span>
-                    <span className="text-green-600 font-bold">{pendingOrder?.totalAmount.toLocaleString()} RWF</span>
-                  </div>
-                </div>
-                {paymentProcessing ? (
-                  <div className="text-center py-4">
-                    <Loader2 className="w-8 h-8 text-green-600 animate-spin mx-auto mb-2" />
-                    <p className="text-gray-600">Processing payment...</p>
-                  </div>
-                ) : (
-                  <div className="flex gap-3">
-                    <button
-                      onClick={() => setPaymentStep('phone')}
-                      className="flex-1 py-3 border border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50"
-                    >
-                      Back
-                    </button>
-                    <button
-                      onClick={handlePaymentComplete}
-                      className="flex-1 py-3 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700"
-                    >
-                      Pay Now
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
+      {placedOrder && (
+        <div className="flex items-start gap-3 rounded-2xl border border-brand-200 bg-brand-50 p-4 text-sm text-brand-800">
+          <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" />
+          <div className="flex-1">
+            Order <span className="font-semibold">{placedOrder.order_number || placedOrder.id}</span> placed — {rwf(placedOrder.total_amount)}, status {placedOrder.status || 'pending'}.
           </div>
+          <button type="button" className="text-brand-700 hover:underline" onClick={() => setPlacedOrder(null)}>Dismiss</button>
         </div>
       )}
 
-      {/* Main Content */}
-      <div className="h-screen flex flex-col overflow-hidden">
-        <AgentShopHeader
-          purchaseMode={purchaseMode}
-          selectedFarmer={selectedFarmer}
-          currentStep={currentStep}
-          cartCount={cartCount}
-          searchTerm={searchTerm}
-          categoryFilter={categoryFilter}
-          categories={categories}
-          onBackToFarmers={handleBackToFarmers}
-          onBackToMode={handleBackToMode}
-          onCartOpen={() => setIsCartOpen(true)}
-          onSearchChange={setSearchTerm}
-          onCategoryChange={setCategoryFilter}
-        />
+      <Card title="Ordering for">
+        <div className="space-y-4">
+          <Tabs
+            tabs={[{ id: 'self', label: 'Myself', icon: User }, { id: 'farmer', label: 'On behalf of a farmer', icon: Users }]}
+            value={mode}
+            onChange={(v) => { setMode(v); if (v === 'self') setFarmer(null); }}
+          />
+          {mode === 'self' ? (
+            <p className="text-sm text-slate-600">Items will be ordered for {me?.full_name || 'your own account'}.</p>
+          ) : farmer ? (
+            <div className="flex flex-col gap-3 rounded-xl border border-slate-200 p-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <p className="font-medium text-slate-900">{farmer.full_name}</p>
+                <p className="truncate text-sm text-slate-500">
+                  {[farmer.phone, farmer.sector || farmer.profile?.sector, farmer.district || farmer.profile?.district].filter(Boolean).join(' · ') || farmer.email}
+                </p>
+              </div>
+              <Button variant="secondary" size="sm" onClick={() => setFarmer(null)}>Change farmer</Button>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <input
+                  className={`${inputClass} pl-9`}
+                  placeholder="Search farmers by name, phone or email…"
+                  aria-label="Search farmers"
+                  value={farmerQuery}
+                  onChange={(e) => setFarmerQuery(e.target.value)}
+                />
+              </div>
+              {farmersLoading ? (
+                <Spinner label="Loading farmers…" />
+              ) : farmers.length === 0 ? (
+                <p className="py-4 text-center text-sm text-slate-500">No farmers match your search.</p>
+              ) : (
+                <ul className="max-h-72 divide-y divide-slate-100 overflow-y-auto rounded-xl border border-slate-200">
+                  {farmers.map((f) => (
+                    <li key={f.id}>
+                      <button type="button" onClick={() => setFarmer(f)} className="flex w-full flex-col items-start px-3 py-2 text-left hover:bg-slate-50 sm:flex-row sm:items-center sm:justify-between">
+                        <span className="font-medium text-slate-900">{f.full_name || f.email}</span>
+                        <span className="text-xs text-slate-500">{[f.phone, f.district || f.profile?.district].filter(Boolean).join(' · ')}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+        </div>
+      </Card>
 
-        <AgentShopProductGrid
-          loading={loading}
-          filteredProducts={filteredProducts}
-          searchTerm={searchTerm}
-          categoryFilter={categoryFilter}
-          addingToCart={addingToCart}
-          justAdded={justAdded}
-          onAddToCart={addToCart}
-        />
-      </div>
-    </div>
+      <Card padded={false}>
+        <div className="flex flex-col gap-3 border-b border-slate-100 p-4 sm:flex-row">
+          <div className="relative flex-1">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <input className={`${inputClass} pl-9`} placeholder="Search products…" aria-label="Search products" value={search} onChange={(e) => setSearch(e.target.value)} />
+          </div>
+          <select className={`${inputClass} sm:w-56`} aria-label="Category" value={category} onChange={(e) => setCategory(e.target.value)}>
+            {CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+          </select>
+        </div>
+
+        {loading ? (
+          <Spinner label="Loading products…" />
+        ) : error ? (
+          <ErrorState message={error} onRetry={loadProducts} />
+        ) : products.length === 0 ? (
+          <EmptyState icon={Package} title="No products found" description="Nothing in stock matches these filters." />
+        ) : (
+          <>
+            <div className="grid grid-cols-1 gap-4 p-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {products.map((p) => {
+                const inCart = cartQty[p.id] || 0;
+                return (
+                  <div key={p.id} className="flex flex-col rounded-xl border border-slate-200 bg-white p-4">
+                    <div className="mb-3 flex h-28 items-center justify-center overflow-hidden rounded-lg bg-slate-50">
+                      {p.images?.[0] ? (
+                        <img src={p.images[0]} alt={p.name} className="h-full w-full object-cover" />
+                      ) : (
+                        <Package className="h-10 w-10 text-slate-300" />
+                      )}
+                    </div>
+                    <Badge tone="slate" className="self-start">{labelOf(p.category)}</Badge>
+                    <h3 className="mt-2 font-medium text-slate-900">{p.name}</h3>
+                    {p.description && <p className="mt-1 line-clamp-2 text-sm text-slate-500">{p.description}</p>}
+                    <div className="mt-auto pt-3">
+                      <p className="text-lg font-semibold text-slate-900">{rwf(p.price)}<span className="text-sm font-normal text-slate-500"> / {p.unit || 'unit'}</span></p>
+                      <p className="text-xs text-slate-500">{p.quantity} in stock{inCart ? ` · ${inCart} in cart` : ''}</p>
+                      <Button
+                        className="mt-3 w-full"
+                        size="sm"
+                        icon={Plus}
+                        loading={cartBusy === p.id}
+                        disabled={inCart >= p.quantity}
+                        onClick={() => addToCart(p)}
+                      >
+                        Add to cart
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <Pagination page={pagination.page || page} totalPages={pagination.totalPages} total={pagination.total} onChange={setPage} />
+          </>
+        )}
+      </Card>
+
+      <Dialog
+        open={cartOpen}
+        title="Cart"
+        subtitle={mode === 'farmer' ? (farmer ? `For ${farmer.full_name}` : 'Choose a farmer before checkout') : 'For yourself'}
+        onClose={() => setCartOpen(false)}
+        size="lg"
+        footer={
+          cart.items.length > 0 && (
+            <>
+              <Button variant="ghost" icon={Trash2} loading={cartBusy === 'all'} onClick={emptyTheCart}>Empty cart</Button>
+              <Button onClick={openCheckout}>Checkout · {rwf(cart.total)}</Button>
+            </>
+          )
+        }
+      >
+        {cart.items.length === 0 ? (
+          <EmptyState icon={ShoppingCart} title="Your cart is empty" description="Add products from the catalogue." />
+        ) : (
+          <ul className="divide-y divide-slate-100">
+            {cart.items.map((item) => (
+              <li key={item.id} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
+                  <p className="font-medium text-slate-900">{item.product?.name}</p>
+                  <p className="text-sm text-slate-500">{rwf(item.product?.price)} × {item.quantity} = {rwf((item.product?.price || 0) * item.quantity)}</p>
+                  {item.product?.status !== 'available' && <Badge tone="rose" className="mt-1">No longer available</Badge>}
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button variant="secondary" size="sm" icon={Minus} aria-label={`Decrease ${item.product?.name}`} disabled={cartBusy === item.product_id} onClick={() => setQty(item, item.quantity - 1)} />
+                  <span className="w-8 text-center text-sm font-medium">{item.quantity}</span>
+                  <Button variant="secondary" size="sm" icon={Plus} aria-label={`Increase ${item.product?.name}`} disabled={cartBusy === item.product_id} onClick={() => setQty(item, item.quantity + 1)} />
+                  <Button variant="ghost" size="sm" icon={Trash2} aria-label={`Remove ${item.product?.name}`} disabled={cartBusy === item.product_id} onClick={() => setQty(item, 0)} />
+                </div>
+              </li>
+            ))}
+            <li className="flex justify-between pt-3 text-base font-semibold text-slate-900">
+              <span>Total</span>
+              <span>{rwf(cart.total)}</span>
+            </li>
+          </ul>
+        )}
+      </Dialog>
+
+      <Dialog
+        open={checkoutOpen}
+        title="Checkout"
+        subtitle={mode === 'farmer' && farmer ? `Ordering on behalf of ${farmer.full_name}` : 'Ordering for yourself'}
+        onClose={() => !placing && setCheckoutOpen(false)}
+        size="lg"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setCheckoutOpen(false)} disabled={placing}>Cancel</Button>
+            <Button type="submit" form="agent-checkout" loading={placing}>Place order · {rwf(cart.total)}</Button>
+          </>
+        }
+      >
+        <form id="agent-checkout" onSubmit={placeOrder} className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {checkoutError && (
+            <div className="flex gap-2 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800 sm:col-span-2" role="alert">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+              <div>
+                <p className="font-medium">{checkoutError}</p>
+                {/customer/i.test(checkoutError) && (
+                  <p className="mt-1">The server only accepts orders linked to a shop customer record, and agent accounts can’t create one yet. Your cart has been kept — please contact an administrator.</p>
+                )}
+              </div>
+            </div>
+          )}
+          <Field label="Recipient name" required>
+            <input className={inputClass} value={address.full_name} onChange={setAddr('full_name')} />
+          </Field>
+          <Field label="Phone" required>
+            <input className={inputClass} value={address.phone} onChange={setAddr('phone')} placeholder="07XXXXXXXX" />
+          </Field>
+          <Field label="Address (village / cell)" required className="sm:col-span-2">
+            <input className={inputClass} value={address.street_address} onChange={setAddr('street_address')} />
+          </Field>
+          <Field label="City / sector" required>
+            <input className={inputClass} value={address.city} onChange={setAddr('city')} />
+          </Field>
+          <Field label="District">
+            <input className={inputClass} value={address.district} onChange={setAddr('district')} />
+          </Field>
+          <Field label="Province" required>
+            <input className={inputClass} value={address.province} onChange={setAddr('province')} />
+          </Field>
+          <Field label="Payment method">
+            <select className={inputClass} value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>
+              {PAYMENT_METHODS.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
+            </select>
+          </Field>
+          <Field label="Notes" className="sm:col-span-2" hint={mode === 'farmer' && farmer ? `The order is tagged as placed on behalf of ${farmer.full_name}.` : undefined}>
+            <textarea className={textareaClass} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Delivery instructions…" />
+          </Field>
+        </form>
+      </Dialog>
+    </Page>
   );
 }

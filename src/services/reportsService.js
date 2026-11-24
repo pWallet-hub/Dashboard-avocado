@@ -43,6 +43,23 @@ export async function listReports(options = {}) {
   }
 }
 
+// Paginated variant: returns { data, pagination } (pagination = meta.pagination)
+export async function listReportsPage(options = {}) {
+  const params = {};
+  ['report_type', 'status', 'agent_id', 'date_from', 'date_to', 'page', 'limit'].forEach((k) => {
+    if (options[k]) params[k] = options[k];
+  });
+  try {
+    const response = await apiClient.get('/reports', { params });
+    return {
+      data: Array.isArray(response.data?.data) ? response.data.data : [],
+      pagination: response.data?.meta?.pagination || { page: 1, totalPages: 1, total: 0 },
+    };
+  } catch (error) {
+    throw new Error(error.response?.data?.message || error.message || 'Failed to load reports');
+  }
+}
+
 // Get report statistics — counts by status, type and priority
 export async function getReportStatistics() {
   try {

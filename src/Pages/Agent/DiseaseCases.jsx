@@ -1,432 +1,332 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Bug, Plus, Filter, Edit, X, Leaf } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { Bug, Plus, RefreshCw, Pencil, Activity, CheckCircle2, AlertTriangle, Search } from 'lucide-react';
 import {
-  listDiseaseCases,
-  reportDiseaseCase,
-  updateDiseaseCase,
-  listDiseaseRegistry,
+  listDiseaseCasesPage, reportDiseaseCase, updateDiseaseCase, listDiseaseRegistryPage, getDiseaseStatistics,
 } from '../../services/diseasesService';
-import { listFarms } from '../../services/farmsService';
+import { listFarmsPage } from '../../services/farmsService';
+import { listUsersPage } from '../../services/usersService';
 import { useToast } from '../../components/Ui/Toast';
+import {
+  Page, PageHeader, Card, StatGrid, StatCard, Badge, Button, Field, inputClass, textareaClass,
+  EmptyState, ErrorState, Spinner, Table, Td, Dialog, Pagination, Tabs,
+} from '../../components/Ui/kit';
 
+const PAGE_SIZE = 15;
 const SEVERITIES = ['low', 'medium', 'high', 'critical'];
-const CASE_STATUSES = ['open', 'in_treatment', 'resolved', 'closed'];
+const STATUSES = ['active', 'monitoring', 'treated', 'resolved'];
+const SEVERITY_TONE = { low: 'brand', medium: 'amber', high: 'rose', critical: 'rose' };
+const STATUS_TONE = { active: 'rose', monitoring: 'amber', treated: 'blue', resolved: 'brand' };
+const STATUS_TABS = [{ id: '', label: 'All' }, ...STATUSES.map((s) => ({ id: s, label: s[0].toUpperCase() + s.slice(1) }))];
 
-const EMPTY_CASE_FORM = {
-  farm_id: '',
-  disease_id: '',
-  severity: 'medium',
-  affected_trees: '',
-  detected_at: '',
-  notes: '',
-};
+const cap = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1).replace(/_/g, ' ') : '—');
+const fmtDate = (d) => (d ? new Date(d).toLocaleDateString() : '—');
+const farmLabel = (f) => f?.farmName || f?.farm_name || 'Unnamed farm';
+const emptyReport = () => ({ farmer_id: '', farm_id: '', disease_name: '', severity: 'low', affected_trees: '', symptoms: '', treatment: '', notes: '' });
 
-const severityColor = (severity) => {
-  switch (severity) {
-    case 'low': return 'bg-green-100 text-green-800 ring-green-400';
-    case 'medium': return 'bg-yellow-100 text-yellow-800 ring-yellow-400';
-    case 'high': return 'bg-orange-100 text-orange-800 ring-orange-400';
-    case 'critical': return 'bg-red-100 text-red-800 ring-red-400';
-    default: return 'bg-gray-100 text-gray-800 ring-gray-400';
-  }
-};
-
-const statusColor = (status) => {
-  switch (status) {
-    case 'open': return 'bg-red-100 text-red-800 ring-red-400';
-    case 'in_treatment': return 'bg-yellow-100 text-yellow-800 ring-yellow-400';
-    case 'resolved': return 'bg-green-100 text-green-800 ring-green-400';
-    case 'closed': return 'bg-gray-200 text-gray-800 ring-gray-400';
-    default: return 'bg-gray-100 text-gray-800 ring-gray-400';
-  }
-};
-
-const DiseaseCases = () => {
-  const toast = useToast();
-
-  const [cases, setCases] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [statusFilter, setStatusFilter] = useState('all');
-
-  const [diseases, setDiseases] = useState([]);
+/** Pick a farmer (server-side search), then one of their farms. onChange gets { farmer_id, farm_id, farm }. */
+export const FarmerFarmPicker = ({ farmerId, farmId, onChange }) => {
+  const [search, setSearch] = useState('');
+  const [farmers, setFarmers] = useState([]);
   const [farms, setFarms] = useState([]);
-
-  const [showReportModal, setShowReportModal] = useState(false);
-  const [reportForm, setReportForm] = useState(EMPTY_CASE_FORM);
-  const [reportSaving, setReportSaving] = useState(false);
-
-  const [showStatusModal, setShowStatusModal] = useState(false);
-  const [editingCase, setEditingCase] = useState(null);
-  const [statusSaving, setStatusSaving] = useState(false);
-
-  const loadCases = useCallback(async () => {
-    setLoading(true);
-    try {
-      const options = statusFilter !== 'all' ? { status: statusFilter } : {};
-      const data = await listDiseaseCases(options);
-      setCases(Array.isArray(data) ? data : []);
-    } catch (error) {
-      toast.error(error.message || 'Failed to load disease cases');
-      setCases([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [statusFilter, toast]);
+  const [loadingFarms, setLoadingFarms] = useState(false);
 
   useEffect(() => {
-    loadCases();
-  }, [loadCases]);
+    let alive = true;
+    const t = setTimeout(() => {
+      listUsersPage('farmers', { search: search.trim() || undefined, limit: 50 })
+        .then((res) => alive && setFarmers(res.data))
+        .catch(() => alive && setFarmers([]));
+    }, 300);
+    return () => { alive = false; clearTimeout(t); };
+  }, [search]);
 
   useEffect(() => {
-    listDiseaseRegistry().then(setDiseases).catch((error) => {
-      console.error('Error loading disease registry:', error);
-      setDiseases([]);
-    });
-    listFarms().then((result) => setFarms(Array.isArray(result?.data) ? result.data : [])).catch((error) => {
-      console.error('Error loading farms:', error);
-      setFarms([]);
-    });
-  }, []);
-
-  const diseaseName = (diseaseId) => diseases.find((d) => d.id === diseaseId)?.name || diseaseId || 'N/A';
-  const farmLabel = (farmId) => {
-    const farm = farms.find((f) => f.id === farmId);
-    if (!farm) return farmId || 'N/A';
-    return farm.farm_name || farm.name || farm.owner_name || farm.id;
-  };
-
-  const openReportModal = () => {
-    setReportForm(EMPTY_CASE_FORM);
-    setShowReportModal(true);
-  };
-
-  const handleReportCase = async () => {
-    if (!reportForm.farm_id) {
-      toast.error('Please select a farm');
-      return;
-    }
-    if (!reportForm.disease_id) {
-      toast.error('Please select a disease');
-      return;
-    }
-    if (!reportForm.severity) {
-      toast.error('Please select a severity');
-      return;
-    }
-
-    setReportSaving(true);
-    try {
-      const payload = { ...reportForm };
-      if (payload.affected_trees !== '') {
-        payload.affected_trees = Number(payload.affected_trees);
-      } else {
-        delete payload.affected_trees;
-      }
-      if (!payload.detected_at) delete payload.detected_at;
-      if (!payload.notes) delete payload.notes;
-
-      await reportDiseaseCase(payload);
-      toast.success('Disease case reported');
-      setShowReportModal(false);
-      await loadCases();
-    } catch (error) {
-      toast.error(error.message || 'Failed to report disease case');
-    } finally {
-      setReportSaving(false);
-    }
-  };
-
-  const openStatusModal = (diseaseCase) => {
-    setEditingCase({ id: diseaseCase.id, status: diseaseCase.status || 'open', notes: diseaseCase.notes || '' });
-    setShowStatusModal(true);
-  };
-
-  const handleUpdateStatus = async () => {
-    if (!editingCase?.id) return;
-    setStatusSaving(true);
-    try {
-      await updateDiseaseCase(editingCase.id, { status: editingCase.status, notes: editingCase.notes });
-      toast.success('Disease case updated');
-      setShowStatusModal(false);
-      setEditingCase(null);
-      await loadCases();
-    } catch (error) {
-      toast.error(error.message || 'Failed to update disease case');
-    } finally {
-      setStatusSaving(false);
-    }
-  };
+    if (!farmerId) { setFarms([]); return undefined; }
+    let alive = true;
+    setLoadingFarms(true);
+    listFarmsPage({ farmer_id: farmerId, limit: 100 })
+      .then((res) => {
+        if (!alive) return;
+        setFarms(res.data);
+        if (res.data.length === 1) onChange({ farmer_id: farmerId, farm_id: res.data[0].id, farm: res.data[0] });
+      })
+      .catch(() => alive && setFarms([]))
+      .finally(() => alive && setLoadingFarms(false));
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only refetch when the farmer changes
+  }, [farmerId]);
 
   return (
-    <div className="space-y-6 p-4 bg-gradient-to-b from-green-50 to-green-50 min-h-screen">
-      {/* Header */}
-      <div className="bg-white rounded-xl shadow-lg p-6 ring-1 ring-green-100">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h2 className="text-2xl font-bold text-green-800 flex items-center">
-              <Bug className="h-7 w-7 mr-3 text-green-600" />
-              Disease Cases
-            </h2>
-            <p className="text-green-600 mt-1">Report and track disease cases on your assigned farms</p>
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <Field label="Farmer" required className="sm:col-span-2">
+        <div className="space-y-2">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <input className={inputClass + ' pl-9'} placeholder="Search farmers by name or email…" aria-label="Search farmers" value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
-          <button
-            onClick={openReportModal}
-            className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all transform hover:scale-105 shadow-lg"
-          >
-            <Plus className="h-5 w-5 mr-2" />
-            Report Disease Case
-          </button>
-        </div>
-      </div>
-
-      {/* Filter */}
-      <div className="bg-white rounded-xl shadow-lg p-6 ring-1 ring-green-100">
-        <div className="relative max-w-xs">
-          <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-green-400" />
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500 appearance-none transition-all"
-            aria-label="Filter by status"
-          >
-            <option value="all">All Status</option>
-            {CASE_STATUSES.map((s) => (
-              <option key={s} value={s}>{s.replace('_', ' ')}</option>
-            ))}
+          <select className={inputClass} value={farmerId} onChange={(e) => onChange({ farmer_id: e.target.value, farm_id: '', farm: null })}>
+            <option value="">Select farmer</option>
+            {farmers.map((f) => <option key={f.id} value={f.id}>{f.full_name} — {f.district || f.email}</option>)}
           </select>
         </div>
-      </div>
-
-      {/* Cases table */}
-      <div className="bg-white rounded-xl shadow-lg overflow-hidden ring-1 ring-green-100">
-        {loading ? (
-          <div className="p-8 text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto"></div>
-            <p className="mt-2 text-green-600">Loading disease cases...</p>
-          </div>
-        ) : cases.length === 0 ? (
-          <div className="p-8 text-center">
-            <Leaf className="h-12 w-12 text-green-400 mx-auto mb-4" />
-            <p className="text-green-600 text-lg font-medium mb-2">No disease cases found</p>
-            <p className="text-green-500 text-sm mb-4">Report a case to start tracking disease outbreaks on your farms.</p>
-            <button
-              onClick={openReportModal}
-              className="mt-4 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all flex items-center mx-auto"
-            >
-              <Plus className="h-5 w-5 mr-2" />
-              Report First Case
-            </button>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-green-100">
-              <thead className="bg-green-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-green-700 uppercase tracking-wider">Farm</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-green-700 uppercase tracking-wider">Disease</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-green-700 uppercase tracking-wider">Severity</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-green-700 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-green-700 uppercase tracking-wider">Affected Trees</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-green-700 uppercase tracking-wider">Detected</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-green-700 uppercase tracking-wider">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-green-100">
-                {cases.map((diseaseCase) => (
-                  <tr key={diseaseCase.id} className="hover:bg-green-50 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-green-900">{farmLabel(diseaseCase.farm_id)}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-green-900">{diseaseName(diseaseCase.disease_id)}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ring-1 ${severityColor(diseaseCase.severity)}`}>
-                        {diseaseCase.severity}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ring-1 ${statusColor(diseaseCase.status)}`}>
-                        {(diseaseCase.status || 'open').replace('_', ' ')}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-green-700">{diseaseCase.affected_trees ?? '-'}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-green-700">
-                      {diseaseCase.detected_at ? new Date(diseaseCase.detected_at).toISOString().split('T')[0] : 'N/A'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <button
-                        onClick={() => openStatusModal(diseaseCase)}
-                        className="text-blue-600 hover:text-blue-800 transform hover:scale-110 transition"
-                        title="Update Status"
-                        aria-label="Update case status"
-                      >
-                        <Edit className="h-5 w-5" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-      {/* Report Case Modal */}
-      {showReportModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-8 w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl ring-1 ring-green-200">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-semibold text-green-800">Report Disease Case</h3>
-              <button onClick={() => setShowReportModal(false)} className="text-green-400 hover:text-green-600" aria-label="Close">
-                <X className="h-6 w-6" />
-              </button>
-            </div>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-green-700 mb-2">Farm *</label>
-                <select
-                  value={reportForm.farm_id}
-                  onChange={(e) => setReportForm((prev) => ({ ...prev, farm_id: e.target.value }))}
-                  className="w-full p-3 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500"
-                >
-                  <option value="">Select farm</option>
-                  {farms.map((farm) => (
-                    <option key={farm.id} value={farm.id}>
-                      {farm.farm_name || farm.name || farm.owner_name || farm.id}
-                    </option>
-                  ))}
-                </select>
-                {farms.length === 0 && (
-                  <p className="text-xs text-green-500 mt-1">No farms available. Ensure farms are registered.</p>
-                )}
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-green-700 mb-2">Disease *</label>
-                <select
-                  value={reportForm.disease_id}
-                  onChange={(e) => setReportForm((prev) => ({ ...prev, disease_id: e.target.value }))}
-                  className="w-full p-3 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500"
-                >
-                  <option value="">Select disease</option>
-                  {diseases.map((d) => (
-                    <option key={d.id} value={d.id}>{d.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-green-700 mb-2">Severity *</label>
-                <select
-                  value={reportForm.severity}
-                  onChange={(e) => setReportForm((prev) => ({ ...prev, severity: e.target.value }))}
-                  className="w-full p-3 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500"
-                >
-                  {SEVERITIES.map((s) => (
-                    <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-green-700 mb-2">Affected Trees</label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={reportForm.affected_trees}
-                    onChange={(e) => setReportForm((prev) => ({ ...prev, affected_trees: e.target.value }))}
-                    className="w-full p-3 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-green-700 mb-2">Detected On</label>
-                  <input
-                    type="date"
-                    value={reportForm.detected_at}
-                    onChange={(e) => setReportForm((prev) => ({ ...prev, detected_at: e.target.value }))}
-                    className="w-full p-3 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500"
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-green-700 mb-2">Notes</label>
-                <textarea
-                  value={reportForm.notes}
-                  onChange={(e) => setReportForm((prev) => ({ ...prev, notes: e.target.value }))}
-                  className="w-full p-3 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500"
-                  rows="3"
-                />
-              </div>
-            </div>
-            <div className="flex justify-end space-x-4 mt-8">
-              <button
-                onClick={() => setShowReportModal(false)}
-                className="px-6 py-3 border border-green-300 rounded-lg text-green-700 hover:bg-green-50 transition-all"
-                disabled={reportSaving}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleReportCase}
-                className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all"
-                disabled={reportSaving}
-              >
-                {reportSaving ? 'Reporting...' : 'Report Case'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Update Status Modal */}
-      {showStatusModal && editingCase && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-8 w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl ring-1 ring-green-200">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-semibold text-green-800">Update Case Status</h3>
-              <button onClick={() => setShowStatusModal(false)} className="text-green-400 hover:text-green-600" aria-label="Close">
-                <X className="h-6 w-6" />
-              </button>
-            </div>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-green-700 mb-2">Status</label>
-                <select
-                  value={editingCase.status}
-                  onChange={(e) => setEditingCase((prev) => ({ ...prev, status: e.target.value }))}
-                  className="w-full p-3 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500"
-                >
-                  {CASE_STATUSES.map((s) => (
-                    <option key={s} value={s}>{s.replace('_', ' ')}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-green-700 mb-2">Notes</label>
-                <textarea
-                  value={editingCase.notes}
-                  onChange={(e) => setEditingCase((prev) => ({ ...prev, notes: e.target.value }))}
-                  className="w-full p-3 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500"
-                  rows="3"
-                />
-              </div>
-            </div>
-            <div className="flex justify-end space-x-4 mt-8">
-              <button
-                onClick={() => setShowStatusModal(false)}
-                className="px-6 py-3 border border-green-300 rounded-lg text-green-700 hover:bg-green-50 transition-all"
-                disabled={statusSaving}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleUpdateStatus}
-                className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all"
-                disabled={statusSaving}
-              >
-                {statusSaving ? 'Saving...' : 'Update Status'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      </Field>
+      <Field label="Farm" required className="sm:col-span-2" hint={farmerId && !loadingFarms && farms.length === 0 ? 'This farmer has no registered farm yet — register one on the Farms page first.' : undefined}>
+        <select className={inputClass} value={farmId} disabled={!farmerId || loadingFarms} onChange={(e) => onChange({ farmer_id: farmerId, farm_id: e.target.value, farm: farms.find((f) => f.id === e.target.value) || null })}>
+          <option value="">{loadingFarms ? 'Loading farms…' : farmerId ? 'Select farm' : 'Select a farmer first'}</option>
+          {farms.map((f) => <option key={f.id} value={f.id}>{farmLabel(f)}</option>)}
+        </select>
+      </Field>
     </div>
   );
 };
 
-export default DiseaseCases;
+export default function DiseaseCases() {
+  const toast = useToast();
+  const [cases, setCases] = useState([]);
+  const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0 });
+  const [page, setPage] = useState(1);
+  const [status, setStatus] = useState('');
+  const [severity, setSeverity] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [stats, setStats] = useState(null);
+  const [registry, setRegistry] = useState([]);
+
+  const [report, setReport] = useState(null);
+  const [editing, setEditing] = useState(null);
+  const [saving, setSaving] = useState(false);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await listDiseaseCasesPage({ page, limit: PAGE_SIZE, status: status || undefined, severity: severity || undefined });
+      setCases(res.data);
+      setPagination({ page: res.pagination.page || page, totalPages: res.pagination.totalPages || 1, total: res.pagination.total ?? res.data.length });
+    } catch (err) {
+      setError(err.message || 'Failed to load disease cases');
+    } finally {
+      setLoading(false);
+    }
+  }, [page, status, severity]);
+
+  const loadStats = useCallback(() => {
+    getDiseaseStatistics().then(setStats).catch(() => setStats(null));
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+  useEffect(() => { setPage(1); }, [status, severity]);
+  useEffect(() => {
+    loadStats();
+    listDiseaseRegistryPage({ is_active: 'true', limit: 100 }).then((r) => setRegistry(r.data)).catch(() => setRegistry([]));
+  }, [loadStats]);
+
+  const countBy = (list, key, value) => list?.find((x) => x[key] === value)?.count ?? 0;
+  const totalCases = stats ? stats.cases_by_status.reduce((s, x) => s + x.count, 0) : null;
+
+  const submitReport = async (e) => {
+    e.preventDefault();
+    if (!report.farm_id) return toast.error('Select the farmer and farm');
+    if (!report.disease_name.trim()) return toast.error('Enter the disease name');
+    if (report.affected_trees !== '' && (!Number.isInteger(Number(report.affected_trees)) || Number(report.affected_trees) < 0)) {
+      return toast.error('Affected trees must be a whole number');
+    }
+    setSaving(true);
+    try {
+      const payload = {
+        farm_id: report.farm_id,
+        disease_name: report.disease_name.trim(),
+        severity: report.severity,
+      };
+      if (report.affected_trees !== '') payload.affected_trees = Number(report.affected_trees);
+      ['symptoms', 'treatment', 'notes'].forEach((k) => { if (report[k].trim()) payload[k] = report[k].trim(); });
+      const created = await reportDiseaseCase(payload);
+      toast.success(`Case ${created?.case_number || ''} reported`.trim());
+      setReport(null);
+      setPage(1);
+      load();
+      loadStats();
+    } catch (err) {
+      toast.error(err.message || 'Failed to report case');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const submitUpdate = async (e) => {
+    e.preventDefault();
+    if (editing.affected_trees !== '' && (!Number.isInteger(Number(editing.affected_trees)) || Number(editing.affected_trees) < 0)) {
+      return toast.error('Affected trees must be a whole number');
+    }
+    setSaving(true);
+    try {
+      const payload = {
+        status: editing.status,
+        severity: editing.severity,
+        treatment: editing.treatment,
+        notes: editing.notes,
+      };
+      if (editing.affected_trees !== '') payload.affected_trees = Number(editing.affected_trees);
+      if (editing.status === 'resolved' && !editing.resolved_date) payload.resolved_date = new Date().toISOString();
+      await updateDiseaseCase(editing.id, payload);
+      toast.success('Case updated');
+      setEditing(null);
+      load();
+      loadStats();
+    } catch (err) {
+      toast.error(err.message || 'Failed to update case');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const fmt = (n) => (n === null || n === undefined ? '—' : Number(n).toLocaleString());
+
+  return (
+    <Page>
+      <PageHeader
+        icon={Bug}
+        title="Disease Cases"
+        subtitle="Report pest and disease cases on farms and track them until resolved."
+        actions={
+          <>
+            <Button variant="secondary" icon={RefreshCw} onClick={() => { load(); loadStats(); }} disabled={loading}>Refresh</Button>
+            <Button icon={Plus} onClick={() => setReport(emptyReport())}>Report case</Button>
+          </>
+        }
+      />
+
+      <StatGrid>
+        <StatCard label="All cases" value={fmt(totalCases)} icon={Bug} tone="slate" />
+        <StatCard label="Active" value={fmt(stats ? countBy(stats.cases_by_status, 'status', 'active') : null)} icon={AlertTriangle} tone="rose" />
+        <StatCard label="Monitoring / treated" value={fmt(stats ? countBy(stats.cases_by_status, 'status', 'monitoring') + countBy(stats.cases_by_status, 'status', 'treated') : null)} icon={Activity} tone="amber" />
+        <StatCard label="Resolved" value={fmt(stats ? countBy(stats.cases_by_status, 'status', 'resolved') : null)} icon={CheckCircle2} />
+      </StatGrid>
+
+      <Card padded={false}>
+        <div className="flex flex-col gap-3 border-b border-slate-100 p-4 lg:flex-row lg:items-center lg:justify-between">
+          <Tabs tabs={STATUS_TABS} value={status} onChange={setStatus} />
+          <select className={inputClass + ' lg:w-48'} aria-label="Filter by severity" value={severity} onChange={(e) => setSeverity(e.target.value)}>
+            <option value="">All severities</option>
+            {SEVERITIES.map((s) => <option key={s} value={s}>{cap(s)}</option>)}
+          </select>
+        </div>
+        {loading ? (
+          <Spinner label="Loading cases…" />
+        ) : error ? (
+          <ErrorState message={error} onRetry={load} />
+        ) : cases.length === 0 ? (
+          <EmptyState
+            icon={Bug}
+            title={status || severity ? 'No cases match these filters' : 'No disease cases reported'}
+            description={status || severity ? 'Try another status or severity.' : 'Report a case when you find pests or disease on a farm.'}
+            action={!status && !severity && <Button icon={Plus} onClick={() => setReport(emptyReport())}>Report case</Button>}
+          />
+        ) : (
+          <>
+            <Table head={['Case', 'Disease', 'Farm', 'Severity', 'Trees', 'Detected', 'Status', '']}>
+              {cases.map((c) => (
+                <tr key={c.id} className="hover:bg-slate-50">
+                  <Td className="font-mono text-xs">{c.case_number}</Td>
+                  <Td className="font-medium text-slate-900">{c.disease_name}</Td>
+                  <Td>
+                    <p>{farmLabel(c.farm)}</p>
+                    {c.farm?.farmerName && <p className="text-xs text-slate-500">{c.farm.farmerName}</p>}
+                  </Td>
+                  <Td><Badge tone={SEVERITY_TONE[c.severity]}>{cap(c.severity)}</Badge></Td>
+                  <Td>{c.affected_trees ?? 0}</Td>
+                  <Td>{fmtDate(c.detected_date)}</Td>
+                  <Td>
+                    <Badge tone={STATUS_TONE[c.status]}>{cap(c.status)}</Badge>
+                    {c.resolved_date && <p className="mt-1 text-xs text-slate-500">on {fmtDate(c.resolved_date)}</p>}
+                  </Td>
+                  <Td className="text-right">
+                    <Button variant="ghost" size="sm" icon={Pencil} aria-label={`Update case ${c.case_number}`}
+                      onClick={() => setEditing({
+                        id: c.id, case_number: c.case_number, disease_name: c.disease_name, status: c.status, severity: c.severity,
+                        affected_trees: c.affected_trees ?? '', treatment: c.treatment || '', notes: c.notes || '', resolved_date: c.resolved_date,
+                      })}>
+                      Update
+                    </Button>
+                  </Td>
+                </tr>
+              ))}
+            </Table>
+            <Pagination page={pagination.page} totalPages={pagination.totalPages} total={pagination.total} onChange={setPage} />
+          </>
+        )}
+      </Card>
+
+      <Dialog open={!!report} title="Report disease case" onClose={() => !saving && setReport(null)} size="lg"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setReport(null)} disabled={saving}>Cancel</Button>
+            <Button type="submit" form="report-case-form" icon={Plus} loading={saving}>Report case</Button>
+          </>
+        }>
+        {report && (
+          <form id="report-case-form" onSubmit={submitReport} className="space-y-4" noValidate>
+            <FarmerFarmPicker farmerId={report.farmer_id} farmId={report.farm_id} onChange={(v) => setReport((r) => ({ ...r, ...v }))} />
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <Field label="Disease / pest" required className="sm:col-span-2" hint={registry.length ? 'Pick from the registry or type a name.' : undefined}>
+                <input className={inputClass} list="disease-registry" value={report.disease_name} onChange={(e) => setReport({ ...report, disease_name: e.target.value })} placeholder="e.g. Anthracnose" />
+                <datalist id="disease-registry">
+                  {registry.map((d) => <option key={d.id} value={d.name} />)}
+                </datalist>
+              </Field>
+              <Field label="Severity">
+                <select className={inputClass} value={report.severity} onChange={(e) => setReport({ ...report, severity: e.target.value })}>
+                  {SEVERITIES.map((s) => <option key={s} value={s}>{cap(s)}</option>)}
+                </select>
+              </Field>
+              <Field label="Affected trees">
+                <input type="number" min="0" step="1" className={inputClass} value={report.affected_trees} onChange={(e) => setReport({ ...report, affected_trees: e.target.value })} />
+              </Field>
+              <Field label="Symptoms" className="sm:col-span-2">
+                <textarea className={textareaClass} value={report.symptoms} onChange={(e) => setReport({ ...report, symptoms: e.target.value })} />
+              </Field>
+              <Field label="Treatment applied / recommended" className="sm:col-span-2">
+                <textarea className={textareaClass} value={report.treatment} onChange={(e) => setReport({ ...report, treatment: e.target.value })} />
+              </Field>
+              <Field label="Notes" className="sm:col-span-2">
+                <textarea className={textareaClass} value={report.notes} onChange={(e) => setReport({ ...report, notes: e.target.value })} />
+              </Field>
+            </div>
+          </form>
+        )}
+      </Dialog>
+
+      <Dialog open={!!editing} title={editing ? `Update ${editing.case_number}` : ''} subtitle={editing?.disease_name} onClose={() => !saving && setEditing(null)}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setEditing(null)} disabled={saving}>Cancel</Button>
+            <Button type="submit" form="update-case-form" loading={saving}>Save</Button>
+          </>
+        }>
+        {editing && (
+          <form id="update-case-form" onSubmit={submitUpdate} className="grid grid-cols-1 gap-3 sm:grid-cols-2" noValidate>
+            <Field label="Status">
+              <select className={inputClass} value={editing.status} onChange={(e) => setEditing({ ...editing, status: e.target.value })}>
+                {STATUSES.map((s) => <option key={s} value={s}>{cap(s)}</option>)}
+              </select>
+            </Field>
+            <Field label="Severity">
+              <select className={inputClass} value={editing.severity} onChange={(e) => setEditing({ ...editing, severity: e.target.value })}>
+                {SEVERITIES.map((s) => <option key={s} value={s}>{cap(s)}</option>)}
+              </select>
+            </Field>
+            <Field label="Affected trees">
+              <input type="number" min="0" step="1" className={inputClass} value={editing.affected_trees} onChange={(e) => setEditing({ ...editing, affected_trees: e.target.value })} />
+            </Field>
+            <Field label="Treatment" className="sm:col-span-2">
+              <textarea className={textareaClass} value={editing.treatment} onChange={(e) => setEditing({ ...editing, treatment: e.target.value })} />
+            </Field>
+            <Field label="Notes" className="sm:col-span-2">
+              <textarea className={textareaClass} value={editing.notes} onChange={(e) => setEditing({ ...editing, notes: e.target.value })} />
+            </Field>
+          </form>
+        )}
+      </Dialog>
+    </Page>
+  );
+}

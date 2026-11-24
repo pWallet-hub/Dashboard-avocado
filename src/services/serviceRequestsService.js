@@ -93,20 +93,8 @@ export async function submitServiceRequestFeedback(requestId, feedbackData) {
     throw new Error("Rating is required");
   }
   
-  if (feedbackData.farmer_satisfaction === undefined || feedbackData.farmer_satisfaction === null) {
-    throw new Error("Farmer satisfaction rating is required");
-  }
-  
-  if (feedbackData.agent_professionalism === undefined || feedbackData.agent_professionalism === null) {
-    throw new Error("Agent professionalism rating is required");
-  }
-  
-  if (feedbackData.service_quality === undefined || feedbackData.service_quality === null) {
-    throw new Error("Service quality rating is required");
-  }
-  
-  if (feedbackData.would_recommend === undefined) {
-    throw new Error("Would recommend field is required");
+  if (feedbackData.rating < 1 || feedbackData.rating > 5) {
+    throw new Error("Rating must be between 1 and 5");
   }
   
   const response = await apiClient.post(`/service-requests/${requestId}/feedback`, feedbackData);
@@ -127,6 +115,34 @@ export async function getServiceRequestsForFarmer(farmerId, options = {}) {
   
   const response = await apiClient.get(`/service-requests/farmer/${farmerId}`, { params });
   return extractData(response);
+}
+
+// Cancel any service request (farmers: own pending requests only). Backend reads `notes`.
+export async function cancelServiceRequest(requestId, notes = '') {
+  if (!requestId) {
+    throw new Error("Service request ID is required");
+  }
+  const response = await apiClient.put(`/service-requests/${requestId}/cancel`, notes ? { notes } : {});
+  return extractData(response);
+}
+
+// Paginated variant for the farmer's own request list: returns { data, pagination }
+export async function listServiceRequestsForFarmerPage(farmerId, options = {}) {
+  if (!farmerId) {
+    throw new Error("Farmer ID is required");
+  }
+  const params = {};
+  if (options.page) params.page = options.page;
+  if (options.limit) params.limit = options.limit;
+  if (options.status) params.status = options.status;
+  if (options.service_type) params.service_type = options.service_type;
+
+  const response = await apiClient.get(`/service-requests/farmer/${farmerId}`, { params });
+  const body = response.data || {};
+  return {
+    data: Array.isArray(body.data) ? body.data : [],
+    pagination: body.meta?.pagination || { page: 1, totalPages: 1, total: 0 },
+  };
 }
 
 // Get service requests assigned to a specific agent
@@ -341,11 +357,9 @@ export async function createPropertyEvaluationRequest(requestData) {
     throw new Error("Visit date range must be exactly 5 days");
   }
 
-  // Validate location if provided
-  if (requestData.location) {
-    if (!requestData.location.street_address || !requestData.location.city || !requestData.location.province) {
-      throw new Error("Complete location details (street address, city, province) are required");
-    }
+  // The backend stores province/district/sector/cell/village/farm_name; province is required.
+  if (!requestData.location?.province) {
+    throw new Error("Province is required");
   }
 
   // Transform frontend data to match API expectations
@@ -730,7 +744,6 @@ export async function cancelPropertyEvaluationRequest(requestId, cancellationDat
  */
 export async function createPestManagementRequest(requestData) {
   try {
-    console.log('🔄 Creating pest management request:', requestData);
     
     // Validate required fields according to API specification
     if (!requestData || typeof requestData !== 'object') {
@@ -820,7 +833,6 @@ export async function createPestManagementRequest(requestData) {
     }
 
     const response = await apiClient.post('/service-requests/pest-management', requestData);
-    console.log('✅ Pest management request created:', response.data);
     return extractData(response);
   } catch (error) {
     console.error('❌ Error creating pest management request:', error);
@@ -1390,3 +1402,67 @@ export async function completeIPMRoutineRequest(requestId, completionData) {
   return extractData(response);
 }
 
+
+// =============================================================================
+// ADMIN: per-type paginated list + type-aware approve/complete
+// (used by src/Pages/Admin/ServiceRequests.jsx)
+// =============================================================================
+
+// UI type key -> { list path segment, approve/complete endpoint suffix }
+export const ADMIN_SERVICE_TYPE_ENDPOINTS = {
+  harvest: { list: 'harvest', approve: 'approve-harvest', complete: 'complete-harvest' },
+  pest_control: { list: 'pest-management', approve: 'approve-pest-management', complete: 'complete-pest-management' },
+  property_evaluation: { list: 'property-evaluation', approve: 'approve-property-evaluation', complete: 'complete-property-evaluation' },
+  harvesting_plan: { list: 'harvesting-plan', approve: 'approve-harvesting-plan', complete: 'complete-harvesting-plan' },
+  ipm_routine: { list: 'ipm-routine', approve: 'approve-ipm-routine', complete: 'complete-ipm-routine' },
+};
+
+const adminEndpoints = (type) => {
+  const ep = ADMIN_SERVICE_TYPE_ENDPOINTS[type];
+  if (!ep) throw new Error(`Unknown service type: ${type}`);
+  return ep;
+};
+
+// Returns { data, pagination } for one service type (admin sees all requests).
+export async function listServiceRequestsByType(type, options = {}) {
+  const params = {};
+  ['page', 'limit', 'status', 'priority'].forEach((k) => {
+    if (options[k]) params[k] = options[k];
+  });
+  if (options.escalated) params.escalated = 'true';
+  const response = await apiClient.get(`/service-requests/${adminEndpoints(type).list}`, { params });
+  const body = response.data || {};
+  return {
+    data: Array.isArray(body.data) ? body.data : [],
+    pagination: body.meta?.pagination || { page: 1, totalPages: 1, total: 0 },
+  };
+}
+
+// Body: { agent_id?, scheduled_date?, cost_estimate?, notes? }
+export async function approveServiceRequestByType(requestId, type, approvalData = {}) {
+  if (!requestId) throw new Error('Request ID is required');
+  const response = await apiClient.put(`/service-requests/${requestId}/${adminEndpoints(type).approve}`, approvalData);
+  return extractData(response);
+}
+
+// Body: { completion_notes? }
+export async function completeServiceRequestByType(requestId, type, completionData = {}) {
+  if (!requestId) throw new Error('Request ID is required');
+  const response = await apiClient.put(`/service-requests/${requestId}/${adminEndpoints(type).complete}`, completionData);
+  return extractData(response);
+}
+
+// Body: { start_notes? }
+export async function startServiceRequest(requestId, startData = {}) {
+  if (!requestId) throw new Error('Request ID is required');
+  const response = await apiClient.put(`/service-requests/${requestId}/start`, startData);
+  return extractData(response);
+}
+
+// Admin: reject a pending/approved request of any type. Body: { rejection_reason }
+export async function rejectServiceRequest(requestId, rejectionReason) {
+  if (!requestId) throw new Error('Request ID is required');
+  if (!rejectionReason?.trim()) throw new Error('Rejection reason is required');
+  const response = await apiClient.put(`/service-requests/${requestId}/reject`, { rejection_reason: rejectionReason.trim() });
+  return extractData(response);
+}

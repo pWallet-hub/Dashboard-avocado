@@ -1,558 +1,340 @@
-import { useState, useEffect, useCallback } from 'react';
-import { TrendingUp, Plus, Edit, Trash2, X, BarChart3, ListChecks } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { TrendingUp, Plus, RefreshCw, Pencil, BarChart3, ListChecks, Scale, Target } from 'lucide-react';
 import {
-  listForecasts,
-  createForecast,
-  updateForecast,
-  deleteForecast,
-  compareForecast,
+  listForecastsPage, createForecast, updateForecast, compareForecast, getRegionalForecast,
 } from '../../services/forecastingService';
+import { FarmerFarmPicker } from './DiseaseCases';
+import { RWANDA_PROVINCES, RWANDA_DISTRICTS } from '../../utils/rwanda';
 import { useToast } from '../../components/Ui/Toast';
-import { useConfirm } from '../../components/Ui/ConfirmDialog';
+import {
+  Page, PageHeader, Card, StatGrid, StatCard, Badge, Button, Field, inputClass, textareaClass,
+  EmptyState, ErrorState, Spinner, Table, Td, Dialog, Pagination, Tabs,
+} from '../../components/Ui/kit';
 
-const EMPTY_FORECAST_FORM = {
-  farm_id: '',
-  province: '',
-  district: '',
-  forecast_year: new Date().getFullYear(),
-  forecast_season: '',
-  predicted_kg: '',
-  confidence_pct: 70,
-  basis: '',
-  notes: '',
-};
+const PAGE_SIZE = 15;
+const THIS_YEAR = new Date().getFullYear();
+const YEARS = [THIS_YEAR + 1, THIS_YEAR, THIS_YEAR - 1, THIS_YEAR - 2, THIS_YEAR - 3];
+const SEASONS = ['Season A (Sep–Feb)', 'Season B (Mar–Aug)', 'Full year'];
+const ACCURACY = { on_track: { label: 'On track', tone: 'brand' }, over: { label: 'Over forecast', tone: 'blue' }, under: { label: 'Under forecast', tone: 'amber' } };
 
-const accuracyColor = (rating) => {
-  const value = typeof rating === 'string' ? rating.toLowerCase() : rating;
-  if (typeof value === 'number') {
-    if (value >= 90) return 'bg-green-100 text-green-800 ring-green-400';
-    if (value >= 70) return 'bg-yellow-100 text-yellow-800 ring-yellow-400';
-    return 'bg-red-100 text-red-800 ring-red-400';
-  }
-  switch (value) {
-    case 'excellent':
-    case 'high':
-    case 'good': return 'bg-green-100 text-green-800 ring-green-400';
-    case 'fair':
-    case 'medium': return 'bg-yellow-100 text-yellow-800 ring-yellow-400';
-    case 'poor':
-    case 'low': return 'bg-red-100 text-red-800 ring-red-400';
-    default: return 'bg-gray-100 text-gray-800 ring-gray-400';
-  }
-};
+const kg = (n) => (n === null || n === undefined ? '—' : `${Math.round(Number(n)).toLocaleString()} kg`);
+const pct = (n) => (n === null || n === undefined ? '—' : `${Number(n) > 0 ? '+' : ''}${Number(n).toFixed(1)}%`);
+const target = (f) => f.farm?.farmName || [f.district, f.province].filter(Boolean).join(', ') || 'Unspecified';
+const emptyCreate = () => ({
+  scope: 'farm', farmer_id: '', farm_id: '', farm: null, province: '', district: '',
+  forecast_year: String(THIS_YEAR), forecast_season: '', predicted_kg: '', confidence_pct: '70', basis: '', notes: '',
+});
 
-const Forecasting = () => {
+export default function Forecasting() {
   const toast = useToast();
-  const confirm = useConfirm();
+  const [tab, setTab] = useState('forecasts');
+  const [year, setYear] = useState(String(THIS_YEAR));
+  const [page, setPage] = useState(1);
+  const [rows, setRows] = useState([]);
+  const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0 });
+  const [compare, setCompare] = useState([]);
+  const [regional, setRegional] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const [activeTab, setActiveTab] = useState('forecasts');
-
-  const [forecasts, setForecasts] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [yearFilter, setYearFilter] = useState('');
-
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [createForm, setCreateForm] = useState(EMPTY_FORECAST_FORM);
-  const [creating, setCreating] = useState(false);
-
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [editForecast, setEditForecast] = useState(null);
+  const [form, setForm] = useState(null);
+  const [editing, setEditing] = useState(null);
   const [saving, setSaving] = useState(false);
 
-  const [compareData, setCompareData] = useState([]);
-  const [compareLoading, setCompareLoading] = useState(false);
-
-  const loadForecasts = useCallback(async () => {
+  const load = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
-      const options = yearFilter ? { forecast_year: Number(yearFilter) } : {};
-      const data = await listForecasts(options);
-      setForecasts(Array.isArray(data) ? data : []);
-    } catch (error) {
-      toast.error(error.message || 'Failed to load forecasts');
-      setForecasts([]);
+      const yr = year || undefined;
+      const [list, cmp, reg] = await Promise.all([
+        listForecastsPage({ page, limit: PAGE_SIZE, forecast_year: yr }),
+        compareForecast({ forecast_year: yr }),
+        getRegionalForecast({ forecast_year: year || THIS_YEAR }),
+      ]);
+      setRows(list.data);
+      setPagination({ page: list.pagination.page || page, totalPages: list.pagination.totalPages || 1, total: list.pagination.total ?? list.data.length });
+      setCompare(cmp);
+      setRegional(reg);
+    } catch (err) {
+      setError(err.message || 'Failed to load forecasts');
     } finally {
       setLoading(false);
     }
-  }, [yearFilter, toast]);
+  }, [page, year]);
 
-  const loadCompare = useCallback(async () => {
-    setCompareLoading(true);
-    try {
-      const data = await compareForecast();
-      setCompareData(Array.isArray(data) ? data : []);
-    } catch (error) {
-      toast.error(error.message || 'Failed to load forecast comparison');
-      setCompareData([]);
-    } finally {
-      setCompareLoading(false);
-    }
-  }, [toast]);
+  useEffect(() => { load(); }, [load]);
+  useEffect(() => { setPage(1); }, [year]);
 
-  useEffect(() => {
-    loadForecasts();
-  }, [loadForecasts]);
+  const totalPredicted = regional.reduce((s, r) => s + (r.total_predicted_kg || 0), 0);
+  const totalActual = regional.reduce((s, r) => s + (r.total_actual_kg || 0), 0);
+  const onTrack = compare.filter((c) => c.accuracy_rating === 'on_track').length;
 
-  useEffect(() => {
-    if (activeTab === 'compare') {
-      loadCompare();
-    }
-  }, [activeTab, loadCompare]);
+  const submitCreate = async (e) => {
+    e.preventDefault();
+    const f = form;
+    if (f.scope === 'farm' && !f.farm_id) return toast.error('Select the farmer and farm');
+    if (f.scope === 'region' && !f.province) return toast.error('Select a province');
+    const predicted = Number(f.predicted_kg);
+    if (f.predicted_kg === '' || !Number.isFinite(predicted) || predicted < 0) return toast.error('Predicted yield must be a positive number of kg');
+    const confidence = Number(f.confidence_pct);
+    if (f.confidence_pct !== '' && (!Number.isFinite(confidence) || confidence < 0 || confidence > 100)) return toast.error('Confidence must be 0–100%');
 
-  const openCreateModal = () => {
-    setCreateForm(EMPTY_FORECAST_FORM);
-    setShowCreateModal(true);
-  };
-
-  const handleCreateForecast = async () => {
-    if (!createForm.forecast_year) {
-      toast.error('Forecast year is required');
-      return;
-    }
-    if (createForm.predicted_kg === '' || Number(createForm.predicted_kg) <= 0) {
-      toast.error('Please enter a valid predicted kg');
-      return;
-    }
-
-    setCreating(true);
-    try {
-      const payload = {
-        ...createForm,
-        forecast_year: Number(createForm.forecast_year),
-        predicted_kg: Number(createForm.predicted_kg),
-        confidence_pct: createForm.confidence_pct !== '' ? Number(createForm.confidence_pct) : undefined,
-      };
-      if (!payload.farm_id) delete payload.farm_id;
-      if (!payload.province) delete payload.province;
-      if (!payload.district) delete payload.district;
-      if (!payload.forecast_season) delete payload.forecast_season;
-      if (!payload.basis) delete payload.basis;
-      if (!payload.notes) delete payload.notes;
-
-      await createForecast(payload);
-      toast.success('Forecast created successfully');
-      setShowCreateModal(false);
-      await loadForecasts();
-    } catch (error) {
-      toast.error(error.message || 'Failed to create forecast');
-    } finally {
-      setCreating(false);
-    }
-  };
-
-  const openEditModal = (forecast) => {
-    setEditForecast({
-      id: forecast.id,
-      actual_kg: forecast.actual_kg ?? '',
-      notes: forecast.notes || '',
-      basis: forecast.basis || '',
-    });
-    setShowEditModal(true);
-  };
-
-  const handleUpdateForecast = async () => {
-    if (!editForecast?.id) return;
+    const loc = f.scope === 'farm' ? f.farm?.location || {} : { province: f.province, district: f.district };
+    const payload = {
+      forecast_year: Number(f.forecast_year),
+      predicted_kg: predicted,
+      confidence_pct: f.confidence_pct === '' ? undefined : confidence,
+      farm_id: f.scope === 'farm' ? f.farm_id : undefined,
+      province: loc.province || undefined,
+      district: loc.district || undefined,
+      forecast_season: f.forecast_season || undefined,
+      basis: f.basis.trim() || undefined,
+      notes: f.notes.trim() || undefined,
+    };
+    Object.keys(payload).forEach((k) => payload[k] === undefined && delete payload[k]);
     setSaving(true);
     try {
-      const payload = { notes: editForecast.notes, basis: editForecast.basis };
-      if (editForecast.actual_kg !== '') {
-        payload.actual_kg = Number(editForecast.actual_kg);
-      }
-      await updateForecast(editForecast.id, payload);
-      toast.success('Forecast updated successfully');
-      setShowEditModal(false);
-      setEditForecast(null);
-      await loadForecasts();
-    } catch (error) {
-      toast.error(error.message || 'Failed to update forecast');
+      const created = await createForecast(payload);
+      toast.success(`Forecast ${created?.forecast_number || ''} created`.trim());
+      setForm(null);
+      if (String(payload.forecast_year) !== year) setYear(String(payload.forecast_year));
+      else { setPage(1); load(); }
+    } catch (err) {
+      toast.error(err.message || 'Failed to create forecast');
     } finally {
       setSaving(false);
     }
   };
 
-  const handleDeleteForecast = async (forecast) => {
-    const ok = await confirm(`Delete forecast ${forecast.forecast_number || forecast.id}? This cannot be undone.`, {
-      title: 'Delete Forecast',
-      confirmLabel: 'Delete',
-    });
-    if (!ok) return;
-
+  const submitEdit = async (e) => {
+    e.preventDefault();
+    const f = editing;
+    const predicted = Number(f.predicted_kg);
+    if (f.predicted_kg === '' || !Number.isFinite(predicted) || predicted < 0) return toast.error('Predicted yield must be a positive number');
+    if (f.actual_kg !== '' && (!Number.isFinite(Number(f.actual_kg)) || Number(f.actual_kg) < 0)) return toast.error('Actual harvest must be a positive number');
+    const confidence = Number(f.confidence_pct);
+    if (f.confidence_pct === '' || !Number.isFinite(confidence) || confidence < 0 || confidence > 100) return toast.error('Confidence must be 0–100%');
+    const payload = {
+      predicted_kg: predicted,
+      confidence_pct: confidence,
+      forecast_season: f.forecast_season,
+      basis: f.basis,
+      notes: f.notes,
+    };
+    if (f.actual_kg !== '') payload.actual_kg = Number(f.actual_kg);
+    setSaving(true);
     try {
-      await deleteForecast(forecast.id);
-      toast.success('Forecast deleted');
-      await loadForecasts();
-    } catch (error) {
-      toast.error(error.message || 'Failed to delete forecast');
+      await updateForecast(f.id, payload);
+      toast.success('Forecast updated');
+      setEditing(null);
+      load();
+    } catch (err) {
+      toast.error(err.message || 'Failed to update forecast');
+    } finally {
+      setSaving(false);
     }
   };
 
+  const openEdit = (f) => setEditing({
+    id: f.id, number: f.forecast_number, target: target(f), predicted_kg: String(f.predicted_kg ?? ''), actual_kg: f.actual_kg ?? '',
+    confidence_pct: String(f.confidence_pct ?? 70), forecast_season: f.forecast_season || '', basis: f.basis || '', notes: f.notes || '',
+  });
+
   return (
-    <div className="space-y-6 p-4 bg-gradient-to-b from-green-50 to-green-50 min-h-screen">
-      {/* Header */}
-      <div className="bg-white rounded-xl shadow-lg p-6 ring-1 ring-green-100">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h2 className="text-2xl font-bold text-green-800 flex items-center">
-              <TrendingUp className="h-7 w-7 mr-3 text-green-600" />
-              Harvest Forecasting
-            </h2>
-            <p className="text-green-600 mt-1">Predict avocado harvest yields and track accuracy against actual results</p>
-          </div>
-          {activeTab === 'forecasts' && (
-            <button
-              onClick={openCreateModal}
-              className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all transform hover:scale-105 shadow-lg"
-            >
-              <Plus className="h-5 w-5 mr-2" />
-              Create Forecast
-            </button>
-          )}
-        </div>
-      </div>
+    <Page>
+      <PageHeader
+        icon={TrendingUp}
+        title="Harvest Forecasting"
+        subtitle="Forecast avocado yields per farm or region, then record actual harvests to track accuracy."
+        actions={
+          <>
+            <select className={inputClass + ' w-32'} aria-label="Forecast year" value={year} onChange={(e) => setYear(e.target.value)}>
+              <option value="">All years</option>
+              {YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
+            </select>
+            <Button variant="secondary" icon={RefreshCw} onClick={load} disabled={loading}>Refresh</Button>
+            <Button icon={Plus} onClick={() => setForm(emptyCreate())}>New forecast</Button>
+          </>
+        }
+      />
 
-      {/* Tabs */}
-      <div className="bg-white rounded-xl shadow-lg ring-1 ring-green-100 overflow-hidden">
-        <div className="flex border-b border-green-100">
-          <button
-            onClick={() => setActiveTab('forecasts')}
-            className={`flex items-center px-6 py-4 text-sm font-medium transition-all ${
-              activeTab === 'forecasts' ? 'text-green-700 border-b-2 border-green-600 bg-green-50' : 'text-gray-500 hover:text-green-600 hover:bg-green-50'
-            }`}
-          >
-            <ListChecks className="h-4 w-4 mr-2" />
-            Forecasts
-          </button>
-          <button
-            onClick={() => setActiveTab('compare')}
-            className={`flex items-center px-6 py-4 text-sm font-medium transition-all ${
-              activeTab === 'compare' ? 'text-green-700 border-b-2 border-green-600 bg-green-50' : 'text-gray-500 hover:text-green-600 hover:bg-green-50'
-            }`}
-          >
-            <BarChart3 className="h-4 w-4 mr-2" />
-            Compare Accuracy
-          </button>
-        </div>
+      <StatGrid>
+        <StatCard label={`Forecasts ${year ? `(${year})` : '(all years)'}`} value={loading ? '…' : pagination.total.toLocaleString()} icon={ListChecks} tone="slate" />
+        <StatCard label={`Predicted ${year || THIS_YEAR}`} value={loading ? '…' : kg(totalPredicted)} icon={Target} />
+        <StatCard label={`Actual ${year || THIS_YEAR}`} value={loading ? '…' : kg(totalActual)} icon={Scale} tone="blue" />
+        <StatCard label="On-track forecasts" value={loading ? '…' : `${onTrack} / ${compare.length}`} hint="Within ±10% of actual harvest" icon={BarChart3} tone="amber" />
+      </StatGrid>
 
-        <div className="p-6">
-          {activeTab === 'forecasts' && (
-            <div className="space-y-4">
-              <div className="max-w-xs">
-                <label className="block text-sm font-medium text-green-700 mb-2">Filter by Year</label>
-                <input
-                  type="number"
-                  value={yearFilter}
-                  onChange={(e) => setYearFilter(e.target.value)}
-                  className="w-full p-2 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500"
-                  placeholder="e.g. 2026"
-                />
-              </div>
+      <Tabs
+        tabs={[
+          { id: 'forecasts', label: 'Forecasts', icon: ListChecks },
+          { id: 'compare', label: 'Forecast vs actual', icon: BarChart3, count: compare.length },
+          { id: 'regional', label: 'By province', icon: Target },
+        ]}
+        value={tab}
+        onChange={setTab}
+      />
 
-              {loading ? (
-                <div className="p-8 text-center">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto"></div>
-                  <p className="mt-2 text-green-600">Loading forecasts...</p>
-                </div>
-              ) : forecasts.length === 0 ? (
-                <div className="p-8 text-center text-green-600">No forecasts found. Create one to get started.</div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-green-100">
-                    <thead className="bg-green-50">
-                      <tr>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-green-700 uppercase">Forecast #</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-green-700 uppercase">Year / Season</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-green-700 uppercase">Location</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-green-700 uppercase">Predicted (kg)</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-green-700 uppercase">Actual (kg)</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-green-700 uppercase">Confidence</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-green-700 uppercase">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-green-100">
-                      {forecasts.map((forecast) => (
-                        <tr key={forecast.id} className="hover:bg-green-50 transition-colors">
-                          <td className="px-4 py-3 text-sm font-medium text-green-900">{forecast.forecast_number || forecast.id}</td>
-                          <td className="px-4 py-3 text-sm text-green-700">
-                            {forecast.forecast_year}{forecast.forecast_season ? ` / ${forecast.forecast_season}` : ''}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-green-700">
-                            {[forecast.district, forecast.province].filter(Boolean).join(', ') || '-'}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-green-700">{Number(forecast.predicted_kg || 0).toLocaleString()}</td>
-                          <td className="px-4 py-3 text-sm text-green-700">
-                            {forecast.actual_kg != null ? Number(forecast.actual_kg).toLocaleString() : '-'}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-green-700">{forecast.confidence_pct != null ? `${forecast.confidence_pct}%` : '-'}</td>
-                          <td className="px-4 py-3 text-sm font-medium">
-                            <div className="flex space-x-3">
-                              <button
-                                onClick={() => openEditModal(forecast)}
-                                className="text-blue-600 hover:text-blue-800 transition"
-                                title="Record Actual / Edit"
-                                aria-label="Edit forecast"
-                              >
-                                <Edit className="h-5 w-5" />
-                              </button>
-                              <button
-                                onClick={() => handleDeleteForecast(forecast)}
-                                className="text-red-600 hover:text-red-800 transition"
-                                title="Delete"
-                                aria-label="Delete forecast"
-                              >
-                                <Trash2 className="h-5 w-5" />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          )}
+      <Card padded={false}>
+        {loading ? (
+          <Spinner label="Loading forecasts…" />
+        ) : error ? (
+          <ErrorState message={error} onRetry={load} />
+        ) : tab === 'forecasts' ? (
+          rows.length === 0 ? (
+            <EmptyState icon={TrendingUp} title="No forecasts yet" description={year ? `No forecasts for ${year}.` : 'Create the first harvest forecast.'}
+              action={<Button icon={Plus} onClick={() => setForm(emptyCreate())}>New forecast</Button>} />
+          ) : (
+            <>
+              <Table head={['Forecast', 'Farm / region', 'Year', 'Predicted', 'Confidence', 'Actual', 'Variance', '']}>
+                {rows.map((f) => (
+                  <tr key={f.id} className="hover:bg-slate-50">
+                    <Td className="font-mono text-xs">{f.forecast_number}</Td>
+                    <Td>
+                      <p className="font-medium text-slate-900">{target(f)}</p>
+                      {f.farm && f.district && <p className="text-xs text-slate-500">{f.district}</p>}
+                    </Td>
+                    <Td>{f.forecast_year}{f.forecast_season && <p className="text-xs text-slate-500">{f.forecast_season}</p>}</Td>
+                    <Td>{kg(f.predicted_kg)}</Td>
+                    <Td>{f.confidence_pct != null ? `${f.confidence_pct}%` : '—'}</Td>
+                    <Td>{f.actual_kg != null ? kg(f.actual_kg) : <span className="text-slate-400">Not recorded</span>}</Td>
+                    <Td>{f.variance_pct != null ? <Badge tone={Math.abs(f.variance_pct) < 10 ? 'brand' : 'amber'}>{pct(f.variance_pct)}</Badge> : '—'}</Td>
+                    <Td className="text-right">
+                      <Button variant="ghost" size="sm" icon={Pencil} onClick={() => openEdit(f)} aria-label={`Edit forecast ${f.forecast_number}`}>
+                        {f.actual_kg == null ? 'Record actual' : 'Edit'}
+                      </Button>
+                    </Td>
+                  </tr>
+                ))}
+              </Table>
+              <Pagination page={pagination.page} totalPages={pagination.totalPages} total={pagination.total} onChange={setPage} />
+            </>
+          )
+        ) : tab === 'compare' ? (
+          compare.length === 0 ? (
+            <EmptyState icon={BarChart3} title="Nothing to compare yet" description="Record the actual harvest on a forecast to see how accurate it was." />
+          ) : (
+            <Table head={['Forecast', 'Farm / region', 'Year', 'Predicted', 'Actual', 'Variance', 'Accuracy']}>
+              {compare.map((f) => (
+                <tr key={f.id}>
+                  <Td className="font-mono text-xs">{f.forecast_number}</Td>
+                  <Td>{target(f)}</Td>
+                  <Td>{f.forecast_year}</Td>
+                  <Td>{kg(f.predicted_kg)}</Td>
+                  <Td>{kg(f.actual_kg)}</Td>
+                  <Td>{pct(f.variance_pct)}</Td>
+                  <Td><Badge tone={ACCURACY[f.accuracy_rating]?.tone}>{ACCURACY[f.accuracy_rating]?.label || f.accuracy_rating}</Badge></Td>
+                </tr>
+              ))}
+            </Table>
+          )
+        ) : regional.length === 0 ? (
+          <EmptyState icon={Target} title={`No forecasts for ${year || THIS_YEAR}`} description="Province totals appear once forecasts exist for the year." />
+        ) : (
+          <Table head={['Province', 'Forecasts', 'Predicted', 'Actual']}>
+            {regional.map((r) => (
+              <tr key={r.province || 'none'}>
+                <Td className="font-medium text-slate-900">{r.province || 'Unspecified'}</Td>
+                <Td>{r.farm_count}</Td>
+                <Td>{kg(r.total_predicted_kg)}</Td>
+                <Td>{kg(r.total_actual_kg)}</Td>
+              </tr>
+            ))}
+          </Table>
+        )}
+      </Card>
 
-          {activeTab === 'compare' && (
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-green-800">Forecast Accuracy</h3>
-              {compareLoading ? (
-                <div className="p-8 text-center">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto"></div>
-                  <p className="mt-2 text-green-600">Loading comparison...</p>
-                </div>
-              ) : compareData.length === 0 ? (
-                <div className="p-8 text-center text-green-600">No forecasts with recorded actual harvests yet.</div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-green-100">
-                    <thead className="bg-green-50">
-                      <tr>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-green-700 uppercase">Forecast #</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-green-700 uppercase">Year</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-green-700 uppercase">Predicted (kg)</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-green-700 uppercase">Actual (kg)</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-green-700 uppercase">Variance</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-green-700 uppercase">Accuracy Rating</th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-green-100">
-                      {compareData.map((row) => (
-                        <tr key={row.id} className="hover:bg-green-50 transition-colors">
-                          <td className="px-4 py-3 text-sm font-medium text-green-900">{row.forecast_number || row.id}</td>
-                          <td className="px-4 py-3 text-sm text-green-700">{row.forecast_year}</td>
-                          <td className="px-4 py-3 text-sm text-green-700">{Number(row.predicted_kg || 0).toLocaleString()}</td>
-                          <td className="px-4 py-3 text-sm text-green-700">{Number(row.actual_kg || 0).toLocaleString()}</td>
-                          <td className="px-4 py-3 text-sm text-green-700">{row.variance_pct != null ? `${row.variance_pct}%` : '-'}</td>
-                          <td className="px-4 py-3">
-                            <span className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ring-1 ${accuracyColor(row.accuracy_rating)}`}>
-                              {row.accuracy_rating ?? 'N/A'}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Create Forecast Modal */}
-      {showCreateModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-8 w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl ring-1 ring-green-200">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-semibold text-green-800">Create Forecast</h3>
-              <button onClick={() => setShowCreateModal(false)} className="text-green-400 hover:text-green-600" aria-label="Close">
-                <X className="h-6 w-6" />
-              </button>
-            </div>
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-green-700 mb-2">Forecast Year *</label>
-                  <input
-                    type="number"
-                    value={createForm.forecast_year}
-                    onChange={(e) => setCreateForm((prev) => ({ ...prev, forecast_year: e.target.value }))}
-                    className="w-full p-3 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-green-700 mb-2">Season</label>
-                  <input
-                    type="text"
-                    value={createForm.forecast_season}
-                    onChange={(e) => setCreateForm((prev) => ({ ...prev, forecast_season: e.target.value }))}
-                    className="w-full p-3 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500"
-                    placeholder="e.g. Season A"
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-green-700 mb-2">Farm ID</label>
-                <input
-                  type="text"
-                  value={createForm.farm_id}
-                  onChange={(e) => setCreateForm((prev) => ({ ...prev, farm_id: e.target.value }))}
-                  className="w-full p-3 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500"
-                  placeholder="Optional - specific farm"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-green-700 mb-2">Province</label>
-                  <select
-                    value={createForm.province}
-                    onChange={(e) => setCreateForm((prev) => ({ ...prev, province: e.target.value }))}
-                    className="w-full p-3 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500"
-                  >
-                    <option value="">Select Province</option>
-                    <option value="Kigali">Kigali</option>
-                    <option value="Eastern">Eastern</option>
-                    <option value="Northern">Northern</option>
-                    <option value="Southern">Southern</option>
-                    <option value="Western">Western</option>
+      <Dialog open={!!form} title="New harvest forecast" onClose={() => !saving && setForm(null)} size="lg"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setForm(null)} disabled={saving}>Cancel</Button>
+            <Button type="submit" form="forecast-form" icon={Plus} loading={saving}>Create forecast</Button>
+          </>
+        }>
+        {form && (
+          <form id="forecast-form" onSubmit={submitCreate} className="space-y-4" noValidate>
+            <Tabs tabs={[{ id: 'farm', label: 'Single farm' }, { id: 'region', label: 'Region' }]} value={form.scope} onChange={(scope) => setForm({ ...form, scope })} />
+            {form.scope === 'farm' ? (
+              <FarmerFarmPicker farmerId={form.farmer_id} farmId={form.farm_id} onChange={(v) => setForm((f) => ({ ...f, ...v }))} />
+            ) : (
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <Field label="Province" required>
+                  <select className={inputClass} value={form.province} onChange={(e) => setForm({ ...form, province: e.target.value, district: '' })}>
+                    <option value="">Select province</option>
+                    {RWANDA_PROVINCES.map((p) => <option key={p} value={p}>{p}</option>)}
                   </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-green-700 mb-2">District</label>
-                  <input
-                    type="text"
-                    value={createForm.district}
-                    onChange={(e) => setCreateForm((prev) => ({ ...prev, district: e.target.value }))}
-                    className="w-full p-3 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500"
-                  />
-                </div>
+                </Field>
+                <Field label="District">
+                  <select className={inputClass} value={form.district} disabled={!form.province} onChange={(e) => setForm({ ...form, district: e.target.value })}>
+                    <option value="">Whole province</option>
+                    {(RWANDA_DISTRICTS[form.province] || []).map((d) => <option key={d} value={d}>{d}</option>)}
+                  </select>
+                </Field>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-green-700 mb-2">Predicted (kg) *</label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={createForm.predicted_kg}
-                    onChange={(e) => setCreateForm((prev) => ({ ...prev, predicted_kg: e.target.value }))}
-                    className="w-full p-3 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-green-700 mb-2">Confidence %</label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="100"
-                    value={createForm.confidence_pct}
-                    onChange={(e) => setCreateForm((prev) => ({ ...prev, confidence_pct: e.target.value }))}
-                    className="w-full p-3 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500"
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-green-700 mb-2">Basis</label>
-                <input
-                  type="text"
-                  value={createForm.basis}
-                  onChange={(e) => setCreateForm((prev) => ({ ...prev, basis: e.target.value }))}
-                  className="w-full p-3 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500"
-                  placeholder="e.g. Historical yield trend, tree count"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-green-700 mb-2">Notes</label>
-                <textarea
-                  value={createForm.notes}
-                  onChange={(e) => setCreateForm((prev) => ({ ...prev, notes: e.target.value }))}
-                  className="w-full p-3 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500"
-                  rows="3"
-                />
-              </div>
+            )}
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <Field label="Year" required>
+                <select className={inputClass} value={form.forecast_year} onChange={(e) => setForm({ ...form, forecast_year: e.target.value })}>
+                  {YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
+                </select>
+              </Field>
+              <Field label="Season">
+                <select className={inputClass} value={form.forecast_season} onChange={(e) => setForm({ ...form, forecast_season: e.target.value })}>
+                  <option value="">—</option>
+                  {SEASONS.map((s) => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </Field>
+              <Field label="Predicted yield (kg)" required>
+                <input type="number" min="0" step="1" className={inputClass} value={form.predicted_kg} onChange={(e) => setForm({ ...form, predicted_kg: e.target.value })} />
+              </Field>
+              <Field label="Confidence (%)">
+                <input type="number" min="0" max="100" className={inputClass} value={form.confidence_pct} onChange={(e) => setForm({ ...form, confidence_pct: e.target.value })} />
+              </Field>
+              <Field label="Basis" className="sm:col-span-2" hint="How you estimated it, e.g. tree count × average yield per tree.">
+                <input className={inputClass} value={form.basis} onChange={(e) => setForm({ ...form, basis: e.target.value })} />
+              </Field>
+              <Field label="Notes" className="sm:col-span-2">
+                <textarea className={textareaClass} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
+              </Field>
             </div>
-            <div className="flex justify-end space-x-4 mt-8">
-              <button
-                onClick={() => setShowCreateModal(false)}
-                className="px-6 py-3 border border-green-300 rounded-lg text-green-700 hover:bg-green-50 transition-all"
-                disabled={creating}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleCreateForecast}
-                className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all"
-                disabled={creating}
-              >
-                {creating ? 'Creating...' : 'Create Forecast'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+          </form>
+        )}
+      </Dialog>
 
-      {/* Edit / Record Actual Modal */}
-      {showEditModal && editForecast && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-8 w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl ring-1 ring-green-200">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-semibold text-green-800">Record Actual Harvest</h3>
-              <button onClick={() => setShowEditModal(false)} className="text-green-400 hover:text-green-600" aria-label="Close">
-                <X className="h-6 w-6" />
-              </button>
-            </div>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-green-700 mb-2">Actual Harvest (kg)</label>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={editForecast.actual_kg}
-                  onChange={(e) => setEditForecast((prev) => ({ ...prev, actual_kg: e.target.value }))}
-                  className="w-full p-3 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-green-700 mb-2">Basis</label>
-                <input
-                  type="text"
-                  value={editForecast.basis}
-                  onChange={(e) => setEditForecast((prev) => ({ ...prev, basis: e.target.value }))}
-                  className="w-full p-3 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-green-700 mb-2">Notes</label>
-                <textarea
-                  value={editForecast.notes}
-                  onChange={(e) => setEditForecast((prev) => ({ ...prev, notes: e.target.value }))}
-                  className="w-full p-3 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500"
-                  rows="3"
-                />
-              </div>
-            </div>
-            <div className="flex justify-end space-x-4 mt-8">
-              <button
-                onClick={() => setShowEditModal(false)}
-                className="px-6 py-3 border border-green-300 rounded-lg text-green-700 hover:bg-green-50 transition-all"
-                disabled={saving}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleUpdateForecast}
-                className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all"
-                disabled={saving}
-              >
-                {saving ? 'Saving...' : 'Save'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+      <Dialog open={!!editing} title={editing ? `Forecast ${editing.number}` : ''} subtitle={editing?.target} onClose={() => !saving && setEditing(null)}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setEditing(null)} disabled={saving}>Cancel</Button>
+            <Button type="submit" form="forecast-edit-form" loading={saving}>Save</Button>
+          </>
+        }>
+        {editing && (
+          <form id="forecast-edit-form" onSubmit={submitEdit} className="grid grid-cols-1 gap-3 sm:grid-cols-2" noValidate>
+            <Field label="Predicted yield (kg)" required>
+              <input type="number" min="0" className={inputClass} value={editing.predicted_kg} onChange={(e) => setEditing({ ...editing, predicted_kg: e.target.value })} />
+            </Field>
+            <Field label="Actual harvest (kg)" hint="Fill in after harvest to compute the variance.">
+              <input type="number" min="0" className={inputClass} value={editing.actual_kg} onChange={(e) => setEditing({ ...editing, actual_kg: e.target.value })} />
+            </Field>
+            <Field label="Confidence (%)" required>
+              <input type="number" min="0" max="100" className={inputClass} value={editing.confidence_pct} onChange={(e) => setEditing({ ...editing, confidence_pct: e.target.value })} />
+            </Field>
+            <Field label="Season">
+              <select className={inputClass} value={editing.forecast_season} onChange={(e) => setEditing({ ...editing, forecast_season: e.target.value })}>
+                <option value="">—</option>
+                {[...new Set([...SEASONS, editing.forecast_season].filter(Boolean))].map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </Field>
+            <Field label="Basis" className="sm:col-span-2">
+              <input className={inputClass} value={editing.basis} onChange={(e) => setEditing({ ...editing, basis: e.target.value })} />
+            </Field>
+            <Field label="Notes" className="sm:col-span-2">
+              <textarea className={textareaClass} value={editing.notes} onChange={(e) => setEditing({ ...editing, notes: e.target.value })} />
+            </Field>
+            <p className="text-xs text-slate-500 sm:col-span-2">Forecasts can only be deleted by an administrator.</p>
+          </form>
+        )}
+      </Dialog>
+    </Page>
   );
-};
-
-export default Forecasting;
+}

@@ -60,17 +60,8 @@ export async function createFarmer(farmerData) {
     throw new Error("Email, full name, and gender are required");
   }
   
-  console.log('Creating farmer with endpoint /users/farmers and data:', farmerData);
-  
-  try {
-    const response = await apiClient.post('/users/farmers', farmerData);
-    console.log('Farmer creation response:', response);
-    return extractData(response);
-  } catch (error) {
-    console.error('Farmer creation error:', error);
-    console.error('Error response:', error.response?.data);
-    throw error;
-  }
+  const response = await apiClient.post('/users/farmers', farmerData);
+  return extractData(response);
 }
 
 // NEW: Dedicated function for creating agents
@@ -225,4 +216,19 @@ export async function updateUserRole(userId, role) {
   }
   
   return updatedUser;
+}
+// Paginated, server-filtered list of one kind of user for the admin pages.
+// kind: 'farmers' | 'agents' | 'shop-managers' | 'all'
+// Returns { data, pagination } where pagination = meta.pagination from the API.
+export async function listUsersPage(kind, options = {}) {
+  const params = {};
+  ['page', 'limit', 'status', 'search', 'role'].forEach((k) => {
+    if (options[k]) params[k] = options[k];
+  });
+  const path = kind && kind !== 'all' ? `/users/${kind}` : '/users';
+  const response = await apiClient.get(path, { params });
+  return {
+    data: Array.isArray(response.data?.data) ? response.data.data : [],
+    pagination: response.data?.meta?.pagination || {},
+  };
 }

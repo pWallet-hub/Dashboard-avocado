@@ -23,6 +23,22 @@ export async function listVisits(options = {}) {
   }
 }
 
+// Paginated variant: returns { data, pagination } using the API's meta.pagination
+export async function listVisitsPage(options = {}) {
+  try {
+    const params = { page: options.page || 1, limit: options.limit || 20 };
+    if (options.status) params.status = options.status;
+    if (options.farm_id) params.farm_id = options.farm_id;
+    const response = await apiClient.get('/visits', { params });
+    return {
+      data: Array.isArray(response.data?.data) ? response.data.data : [],
+      pagination: response.data?.meta?.pagination || { page: 1, totalPages: 1, total: 0 },
+    };
+  } catch (error) {
+    throw new Error(error.response?.data?.message || error.message || 'Failed to load visits');
+  }
+}
+
 // List all visits for a specific farm
 export async function listFarmVisits(farmId) {
   try {
@@ -69,7 +85,9 @@ export async function scheduleVisit(visitData) {
       throw new Error('Scheduled date/time is required');
     }
 
-    const response = await apiClient.post('/visits', visitData);
+    // The API requires agent_id; default to the signed-in user (agents schedule their own visits)
+    const payload = { ...visitData, agent_id: visitData.agent_id || localStorage.getItem('id') };
+    const response = await apiClient.post('/visits', payload);
     return extractData(response);
   } catch (error) {
     console.error('Error in scheduleVisit:', error);
@@ -111,14 +129,16 @@ export async function cancelVisit(visitId, reason) {
   }
 }
 
-// Mark a visit as completed with notes
-export async function completeVisit(visitId, notes) {
+// Mark a visit as completed. `outcome` is either { findings, recommendations }
+// or a plain string (stored as findings) — the API ignores any other fields.
+export async function completeVisit(visitId, outcome) {
   try {
     if (!visitId) {
       throw new Error('Visit ID is required');
     }
 
-    const response = await apiClient.put(`/visits/${visitId}/complete`, notes ? { notes } : {});
+    const body = typeof outcome === 'string' ? (outcome ? { findings: outcome } : {}) : outcome || {};
+    const response = await apiClient.put(`/visits/${visitId}/complete`, body);
     return extractData(response);
   } catch (error) {
     console.error('Error in completeVisit:', error);

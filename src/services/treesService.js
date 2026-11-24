@@ -46,9 +46,6 @@ export async function addTreeRecord(farmId, treeData) {
     if (!treeData || typeof treeData !== 'object') {
       throw new Error('Tree data is required');
     }
-    if (!treeData.tree_number) {
-      throw new Error('Tree number is required');
-    }
 
     const response = await apiClient.post(`/trees/farm/${farmId}`, treeData);
     return extractData(response);
@@ -88,9 +85,6 @@ export async function reportTreeDisease(farmId, diseaseData) {
     }
     if (!diseaseData || typeof diseaseData !== 'object') {
       throw new Error('Disease data is required');
-    }
-    if (!diseaseData.tree_id) {
-      throw new Error('Tree is required');
     }
     if (!diseaseData.disease_name) {
       throw new Error('Disease name is required');

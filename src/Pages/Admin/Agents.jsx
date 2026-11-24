@@ -1,901 +1,352 @@
-import { useEffect, useState } from 'react';
-import { ClipLoader } from 'react-spinners';
-import { 
-  User, Mail, Phone, MapPin, Search, ChevronDown, Plus, 
-  Trash2, Eye, Edit3, Award, Briefcase, FileText, CheckCircle, 
-  X, AlertCircle, Shield, Globe, Users
-} from 'lucide-react';
-import '../Styles/Agent.css';
-import { listAgents, deleteUser, createAgent } from '../../services/usersService';
+import { useCallback, useEffect, useState } from 'react';
+import { UserCheck, Plus, Search, Eye, Pencil, Trash2, Power, Users as UsersIcon, ClipboardCheck, MapPinned, KeyRound } from 'lucide-react';
+import { listUsersPage, createAgent, updateUser, deleteUser, updateUserStatus } from '../../services/usersService';
 import { getAgentProfileById, updateAgentProfileById } from '../../services/agent-information';
-import { useConfirm } from '../../components/Ui/ConfirmDialog';
+import { getAgentAnalytics } from '../../services/analyticsService';
+import { RWANDA_PROVINCES, RWANDA_DISTRICTS, ALL_DISTRICTS } from '../../utils/rwanda';
 import { useToast } from '../../components/Ui/Toast';
+import { useConfirm } from '../../components/Ui/ConfirmDialog';
+import {
+  Page, PageHeader, Card, StatGrid, StatCard, Badge, Button, Field, inputClass, EmptyState, ErrorState, Spinner, Table, Td, Dialog, Pagination,
+} from '../../components/Ui/kit';
+
+const PAGE_SIZE = 15;
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const errMsg = (e, fallback) => e?.response?.data?.errors?.[0]?.msg || e?.response?.data?.message || e?.message || fallback;
+const fmtDate = (v) => (v ? new Date(v).toLocaleDateString() : '—');
+const territoryText = (t) => (Array.isArray(t) ? t.map((x) => (typeof x === 'string' ? x : [x?.sector, x?.district].filter(Boolean).join(', '))).filter(Boolean).join('; ') : '');
+
+const emptyAgent = () => ({
+  full_name: '', email: '', phone: '', province: '', district: '', sector: '', territory: '', specialization: '', experience: '', certification: '',
+});
+
+function useDebounced(value, delay = 350) {
+  const [v, setV] = useState(value);
+  useEffect(() => {
+    const t = setTimeout(() => setV(value), delay);
+    return () => clearTimeout(t);
+  }, [value, delay]);
+  return v;
+}
+
+const Select = ({ value, onChange, options, placeholder, ...rest }) => (
+  <select className={inputClass} value={value} onChange={(e) => onChange(e.target.value)} {...rest}>
+    {placeholder !== undefined && <option value="">{placeholder}</option>}
+    {options.map((o) => (typeof o === 'string' ? <option key={o} value={o}>{o}</option> : <option key={o.value} value={o.value}>{o.label}</option>))}
+  </select>
+);
+
+const Detail = ({ label, value }) => (
+  <div>
+    <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</dt>
+    <dd className="mt-0.5 text-sm text-slate-900">{value === null || value === undefined || value === '' ? '—' : value}</dd>
+  </div>
+);
 
 export default function Agents() {
-  const confirm = useConfirm();
   const toast = useToast();
-  const [agents, setAgents] = useState([]);
+  const confirm = useConfirm();
+
+  const [rows, setRows] = useState([]);
+  const [pagination, setPagination] = useState({});
+  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounced(search);
+  const [status, setStatus] = useState('');
+  const [counts, setCounts] = useState(null);
+  const [perf, setPerf] = useState({}); // agentId -> stats from /analytics/agents
 
-  // Active Selected Agent for the Left Column Display
-  const [selectedAgentOverview, setSelectedAgentOverview] = useState(null);
+  const [dialog, setDialog] = useState(null);
+  const [form, setForm] = useState(emptyAgent);
+  const [saving, setSaving] = useState(false);
 
-  // Extended agent profile modal state
-  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
-  const [profileEditMode, setProfileEditMode] = useState(false);
-  const [profileLoading, setProfileLoading] = useState(false);
-  const [profileError, setProfileError] = useState(null);
-  const [profileSaving, setProfileSaving] = useState(false);
-  const [activeAgent, setActiveAgent] = useState(null);
-  const [agentProfile, setAgentProfile] = useState(null);
-  
-  const [profileForm, setProfileForm] = useState({
-    territory: '',
-    province: '',
-    district: '',
-    sector: '',
-    cell: '',
-    village: '',
-    specialization: '',
-    experience: '',
-    certification: ''
-  });
-
-  const [formData, setFormData] = useState({
-    full_name: '',
-    email: '',
-    phone: '',
-    province: '',
-    district: '',
-    sector: ''
-  });
-
-  const [responseMessage, setResponseMessage] = useState('');
-  const [submitLoading, setSubmitLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState('all');
-  const [filters, setFilters] = useState({
-    page: 1,
-    limit: 10,
-    status: '',
-    search: ''
-  });
-
-  useEffect(() => {
-    const fetchAgents = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const response = await listAgents();
-        const agentList = response || [];
-        setAgents(agentList);
-        if (agentList.length > 0 && !selectedAgentOverview) {
-          setSelectedAgentOverview(agentList[0]);
-        }
-      } catch (error) {
-        console.error('Error fetching agents:', error);
-        setError(error.message || 'Failed to fetch agents. Check token or parameters.');
-        if (error.response) console.log('Response:', error.response.data);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchAgents();
-  }, [filters]);
-
-  const handleDelete = async (id) => {
-    if (!(await confirm('Are you sure you want to delete this agent?'))) return;
-
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
     try {
-      await deleteUser(id);
-      const updated = agents.filter(agent => agent.id !== id);
-      setAgents(updated);
-      if (selectedAgentOverview?.id === id) {
-        setSelectedAgentOverview(updated[0] || null);
-      }
-      setResponseMessage('Agent deleted successfully');
-      toast.success('Agent deleted successfully');
-    } catch (error) {
-      console.error('Error deleting agent:', error);
-      setError('Failed to delete agent. Please try again.');
-      toast.error('Failed to delete agent');
-    }
-  };
-
-  const openModal = () => setIsModalOpen(true);
-  const closeModal = () => {
-    setIsModalOpen(false);
-    setResponseMessage('');
-    setFormData({
-      full_name: '',
-      email: '',
-      phone: '',
-      province: '',
-      district: '',
-      sector: ''
-    });
-  };
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
-  };
-
-  const handleFilterChange = (e) => {
-    const { name, value } = e.target;
-    setFilters(prev => ({ ...prev, [name]: value, page: 1 }));
-  };
-
-  const extractProfile = (data) => {
-    if (!data) return {};
-    return data.agent_profile || data.profile || data;
-  };
-
-  const populateProfileForm = (profile) => {
-    setProfileForm({
-      territory: Array.isArray(profile?.territory) ? profile.territory.join(', ') : (profile?.territory || ''),
-      province: profile?.province || '',
-      district: profile?.district || '',
-      sector: profile?.sector || '',
-      cell: profile?.cell || '',
-      village: profile?.village || '',
-      specialization: profile?.specialization || '',
-      experience: profile?.experience || '',
-      certification: profile?.certification || ''
-    });
-  };
-
-  const openProfileModal = async (agent, editMode = false) => {
-    setActiveAgent(agent);
-    setProfileEditMode(editMode);
-    setIsProfileModalOpen(true);
-    setProfileError(null);
-    setAgentProfile(null);
-    setProfileLoading(true);
-
-    try {
-      const data = await getAgentProfileById(agent.id);
-      setAgentProfile(data);
-      populateProfileForm(extractProfile(data));
-    } catch (err) {
-      console.error('Error fetching agent profile:', err);
-      setProfileError(err.response?.data?.message || err.message || 'Failed to load agent profile');
+      const res = await listUsersPage('agents', { page, limit: PAGE_SIZE, search: debouncedSearch, status });
+      setRows(res.data);
+      setPagination(res.pagination);
+    } catch (e) {
+      setError(errMsg(e, 'Failed to load agents'));
     } finally {
-      setProfileLoading(false);
+      setLoading(false);
     }
-  };
+  }, [page, debouncedSearch, status]);
 
-  const closeProfileModal = () => {
-    setIsProfileModalOpen(false);
-    setProfileEditMode(false);
-    setActiveAgent(null);
-    setAgentProfile(null);
-    setProfileError(null);
-  };
-
-  const handleProfileFormChange = (e) => {
-    const { name, value } = e.target;
-    setProfileForm(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handleSaveProfile = async () => {
-    if (!activeAgent) return;
-
-    setProfileSaving(true);
+  const loadSummary = useCallback(async () => {
     try {
-      const updateData = {
-        territory: profileForm.territory
-          ? profileForm.territory.split(',').map(t => t.trim()).filter(Boolean)
-          : [],
-        province: profileForm.province.trim(),
-        district: profileForm.district.trim(),
-        sector: profileForm.sector.trim(),
-        cell: profileForm.cell.trim(),
-        village: profileForm.village.trim(),
-        specialization: profileForm.specialization.trim(),
-        experience: profileForm.experience.trim(),
-        certification: profileForm.certification.trim()
-      };
-
-      const updated = await updateAgentProfileById(activeAgent.id, updateData);
-      setAgentProfile(updated);
-      populateProfileForm(extractProfile(updated));
-      setProfileEditMode(false);
-      toast.success('Agent profile updated successfully');
-    } catch (err) {
-      console.error('Error updating agent profile:', err);
-      toast.error(err.response?.data?.message || err.message || 'Failed to update agent profile');
-    } finally {
-      setProfileSaving(false);
-    }
-  };
-
-  const validateForm = () => {
-    if (!formData.full_name.trim()) return 'Full name is required';
-    if (!formData.email.trim()) return 'Email is required';
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) return 'Invalid email format';
-    if (!formData.phone.trim()) return 'Phone number is required';
-    if (!formData.province.trim()) return 'Province is required';
-    if (!formData.district.trim()) return 'District is required';
-    if (!formData.sector.trim()) return 'Sector is required';
-    return null;
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    const validationError = validateForm();
-    if (validationError) {
-      setResponseMessage(validationError);
-      return;
-    }
-
-    try {
-      setSubmitLoading(true);
-      setResponseMessage('');
-      setError(null);
-
-      const agentData = {
-        full_name: formData.full_name.trim(),
-        email: formData.email.trim(),
-        phone: formData.phone.trim(),
-        province: formData.province.trim(),
-        district: formData.district.trim(),
-        sector: formData.sector.trim()
-      };
-
-      await createAgent(agentData);
-
-      const response = await listAgents();
-      setAgents(response || []);
-
-      setResponseMessage('Agent created successfully');
-      toast.success('Agent created successfully');
-
-      setFormData({
-        full_name: '',
-        email: '',
-        phone: '',
-        province: '',
-        district: '',
-        sector: ''
+      const [all, active, analytics] = await Promise.all([
+        listUsersPage('agents', { limit: 1 }),
+        listUsersPage('agents', { limit: 1, status: 'active' }),
+        getAgentAnalytics().catch(() => []),
+      ]);
+      const list = Array.isArray(analytics) ? analytics : [];
+      const map = {};
+      list.forEach((a) => { map[a.id] = a.stats || {}; });
+      setPerf(map);
+      setCounts({
+        all: all.pagination.total ?? 0,
+        active: active.pagination.total ?? 0,
+        visits: list.reduce((s, a) => s + (a.stats?.total_visits || 0), 0),
+        requests: list.reduce((s, a) => s + (a.stats?.total_service_requests || 0), 0),
       });
-      setTimeout(closeModal, 1500);
-    } catch (error) {
-      console.error('Error creating agent:', error);
-      setResponseMessage(error.message || 'Error creating agent');
-    } finally {
-      setSubmitLoading(false);
+    } catch {
+      setCounts(null);
+    }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+  useEffect(() => { loadSummary(); }, [loadSummary]);
+  useEffect(() => { setPage(1); }, [debouncedSearch, status]);
+
+  const refresh = () => { load(); loadSummary(); };
+  const setField = (k) => (v) => setForm((f) => ({ ...f, [k]: v, ...(k === 'province' ? { district: '' } : {}) }));
+
+  const openCreate = () => { setForm(emptyAgent()); setDialog({ type: 'create' }); };
+
+  const openView = async (agent) => {
+    setDialog({ type: 'view', agent, loading: true });
+    try {
+      const detail = await getAgentProfileById(agent.id);
+      setDialog({ type: 'view', agent, detail });
+    } catch (e) {
+      setDialog({ type: 'view', agent, detail: null, error: errMsg(e, 'Could not load the agent profile') });
     }
   };
 
-  const filteredAgentsList = agents.filter(agent => {
-    const matchesSearch = !filters.search || 
-      agent.full_name?.toLowerCase().includes(filters.search.toLowerCase()) ||
-      agent.email?.toLowerCase().includes(filters.search.toLowerCase());
-    
-    const matchesStatus = !filters.status || agent.status === filters.status;
-    const matchesTab = activeTab === 'all' || 
-      (activeTab === 'active' && agent.status === 'active') ||
-      (activeTab === 'inactive' && agent.status === 'inactive');
+  const openEdit = (agent) => {
+    setForm({
+      ...emptyAgent(),
+      full_name: agent.full_name || '', email: agent.email || '', phone: agent.phone || '',
+      province: agent.province || '', district: agent.district || '', sector: agent.sector || '',
+      territory: territoryText(agent.territory), specialization: agent.specialization || '',
+      experience: agent.experience || '', certification: agent.certification || '',
+    });
+    setDialog({ type: 'edit', agent });
+  };
 
-    return matchesSearch && matchesStatus && matchesTab;
-  });
+  const submit = async (e) => {
+    e.preventDefault();
+    if (form.full_name.trim().length < 2) { toast.error('Full name must be at least 2 characters'); return; }
+    if (dialog.type === 'create' && !EMAIL_RE.test(form.email.trim())) { toast.error('Enter a valid email address'); return; }
+    setSaving(true);
+    try {
+      if (dialog.type === 'create') {
+        const payload = { full_name: form.full_name.trim(), email: form.email.trim() };
+        ['phone', 'province', 'district', 'sector'].forEach((k) => { if (form[k].trim()) payload[k] = form[k].trim(); });
+        const created = await createAgent(payload);
+        const extra = { specialization: form.specialization.trim(), experience: form.experience.trim(), certification: form.certification.trim() };
+        if (Object.values(extra).some(Boolean) && created?.id) {
+          await updateAgentProfileById(created.id, Object.fromEntries(Object.entries(extra).filter(([, v]) => v)));
+        }
+        toast.success('Agent created');
+        setDialog({ type: 'created', user: created });
+      } else {
+        const account = { full_name: form.full_name.trim() };
+        if (form.phone.trim()) account.phone = form.phone.trim();
+        await updateUser(dialog.agent.id, account);
+        await updateAgentProfileById(dialog.agent.id, {
+          province: form.province, district: form.district, sector: form.sector.trim(),
+          territory: form.territory.split(/[;,]/).map((t) => t.trim()).filter(Boolean),
+          specialization: form.specialization.trim(), experience: form.experience.trim(), certification: form.certification.trim(),
+        });
+        toast.success('Agent updated');
+        setDialog(null);
+      }
+      refresh();
+    } catch (err) {
+      toast.error(errMsg(err, 'Failed to save agent'));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const toggleStatus = async (agent) => {
+    const next = agent.status === 'active' ? 'inactive' : 'active';
+    const ok = await confirm(`${next === 'inactive' ? 'Deactivate' : 'Reactivate'} ${agent.full_name}?${next === 'inactive' ? ' They will no longer be able to sign in.' : ''}`, {
+      confirmLabel: next === 'inactive' ? 'Deactivate' : 'Reactivate', danger: next === 'inactive',
+    });
+    if (!ok) return;
+    try {
+      await updateUserStatus(agent.id, next);
+      toast.success(`Agent ${next === 'active' ? 'reactivated' : 'deactivated'}`);
+      refresh();
+    } catch (e) {
+      toast.error(errMsg(e, 'Failed to update status'));
+    }
+  };
+
+  const remove = async (agent) => {
+    const ok = await confirm(`Delete ${agent.full_name}? This permanently removes the account and cannot be undone.`, { confirmLabel: 'Delete' });
+    if (!ok) return;
+    try {
+      await deleteUser(agent.id);
+      toast.success('Agent deleted');
+      if (rows.length === 1 && page > 1) setPage((p) => p - 1);
+      refresh();
+    } catch (e) {
+      toast.error(errMsg(e, 'Failed to delete agent. They may have visits or reports linked to them — deactivate instead.'));
+    }
+  };
+
+  const text = (k, label, props = {}) => (
+    <Field label={label} required={props.required}>
+      <input className={inputClass} value={form[k]} onChange={(e) => setField(k)(e.target.value)} {...props} />
+    </Field>
+  );
+
+  const hasFilters = debouncedSearch || status;
+  const d = dialog?.detail;
+  const dp = d?.agent_profile || {};
+  const stats = dialog?.agent ? perf[dialog.agent.id] : null;
 
   return (
-    <div className="agent-dashboard-layout font-poppins">
-      
-      {/* ── TOP HEADER / BREADCRUMB BAR ── */}
-      <header className="agent-header-bar">
-        <div className="header-left">
-          <h1 className="header-breadcrumb">
-            Agents <span className="breadcrumb-separator">&gt;</span> <span className="breadcrumb-current">Overview & Profile</span>
-          </h1>
-          <button className="btn-back-pill" onClick={openModal}>
-            <Plus className="w-3.5 h-3.5" />
-            <span>Add Agent</span>
-          </button>
+    <Page>
+      <PageHeader
+        icon={UserCheck}
+        title="Manage Agents"
+        subtitle="Field agents who visit growers, handle service requests and file reports."
+        actions={<Button icon={Plus} onClick={openCreate}>Add agent</Button>}
+      />
+
+      <StatGrid>
+        <StatCard label="Agents" value={counts ? counts.all : '—'} icon={UsersIcon} />
+        <StatCard label="Active" value={counts ? counts.active : '—'} icon={Power} tone="blue" />
+        <StatCard label="Farm visits logged" value={counts ? counts.visits : '—'} icon={MapPinned} tone="amber" hint="Across active agents" />
+        <StatCard label="Service requests handled" value={counts ? counts.requests : '—'} icon={ClipboardCheck} tone="slate" hint="Across active agents" />
+      </StatGrid>
+
+      <Card padded={false}>
+        <div className="grid gap-3 border-b border-slate-100 p-4 sm:grid-cols-[1fr_200px]">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <input className={`${inputClass} pl-9`} placeholder="Search name or email" aria-label="Search agents" value={search} onChange={(e) => setSearch(e.target.value)} />
+          </div>
+          <Select aria-label="Status" value={status} onChange={setStatus} options={[{ value: 'active', label: 'Active' }, { value: 'inactive', label: 'Inactive' }]} placeholder="Any status" />
         </div>
 
-        <div className="header-right">
-          <div className="select-location-wrapper">
-            <span className="location-label">Status Filter</span>
-            <div className="custom-select-container">
-              <select 
-                name="status" 
-                value={filters.status} 
-                onChange={handleFilterChange}
-                className="hdr-select"
-              >
-                <option value="">All Statuses</option>
-                <option value="active">Active Only</option>
-                <option value="inactive">Inactive Only</option>
-              </select>
-              <ChevronDown className="select-caret" />
-            </div>
-          </div>
-
-          <div className="search-pill-wrapper">
-            <Search className="search-icon" />
-            <input 
-              type="text"
-              name="search"
-              value={filters.search}
-              onChange={handleFilterChange}
-              placeholder="Search agent..."
-              className="search-input"
-            />
-          </div>
-        </div>
-      </header>
-
-      {/* ── MAIN DASHBOARD GRID ── */}
-      <div className="agent-main-grid">
-
-        {/* ── LEFT COLUMN: SELECTED AGENT SUMMARY CARD ── */}
-        <aside className="agent-left-panel">
-          {selectedAgentOverview ? (
-            <div className="agent-profile-card">
-              <div className="profile-avatar-circle">
-                <div className="avatar-img-placeholder">
-                  {selectedAgentOverview.full_name ? selectedAgentOverview.full_name.charAt(0).toUpperCase() : 'A'}
-                </div>
-              </div>
-
-              <h2 className="profile-name">{selectedAgentOverview.full_name || 'Agent Name'}</h2>
-              <p className="profile-sub-id">
-                {selectedAgentOverview.role || 'Field Agent'} • ID: #{selectedAgentOverview.id?.slice(-6) || '009230'}
-              </p>
-
-              <div className="quick-contact-actions">
-                <a href={`tel:${selectedAgentOverview.phone}`} className="action-pill-btn">
-                  <Phone className="w-3.5 h-3.5 text-blue-500" />
-                  <span>Call</span>
-                </a>
-                <a href={`mailto:${selectedAgentOverview.email}`} className="action-pill-btn">
-                  <Mail className="w-3.5 h-3.5 text-[#15803d]" />
-                  <span>Email</span>
-                </a>
-              </div>
-
-              <div className="profile-section-block">
-                <h3 className="section-block-title">Demographics & Location</h3>
-                <div className="demographics-list">
-                  <div className="demo-row">
-                    <span className="demo-label">Full Name</span>
-                    <span className="demo-val">{selectedAgentOverview.full_name}</span>
-                  </div>
-                  <div className="demo-row">
-                    <span className="demo-label">Phone</span>
-                    <span className="demo-val">{selectedAgentOverview.phone || 'N/A'}</span>
-                  </div>
-                  <div className="demo-row">
-                    <span className="demo-label">Province</span>
-                    <span className="demo-val">{selectedAgentOverview.profile?.province || selectedAgentOverview.province || 'N/A'}</span>
-                  </div>
-                  <div className="demo-row">
-                    <span className="demo-label">District</span>
-                    <span className="demo-val">{selectedAgentOverview.profile?.district || selectedAgentOverview.district || 'N/A'}</span>
-                  </div>
-                  <div className="demo-row">
-                    <span className="demo-label">Sector</span>
-                    <span className="demo-val">{selectedAgentOverview.profile?.sector || selectedAgentOverview.sector || 'N/A'}</span>
-                  </div>
-                  <div className="demo-row">
-                    <span className="demo-label">Assigned Status</span>
-                    <span className={`status-badge-inline ${selectedAgentOverview.status === 'active' ? 'active' : 'inactive'}`}>
-                      {selectedAgentOverview.status || 'active'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Radial Meter / Performance Gauge */}
-              <div className="profile-section-block">
-                <h3 className="section-block-title">Activity Score</h3>
-                <div className="activity-meter-wrap">
-                  <div className="donut-meter flex items-center justify-center">
-                    <div className="inner-donut text-center">
-                      <span className="text-xs font-bold text-gray-800">92%</span>
+        {loading ? (
+          <Spinner label="Loading agents…" />
+        ) : error ? (
+          <ErrorState message={error} onRetry={load} />
+        ) : rows.length === 0 ? (
+          <EmptyState
+            icon={UserCheck}
+            title={hasFilters ? 'No agents match these filters' : 'No agents yet'}
+            action={hasFilters ? <Button variant="secondary" onClick={() => { setSearch(''); setStatus(''); }}>Clear filters</Button> : <Button icon={Plus} onClick={openCreate}>Add agent</Button>}
+          />
+        ) : (
+          <>
+            <Table head={['Agent', 'Phone', 'Area', 'Specialization', 'Visits', 'Status', '']}>
+              {rows.map((a) => (
+                <tr key={a.id} className="hover:bg-slate-50">
+                  <Td>
+                    <div className="font-medium text-slate-900">{a.full_name}</div>
+                    <div className="text-xs text-slate-500">{a.email}</div>
+                  </Td>
+                  <Td>{a.phone || '—'}</Td>
+                  <Td>{[a.sector, a.district, a.province].filter(Boolean).join(', ') || '—'}</Td>
+                  <Td>{a.specialization || '—'}</Td>
+                  <Td>{perf[a.id] ? `${perf[a.id].completed_visits ?? 0}/${perf[a.id].total_visits ?? 0}` : '—'}</Td>
+                  <Td><Badge tone={a.status === 'active' ? 'brand' : 'slate'}>{a.status}</Badge></Td>
+                  <Td className="text-right">
+                    <div className="flex justify-end gap-1">
+                      <Button size="sm" variant="ghost" icon={Eye} aria-label={`View ${a.full_name}`} onClick={() => openView(a)} />
+                      <Button size="sm" variant="ghost" icon={Pencil} aria-label={`Edit ${a.full_name}`} onClick={() => openEdit(a)} />
+                      <Button size="sm" variant="ghost" icon={Power} aria-label={`${a.status === 'active' ? 'Deactivate' : 'Reactivate'} ${a.full_name}`} onClick={() => toggleStatus(a)} />
+                      <Button size="sm" variant="ghost" icon={Trash2} className="text-rose-600 hover:bg-rose-50" aria-label={`Delete ${a.full_name}`} onClick={() => remove(a)} />
                     </div>
-                  </div>
-                  <div className="meter-legend">
-                    <div className="legend-row"><span className="dot bg-blue"></span> Active Tasks: <strong>75%</strong></div>
-                    <div className="legend-row"><span className="dot bg-amber"></span> Pending: <strong>17%</strong></div>
-                    <div className="legend-row"><span className="dot bg-rose"></span> Inactive: <strong>8%</strong></div>
-                  </div>
-                </div>
-              </div>
+                  </Td>
+                </tr>
+              ))}
+            </Table>
+            <Pagination page={page} totalPages={pagination.totalPages} total={pagination.total} onChange={setPage} />
+          </>
+        )}
+      </Card>
 
-              <div className="pt-2">
-                <button 
-                  onClick={() => openProfileModal(selectedAgentOverview, false)}
-                  className="w-full bg-[#15803d] hover:bg-[#166534] text-white text-xs font-semibold py-2.5 rounded-lg transition-colors flex items-center justify-center gap-1.5"
-                >
-                  <Eye className="w-3.5 h-3.5" /> View Full Profile
-                </button>
-              </div>
+      {(dialog?.type === 'create' || dialog?.type === 'edit') && (
+        <Dialog
+          title={dialog.type === 'create' ? 'Add agent' : `Edit ${dialog.agent.full_name}`}
+          subtitle={dialog.type === 'create' ? 'A login is created with a temporary password you can share with the agent.' : undefined}
+          size="lg"
+          onClose={() => !saving && setDialog(null)}
+          footer={(
+            <>
+              <Button variant="secondary" onClick={() => setDialog(null)} disabled={saving}>Cancel</Button>
+              <Button type="submit" form="agent-form" loading={saving}>{dialog.type === 'create' ? 'Create agent' : 'Save changes'}</Button>
+            </>
+          )}
+        >
+          <form id="agent-form" onSubmit={submit} className="grid gap-4 sm:grid-cols-2">
+            {text('full_name', 'Full name', { required: true, minLength: 2 })}
+            {dialog.type === 'create'
+              ? text('email', 'Email', { required: true, type: 'email' })
+              : <Field label="Email" hint="Email can't be changed here."><input className={inputClass} value={form.email} disabled /></Field>}
+            {text('phone', 'Phone', { placeholder: '+2507…' })}
+            <Field label="Province"><Select value={form.province} onChange={setField('province')} options={RWANDA_PROVINCES} placeholder="—" /></Field>
+            <Field label="District"><Select value={form.district} onChange={setField('district')} options={RWANDA_DISTRICTS[form.province] || ALL_DISTRICTS} placeholder="—" /></Field>
+            {text('sector', 'Sector')}
+            {dialog.type === 'edit' && text('territory', 'Territory', { placeholder: 'Areas covered, comma separated' })}
+            {text('specialization', 'Specialization', { placeholder: 'e.g. Pest management' })}
+            {text('experience', 'Experience', { placeholder: 'e.g. 5 years' })}
+            {text('certification', 'Certification')}
+          </form>
+        </Dialog>
+      )}
 
-            </div>
-          ) : (
-            <div className="agent-profile-card flex items-center justify-center p-8 text-xs text-gray-400">
-              Select an agent to view overview
+      {dialog?.type === 'created' && (
+        <Dialog title="Agent created" onClose={() => setDialog(null)} size="sm" footer={<Button onClick={() => setDialog(null)}>Done</Button>}>
+          <div className="space-y-3 text-sm text-slate-700">
+            <p><span className="font-medium text-slate-900">{dialog.user?.full_name}</span> can now sign in with:</p>
+            <dl className="space-y-2 rounded-xl bg-slate-50 p-4">
+              <Detail label="Email" value={dialog.user?.email} />
+              <Detail label="Temporary password" value={<code className="inline-flex items-center gap-1 font-mono"><KeyRound className="h-3.5 w-3.5" />{dialog.user?.default_password || '—'}</code>} />
+            </dl>
+            <p className="text-xs text-slate-500">Ask the agent to change this password after their first sign-in.</p>
+          </div>
+        </Dialog>
+      )}
+
+      {dialog?.type === 'view' && (
+        <Dialog
+          title={dialog.agent.full_name}
+          subtitle={dialog.agent.email}
+          size="lg"
+          onClose={() => setDialog(null)}
+          footer={<Button variant="secondary" icon={Pencil} onClick={() => openEdit(dialog.agent)}>Edit</Button>}
+        >
+          {dialog.loading ? <Spinner /> : (
+            <div className="space-y-5">
+              {dialog.error && <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">{dialog.error}</p>}
+              <dl className="grid gap-4 sm:grid-cols-3">
+                <Detail label="Status" value={<Badge tone={dialog.agent.status === 'active' ? 'brand' : 'slate'}>{dialog.agent.status}</Badge>} />
+                <Detail label="Phone" value={dialog.agent.phone} />
+                <Detail label="Joined" value={fmtDate(dialog.agent.created_at)} />
+                <Detail label="Area" value={[dp.sector ?? dialog.agent.sector, dp.district ?? dialog.agent.district, dp.province ?? dialog.agent.province].filter(Boolean).join(', ')} />
+                <Detail label="Territory" value={territoryText(dp.territory ?? dialog.agent.territory)} />
+                <Detail label="Specialization" value={dp.specialization ?? dialog.agent.specialization} />
+                <Detail label="Experience" value={dp.experience ?? dialog.agent.experience} />
+                <Detail label="Certification" value={dp.certification ?? dialog.agent.certification} />
+                <Detail label="Farmers assisted" value={dp.farmersAssisted ?? dialog.agent.farmersAssisted} />
+              </dl>
+              <div>
+                <h3 className="mb-2 text-sm font-semibold text-slate-900">Activity</h3>
+                {stats ? (
+                  <dl className="grid gap-4 rounded-xl bg-slate-50 p-4 sm:grid-cols-3">
+                    <Detail label="Farm visits" value={`${stats.completed_visits ?? 0} completed of ${stats.total_visits ?? 0}`} />
+                    <Detail label="Service requests" value={`${stats.completed_service_requests ?? 0} completed of ${stats.total_service_requests ?? 0}`} />
+                    <Detail label="Reports filed" value={stats.total_reports ?? 0} />
+                  </dl>
+                ) : <p className="text-sm text-slate-500">No activity recorded (activity is tracked for active agents only).</p>}
+              </div>
             </div>
           )}
-        </aside>
-
-        {/* ── RIGHT COLUMN: TOP STATS + TABBED AGENTS DATA TABLE ── */}
-        <main className="agent-right-panel">
-
-          {/* 3 Top Highlight Stat Cards matching reference design */}
-          <div className="top-metrics-grid">
-            <div className="metric-box box-blue">
-              <div className="metric-icon-bg">
-                <Users className="w-5 h-5 text-blue-600" />
-              </div>
-              <div className="metric-info">
-                <span className="metric-title">Total Agents</span>
-                <h3 className="metric-num">{agents.length}</h3>
-                <span className="metric-sub">Registered Staff</span>
-              </div>
-            </div>
-
-            <div className="metric-box box-purple">
-              <div className="metric-icon-bg">
-                <CheckCircle className="w-5 h-5 text-purple-600" />
-              </div>
-              <div className="metric-info">
-                <span className="metric-title">Active Coverage</span>
-                <h3 className="metric-num">{agents.filter(a => a.status === 'active').length}</h3>
-                <span className="metric-sub">Operational</span>
-              </div>
-            </div>
-
-            <div className="metric-box box-rose">
-              <div className="metric-icon-bg">
-                <Globe className="w-5 h-5 text-rose-500" />
-              </div>
-              <div className="metric-info">
-                <span className="metric-title">Districts Covered</span>
-                <h3 className="metric-num">
-                  {new Set(agents.map(a => a.profile?.district || a.district)).size}
-                </h3>
-                <span className="metric-sub">Regional Reach</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Table Container Card */}
-          <div className="table-card-container">
-            
-            {/* Primary Tab Navigation */}
-            <div className="table-tabs-header">
-              <div className="tab-group">
-                <button 
-                  className={`tab-item ${activeTab === 'all' ? 'active' : ''}`}
-                  onClick={() => setActiveTab('all')}
-                >
-                  All Agents
-                </button>
-                <button 
-                  className={`tab-item ${activeTab === 'active' ? 'active' : ''}`}
-                  onClick={() => setActiveTab('active')}
-                >
-                  Active Agents
-                </button>
-                <button 
-                  className={`tab-item ${activeTab === 'inactive' ? 'active' : ''}`}
-                  onClick={() => setActiveTab('inactive')}
-                >
-                  Inactive
-                </button>
-              </div>
-
-              {/* Sub-filtering secondary links */}
-              <div className="sub-tab-links hidden sm:flex">
-                <span className="sub-link active">General List</span>
-                <span className="sub-link">Territories</span>
-                <span className="sub-link">Certifications</span>
-              </div>
-            </div>
-
-            {/* Datatable */}
-            <div className="table-responsive-wrapper">
-              {loading ? (
-                <div className="py-20 flex flex-col items-center justify-center">
-                  <ClipLoader color="#15803d" loading={loading} size={40} />
-                  <p className="text-xs text-gray-400 mt-3">Loading field records...</p>
-                </div>
-              ) : error ? (
-                <div className="p-6 text-center text-xs text-red-600">
-                  {error}
-                  <button 
-                    onClick={() => window.location.reload()}
-                    className="ml-3 px-3 py-1 bg-red-100 text-red-700 rounded-md font-semibold hover:bg-red-200"
-                  >
-                    Retry
-                  </button>
-                </div>
-              ) : filteredAgentsList.length > 0 ? (
-                <table className="flat-data-table">
-                  <thead>
-                    <tr>
-                      <th>AGENT</th>
-                      <th>CONTACT</th>
-                      <th>LOCATION</th>
-                      <th>SPECIALIZATION</th>
-                      <th className="text-right">ACTIONS</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredAgentsList.map((agent) => (
-                      <tr 
-                        key={agent.id}
-                        onClick={() => setSelectedAgentOverview(agent)}
-                        className={`clickable-row ${selectedAgentOverview?.id === agent.id ? 'row-selected' : ''}`}
-                      >
-                        <td>
-                          <div className="tbl-user-cell">
-                            <div className="tbl-avatar">
-                              {agent.full_name ? agent.full_name.charAt(0).toUpperCase() : 'A'}
-                            </div>
-                            <div>
-                              <p className="tbl-user-name">{agent.full_name}</p>
-                              <p className="tbl-user-role">{agent.role || 'Agent'}</p>
-                            </div>
-                          </div>
-                        </td>
-                        <td>
-                          <div className="tbl-contact-cell">
-                            <p className="tbl-email">{agent.email}</p>
-                            <p className="tbl-phone">{agent.phone || 'N/A'}</p>
-                          </div>
-                        </td>
-                        <td>
-                          <div className="tbl-location-cell">
-                            <p className="tbl-loc-main">{agent.profile?.province || agent.province || 'N/A'}</p>
-                            <p className="tbl-loc-sub">{agent.profile?.district || agent.district || 'N/A'}</p>
-                          </div>
-                        </td>
-                        <td>
-                          <span className="tbl-spec-tag">
-                            {agent.profile?.specialization || 'Agronomy'}
-                          </span>
-                        </td>
-                        <td className="text-right">
-                          <div className="row-actions-group" onClick={(e) => e.stopPropagation()}>
-                            <button 
-                              onClick={() => openProfileModal(agent, false)} 
-                              className="btn-tbl-action"
-                              title="View Details"
-                            >
-                              <Eye className="w-4 h-4 text-blue-600" />
-                            </button>
-                            <button 
-                              onClick={() => openProfileModal(agent, true)} 
-                              className="btn-tbl-action"
-                              title="Edit Profile"
-                            >
-                              <Edit3 className="w-4 h-4 text-amber-600" />
-                            </button>
-                            <button 
-                              onClick={() => handleDelete(agent.id)} 
-                              className="btn-tbl-action hover:bg-red-50"
-                              title="Delete Agent"
-                            >
-                              <Trash2 className="w-4 h-4 text-rose-600" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              ) : (
-                <div className="py-16 text-center text-xs text-gray-400">
-                  No matching agents found in current view.
-                </div>
-              )}
-            </div>
-
-          </div>
-
-        </main>
-
-      </div>
-
-      {/* ── CREATE NEW AGENT MODAL ── */}
-      {isModalOpen && (
-        <div className="modal-overlay">
-          <div className="modal-content-card animate-in fade-in zoom-in-95 duration-150">
-            <div className="modal-header-top">
-              <h2 className="modal-title">Create New Agent</h2>
-              <button className="btn-modal-close" onClick={closeModal}><X className="w-5 h-5" /></button>
-            </div>
-
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="form-label-txt">Full Name *</label>
-                  <input
-                    type="text"
-                    name="full_name"
-                    value={formData.full_name}
-                    onChange={handleChange}
-                    required
-                    placeholder="Enter full name"
-                    className="modal-input-field"
-                  />
-                </div>
-                <div>
-                  <label className="form-label-txt">Email Address *</label>
-                  <input
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    required
-                    placeholder="Enter email"
-                    className="modal-input-field"
-                  />
-                </div>
-                <div>
-                  <label className="form-label-txt">Phone Number *</label>
-                  <input
-                    type="tel"
-                    name="phone"
-                    value={formData.phone}
-                    onChange={handleChange}
-                    required
-                    placeholder="+250 7XX XXX XXX"
-                    className="modal-input-field"
-                  />
-                </div>
-                <div>
-                  <label className="form-label-txt">Province *</label>
-                  <input
-                    type="text"
-                    name="province"
-                    value={formData.province}
-                    onChange={handleChange}
-                    required
-                    placeholder="Enter province"
-                    className="modal-input-field"
-                  />
-                </div>
-                <div>
-                  <label className="form-label-txt">District *</label>
-                  <input
-                    type="text"
-                    name="district"
-                    value={formData.district}
-                    onChange={handleChange}
-                    required
-                    placeholder="Enter district"
-                    className="modal-input-field"
-                  />
-                </div>
-                <div>
-                  <label className="form-label-txt">Sector *</label>
-                  <input
-                    type="text"
-                    name="sector"
-                    value={formData.sector}
-                    onChange={handleChange}
-                    required
-                    placeholder="Enter sector"
-                    className="modal-input-field"
-                  />
-                </div>
-              </div>
-
-              {responseMessage && (
-                <p className={`p-3 rounded-lg text-xs font-semibold ${responseMessage.includes('success') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
-                  {responseMessage}
-                </p>
-              )}
-
-              <div className="flex justify-end gap-2 pt-3 border-t border-gray-100">
-                <button type="button" className="btn-modal-cancel" onClick={closeModal}>Cancel</button>
-                <button type="submit" className="btn-modal-submit" disabled={submitLoading}>
-                  {submitLoading ? 'Creating...' : 'Create Agent'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+        </Dialog>
       )}
-
-      {/* ── PROFILE DETAILS / EDIT MODAL ── */}
-      {isProfileModalOpen && (
-        <div className="modal-overlay">
-          <div className="modal-content-card max-w-2xl animate-in fade-in zoom-in-95 duration-150">
-            <div className="modal-header-top">
-              <h3 className="modal-title">
-                {profileEditMode ? 'Edit Agent Profile' : 'Agent Details'} 
-                {activeAgent?.full_name ? ` — ${activeAgent.full_name}` : ''}
-              </h3>
-              <button onClick={closeProfileModal} className="btn-modal-close"><X className="w-5 h-5" /></button>
-            </div>
-
-            <div className="p-6">
-              {profileLoading ? (
-                <div className="py-12 flex justify-center">
-                  <ClipLoader color="#15803d" loading={true} size={40} />
-                </div>
-              ) : profileError ? (
-                <div className="p-3 bg-red-50 text-red-700 rounded-lg text-xs font-semibold mb-4">
-                  {profileError}
-                </div>
-              ) : profileEditMode ? (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="form-label-txt">Territory (comma-separated)</label>
-                      <input
-                        type="text"
-                        name="territory"
-                        value={profileForm.territory}
-                        onChange={handleProfileFormChange}
-                        className="modal-input-field"
-                        placeholder="e.g. Sector A, Sector B"
-                      />
-                    </div>
-                    <div>
-                      <label className="form-label-txt">Specialization</label>
-                      <input
-                        type="text"
-                        name="specialization"
-                        value={profileForm.specialization}
-                        onChange={handleProfileFormChange}
-                        className="modal-input-field"
-                        placeholder="e.g. Pest Management"
-                      />
-                    </div>
-                    <div>
-                      <label className="form-label-txt">Province</label>
-                      <input
-                        type="text"
-                        name="province"
-                        value={profileForm.province}
-                        onChange={handleProfileFormChange}
-                        className="modal-input-field"
-                      />
-                    </div>
-                    <div>
-                      <label className="form-label-txt">District</label>
-                      <input
-                        type="text"
-                        name="district"
-                        value={profileForm.district}
-                        onChange={handleProfileFormChange}
-                        className="modal-input-field"
-                      />
-                    </div>
-                    <div>
-                      <label className="form-label-txt">Sector</label>
-                      <input
-                        type="text"
-                        name="sector"
-                        value={profileForm.sector}
-                        onChange={handleProfileFormChange}
-                        className="modal-input-field"
-                      />
-                    </div>
-                    <div>
-                      <label className="form-label-txt">Cell</label>
-                      <input
-                        type="text"
-                        name="cell"
-                        value={profileForm.cell}
-                        onChange={handleProfileFormChange}
-                        className="modal-input-field"
-                      />
-                    </div>
-                    <div>
-                      <label className="form-label-txt">Village</label>
-                      <input
-                        type="text"
-                        name="village"
-                        value={profileForm.village}
-                        onChange={handleProfileFormChange}
-                        className="modal-input-field"
-                      />
-                    </div>
-                    <div>
-                      <label className="form-label-txt">Experience</label>
-                      <input
-                        type="text"
-                        name="experience"
-                        value={profileForm.experience}
-                        onChange={handleProfileFormChange}
-                        className="modal-input-field"
-                        placeholder="e.g. 5 years"
-                      />
-                    </div>
-                    <div className="sm:col-span-2">
-                      <label className="form-label-txt">Certification</label>
-                      <input
-                        type="text"
-                        name="certification"
-                        value={profileForm.certification}
-                        onChange={handleProfileFormChange}
-                        className="modal-input-field"
-                      />
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-6 text-xs text-gray-700">
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 bg-gray-50 p-4 rounded-xl border border-gray-100">
-                    <div>
-                      <span className="block text-gray-400 font-bold uppercase text-[10px]">Territory</span>
-                      <span className="font-semibold text-gray-900">
-                        {Array.isArray(extractProfile(agentProfile)?.territory)
-                          ? extractProfile(agentProfile).territory.join(', ') || 'N/A'
-                          : extractProfile(agentProfile)?.territory || 'N/A'}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="block text-gray-400 font-bold uppercase text-[10px]">Specialization</span>
-                      <span className="font-semibold text-gray-900">{extractProfile(agentProfile)?.specialization || 'N/A'}</span>
-                    </div>
-                    <div>
-                      <span className="block text-gray-400 font-bold uppercase text-[10px]">Province</span>
-                      <span className="font-semibold text-gray-900">{extractProfile(agentProfile)?.province || 'N/A'}</span>
-                    </div>
-                    <div>
-                      <span className="block text-gray-400 font-bold uppercase text-[10px]">District</span>
-                      <span className="font-semibold text-gray-900">{extractProfile(agentProfile)?.district || 'N/A'}</span>
-                    </div>
-                    <div>
-                      <span className="block text-gray-400 font-bold uppercase text-[10px]">Sector</span>
-                      <span className="font-semibold text-gray-900">{extractProfile(agentProfile)?.sector || 'N/A'}</span>
-                    </div>
-                    <div>
-                      <span className="block text-gray-400 font-bold uppercase text-[10px]">Cell / Village</span>
-                      <span className="font-semibold text-gray-900">{extractProfile(agentProfile)?.cell || 'N/A'} / {extractProfile(agentProfile)?.village || 'N/A'}</span>
-                    </div>
-                  </div>
-
-                  <div>
-                    <h4 className="font-bold text-gray-900 mb-2">Field Performance Metrics</h4>
-                    <div className="grid grid-cols-3 gap-3 bg-white p-4 rounded-xl border border-gray-200 text-center">
-                      <div>
-                        <span className="block text-gray-400 font-medium text-[10px]">Farmers Assisted</span>
-                        <span className="text-base font-bold text-[#15803d]">
-                          {extractProfile(agentProfile)?.farmersAssisted ?? extractProfile(agentProfile)?.statistics?.farmersAssisted ?? 24}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="block text-gray-400 font-medium text-[10px]">Total Jobs</span>
-                        <span className="text-base font-bold text-blue-600">
-                          {extractProfile(agentProfile)?.totalTransactions ?? extractProfile(agentProfile)?.statistics?.totalTransactions ?? 18}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="block text-gray-400 font-medium text-[10px]">Rating</span>
-                        <span className="text-base font-bold text-amber-500">{extractProfile(agentProfile)?.performance || '4.9/5.0'}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              <div className="flex justify-end gap-2 mt-6 pt-4 border-t border-gray-100">
-                <button onClick={closeProfileModal} className="btn-modal-cancel">Close</button>
-                {profileEditMode && !profileLoading && !profileError && (
-                  <button onClick={handleSaveProfile} disabled={profileSaving} className="btn-modal-submit">
-                    {profileSaving ? 'Saving...' : 'Save Changes'}
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-    </div>
+    </Page>
   );
 }

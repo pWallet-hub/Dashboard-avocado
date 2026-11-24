@@ -1,1262 +1,340 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  Package2, 
-  Plus, 
-  Search, 
-  Filter, 
-  Eye, 
-  Edit, 
-  Trash2, 
-  Download,
-  Upload,
-  Star,
-  AlertTriangle,
-  CheckCircle,
-  Clock,
-  Leaf,
-  X,
-  Save,
-  TrendingUp,
-  ShoppingCart,
-  BarChart3,
-  RefreshCw,
-  History
-} from 'lucide-react';
-import {
-  getAllProducts,
-  createProduct,
-  updateProduct,
-  deleteProduct,
-  getProductById,
-  getProductStockHistory
-} from '../../services/productsService';
-import { getSuppliers } from '../../services/marketStorageService';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ShoppingBag, Plus, Search, Pencil, Trash2, Eye, ImagePlus, X, RefreshCw, ImageOff } from 'lucide-react';
+import { addToShopInventory, updateShopInventory, deleteInventoryItem } from '../../services/marketStorageService';
+import { uploadMultiple } from '../../services/uploadService';
+import { useToast } from '../../components/Ui/Toast';
 import { useConfirm } from '../../components/Ui/ConfirmDialog';
+import {
+  Page, PageHeader, Card, StatGrid, StatCard, Button, Field, inputClass, textareaClass, EmptyState, ErrorState, Spinner,
+  Table, Td, Dialog, Pagination,
+} from '../../components/Ui/kit';
+import {
+  useMyShop, ShopGate, fetchAllShopProducts, rwf, num, fmtDate, humanize, errMsg, PRODUCT_CATEGORIES, PRODUCT_UNITS,
+  normCategory, StockBadge, productImage, isActiveProduct, isLowStock, isOutOfStock,
+} from './shopCommon';
+
+const PAGE_SIZE = 12;
+const MAX_IMAGES = 5;
+const emptyForm = () => ({
+  name: '', category: 'seeds', unit: 'piece', price: '', cost: '', quantity: '0', min_stock: '10',
+  brand: '', variety: '', description: '', expiry_date: '', images: [],
+});
+
+const Thumb = ({ product, size = 'h-10 w-10' }) => {
+  const src = productImage(product);
+  const [broken, setBroken] = useState(false);
+  if (!src || broken)
+    return <div className={`${size} flex shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-400`}><ImageOff className="h-4 w-4" /></div>;
+  return <img src={src} alt={product.name} onError={() => setBroken(true)} className={`${size} shrink-0 rounded-lg object-cover ring-1 ring-slate-200`} />;
+};
 
 const ShopProducts = () => {
+  const toast = useToast();
   const confirm = useConfirm();
-  const [activeView, setActiveView] = useState('list');
-  const [selectedProduct, setSelectedProduct] = useState(null);
-  const [showModal, setShowModal] = useState(false);
-  const [modalType, setModalType] = useState('add');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState('all');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [sortBy, setSortBy] = useState('-created_at');
-  const [formData, setFormData] = useState({});
+  const shopState = useMyShop();
+  const { shop } = shopState;
+
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [successMessage, setSuccessMessage] = useState('');
-  const [pagination, setPagination] = useState({
-    page: 1,
-    limit: 20,
-    total: 0,
-    pages: 0
-  });
+  const [filters, setFilters] = useState({ search: '', category: '', status: 'active' });
+  const [page, setPage] = useState(1);
+  const [editing, setEditing] = useState(null); // null | 'new' | product
+  const [viewing, setViewing] = useState(null);
+  const [form, setForm] = useState(emptyForm);
+  const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
-  // Stock history modal state
-  const [showHistoryModal, setShowHistoryModal] = useState(false);
-  const [historyProduct, setHistoryProduct] = useState(null);
-  const [stockHistory, setStockHistory] = useState([]);
-  const [historyPagination, setHistoryPagination] = useState({});
-  const [historyPage, setHistoryPage] = useState(1);
-  const [historyLoading, setHistoryLoading] = useState(false);
-  const [historyError, setHistoryError] = useState(null);
-
-  console.log('🔄 ShopProducts component rendering...');
-  console.log('State:', { loading, showModal, modalType, productsCount: products.length });
-
-  // Get user role
-  const userRole = localStorage.getItem('role');
-  const isAdmin = userRole === 'admin';
-
-  const categories = ['irrigation', 'harvesting', 'containers', 'pest-management'];
-  const units = ['kg', 'g', 'lb', 'oz', 'ton', 'liter', 'ml', 'gallon', 'piece', 'dozen', 'box', 'bag', 'bottle', 'can', 'packet'];
-  const statuses = ['available', 'out_of_stock', 'discontinued'];
-
-  const [suppliers, setSuppliers] = useState([]);
-
-  useEffect(() => {
-    loadProducts();
-  }, [pagination.page, categoryFilter, statusFilter, sortBy]);
-
-  useEffect(() => {
-    getSuppliers().then(data => setSuppliers(Array.isArray(data) ? data : [])).catch(err => console.error('Error loading suppliers:', err));
-  }, []);
-
-  useEffect(() => {
-    if (!showHistoryModal || !historyProduct) return;
-
-    const productId = historyProduct.id || historyProduct._id;
-    if (!productId) {
-      setHistoryError('Product ID is missing. Cannot load stock history.');
-      return;
-    }
-
-    let cancelled = false;
-
-    const loadStockHistory = async () => {
-      setHistoryLoading(true);
-      setHistoryError(null);
-
-      try {
-        const result = await getProductStockHistory(productId, {
-          page: historyPage,
-          limit: 10
-        });
-
-        if (cancelled) return;
-
-        setStockHistory(Array.isArray(result?.data) ? result.data : []);
-        setHistoryPagination(result?.pagination || {});
-      } catch (err) {
-        if (cancelled) return;
-        console.error('Error loading stock history:', err);
-        setHistoryError(err.message || 'Failed to load stock history');
-        setStockHistory([]);
-      } finally {
-        if (!cancelled) {
-          setHistoryLoading(false);
-        }
-      }
-    };
-
-    loadStockHistory();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [showHistoryModal, historyProduct, historyPage]);
-
-  const handleCloseHistoryModal = () => {
-    setShowHistoryModal(false);
-    setHistoryProduct(null);
-    setStockHistory([]);
-    setHistoryPagination({});
-    setHistoryPage(1);
-    setHistoryError(null);
-  };
-
-  const loadProducts = async () => {
+  const load = useCallback(async () => {
+    if (!shop) return;
     setLoading(true);
     setError(null);
-    
     try {
-      const options = {
-        page: pagination.page,
-        limit: pagination.limit,
-        sort: sortBy
-      };
-
-      if (categoryFilter !== 'all') {
-        options.category = categoryFilter;
-      }
-
-      if (statusFilter !== 'all') {
-        options.status = statusFilter;
-      }
-
-      if (searchTerm) {
-        options.search = searchTerm;
-      }
-
-      const result = await getAllProducts(options);
-      
-      setProducts(result.data || []);
-      
-      if (result.pagination) {
-        setPagination(prev => ({
-          ...prev,
-          ...result.pagination
-        }));
-      }
-    } catch (error) {
-      console.error('Error loading products:', error);
-      setError(error.message || 'Failed to load products');
-      setProducts([]);
+      setProducts(await fetchAllShopProducts(shop.shop_number));
+    } catch (e) {
+      setError(errMsg(e, 'Could not load products'));
     } finally {
       setLoading(false);
     }
-  };
+  }, [shop]);
+  useEffect(() => { load(); }, [load]);
 
-  useEffect(() => {
-    console.log('📋 useEffect triggered - modalType:', modalType, 'showModal:', showModal);
-    
-    if (modalType === 'edit' && selectedProduct) {
-      console.log('📝 Loading product for edit:', selectedProduct);
-      console.log('💰 Product price:', selectedProduct.price);
-      
-      setFormData({
-        name: selectedProduct.name || '',
-        category: selectedProduct.category || '',
-        description: selectedProduct.description || '',
-        price: selectedProduct.price || '',
-        quantity: selectedProduct.quantity || '',
-        unit: selectedProduct.unit || 'kg',
-        supplier_id: selectedProduct.supplier_id || '',
-        status: selectedProduct.status || 'available',
-        sku: selectedProduct.sku || '',
-        brand: selectedProduct.brand || '',
-        harvest_date: selectedProduct.harvest_date ? selectedProduct.harvest_date.split('T')[0] : '',
-        expiry_date: selectedProduct.expiry_date ? selectedProduct.expiry_date.split('T')[0] : '',
-        images: selectedProduct.images || [],
-        specifications: selectedProduct.specifications || {}
-      });
-    } else if (modalType === 'add') {
-      console.log('➕ Setting up form for Add Product');
-      setFormData({
-        name: '',
-        category: '',
-        description: '',
-        price: '',
-        quantity: '',
-        unit: 'kg',
-        supplier_id: '',
-        status: 'available',
-        sku: '',
-        brand: '',
-        harvest_date: '',
-        expiry_date: '',
-        images: [],
-        specifications: {}
-      });
-      console.log('✅ Form data reset for new product');
-    }
-  }, [modalType, selectedProduct, showModal]);
+  const filtered = useMemo(() => {
+    const s = filters.search.trim().toLowerCase();
+    return products.filter((p) => {
+      if (filters.status === 'active' && !isActiveProduct(p)) return false;
+      if (filters.status === 'discontinued' && isActiveProduct(p)) return false;
+      if (filters.category && normCategory(p.category) !== filters.category) return false;
+      if (s && ![p.name, p.brand, p.sku, p.variety].some((v) => v && String(v).toLowerCase().includes(s))) return false;
+      return true;
+    });
+  }, [products, filters]);
+  useEffect(() => { setPage(1); }, [filters]);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const pageRows = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-  const filteredProducts = products.filter(product => {
-    if (!searchTerm) return true;
-    
-    const search = searchTerm.toLowerCase();
-    return (
-      product.name?.toLowerCase().includes(search) ||
-      product.sku?.toLowerCase().includes(search) ||
-      product.brand?.toLowerCase().includes(search) ||
-      product.description?.toLowerCase().includes(search)
-    );
-  });
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'available': return 'bg-green-100 text-green-800 border-green-200';
-      case 'out_of_stock': return 'bg-red-100 text-red-800 border-red-200';
-      case 'discontinued': return 'bg-gray-100 text-gray-800 border-gray-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
-    }
-  };
-
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case 'available': return <CheckCircle className="h-4 w-4" />;
-      case 'out_of_stock': return <X className="h-4 w-4" />;
-      case 'discontinued': return <Clock className="h-4 w-4" />;
-      default: return <Clock className="h-4 w-4" />;
-    }
-  };
-
-  const formatRwf = (amount) => {
-    return `${parseFloat(amount).toLocaleString('en-RW')} RWF`;
-  };
-
-  const clearMessages = () => {
-    setTimeout(() => {
-      setError(null);
-      setSuccessMessage('');
-    }, 5000);
-  };
-
-  const handleFormSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError(null);
-    setSuccessMessage('');
-
-    try {
-      const submitData = {
-        name: formData.name.trim(),
-        category: formData.category,
-        price: parseFloat(formData.price),
-        quantity: parseInt(formData.quantity),
-        unit: formData.unit,
-        supplier_id: formData.supplier_id.trim(),
-        status: formData.status
-      };
-
-      if (formData.description?.trim()) {
-        submitData.description = formData.description.trim();
-      }
-
-      if (formData.sku?.trim()) {
-        submitData.sku = formData.sku.trim();
-      }
-
-      if (formData.brand?.trim()) {
-        submitData.brand = formData.brand.trim();
-      }
-
-      if (formData.harvest_date) {
-        submitData.harvest_date = new Date(formData.harvest_date).toISOString();
-      }
-
-      if (formData.expiry_date) {
-        submitData.expiry_date = new Date(formData.expiry_date).toISOString();
-      }
-
-      if (formData.images?.length > 0) {
-        submitData.images = formData.images;
-      }
-
-      if (formData.specifications && Object.keys(formData.specifications).length > 0) {
-        submitData.specifications = formData.specifications;
-      }
-
-      if (modalType === 'add') {
-        const newProduct = await createProduct(submitData);
-        setProducts([newProduct, ...products]);
-        setSuccessMessage('Product created successfully!');
-      } else if (modalType === 'edit' && selectedProduct) {
-        const updatedProduct = await updateProduct(selectedProduct.id, submitData);
-        setProducts(products.map(p => 
-          p.id === selectedProduct.id ? updatedProduct : p
-        ));
-        setSelectedProduct(updatedProduct);
-        setSuccessMessage('Product updated successfully!');
-      }
-
-      setShowModal(false);
-      clearMessages();
-      await loadProducts();
-    } catch (error) {
-      console.error('Error saving product:', error);
-      setError(error.message || `Failed to ${modalType === 'add' ? 'create' : 'update'} product`);
-      clearMessages();
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleDelete = async (productId) => {
-    if (!productId) {
-      setError('Product ID is missing. Cannot delete product.');
-      return;
-    }
-
-    // Check user role - DELETE requires Admin role
-    const userRole = localStorage.getItem('role');
-    if (userRole !== 'admin') {
-      setError('❌ Delete Failed: Only Admin users can delete products. Your current role is: ' + (userRole || 'unknown'));
-      clearMessages();
-      return;
-    }
-
-    if (!(await confirm('Are you sure you want to delete this product? This action cannot be undone.'))) {
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-    setSuccessMessage('');
-
-    try {
-      console.log('🗑️ Attempting to delete product with ID:', productId);
-      
-      const result = await deleteProduct(productId);
-      console.log('✅ Delete result:', result);
-      
-      // Update local state - remove the deleted product
-      setProducts(prevProducts => prevProducts.filter(p => {
-        const pid = p.id || p._id;
-        return pid !== productId;
-      }));
-      
-      if (selectedProduct && (selectedProduct.id === productId || selectedProduct._id === productId)) {
-        setActiveView('list');
-        setSelectedProduct(null);
-      }
-      
-      setSuccessMessage('Product deleted successfully!');
-      clearMessages();
-      
-      // Reload products to ensure sync with backend
-      await loadProducts();
-    } catch (error) {
-      console.error('❌ Error deleting product:', error);
-      console.error('Error details:', {
-        message: error.message,
-        response: error.response?.data,
-        status: error.response?.status
-      });
-      
-      let errorMessage = 'Failed to delete product. ';
-      
-      if (error.response?.status === 403 || error.message?.includes('Access denied')) {
-        errorMessage = '❌ Permission Denied: Only Admin users can delete products. Please contact an administrator.';
-      } else if (error.response?.status === 404) {
-        errorMessage += 'Product not found.';
-      } else if (error.response?.status === 401) {
-        errorMessage += 'Please log in again.';
-      } else if (error.message) {
-        errorMessage += error.message;
-      } else {
-        errorMessage += 'Please try again.';
-      }
-      
-      setError(errorMessage);
-      clearMessages();
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSearch = (e) => {
-    setSearchTerm(e.target.value);
-  };
-
-  const handlePageChange = (newPage) => {
-    setPagination(prev => ({ ...prev, page: newPage }));
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  const ProductModal = () => {
-    const isViewMode = modalType === 'view';
-    console.log('🔔 ProductModal rendering - modalType:', modalType, 'isViewMode:', isViewMode);
-    
-    return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto">
-      <div className="bg-white rounded-lg w-full max-w-4xl my-8">
-        <div className="p-6 border-b sticky top-0 bg-white z-10 rounded-t-lg">
-          <div className="flex justify-between items-center">
-            <h3 className="text-xl font-bold">
-              {modalType === 'add' ? 'Add New Product' : modalType === 'view' ? 'View Product Details' : 'Edit Product'}
-            </h3>
-            <button 
-              onClick={() => setShowModal(false)}
-              className="text-gray-400 hover:text-gray-600"
-              disabled={loading}
-            >
-              <X className="h-6 w-6" />
-            </button>
-          </div>
-        </div>
-
-        <form onSubmit={handleFormSubmit} className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-4">
-              <h4 className="text-lg font-semibold text-gray-800">Basic Information</h4>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Product Name <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  required={!isViewMode}
-                  minLength={2}
-                  maxLength={200}
-                  value={formData.name || ''}
-                  onChange={(e) => setFormData({...formData, name: e.target.value})}
-                  className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-transparent ${isViewMode ? 'bg-gray-50' : ''}`}
-                  placeholder="e.g., Drip Irrigation System"
-                  disabled={loading || isViewMode}
-                  readOnly={isViewMode}
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Category <span className="text-red-500">*</span>
-                </label>
-                <select
-                  required={!isViewMode}
-                  value={formData.category || ''}
-                  onChange={(e) => setFormData({...formData, category: e.target.value})}
-                  className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-transparent ${isViewMode ? 'bg-gray-50' : ''}`}
-                  disabled={loading || isViewMode}
-                >
-                  <option value="">Select Category</option>
-                  {categories.map(category => (
-                    <option key={category} value={category}>
-                      {category.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Price (RWF) <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  required={!isViewMode}
-                  value={formData.price || ''}
-                  onChange={(e) => setFormData({...formData, price: e.target.value})}
-                  className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-transparent ${isViewMode ? 'bg-gray-50' : ''}`}
-                  placeholder="Enter price in RWF"
-                  disabled={loading || isViewMode}
-                  readOnly={isViewMode}
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">SKU</label>
-                <input
-                  type="text"
-                  value={formData.sku || ''}
-                  onChange={(e) => setFormData({...formData, sku: e.target.value})}
-                  className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-transparent ${isViewMode ? 'bg-gray-50' : ''}`}
-                  placeholder="Auto-generated if empty"
-                  disabled={loading || isViewMode}
-                  readOnly={isViewMode}
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                <textarea
-                  rows={3}
-                  maxLength={1000}
-                  value={formData.description || ''}
-                  onChange={(e) => setFormData({...formData, description: e.target.value})}
-                  className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-transparent ${isViewMode ? 'bg-gray-50' : ''}`}
-                  placeholder="Detailed product description..."
-                  disabled={loading || isViewMode}
-                  readOnly={isViewMode}
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  {formData.description?.length || 0}/1000 characters
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Brand</label>
-                <input
-                  type="text"
-                  maxLength={100}
-                  value={formData.brand || ''}
-                  onChange={(e) => setFormData({...formData, brand: e.target.value})}
-                  className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-transparent ${isViewMode ? 'bg-gray-50' : ''}`}
-                  placeholder="e.g., AgroFlow"
-                  disabled={loading || isViewMode}
-                  readOnly={isViewMode}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <h4 className="text-lg font-semibold text-gray-800">Inventory & Details</h4>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Quantity <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  required={!isViewMode}
-                  value={formData.quantity || ''}
-                  onChange={(e) => setFormData({...formData, quantity: e.target.value})}
-                  className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-transparent ${isViewMode ? 'bg-gray-50' : ''}`}
-                  placeholder="0"
-                  disabled={loading || isViewMode}
-                  readOnly={isViewMode}
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Unit <span className="text-red-500">*</span>
-                </label>
-                <select
-                  required={!isViewMode}
-                  value={formData.unit || 'kg'}
-                  onChange={(e) => setFormData({...formData, unit: e.target.value})}
-                  className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-transparent ${isViewMode ? 'bg-gray-50' : ''}`}
-                  disabled={loading || isViewMode}
-                >
-                  {units.map(unit => (
-                    <option key={unit} value={unit}>{unit}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Supplier <span className="text-red-500">*</span>
-                </label>
-                <select
-                  required={!isViewMode}
-                  value={formData.supplier_id || ''}
-                  onChange={(e) => setFormData({...formData, supplier_id: e.target.value})}
-                  className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-transparent ${isViewMode ? 'bg-gray-50' : ''}`}
-                  disabled={loading || isViewMode}
-                >
-                  <option value="">Select supplier</option>
-                  {suppliers.map(supplier => (
-                    <option key={supplier.id} value={supplier.id}>{supplier.name}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                <select
-                  value={formData.status || 'available'}
-                  onChange={(e) => setFormData({...formData, status: e.target.value})}
-                  className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-transparent ${isViewMode ? 'bg-gray-50' : ''}`}
-                  disabled={loading || isViewMode}
-                >
-                  {statuses.map(status => (
-                    <option key={status} value={status}>
-                      {status.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Harvest Date</label>
-                <input
-                  type="date"
-                  value={formData.harvest_date || ''}
-                  max={new Date().toISOString().split('T')[0]}
-                  onChange={(e) => setFormData({...formData, harvest_date: e.target.value})}
-                  className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-transparent ${isViewMode ? 'bg-gray-50' : ''}`}
-                  disabled={loading || isViewMode}
-                  readOnly={isViewMode}
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Expiry Date</label>
-                <input
-                  type="date"
-                  value={formData.expiry_date || ''}
-                  min={new Date().toISOString().split('T')[0]}
-                  onChange={(e) => setFormData({...formData, expiry_date: e.target.value})}
-                  className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-transparent ${isViewMode ? 'bg-gray-50' : ''}`}
-                  disabled={loading || isViewMode}
-                  readOnly={isViewMode}
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Image URL</label>
-                <input
-                  type="url"
-                  value={formData.images && formData.images.length > 0 ? formData.images[0] : ''}
-                  onChange={(e) => setFormData({...formData, images: e.target.value ? [e.target.value] : []})}
-                  className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-transparent ${isViewMode ? 'bg-gray-50' : ''}`}
-                  placeholder="https://example.com/images/product.jpg"
-                  disabled={loading || isViewMode}
-                  readOnly={isViewMode}
-                />
-              </div>
-            </div>
-          </div>
-
-          {error && (
-            <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md text-red-700 text-sm">
-              <strong>Error:</strong> {error}
-            </div>
-          )}
-
-          <div className="flex justify-end space-x-4 mt-6 pt-6 border-t">
-            <button
-              type="button"
-              onClick={() => setShowModal(false)}
-              className="px-6 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition"
-              disabled={loading}
-            >
-              {isViewMode ? 'Close' : 'Cancel'}
-            </button>
-            {!isViewMode && (
-              <button
-                type="submit"
-                disabled={loading}
-                className="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center disabled:opacity-50 disabled:cursor-not-allowed transition"
-              >
-                <Save className="h-4 w-4 mr-2" />
-                {loading ? 'Saving...' : (modalType === 'add' ? 'Add Product' : 'Save Changes')}
-              </button>
-            )}
-          </div>
-        </form>
-      </div>
-    </div>
-    );
-  };
-
-  const StockHistoryModal = () => {
-    const entries = Array.isArray(stockHistory) ? stockHistory : [];
-    const totalPages = historyPagination.pages || historyPagination.totalPages || 1;
-    const currentPage = historyPagination.page || historyPage || 1;
-
-    const renderValue = (value) => {
-      if (value === null || value === undefined || value === '') return 'N/A';
-      if (typeof value === 'object') {
-        try {
-          return JSON.stringify(value);
-        } catch {
-          return 'N/A';
-        }
-      }
-      return String(value);
-    };
-
-    const formatDate = (value) => {
-      if (!value) return 'N/A';
-      const date = new Date(value);
-      if (isNaN(date.getTime())) return renderValue(value);
-      return date.toLocaleString();
-    };
-
-    return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto">
-        <div className="bg-white rounded-lg w-full max-w-3xl my-8">
-          <div className="p-6 border-b sticky top-0 bg-white z-10 rounded-t-lg">
-            <div className="flex justify-between items-center">
-              <h3 className="text-xl font-bold">
-                Stock History — {historyProduct?.name || 'Product'}
-              </h3>
-              <button
-                onClick={handleCloseHistoryModal}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X className="h-6 w-6" />
-              </button>
-            </div>
-          </div>
-
-          <div className="p-6">
-            {historyLoading ? (
-              <div className="text-center py-12 text-gray-500">
-                <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-2 text-green-600" />
-                <p>Loading stock history...</p>
-              </div>
-            ) : historyError ? (
-              <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-800 flex items-start">
-                <AlertTriangle className="h-5 w-5 mr-2 flex-shrink-0 mt-0.5" />
-                <div>
-                  <strong className="font-semibold">Error:</strong> {historyError}
-                </div>
-              </div>
-            ) : entries.length === 0 ? (
-              <div className="text-center py-12 text-gray-500">
-                <Clock className="h-12 w-12 mx-auto mb-2 text-gray-400" />
-                <p className="text-lg font-medium">No stock history found</p>
-                <p className="text-sm mt-1">Stock changes for this product will appear here</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Previous</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">New</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Change</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reason</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Changed By</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {entries.map((entry, idx) => {
-                      const hasKnownFields = entry && typeof entry === 'object' && (
-                        'previous_quantity' in entry ||
-                        'new_quantity' in entry ||
-                        'quantity_change' in entry ||
-                        'reason' in entry ||
-                        'notes' in entry ||
-                        'changed_by' in entry ||
-                        'created_at' in entry
-                      );
-
-                      if (!hasKnownFields && entry && typeof entry === 'object') {
-                        return (
-                          <tr key={entry.id || idx}>
-                            <td colSpan="6" className="px-4 py-2 text-xs text-gray-600">
-                              {Object.entries(entry).map(([key, value]) => (
-                                <div key={key}>
-                                  <span className="font-medium">{key}:</span> {renderValue(value)}
-                                </div>
-                              ))}
-                            </td>
-                          </tr>
-                        );
-                      }
-
-                      return (
-                        <tr key={entry?.id || idx} className="hover:bg-gray-50 transition">
-                          <td className="px-4 py-2 text-sm text-gray-700 whitespace-nowrap">
-                            {formatDate(entry?.created_at)}
-                          </td>
-                          <td className="px-4 py-2 text-sm text-gray-700">
-                            {renderValue(entry?.previous_quantity)}
-                          </td>
-                          <td className="px-4 py-2 text-sm text-gray-700">
-                            {renderValue(entry?.new_quantity)}
-                          </td>
-                          <td className="px-4 py-2 text-sm text-gray-700">
-                            {renderValue(entry?.quantity_change)}
-                          </td>
-                          <td className="px-4 py-2 text-sm text-gray-700">
-                            {renderValue(entry?.reason ?? entry?.notes)}
-                          </td>
-                          <td className="px-4 py-2 text-sm text-gray-700">
-                            {renderValue(entry?.changed_by)}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-
-            {!historyLoading && !historyError && entries.length > 0 && (
-              <div className="mt-6 flex justify-between items-center">
-                <div className="text-sm text-gray-600">
-                  Page {currentPage} of {totalPages}
-                </div>
-                <div className="flex space-x-2">
-                  <button
-                    onClick={() => setHistoryPage(prev => Math.max(1, prev - 1))}
-                    disabled={currentPage <= 1 || historyLoading}
-                    className="px-3 py-2 border border-gray-300 rounded-md text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
-                  >
-                    Previous
-                  </button>
-                  <button
-                    onClick={() => setHistoryPage(prev => Math.min(totalPages, prev + 1))}
-                    disabled={currentPage >= totalPages || historyLoading}
-                    className="px-3 py-2 border border-gray-300 rounded-md text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
-                  >
-                    Next
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  // Calculate statistics
+  const active = products.filter(isActiveProduct);
   const stats = {
-    totalProducts: products.length,
-    totalRevenue: products.reduce((sum, product) => sum + (parseFloat(product.price) || 0), 0),
-    availableProducts: products.filter(p => p.status === 'available').length,
-    outOfStock: products.filter(p => p.status === 'out_of_stock').length,
+    total: active.length,
+    value: active.reduce((s, p) => s + Number(p.price || 0) * Number(p.quantity || 0), 0),
+    low: active.filter(isLowStock).length,
+    out: active.filter(isOutOfStock).length,
   };
+
+  const openNew = () => { setForm(emptyForm()); setEditing('new'); };
+  const openEdit = (p) => {
+    setForm({
+      name: p.name || '', category: normCategory(p.category) || 'seeds', unit: p.unit || 'piece',
+      price: String(p.price ?? ''), cost: p.cost != null ? String(p.cost) : '', quantity: String(p.quantity ?? 0),
+      min_stock: String(p.min_stock ?? 10), brand: p.brand || '', variety: p.variety || '', description: p.description || '',
+      expiry_date: p.expiry_date ? String(p.expiry_date).slice(0, 10) : '', images: Array.isArray(p.images) ? p.images.filter(Boolean) : [],
+    });
+    setEditing(p);
+  };
+  const closeForm = () => { if (!saving) setEditing(null); };
+  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  const onFiles = async (e) => {
+    const files = Array.from(e.target.files || []);
+    e.target.value = '';
+    if (!files.length) return;
+    const room = MAX_IMAGES - form.images.length;
+    if (room <= 0) { toast.error(`A product can have at most ${MAX_IMAGES} images`); return; }
+    const bad = files.find((f) => !f.type.startsWith('image/') || f.size > 5 * 1024 * 1024);
+    if (bad) { toast.error('Images must be image files of 5 MB or less'); return; }
+    setUploading(true);
+    try {
+      const res = await uploadMultiple(files.slice(0, room));
+      const list = Array.isArray(res?.data) ? res.data : res?.data?.files || [];
+      const urls = list.map((f) => f.url).filter(Boolean);
+      if (!urls.length) throw new Error('Upload returned no file URL');
+      setForm((f) => ({ ...f, images: [...f.images, ...urls] }));
+    } catch (err) {
+      toast.error(errMsg(err, 'Image upload failed'));
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const save = async (e) => {
+    e.preventDefault();
+    const price = Number(form.price);
+    const qty = Number(form.quantity);
+    const minStock = Number(form.min_stock);
+    if (form.name.trim().length < 2) return toast.error('Enter a product name (at least 2 characters)');
+    if (!(price > 0)) return toast.error('Enter a selling price greater than 0');
+    if (form.cost !== '' && !(Number(form.cost) >= 0)) return toast.error('Cost must be 0 or more');
+    if (editing === 'new' && (!Number.isInteger(qty) || qty < 0)) return toast.error('Opening stock must be a whole number, 0 or more');
+    if (!Number.isInteger(minStock) || minStock < 0) return toast.error('Minimum stock must be a whole number, 0 or more');
+
+    const payload = {
+      name: form.name.trim(), category: form.category, unit: form.unit, price,
+      cost: form.cost === '' ? null : Number(form.cost), min_stock: minStock,
+      brand: form.brand.trim() || null, variety: form.variety.trim() || null, description: form.description.trim() || null,
+      images: form.images,
+      ...(form.expiry_date ? { expiry_date: form.expiry_date } : {}),
+    };
+    setSaving(true);
+    try {
+      if (editing === 'new') {
+        await addToShopInventory({ ...payload, quantity: qty, supplier_id: shop.id });
+        toast.success('Product added');
+      } else {
+        await updateShopInventory(editing.id, payload);
+        toast.success('Product updated');
+      }
+      setEditing(null);
+      load();
+    } catch (err) {
+      toast.error(errMsg(err, 'Could not save the product'));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const discontinue = async (p) => {
+    const ok = await confirm(`Remove "${p.name}" from your catalogue? It will be marked as discontinued and can no longer be ordered.`, { confirmLabel: 'Remove product' });
+    if (!ok) return;
+    try {
+      await deleteInventoryItem(p.id);
+      toast.success('Product removed');
+      load();
+    } catch (err) {
+      toast.error(errMsg(err, 'Could not remove the product'));
+    }
+  };
+
+  const header = (
+    <PageHeader
+      icon={ShoppingBag}
+      title="Products"
+      subtitle="Your shop's catalogue: prices, details and photos"
+      actions={shop && (
+        <>
+          <Button variant="secondary" icon={RefreshCw} onClick={load} loading={loading}>Refresh</Button>
+          <Button icon={Plus} onClick={openNew}>Add product</Button>
+        </>
+      )}
+    />
+  );
+  if (!shop) return <Page>{header}<ShopGate state={shopState} /></Page>;
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      {showModal && <ProductModal />}
-      {showHistoryModal && historyProduct && <StockHistoryModal />}
+    <Page>
+      {header}
+      <StatGrid>
+        <StatCard label="Active products" value={num(stats.total)} icon={ShoppingBag} />
+        <StatCard label="Stock value (retail)" value={rwf(stats.value)} tone="slate" />
+        <StatCard label="Low stock" value={num(stats.low)} tone="amber" />
+        <StatCard label="Out of stock" value={num(stats.out)} tone="rose" />
+      </StatGrid>
 
-      <div className="space-y-6">
-        {/* Statistics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Total Value Card */}
-          <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl p-6 border border-blue-200 shadow-sm hover:shadow-md transition-all duration-300 group">
-            <div className="flex items-center justify-between mb-4">
-              <TrendingUp className="w-5 h-5 text-blue-700 opacity-50" />
-            </div>
-            <p className="text-sm font-semibold text-blue-600 mb-1">Total Value</p>
-            <p className="text-3xl font-bold text-blue-700">
-              {stats.totalRevenue.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} RWF
-            </p>
-            <p className="text-xs text-blue-500 mt-2">Current inventory worth</p>
-          </div>
-
-          {/* Total Products Card */}
-          <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl p-6 border border-blue-200 shadow-sm hover:shadow-md transition-all duration-300 group">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-cyan-700 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
-                <Package2 className="w-6 h-6 text-white" />
-              </div>
-              <ShoppingCart className="w-5 h-5 text-blue-700 opacity-50" />
-            </div>
-            <p className="text-sm font-semibold text-gray-600 mb-1">Total Products</p>
-            <p className="text-3xl font-bold bg-gradient-to-br from-blue-600 to-cyan-700 bg-clip-text text-transparent">
-              {stats.totalProducts}
-            </p>
-            <p className="text-xs text-gray-500 mt-2">All products in inventory</p>
-          </div>
-
-          {/* Available Products Card */}
-          <div className="bg-gradient-to-br from-teal-50 to-green-50 rounded-xl p-6 border border-teal-200 shadow-sm hover:shadow-md transition-all duration-300 group">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 bg-gradient-to-br from-teal-600 to-green-700 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
-                <CheckCircle className="w-6 h-6 text-white" />
-              </div>
-              <Leaf className="w-5 h-5 text-teal-700 opacity-50" />
-            </div>
-            <p className="text-sm font-semibold text-gray-600 mb-1">Available</p>
-            <p className="text-3xl font-bold bg-gradient-to-br from-teal-600 to-green-700 bg-clip-text text-transparent">
-              {stats.availableProducts}
-            </p>
-            <p className="text-xs text-gray-500 mt-2">Ready to sell</p>
-          </div>
-
-          {/* Out of Stock Card */}
-          <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl p-6 border border-amber-200 shadow-sm hover:shadow-md transition-all duration-300 group">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 bg-gradient-to-br from-amber-600 to-orange-700 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
-                <AlertTriangle className="w-6 h-6 text-white" />
-              </div>
-              <Clock className="w-5 h-5 text-amber-700 opacity-50" />
-            </div>
-            <p className="text-sm font-semibold text-gray-600 mb-1">Out of Stock</p>
-            <p className="text-3xl font-bold bg-gradient-to-br from-amber-600 to-orange-700 bg-clip-text text-transparent">
-              {stats.outOfStock}
-            </p>
-            <p className="text-xs text-gray-500 mt-2">Needs restocking</p>
-          </div>
+      <Card padded={false}>
+        <div className="grid gap-3 border-b border-slate-100 p-4 sm:grid-cols-3">
+          <label className="relative block">
+            <span className="sr-only">Search products</span>
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <input className={`${inputClass} pl-9`} placeholder="Search name, brand, SKU…" value={filters.search} onChange={(e) => setFilters((f) => ({ ...f, search: e.target.value }))} />
+          </label>
+          <select aria-label="Category" className={inputClass} value={filters.category} onChange={(e) => setFilters((f) => ({ ...f, category: e.target.value }))}>
+            <option value="">All categories</option>
+            {PRODUCT_CATEGORIES.map((c) => <option key={c} value={c}>{humanize(c)}</option>)}
+          </select>
+          <select aria-label="Status" className={inputClass} value={filters.status} onChange={(e) => setFilters((f) => ({ ...f, status: e.target.value }))}>
+            <option value="active">Active products</option>
+            <option value="discontinued">Discontinued</option>
+            <option value="">All</option>
+          </select>
         </div>
 
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6">
-            <h2 className="text-2xl font-bold text-gray-800 flex items-center mb-4 lg:mb-0">
-              <Package2 className="h-7 w-7 mr-3 text-green-600" />
-              Product Management
-            </h2>
-            <div className="flex flex-wrap gap-2">
-              <button
-                onClick={() => {
-                  setModalType('add');
-                  setShowModal(true);
-                }}
-                className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center transition disabled:opacity-50"
-                disabled={loading}
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Add Product
-              </button>
-              <button 
-                onClick={loadProducts}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center transition disabled:opacity-50"
-                disabled={loading}
-              >
-                <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-                {loading ? 'Loading...' : 'Refresh'}
-              </button>
-            </div>
-          </div>
-
-          {error && (
-            <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-800 flex items-start">
-              <AlertTriangle className="h-5 w-5 mr-2 flex-shrink-0 mt-0.5" />
-              <div>
-                <strong className="font-semibold">Error:</strong> {error}
-              </div>
-            </div>
-          )}
-
-          {successMessage && (
-            <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg text-green-800 flex items-start">
-              <CheckCircle className="h-5 w-5 mr-2 flex-shrink-0 mt-0.5" />
-              <div>{successMessage}</div>
-            </div>
-          )}
-
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search products..."
-                value={searchTerm}
-                onChange={handleSearch}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                disabled={loading}
-              />
-            </div>
-            
-            <select 
-              value={categoryFilter}
-              onChange={(e) => {
-                setCategoryFilter(e.target.value);
-                setPagination(prev => ({ ...prev, page: 1 }));
-              }}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-              disabled={loading}
-            >
-              <option value="all">All Categories</option>
-              {categories.map(category => (
-                <option key={category} value={category}>
-                  {category.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
-                </option>
-              ))}
-            </select>
-
-            <select 
-              value={statusFilter}
-              onChange={(e) => {
-                setStatusFilter(e.target.value);
-                setPagination(prev => ({ ...prev, page: 1 }));
-              }}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-              disabled={loading}
-            >
-              <option value="all">All Status</option>
-              {statuses.map(status => (
-                <option key={status} value={status}>
-                  {status.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
-                </option>
-              ))}
-            </select>
-
-            <select 
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-              disabled={loading}
-            >
-              <option value="name">Sort by Name (A-Z)</option>
-              <option value="-name">Sort by Name (Z-A)</option>
-              <option value="price">Sort by Price (Low-High)</option>
-              <option value="-price">Sort by Price (High-Low)</option>
-              <option value="-created_at">Sort by Date (Newest)</option>
-              <option value="created_at">Sort by Date (Oldest)</option>
-            </select>
-          </div>
-
-          <div className="flex justify-between items-center mb-4">
-            <div className="text-sm text-gray-600">
-              Showing <strong>{filteredProducts.length}</strong> of <strong>{pagination.total || products.length}</strong> products
-            </div>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stock</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+        {loading && !products.length ? <Spinner /> : error ? <ErrorState message={error} onRetry={load} /> : filtered.length === 0 ? (
+          <EmptyState icon={ShoppingBag} title={products.length ? 'No products match your filters' : 'No products yet'}
+            description={products.length ? 'Try a different search or category.' : 'Add the first product your shop sells.'}
+            action={!products.length && <Button icon={Plus} onClick={openNew}>Add product</Button>} />
+        ) : (
+          <>
+            <Table head={['Product', 'Category', 'Price', 'Stock', 'Status', '']}>
+              {pageRows.map((p) => (
+                <tr key={p.id}>
+                  <Td>
+                    <div className="flex items-center gap-3">
+                      <Thumb product={p} />
+                      <div className="min-w-0">
+                        <p className="truncate font-medium text-slate-900">{p.name}</p>
+                        <p className="text-xs text-slate-500">{[p.brand, p.sku].filter(Boolean).join(' · ') || '—'}</p>
+                      </div>
+                    </div>
+                  </Td>
+                  <Td>{humanize(normCategory(p.category))}</Td>
+                  <Td>{rwf(p.price)} <span className="text-xs text-slate-500">/ {p.unit}</span></Td>
+                  <Td>{num(p.quantity)} {p.unit}</Td>
+                  <Td><StockBadge product={p} /></Td>
+                  <Td className="text-right">
+                    <div className="flex justify-end gap-1">
+                      <Button variant="ghost" size="sm" aria-label={`View ${p.name}`} onClick={() => setViewing(p)}><Eye className="h-4 w-4" /></Button>
+                      {isActiveProduct(p) && <>
+                        <Button variant="ghost" size="sm" aria-label={`Edit ${p.name}`} onClick={() => openEdit(p)}><Pencil className="h-4 w-4" /></Button>
+                        <Button variant="ghost" size="sm" aria-label={`Remove ${p.name}`} onClick={() => discontinue(p)}><Trash2 className="h-4 w-4 text-rose-600" /></Button>
+                      </>}
+                    </div>
+                  </Td>
                 </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {loading && products.length === 0 ? (
-                  <tr>
-                    <td colSpan="6" className="px-6 py-12 text-center text-gray-500">
-                      <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-2 text-green-600" />
-                      <p>Loading products...</p>
-                    </td>
-                  </tr>
-                ) : filteredProducts.length === 0 ? (
-                  <tr>
-                    <td colSpan="6" className="px-6 py-12 text-center text-gray-500">
-                      <Package2 className="h-12 w-12 mx-auto mb-2 text-gray-400" />
-                      <p className="text-lg font-medium">No products found</p>
-                      <p className="text-sm mt-1">Try adjusting your filters or add a new product</p>
-                    </td>
-                  </tr>
-                ) : (
-                  filteredProducts.map((product) => (
-                    <tr key={product.id} className="hover:bg-gray-50 transition">
-                      <td className="px-6 py-4">
-                        <div className="flex items-center">
-                          <div className="h-12 w-12 bg-gradient-to-br from-green-100 to-green-200 rounded-lg flex items-center justify-center mr-4">
-                            <Package2 className="h-6 w-6 text-green-700" />
-                          </div>
-                          <div>
-                            <div className="text-sm font-medium text-gray-900">{product.name}</div>
-                            <div className="text-sm text-gray-500">SKU: {product.sku || 'N/A'}</div>
-                            {product.brand && (
-                              <div className="text-xs text-gray-400 mt-0.5">{product.brand}</div>
-                            )}
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="text-sm text-gray-900 capitalize">
-                          {product.category?.split('-').join(' ')}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="text-sm font-medium text-gray-900">
-                          {product.quantity} {product.unit}
-                        </div>
-                        <div className="text-xs text-gray-500">{product.stockStatus || 'In Stock'}</div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="text-sm font-medium text-gray-900">
-                          {formatRwf(product.price)}
-                        </div>
-                        {product.totalValue && (
-                          <div className="text-xs text-gray-500">
-                            Total: {formatRwf(product.totalValue)}
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className={`inline-flex items-center px-2.5 py-1 text-xs font-semibold rounded-full border ${getStatusColor(product.status)}`}>
-                          {getStatusIcon(product.status)}
-                          <span className="ml-1 capitalize">
-                            {product.status?.split('_').join(' ')}
-                          </span>
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-sm font-medium">
-                        <div className="flex space-x-2">
-                          <button 
-                            onClick={() => {
-                              setSelectedProduct(product);
-                              setModalType('view');
-                              setShowModal(true);
-                            }}
-                            className="text-green-600 hover:text-green-900 transition"
-                            title="View Product Details"
-                            disabled={loading}
-                          >
-                            <Eye className="h-4 w-4" />
-                          </button>
-                          <button 
-                            onClick={() => {
-                              setSelectedProduct(product);
-                              setModalType('edit');
-                              setShowModal(true);
-                            }}
-                            className="text-blue-600 hover:text-blue-900 transition"
-                            title="Edit Product"
-                            disabled={loading}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </button>
-                          <button
-                            onClick={() => {
-                              setHistoryProduct(product);
-                              setHistoryPage(1);
-                              setShowHistoryModal(true);
-                            }}
-                            className="text-purple-600 hover:text-purple-900 transition"
-                            title="View Stock History"
-                            disabled={loading}
-                          >
-                            <History className="h-4 w-4" />
-                          </button>
-                          {isAdmin && (
-                            <button 
-                              onClick={() => handleDelete(product.id || product._id)}
-                              className="text-red-600 hover:text-red-900 transition" 
-                              title="Delete Product (Admin Only)"
-                              disabled={loading}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          )}
-                          {!isAdmin && (
-                            <button 
-                              className="text-gray-400 cursor-not-allowed" 
-                              title="Delete requires Admin role"
-                              disabled
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))
+              ))}
+            </Table>
+            <Pagination page={page} totalPages={totalPages} total={filtered.length} onChange={setPage} />
+          </>
+        )}
+      </Card>
+
+      {editing && (
+        <Dialog
+          title={editing === 'new' ? 'Add product' : `Edit ${editing.name}`}
+          onClose={closeForm}
+          size="lg"
+          footer={<>
+            <Button variant="secondary" onClick={closeForm} disabled={saving}>Cancel</Button>
+            <Button type="submit" form="product-form" loading={saving} disabled={uploading}>{editing === 'new' ? 'Add product' : 'Save changes'}</Button>
+          </>}
+        >
+          <form id="product-form" onSubmit={save} className="grid gap-4 sm:grid-cols-2">
+            <Field label="Name" required className="sm:col-span-2"><input className={inputClass} value={form.name} onChange={set('name')} maxLength={200} /></Field>
+            <Field label="Category" required>
+              <select className={inputClass} value={form.category} onChange={set('category')}>
+                {PRODUCT_CATEGORIES.map((c) => <option key={c} value={c}>{humanize(c)}</option>)}
+              </select>
+            </Field>
+            <Field label="Unit" required>
+              <select className={inputClass} value={form.unit} onChange={set('unit')}>
+                {PRODUCT_UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
+              </select>
+            </Field>
+            <Field label="Selling price (RWF)" required><input type="number" min="0" step="any" className={inputClass} value={form.price} onChange={set('price')} /></Field>
+            <Field label="Cost price (RWF)" hint="Optional, used for margins"><input type="number" min="0" step="any" className={inputClass} value={form.cost} onChange={set('cost')} /></Field>
+            {editing === 'new' ? (
+              <Field label="Opening stock" required><input type="number" min="0" step="1" className={inputClass} value={form.quantity} onChange={set('quantity')} /></Field>
+            ) : (
+              <Field label="Stock" hint="Change stock from the Inventory page"><input className={inputClass} value={`${form.quantity} ${form.unit}`} disabled /></Field>
+            )}
+            <Field label="Minimum stock" hint="Low-stock alert level"><input type="number" min="0" step="1" className={inputClass} value={form.min_stock} onChange={set('min_stock')} /></Field>
+            <Field label="Brand"><input className={inputClass} value={form.brand} onChange={set('brand')} /></Field>
+            <Field label="Variety"><input className={inputClass} value={form.variety} onChange={set('variety')} /></Field>
+            <Field label="Expiry date"><input type="date" className={inputClass} value={form.expiry_date} onChange={set('expiry_date')} /></Field>
+            <Field label="Description" className="sm:col-span-2"><textarea className={textareaClass} value={form.description} onChange={set('description')} maxLength={2000} /></Field>
+            <div className="sm:col-span-2">
+              <p className="mb-2 text-sm font-medium text-slate-700">Photos <span className="font-normal text-slate-500">({form.images.length}/{MAX_IMAGES})</span></p>
+              <div className="flex flex-wrap gap-3">
+                {form.images.map((url) => (
+                  <div key={url} className="relative">
+                    <img src={url} alt="Product" className="h-20 w-20 rounded-lg object-cover ring-1 ring-slate-200" />
+                    <button type="button" aria-label="Remove photo" onClick={() => setForm((f) => ({ ...f, images: f.images.filter((u) => u !== url) }))}
+                      className="absolute -right-2 -top-2 rounded-full bg-white p-1 text-slate-600 shadow ring-1 ring-slate-200 hover:text-rose-600">
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+                {form.images.length < MAX_IMAGES && (
+                  <label className={`flex h-20 w-20 cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-slate-300 text-xs text-slate-500 hover:border-brand-500 hover:text-brand-700 ${uploading ? 'pointer-events-none opacity-60' : ''}`}>
+                    <ImagePlus className="h-5 w-5" />
+                    {uploading ? 'Uploading…' : 'Add photo'}
+                    <input type="file" accept="image/*" multiple className="sr-only" onChange={onFiles} disabled={uploading} />
+                  </label>
                 )}
-              </tbody>
-            </table>
-          </div>
+              </div>
+            </div>
+          </form>
+        </Dialog>
+      )}
 
-          {pagination.pages > 1 && (
-            <div className="mt-6 flex justify-between items-center">
-              <div className="text-sm text-gray-600">
-                Page {pagination.page} of {pagination.pages}
+      {viewing && (
+        <Dialog title={viewing.name} subtitle={humanize(normCategory(viewing.category))} onClose={() => setViewing(null)} size="lg"
+          footer={isActiveProduct(viewing) && <Button icon={Pencil} onClick={() => { const p = viewing; setViewing(null); openEdit(p); }}>Edit</Button>}>
+          <div className="space-y-4">
+            {Array.isArray(viewing.images) && viewing.images.filter(Boolean).length > 0 && (
+              <div className="flex flex-wrap gap-3">
+                {viewing.images.filter(Boolean).map((url) => <img key={url} src={url} alt={viewing.name} className="h-28 w-28 rounded-lg object-cover ring-1 ring-slate-200" />)}
               </div>
-              <div className="flex space-x-2">
-                <button
-                  onClick={() => handlePageChange(1)}
-                  disabled={pagination.page === 1 || loading}
-                  className="px-3 py-2 border border-gray-300 rounded-md text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
-                >
-                  First
-                </button>
-                <button
-                  onClick={() => handlePageChange(pagination.page - 1)}
-                  disabled={pagination.page === 1 || loading}
-                  className="px-3 py-2 border border-gray-300 rounded-md text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
-                >
-                  Previous
-                </button>
-                <button
-                  onClick={() => handlePageChange(pagination.page + 1)}
-                  disabled={pagination.page === pagination.pages || loading}
-                  className="px-3 py-2 border border-gray-300 rounded-md text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
-                >
-                  Next
-                </button>
-                <button
-                  onClick={() => handlePageChange(pagination.pages)}
-                  disabled={pagination.page === pagination.pages || loading}
-                  className="px-3 py-2 border border-gray-300 rounded-md text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
-                >
-                  Last
-                </button>
-              </div>
-            </div>
-          )}
-
-          <div className="mt-6 grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="bg-gradient-to-br from-green-50 to-green-100 p-5 rounded-lg border border-green-200">
-              <div className="flex items-center justify-between mb-2">
-                <div className="text-green-700 text-sm font-medium">Total Products</div>
-                <Package2 className="h-5 w-5 text-green-600" />
-              </div>
-              <div className="text-3xl font-bold text-green-900">{pagination.total || products.length}</div>
-              <div className="text-xs text-green-700 mt-1">Active inventory items</div>
-            </div>
-            
-            <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-5 rounded-lg border border-blue-200">
-              <div className="flex items-center justify-between mb-2">
-                <div className="text-blue-700 text-sm font-medium">Total Value</div>
-                <TrendingUp className="h-5 w-5 text-blue-600" />
-              </div>
-              <div className="text-3xl font-bold text-blue-900">
-                {formatRwf(products.reduce((sum, p) => sum + ((p.price || 0) * (p.quantity || 0)), 0))}
-              </div>
-              <div className="text-xs text-blue-700 mt-1">Current inventory worth</div>
-            </div>
-            
-            <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 p-5 rounded-lg border border-yellow-200">
-              <div className="flex items-center justify-between mb-2">
-                <div className="text-yellow-700 text-sm font-medium">Out of Stock</div>
-                <AlertTriangle className="h-5 w-5 text-yellow-600" />
-              </div>
-              <div className="text-3xl font-bold text-yellow-900">
-                {products.filter(p => p.status === 'out_of_stock').length}
-              </div>
-              <div className="text-xs text-yellow-700 mt-1">Items need restocking</div>
-            </div>
-            
-            <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-5 rounded-lg border border-purple-200">
-              <div className="flex items-center justify-between mb-2">
-                <div className="text-purple-700 text-sm font-medium">Categories</div>
-                <BarChart3 className="h-5 w-5 text-purple-600" />
-              </div>
-              <div className="text-3xl font-bold text-purple-900">
-                {new Set(products.map(p => p.category)).size}
-              </div>
-              <div className="text-xs text-purple-700 mt-1">Product categories</div>
-            </div>
+            )}
+            <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
+              {[
+                ['Price', `${rwf(viewing.price)} / ${viewing.unit}`],
+                ['Cost', viewing.cost != null ? rwf(viewing.cost) : '—'],
+                ['In stock', `${num(viewing.quantity)} ${viewing.unit}`],
+                ['Minimum stock', num(viewing.min_stock ?? 10)],
+                ['Brand', viewing.brand || '—'],
+                ['Variety', viewing.variety || '—'],
+                ['SKU', viewing.sku || '—'],
+                ['Expiry', fmtDate(viewing.expiry_date)],
+                ['Added', fmtDate(viewing.created_at)],
+                ['Status', <StockBadge key="s" product={viewing} />],
+              ].map(([k, v]) => (
+                <div key={k}><dt className="text-slate-500">{k}</dt><dd className="font-medium text-slate-900">{v}</dd></div>
+              ))}
+            </dl>
+            {viewing.description && <p className="text-sm text-slate-600">{viewing.description}</p>}
           </div>
-        </div>
-      </div>
-    </div>
+        </Dialog>
+      )}
+    </Page>
   );
 };
 

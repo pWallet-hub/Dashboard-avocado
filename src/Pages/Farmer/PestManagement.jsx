@@ -1,9 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import "../Styles/HarvestingDay.css";
-import DashboardHeader from "../../components/Header/DashboardHeader";
+import { useEffect, useState } from 'react';
+import { Bug } from 'lucide-react';
 import { createPestManagementRequest } from '../../services/serviceRequestsService';
-import { uploadSingle } from '../../services/uploadService';
 import { getFarmerInformation } from '../../services/farmer-information';
+import { uploadMultiple } from '../../services/uploadService';
+import { useToast } from '../../components/Ui/Toast';
+import { Page, PageHeader, Card, Button, Field, inputClass, textareaClass } from '../../components/Ui/kit';
+import { PhotoPicker, RequestSubmitted, uploadPhotos } from './FarmerBits';
+import { isoDay, farmLocationFromProfile, errMsg } from './farmerShared';
 
 const diseases = [
   { disease: "Root Rot (Phytophthora Root Rot)", symptoms: "Wilting, leaf yellowing, twig dieback, root decay with brown/black rot, stunted trees" },
@@ -44,470 +47,189 @@ const pests = [
   { pest: "Birds (esp. bulbuls, starlings)", damage: "Peck ripe fruits" }
 ];
 
+const NOTICED = [
+  { value: 'this_week', label: 'This week' },
+  { value: 'few_weeks', label: 'A few weeks ago' },
+  { value: '2_months', label: 'In the last 2 months' },
+  { value: 'last_year', label: 'Last year or earlier' },
+];
+
+const SEVERITY = [
+  { value: 'low', label: 'Low — a few trees, little damage' },
+  { value: 'medium', label: 'Medium — spreading, visible damage' },
+  { value: 'high', label: 'High — many trees affected' },
+  { value: 'critical', label: 'Critical — trees dying / crop loss' },
+];
+
+const IssueList = ({ title, items, nameKey, detailKey, selected, onToggle }) => (
+  <Card title={title} subtitle={`${selected.length} selected`}>
+    <div className="max-h-80 space-y-1 overflow-y-auto pr-1">
+      {items.map((it) => {
+        const name = it[nameKey];
+        const on = selected.includes(name);
+        return (
+          <label key={name} className={`flex cursor-pointer items-start gap-3 rounded-lg p-2 text-sm hover:bg-slate-50 ${on ? 'bg-brand-50' : ''}`}>
+            <input type="checkbox" className="mt-1 h-4 w-4 accent-brand-600" checked={on} onChange={() => onToggle(name)} />
+            <span>
+              <span className="font-medium text-slate-900">{name}</span>
+              <span className="block text-xs text-slate-500">{it[detailKey]}</span>
+            </span>
+          </label>
+        );
+      })}
+    </div>
+  </Card>
+);
+
+const emptyForm = { diseases: [], pests: [], noticed: '', severity: '', controlMethods: '', preferredDate: '', notes: '' };
+
 export default function PestManagement() {
-  const [selectedDisease, setSelectedDisease] = useState('');
-  const [selectedSymptom, setSelectedSymptom] = useState('');
-  const [selectedPest, setSelectedPest] = useState('');
-  const [selectedDamage, setSelectedDamage] = useState('');
-  const [pestNoticed, setPestNoticed] = useState('');
-  const [severity, setSeverity] = useState('');
-  const [controlMethods, setControlMethods] = useState('');
-  const [primaryImage, setPrimaryImage] = useState(null);
-  const [secondaryImage, setSecondaryImage] = useState(null);
+  const toast = useToast();
+  const [form, setForm] = useState(emptyForm);
+  const [photos, setPhotos] = useState([]);
+  const [info, setInfo] = useState({ user: null, location: {} });
   const [errors, setErrors] = useState({});
-  const [submitted, setSubmitted] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState('');
-
-  const handleDiseaseChange = (e) => {
-    const index = e.target.value;
-    setSelectedDisease(index);
-    setSelectedSymptom(index);
-    if (errors.disease) {
-      setErrors(prev => ({ ...prev, disease: '' }));
-    }
-  };
-
-  const handleSymptomChange = (e) => {
-    const index = e.target.value;
-    setSelectedSymptom(index);
-    setSelectedDisease(index);
-    if (errors.disease) {
-      setErrors(prev => ({ ...prev, disease: '' }));
-    }
-  };
-
-  const handlePestChange = (e) => {
-    const index = e.target.value;
-    setSelectedPest(index);
-    setSelectedDamage(index);
-    if (errors.pest) {
-      setErrors(prev => ({ ...prev, pest: '' }));
-    }
-  };
-
-  const handleDamageChange = (e) => {
-    const index = e.target.value;
-    setSelectedDamage(index);
-    setSelectedPest(index);
-    if (errors.pest) {
-      setErrors(prev => ({ ...prev, pest: '' }));
-    }
-  };
-
-  const handlePrimaryImage = (e) => {
-    const file = e.target.files[0];
-    if (file && file.type.startsWith('image/')) {
-      setPrimaryImage(file);
-      setErrors(prev => ({ ...prev, primaryImage: '' }));
-    } else if (file) {
-      setErrors(prev => ({ ...prev, primaryImage: 'Please upload a valid image file' }));
-    }
-  };
-
-  const handleSecondaryImage = (e) => {
-    const file = e.target.files[0];
-    if (file && file.type.startsWith('image/')) {
-      setSecondaryImage(file);
-    }
-  };
-
-  const validateForm = () => {
-    const newErrors = {};
-
-    if (!selectedDisease && !selectedPest) {
-      newErrors.general = 'Please select at least one disease or pest issue';
-    }
-
-    if (!pestNoticed) {
-      newErrors.pestNoticed = 'Please select when you noticed the issue';
-    }
-
-    if (!primaryImage) {
-      newErrors.primaryImage = 'Primary image is required';
-    }
-
-    if (!severity) {
-      newErrors.severity = 'Please select a severity level';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleSubmit = async (e) => {
-    if (e) e.preventDefault();
-    if (!validateForm()) {
-      return;
-    }
-
-    setIsSubmitting(true);
-    setSubmitError('');
-
-    try {
-      const issueName = selectedDisease !== '' ? diseases[selectedDisease].disease : pests[selectedPest].pest;
-      const issueDetails = selectedDisease !== '' ? diseases[selectedDisease].symptoms : pests[selectedPest].damage;
-
-      const attachments = [];
-      const primaryUpload = await uploadSingle(primaryImage);
-      if (primaryUpload?.data?.url) attachments.push(primaryUpload.data.url);
-      if (secondaryImage) {
-        const secondaryUpload = await uploadSingle(secondaryImage);
-        if (secondaryUpload?.data?.url) attachments.push(secondaryUpload.data.url);
-      }
-
-      const location = getSubmissionLocation();
-
-      await createPestManagementRequest({
-        service_type: 'pest_control',
-        title: `Pest & Disease Diagnostic: ${issueName}`,
-        description: `Farmer-reported diagnostic for ${issueName}. ${issueDetails}`,
-        location,
-        pest_management_details: {
-          pests_diseases: [{ name: issueName }],
-          first_noticed: pestNoticed,
-          damage_observed: issueDetails,
-          damage_details: issueDetails,
-          control_methods_tried: controlMethods,
-          severity_level: severity,
-        },
-        farmer_info: {
-          name: userInfo?.full_name || 'N/A',
-          phone: userInfo?.phone || 'N/A',
-          location,
-        },
-        priority: severity === 'critical' ? 'urgent' : severity,
-        attachments,
-      });
-
-      setSubmitted(true);
-    } catch (error) {
-      setSubmitError(error.message || 'Failed to submit diagnosis. Please try again.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const [profile, setProfile] = useState(null);
-  const [userInfo, setUserInfo] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [submitted, setSubmitted] = useState(null);
 
   useEffect(() => {
-    let mounted = true;
-    const loadProfile = async () => {
-      try {
-        const resp = await getFarmerInformation();
-        const data = resp?.data || resp;
-        if (!mounted) return;
-        setUserInfo(data.user_info || data.user || null);
-        setProfile(data.farmer_profile || null);
-      } catch (err) {
-        console.warn('Failed to load farmer information for pest form', err);
-      }
-    };
-    loadProfile();
-    return () => { mounted = false; };
+    getFarmerInformation()
+      .then((res) => {
+        const d = res?.data || res;
+        setInfo({ user: d?.user_info || null, location: farmLocationFromProfile(d?.farmer_profile) });
+      })
+      .catch(() => {});
   }, []);
 
-  const getSubmissionLocation = () => ({
-    province: profile?.farm_province || profile?.province || 'N/A',
-    district: profile?.farm_district || profile?.district || 'N/A',
-    sector: profile?.farm_sector || profile?.sector || 'N/A',
-    cell: profile?.farm_cell || profile?.cell || 'N/A',
-    village: profile?.farm_village || profile?.village || 'N/A'
-  });
+  const set = (k, v) => {
+    setForm((f) => ({ ...f, [k]: v }));
+    setErrors((e) => ({ ...e, [k]: undefined, issues: undefined }));
+  };
+  const toggle = (key) => (name) => set(key, form[key].includes(name) ? form[key].filter((x) => x !== name) : [...form[key], name]);
 
-  const handleCancel = () => {
-    setSelectedDisease('');
-    setSelectedSymptom('');
-    setSelectedPest('');
-    setSelectedDamage('');
-    setPestNoticed('');
-    setSeverity('');
-    setControlMethods('');
-    setPrimaryImage(null);
-    setSecondaryImage(null);
-    setErrors({});
-    setSubmitError('');
+  const validate = () => {
+    const e = {};
+    if (!form.diseases.length && !form.pests.length) e.issues = 'Select at least one disease or pest';
+    if (!form.noticed) e.noticed = 'Choose when you first noticed it';
+    if (!form.severity) e.severity = 'Choose a severity level';
+    if (!photos.length) e.photos = 'Add at least one photo of the problem';
+    if (form.preferredDate && form.preferredDate < isoDay(1)) e.preferredDate = 'Choose a date from tomorrow';
+    if (!info.location.province) e.location = 'Your farm province is missing — add it on your Profile page first';
+    if (!info.user?.phone) e.phone = 'Your phone number is missing — add it on your Profile page first';
+    setErrors(e);
+    return Object.keys(e).length === 0;
   };
 
-  const Icon = {
-    check: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    )
+  const submit = async (ev) => {
+    ev.preventDefault();
+    if (!validate()) {
+      toast.error('Please fix the highlighted fields');
+      return;
+    }
+    setSaving(true);
+    try {
+      const attachments = await uploadPhotos(photos, uploadMultiple);
+      const chosen = [...form.diseases, ...form.pests];
+      const details = [
+        ...diseases.filter((d) => form.diseases.includes(d.disease)).map((d) => `${d.disease}: ${d.symptoms}`),
+        ...pests.filter((p) => form.pests.includes(p.pest)).map((p) => `${p.pest}: ${p.damage}`),
+      ].join('; ');
+      const title = `Pest & disease diagnosis: ${chosen.slice(0, 3).join(', ')}${chosen.length > 3 ? '…' : ''}`.slice(0, 200);
+      const created = await createPestManagementRequest({
+        service_type: 'pest_control',
+        title,
+        description: `Farmer-reported issue(s): ${chosen.join(', ')}.${form.notes.trim() ? ` ${form.notes.trim()}` : ''}`.slice(0, 1000),
+        location: info.location,
+        preferred_date: form.preferredDate || undefined,
+        pest_management_details: {
+          pests_diseases: chosen.map((name) => ({ name, type: form.diseases.includes(name) ? 'disease' : 'pest' })),
+          first_noticed: NOTICED.find((n) => n.value === form.noticed)?.label || form.noticed,
+          damage_observed: details.slice(0, 1000),
+          damage_details: details.slice(0, 1000),
+          control_methods_tried: form.controlMethods.trim() || 'None',
+          severity_level: form.severity,
+        },
+        farmer_info: { name: info.user?.full_name || '', phone: info.user?.phone || '', location: info.location },
+        priority: form.severity === 'critical' ? 'urgent' : form.severity,
+        attachments,
+        notes: form.notes.trim(),
+      });
+      setSubmitted(created || {});
+      toast.success('Pest management request submitted');
+    } catch (e) {
+      toast.error(errMsg(e, 'Failed to submit request'));
+    } finally {
+      setSaving(false);
+    }
   };
 
-  if (submitted) {
-    return (
-      <div className="hd-scope">
-        <div className="hd-confirmWrap">
-          <div className="hd-slip">
-            <div className="hd-checkCircle">{Icon.check}</div>
-            <h2 className="hd-slipTitle">Diagnosis Submitted Successfully!</h2>
-            <p className="hd-slipText">
-              Thank you for submitting your pest and disease diagnostic form. Our agricultural experts will review your submission and contact you within 24-48 hours with recommendations.
-            </p>
-            <dl className="hd-slipDetails">
-              <div className="hd-slipRow">
-                <dt>Selected Issue:</dt>
-                <dd>{selectedDisease !== '' ? diseases[selectedDisease].disease : pests[selectedPest].pest}</dd>
-              </div>
-              <div className="hd-slipRow">
-                <dt>First Noticed:</dt>
-                <dd>{pestNoticed}</dd>
-              </div>
-              <div className="hd-slipRow">
-                <dt>Severity Level:</dt>
-                <dd style={{ textTransform: 'capitalize' }}>{severity}</dd>
-              </div>
-              <div className="hd-slipRow">
-                <dt>Images Attached:</dt>
-                <dd>{(primaryImage ? 1 : 0) + (secondaryImage ? 1 : 0)}</dd>
-              </div>
-            </dl>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const err = (k) => errors[k] && <p className="mt-1 text-xs text-rose-600">{errors[k]}</p>;
 
   return (
-    <div className="hd-scope">
-      <DashboardHeader />
+    <Page>
+      <PageHeader
+        icon={Bug}
+        title="Book your Integrated Pest Management Day"
+        subtitle="Describe what you see on your trees. An agronomist reviews it and schedules an IPM visit."
+      />
+      {submitted ? (
+        <RequestSubmitted
+          title="Diagnosis request submitted"
+          request={submitted}
+          onAnother={() => { setForm(emptyForm); setPhotos([]); setErrors({}); setSubmitted(null); }}
+        >
+          Our agricultural experts will review your photos and contact you within 24–48 hours with recommendations and a visit date.
+        </RequestSubmitted>
+      ) : (
+        <form onSubmit={submit} noValidate className="space-y-6">
+          {(errors.location || errors.phone) && (
+            <p role="alert" className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900 ring-1 ring-amber-200">{errors.location || errors.phone}</p>
+          )}
+          <div className="grid gap-6 lg:grid-cols-2">
+            <IssueList title="Diseases observed" items={diseases} nameKey="disease" detailKey="symptoms" selected={form.diseases} onToggle={toggle('diseases')} />
+            <IssueList title="Pests observed" items={pests} nameKey="pest" detailKey="damage" selected={form.pests} onToggle={toggle('pests')} />
+          </div>
+          {err('issues')}
 
-      <div className="hd-wrap">
-        <h1 className="hd-pageTitle">
-          Avocado Pest & Disease Diagnostic Plus Regular Agronomic Scouting
-        </h1>
-
-        <div className="hd-card">
-
-          {errors.general && <p className="hd-errorText" style={{ padding: '0 0 16px 0', fontSize: '15px' }}>{errors.general}</p>}
-          {submitError && <p className="hd-errorText" style={{ padding: '0 0 16px 0', fontSize: '15px' }}>{submitError}</p>}
-
-          {/* Disease Identification */}
-          <div className="hd-row">
-            <div className="hd-rowLabel">
-              <h2>Disease Identification</h2>
-              <p className="hd-rowHint">Select by symptoms or directly pick a diagnosed disease</p>
-            </div>
-            <div className="hd-rowFields">
-              <div>
-                <label className="hd-label">Select by Symptoms</label>
-                <select
-                  className="hd-input"
-                  value={selectedSymptom}
-                  onChange={handleSymptomChange}
-                >
-                  <option value="">-- Select symptoms --</option>
-                  {diseases.map((item, index) => (
-                    <option key={index} value={index}>{item.symptoms}</option>
-                  ))}
+          <Card title="About the problem">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="When did you first notice it?" required>
+                <select className={inputClass} value={form.noticed} onChange={(e) => set('noticed', e.target.value)}>
+                  <option value="">Select timeframe</option>
+                  {NOTICED.map((n) => <option key={n.value} value={n.value}>{n.label}</option>)}
                 </select>
-              </div>
-
-              <div>
-                <label className="hd-label">Identified Disease</label>
-                <select
-                  className="hd-input"
-                  value={selectedDisease}
-                  onChange={handleDiseaseChange}
-                >
-                  <option value="">-- Select disease --</option>
-                  {diseases.map((item, index) => (
-                    <option key={index} value={index}>{item.disease}</option>
-                  ))}
+                {err('noticed')}
+              </Field>
+              <Field label="Severity" required>
+                <select className={inputClass} value={form.severity} onChange={(e) => set('severity', e.target.value)}>
+                  <option value="">Select severity</option>
+                  {SEVERITY.map((n) => <option key={n.value} value={n.value}>{n.label}</option>)}
                 </select>
-              </div>
-
-              {selectedDisease !== '' && (
-                <div style={{ padding: '12px 16px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', marginTop: '8px' }}>
-                  <p style={{ fontSize: '14px', fontWeight: '600', color: '#1e293b' }}>{diseases[selectedDisease].disease}</p>
-                  <p style={{ fontSize: '13px', color: '#64748b', marginTop: '4px' }}>{diseases[selectedDisease].symptoms}</p>
-                </div>
-              )}
+                {err('severity')}
+              </Field>
+              <Field label="Preferred visit date" hint="Optional">
+                <input type="date" min={isoDay(1)} className={inputClass} value={form.preferredDate} onChange={(e) => set('preferredDate', e.target.value)} />
+                {err('preferredDate')}
+              </Field>
+              <Field label="Control methods already tried">
+                <input className={inputClass} maxLength={1000} value={form.controlMethods} onChange={(e) => set('controlMethods', e.target.value)} placeholder="e.g. sprayed copper fungicide" />
+              </Field>
+              <Field label="Other details" className="sm:col-span-2">
+                <textarea className={textareaClass} maxLength={500} value={form.notes} onChange={(e) => set('notes', e.target.value)} placeholder="How many trees, which part of the farm, anything else" />
+              </Field>
             </div>
+          </Card>
+
+          <Card title="Photos of the problem" subtitle="At least one photo is required (up to 5 images, 5 MB each).">
+            <PhotoPicker files={photos} onChange={(f) => { setPhotos(f); setErrors((e) => ({ ...e, photos: undefined })); }} onError={toast.error} disabled={saving} />
+            {err('photos')}
+          </Card>
+
+          <div className="flex justify-end">
+            <Button type="submit" loading={saving}>Submit for diagnosis</Button>
           </div>
-
-          {/* Pest Identification */}
-          <div className="hd-row">
-            <div className="hd-rowLabel">
-              <h2>Pest Identification</h2>
-              <p className="hd-rowHint">Select by observed damage or directly pick an identified pest</p>
-            </div>
-            <div className="hd-rowFields">
-              <div>
-                <label className="hd-label">Select by Damage Type</label>
-                <select
-                  className="hd-input"
-                  value={selectedDamage}
-                  onChange={handleDamageChange}
-                >
-                  <option value="">-- Select damage type --</option>
-                  {pests.map((item, index) => (
-                    <option key={index} value={index}>{item.damage}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="hd-label">Identified Pest</label>
-                <select
-                  className="hd-input"
-                  value={selectedPest}
-                  onChange={handlePestChange}
-                >
-                  <option value="">-- Select pest --</option>
-                  {pests.map((item, index) => (
-                    <option key={index} value={index}>{item.pest}</option>
-                  ))}
-                </select>
-              </div>
-
-              {selectedPest !== '' && (
-                <div style={{ padding: '12px 16px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', marginTop: '8px' }}>
-                  <p style={{ fontSize: '14px', fontWeight: '600', color: '#1e293b' }}>{pests[selectedPest].pest}</p>
-                  <p style={{ fontSize: '13px', color: '#64748b', marginTop: '4px' }}>{pests[selectedPest].damage}</p>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Additional Details */}
-          <div className="hd-row">
-            <div className="hd-rowLabel">
-              <h2>Additional Details</h2>
-              <p className="hd-rowHint">Provide timelines, severity metrics, and historical control attempts</p>
-            </div>
-            <div className="hd-rowFields">
-              <div className="hd-fieldPair">
-                <div>
-                  <label className="hd-label">When first noticed?<span className="hd-req">*</span></label>
-                  <select
-                    className={`hd-input ${errors.pestNoticed ? "hd-error" : ""}`}
-                    value={pestNoticed}
-                    onChange={(e) => {
-                      setPestNoticed(e.target.value);
-                      if (errors.pestNoticed) setErrors(prev => ({ ...prev, pestNoticed: '' }));
-                    }}
-                  >
-                    <option value="">-- Select timeframe --</option>
-                    <option value="this_week">This week</option>
-                    <option value="few_weeks">A few weeks ago</option>
-                    <option value="2_months">In the last 2 months</option>
-                    <option value="last_year">Last year</option>
-                  </select>
-                  {errors.pestNoticed && <p className="hd-errorText">{errors.pestNoticed}</p>}
-                </div>
-
-                <div>
-                  <label className="hd-label">Severity Level<span className="hd-req">*</span></label>
-                  <select
-                    className={`hd-input ${errors.severity ? "hd-error" : ""}`}
-                    value={severity}
-                    onChange={(e) => {
-                      setSeverity(e.target.value);
-                      if (errors.severity) setErrors(prev => ({ ...prev, severity: '' }));
-                    }}
-                  >
-                    <option value="">-- Select severity --</option>
-                    <option value="low">Low</option>
-                    <option value="medium">Medium</option>
-                    <option value="high">High</option>
-                    <option value="critical">Critical</option>
-                  </select>
-                  {errors.severity && <p className="hd-errorText">{errors.severity}</p>}
-                </div>
-              </div>
-
-              <div>
-                <label className="hd-label">Control methods already tried</label>
-                <textarea
-                  className="hd-input"
-                  value={controlMethods}
-                  onChange={(e) => setControlMethods(e.target.value)}
-                  placeholder="e.g., neem oil, copper spray, traps, sanitation practices..."
-                  rows="3"
-                  style={{ resize: 'vertical' }}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Upload Attachments */}
-          <div className="hd-row">
-            <div className="hd-rowLabel">
-              <h2>Upload Media Attachments</h2>
-              <p className="hd-rowHint">Clear photos help our agronomists accurately diagnose issues</p>
-            </div>
-            <div className="hd-rowFields">
-              <div>
-                <label className="hd-label">Primary Image of Problem<span className="hd-req">*</span></label>
-                <div className="hd-uploadRow">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handlePrimaryImage}
-                    style={{ display: "none" }}
-                    id="primary-file-upload"
-                  />
-                  <label htmlFor="primary-file-upload" className="hd-fileTrigger">
-                    {primaryImage ? primaryImage.name : "Choose primary image..."}
-                  </label>
-                  <button
-                    type="button"
-                    className="hd-uploadBtn"
-                    onClick={() => document.getElementById("primary-file-upload").click()}
-                  >
-                    Browse
-                  </button>
-                </div>
-                {errors.primaryImage && <p className="hd-errorText">{errors.primaryImage}</p>}
-              </div>
-
-              <div>
-                <label className="hd-label">Additional Image (Optional)</label>
-                <div className="hd-uploadRow">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleSecondaryImage}
-                    style={{ display: "none" }}
-                    id="secondary-file-upload"
-                  />
-                  <label htmlFor="secondary-file-upload" className="hd-fileTrigger">
-                    {secondaryImage ? secondaryImage.name : "Choose optional image..."}
-                  </label>
-                  <button
-                    type="button"
-                    className="hd-uploadBtn"
-                    onClick={() => document.getElementById("secondary-file-upload").click()}
-                  >
-                    Browse
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Footer Control Actions */}
-          <div className="hd-footer">
-            <button type="button" className="hd-btnCancel" onClick={handleCancel} disabled={isSubmitting}>
-              Reset Form
-            </button>
-            <button
-              type="button"
-              className="hd-submit"
-              onClick={handleSubmit}
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? "Submitting..." : "Submit Diagnosis"}
-            </button>
-          </div>
-
-        </div>
-      </div>
-    </div>
+        </form>
+      )}
+    </Page>
   );
 }

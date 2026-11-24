@@ -1,52 +1,29 @@
 import apiClient, { extractData } from './apiClient';
 
-// Paginated system logs (admin)
+// Paginated system logs (admin).
+// Backend returns data: { logs, pagination: { total, page, pages } } and only
+// filters by level (start/end dates are honoured by /logs/export only).
+// Returns { data, pagination: { page, totalPages, total } }.
 export async function listLogs(options = {}) {
   try {
     const params = {};
     if (options.page) params.page = options.page;
     if (options.limit) params.limit = options.limit;
     if (options.level) params.level = options.level;
-    if (options.start_date) params.start_date = options.start_date;
-    if (options.end_date) params.end_date = options.end_date;
 
     const response = await apiClient.get('/logs', { params });
-    const extractedData = extractData(response);
-
-    if (extractedData && extractedData.data) {
-      return {
-        data: Array.isArray(extractedData.data) ? extractedData.data : [],
-        pagination: extractedData.pagination || {
-          currentPage: 1,
-          totalPages: 1,
-          totalItems: extractedData.data ? extractedData.data.length : 0,
-          itemsPerPage: options.limit || 20
-        }
-      };
-    } else if (Array.isArray(extractedData)) {
-      return {
-        data: extractedData,
-        pagination: {
-          currentPage: 1,
-          totalPages: 1,
-          totalItems: extractedData.length,
-          itemsPerPage: options.limit || 20
-        }
-      };
-    } else {
-      console.warn('Unexpected response structure:', extractedData);
-      return {
-        data: [],
-        pagination: {
-          currentPage: 1,
-          totalPages: 1,
-          totalItems: 0,
-          itemsPerPage: options.limit || 20
-        }
-      };
-    }
+    const body = extractData(response) || {};
+    const rows = Array.isArray(body.logs) ? body.logs : Array.isArray(body) ? body : [];
+    const p = body.pagination || {};
+    return {
+      data: rows,
+      pagination: {
+        page: p.page || options.page || 1,
+        totalPages: Math.max(1, p.pages || 1),
+        total: p.total ?? rows.length,
+      },
+    };
   } catch (error) {
-    console.error('Error in listLogs:', error);
     throw new Error(error.response?.data?.message || error.message || 'Failed to load logs');
   }
 }
@@ -61,7 +38,6 @@ export async function cleanupLogs(olderThanDays = 30) {
     const response = await apiClient.delete('/logs/cleanup', { data: { older_than_days: olderThanDays } });
     return extractData(response);
   } catch (error) {
-    console.error('Error in cleanupLogs:', error);
     throw new Error(error.response?.data?.message || error.message || 'Failed to clean up logs');
   }
 }
@@ -77,7 +53,6 @@ export async function exportLogs(options = {}) {
     const response = await apiClient.get('/logs/export', { params, responseType: 'blob' });
     return response.data;
   } catch (error) {
-    console.error('Error in exportLogs:', error);
     throw new Error(error.response?.data?.message || error.message || 'Failed to export logs');
   }
 }
@@ -88,7 +63,6 @@ export async function getLogStatistics() {
     const response = await apiClient.get('/logs/statistics');
     return extractData(response);
   } catch (error) {
-    console.error('Error in getLogStatistics:', error);
     throw new Error(error.response?.data?.message || error.message || 'Failed to load log statistics');
   }
 }

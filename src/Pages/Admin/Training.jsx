@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
-import { GraduationCap, Plus, Edit, Trash2, Archive, CheckCircle, X, FileText, Video, File, HelpCircle } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { GraduationCap, Plus, Pencil, Trash2, Archive, Send, RefreshCw, Eye } from 'lucide-react';
 import {
-  listAllTraining,
+  CONTENT_TYPES,
+  listAllTrainingPaged,
   createTraining,
   updateTraining,
   deleteTraining,
@@ -10,424 +11,276 @@ import {
 } from '../../services/trainingService';
 import { useToast } from '../../components/Ui/Toast';
 import { useConfirm } from '../../components/Ui/ConfirmDialog';
+import {
+  Page, PageHeader, Card, Badge, Button, Field, inputClass, textareaClass,
+  EmptyState, ErrorState, Spinner, Table, Td, Dialog, Pagination, Tabs,
+} from '../../components/Ui/kit';
 
-const CONTENT_TYPES = ['article', 'video', 'pdf', 'quiz'];
+const TYPE_LABELS = { article: 'Article', video: 'Video', guide: 'Guide', checklist: 'Checklist', faq: 'FAQ' };
+const STATUS_TONES = { draft: 'amber', published: 'brand', archived: 'slate' };
+const PAGE_SIZE = 50;
 
-const emptyForm = {
-  title: '',
-  description: '',
-  content_type: 'article',
-  content_url: '',
-  thumbnail_url: '',
-  tags: '',
+const emptyForm = { title: '', description: '', content: '', content_type: 'article', category: '', tags: '' };
+const label = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : '—');
+const formatDate = (v) => {
+  if (!v) return '—';
+  const d = new Date(v);
+  return Number.isNaN(d.getTime()) ? '—' : d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 };
-
-const contentTypeIcon = (type) => {
-  switch (type) {
-    case 'video': return Video;
-    case 'pdf': return File;
-    case 'quiz': return HelpCircle;
-    default: return FileText;
-  }
-};
-
-const statusBadge = (status) => {
-  switch (status) {
-    case 'published': return 'bg-green-100 text-green-800 ring-green-500';
-    case 'archived': return 'bg-gray-200 text-gray-700 ring-gray-400';
-    case 'draft':
-    default: return 'bg-yellow-100 text-yellow-800 ring-yellow-500';
-  }
-};
+const isUrl = (s) => /^https?:\/\/\S+$/i.test((s || '').trim());
 
 const Training = () => {
   const toast = useToast();
   const confirm = useConfirm();
 
   const [items, setItems] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0 });
+  const [page, setPage] = useState(1);
+  const [statusTab, setStatusTab] = useState('all');
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [statusFilter, setStatusFilter] = useState('all');
 
-  const [showFormModal, setShowFormModal] = useState(false);
-  const [editingItem, setEditingItem] = useState(null);
-  const [formData, setFormData] = useState(emptyForm);
+  const [form, setForm] = useState(null); // { id?, values }
   const [saving, setSaving] = useState(false);
+  const [view, setView] = useState(null);
+  const [busyId, setBusyId] = useState(null);
 
-  const loadItems = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await listAllTraining();
-      setItems(Array.isArray(data) ? data : []);
+      const res = await listAllTrainingPaged({ page, limit: PAGE_SIZE });
+      setItems(res.data);
+      setPagination(res.pagination);
     } catch (err) {
-      console.error('Error loading training content:', err);
-      setError(err.message || 'Failed to load training content');
+      setError(err.message);
       setItems([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, [page]);
 
   useEffect(() => {
-    loadItems();
-  }, []);
+    load();
+  }, [load]);
 
-  const filteredItems = items.filter((item) => statusFilter === 'all' || item.status === statusFilter);
-
-  const openCreateModal = () => {
-    setEditingItem(null);
-    setFormData(emptyForm);
-    setShowFormModal(true);
+  const openForm = (item) => {
+    setForm(
+      item
+        ? {
+            id: item.id,
+            values: {
+              title: item.title || '',
+              description: item.description || '',
+              content: item.content || '',
+              content_type: CONTENT_TYPES.includes(item.content_type) ? item.content_type : 'article',
+              category: item.category || '',
+              tags: Array.isArray(item.tags) ? item.tags.join(', ') : '',
+            },
+          }
+        : { values: { ...emptyForm } }
+    );
   };
+  const setValue = (k, v) => setForm((f) => ({ ...f, values: { ...f.values, [k]: v } }));
 
-  const openEditModal = (item) => {
-    setEditingItem(item);
-    setFormData({
-      title: item.title || '',
-      description: item.description || '',
-      content_type: item.content_type || 'article',
-      content_url: item.content_url || '',
-      thumbnail_url: item.thumbnail_url || '',
-      tags: Array.isArray(item.tags) ? item.tags.join(', ') : '',
-    });
-    setShowFormModal(true);
-  };
-
-  const closeFormModal = () => {
-    setShowFormModal(false);
-    setEditingItem(null);
-    setFormData(emptyForm);
-  };
-
-  const handleSave = async () => {
+  const submit = async (e) => {
+    e.preventDefault();
+    const v = form.values;
+    if (!v.title.trim() || !v.content.trim()) {
+      toast.error('Title and content are required');
+      return;
+    }
+    const payload = {
+      title: v.title.trim(),
+      description: v.description.trim() || null,
+      content: v.content.trim(),
+      content_type: v.content_type,
+      category: v.category.trim() || null,
+      tags: v.tags.split(',').map((t) => t.trim()).filter(Boolean),
+    };
     setSaving(true);
     try {
-      if (!formData.title.trim()) {
-        toast.error('Title is required');
-        return;
-      }
-
-      const payload = {
-        title: formData.title.trim(),
-        description: formData.description.trim(),
-        content_type: formData.content_type,
-        content_url: formData.content_url.trim(),
-        thumbnail_url: formData.thumbnail_url.trim(),
-        tags: formData.tags
-          .split(',')
-          .map((t) => t.trim())
-          .filter(Boolean),
-      };
-
-      if (editingItem) {
-        await updateTraining(editingItem.id, payload);
-        toast.success('Training content updated successfully');
+      if (form.id) {
+        await updateTraining(form.id, payload);
+        toast.success('Training content updated');
       } else {
         await createTraining(payload);
-        toast.success('Training content created successfully');
+        toast.success('Draft created — publish it to make it visible to farmers');
       }
-
-      closeFormModal();
-      await loadItems();
+      setForm(null);
+      load();
     } catch (err) {
-      console.error('Error saving training content:', err);
-      toast.error(err.message || 'Failed to save training content');
+      toast.error(err.message);
     } finally {
       setSaving(false);
     }
   };
 
-  const handleDelete = async (item) => {
-    const ok = await confirm(`Delete "${item.title}"? This cannot be undone.`, {
-      title: 'Delete Training Content',
-      confirmLabel: 'Delete',
-    });
-    if (!ok) return;
-
+  const runAction = async (item, action) => {
+    if (action === 'delete') {
+      const ok = await confirm(`Delete “${item.title}”? This cannot be undone.`, { title: 'Delete training content', confirmLabel: 'Delete' });
+      if (!ok) return;
+    }
+    if (action === 'archive') {
+      const ok = await confirm(`Archive “${item.title}”? Farmers will no longer see it.`, { title: 'Archive training content', confirmLabel: 'Archive', danger: false });
+      if (!ok) return;
+    }
+    setBusyId(item.id);
     try {
-      await deleteTraining(item.id);
-      toast.success('Training content deleted');
-      await loadItems();
+      if (action === 'publish') await publishTraining(item.id);
+      else if (action === 'archive') await archiveTraining(item.id);
+      else await deleteTraining(item.id);
+      toast.success({ publish: 'Published — now visible to farmers', archive: 'Archived', delete: 'Deleted' }[action]);
+      if (action === 'delete' && items.length === 1 && page > 1) setPage(page - 1);
+      else load();
     } catch (err) {
-      console.error('Error deleting training content:', err);
-      toast.error(err.message || 'Failed to delete training content');
+      toast.error(err.message);
+    } finally {
+      setBusyId(null);
     }
   };
 
-  const handlePublish = async (item) => {
-    try {
-      await publishTraining(item.id);
-      toast.success('Training content published');
-      await loadItems();
-    } catch (err) {
-      console.error('Error publishing training content:', err);
-      toast.error(err.message || 'Failed to publish training content');
-    }
-  };
-
-  const handleArchive = async (item) => {
-    try {
-      await archiveTraining(item.id);
-      toast.success('Training content archived');
-      await loadItems();
-    } catch (err) {
-      console.error('Error archiving training content:', err);
-      toast.error(err.message || 'Failed to archive training content');
-    }
-  };
+  const counts = items.reduce((acc, i) => ({ ...acc, [i.status]: (acc[i.status] || 0) + 1 }), {});
+  const visible = statusTab === 'all' ? items : items.filter((i) => i.status === statusTab);
+  const tabs = [
+    { id: 'all', label: 'All', count: items.length },
+    { id: 'draft', label: 'Drafts', count: counts.draft || 0 },
+    { id: 'published', label: 'Published', count: counts.published || 0 },
+    { id: 'archived', label: 'Archived', count: counts.archived || 0 },
+  ];
 
   return (
-    <div className="space-y-6 p-4 bg-gradient-to-b from-green-50 to-green-50 min-h-screen">
-      {/* Header */}
-      <div className="bg-white rounded-xl shadow-lg p-6 ring-1 ring-green-100">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h2 className="text-2xl font-bold text-green-800 flex items-center">
-              <GraduationCap className="h-7 w-7 mr-3 text-green-600" />
-              Training Content Management
-            </h2>
-            <p className="text-green-600 mt-1">Create and manage training material for farmers</p>
-            {error && (
-              <div className="mt-2 p-2 bg-yellow-100 border border-yellow-400 rounded text-sm text-yellow-700">
-                {error}
+    <Page>
+      <PageHeader
+        icon={GraduationCap}
+        title="Training content"
+        subtitle="Create, publish and archive learning material for farmers"
+        actions={
+          <>
+            <Button variant="secondary" icon={RefreshCw} onClick={load} disabled={loading}>Refresh</Button>
+            <Button icon={Plus} onClick={() => openForm(null)}>New content</Button>
+          </>
+        }
+      />
+
+      <Card padded={false} title="Library" subtitle={`${pagination.total ?? items.length} items in total`} actions={<Tabs tabs={tabs} value={statusTab} onChange={setStatusTab} />}>
+        {loading ? (
+          <Spinner label="Loading training content…" />
+        ) : error ? (
+          <ErrorState message={error} onRetry={load} />
+        ) : visible.length === 0 ? (
+          <EmptyState
+            icon={GraduationCap}
+            title={items.length === 0 ? 'No training content yet' : `No ${statusTab} content`}
+            description={items.length === 0 ? 'Create your first article, video, guide, checklist or FAQ.' : undefined}
+            action={items.length === 0 && <Button icon={Plus} onClick={() => openForm(null)}>New content</Button>}
+          />
+        ) : (
+          <>
+            <Table head={['Title', 'Type', 'Category', 'Status', 'Views', 'Updated', 'Actions']}>
+              {visible.map((item) => (
+                <tr key={item.id} className="hover:bg-slate-50">
+                  <Td className="max-w-[18rem]">
+                    <button type="button" onClick={() => setView(item)} className="block max-w-full truncate text-left font-medium text-slate-900 hover:text-brand-700">
+                      {item.title}
+                    </button>
+                    {item.description && <div className="truncate text-xs text-slate-500">{item.description}</div>}
+                  </Td>
+                  <Td>{TYPE_LABELS[item.content_type] || item.content_type}</Td>
+                  <Td>{item.category || '—'}</Td>
+                  <Td><Badge tone={STATUS_TONES[item.status]}>{label(item.status)}</Badge></Td>
+                  <Td>{item.view_count ?? 0}</Td>
+                  <Td>{formatDate(item.updated_at)}</Td>
+                  <Td>
+                    <div className="flex gap-1">
+                      <Button size="sm" variant="ghost" icon={Eye} onClick={() => setView(item)} aria-label={`Preview ${item.title}`} />
+                      <Button size="sm" variant="ghost" icon={Pencil} onClick={() => openForm(item)} aria-label={`Edit ${item.title}`} />
+                      {item.status !== 'published' && (
+                        <Button size="sm" variant="secondary" icon={Send} onClick={() => runAction(item, 'publish')} disabled={busyId === item.id}>Publish</Button>
+                      )}
+                      {item.status !== 'archived' && (
+                        <Button size="sm" variant="ghost" icon={Archive} onClick={() => runAction(item, 'archive')} disabled={busyId === item.id} aria-label={`Archive ${item.title}`} />
+                      )}
+                      <Button size="sm" variant="ghost" icon={Trash2} onClick={() => runAction(item, 'delete')} disabled={busyId === item.id} aria-label={`Delete ${item.title}`} className="text-rose-600 hover:bg-rose-50" />
+                    </div>
+                  </Td>
+                </tr>
+              ))}
+            </Table>
+            {pagination.totalPages > 1 && <Pagination page={page} totalPages={pagination.totalPages} total={pagination.total} onChange={setPage} />}
+          </>
+        )}
+      </Card>
+
+      {view && (
+        <Dialog
+          title={view.title}
+          subtitle={`${TYPE_LABELS[view.content_type] || view.content_type} · ${label(view.status)}${view.author?.full_name ? ` · by ${view.author.full_name}` : ''}`}
+          size="lg"
+          onClose={() => setView(null)}
+          footer={
+            <>
+              <Button variant="secondary" onClick={() => setView(null)}>Close</Button>
+              <Button variant="secondary" icon={Pencil} onClick={() => { openForm(view); setView(null); }}>Edit</Button>
+            </>
+          }
+        >
+          <div className="space-y-4 text-sm">
+            {view.description && <p className="text-slate-600">{view.description}</p>}
+            {isUrl(view.content) ? (
+              <a href={view.content.trim()} target="_blank" rel="noopener noreferrer" className="break-all font-medium text-brand-700 underline">
+                {view.content.trim()}
+              </a>
+            ) : (
+              <div className="whitespace-pre-line rounded-xl bg-slate-50 p-4 text-slate-800">{view.content}</div>
+            )}
+            {Array.isArray(view.tags) && view.tags.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {view.tags.map((t) => <Badge key={t}>{t}</Badge>)}
               </div>
             )}
           </div>
-          <button
-            onClick={openCreateModal}
-            className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all transform hover:scale-105 shadow-lg"
-          >
-            <Plus className="h-5 w-5 mr-2" />
-            New Training Content
-          </button>
-        </div>
-      </div>
-
-      {/* Filter */}
-      <div className="bg-white rounded-xl shadow-lg p-6 ring-1 ring-green-100">
-        <div className="flex items-center gap-4">
-          <label className="text-sm font-medium text-green-700">Status:</label>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="p-2 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500"
-          >
-            <option value="all">All</option>
-            <option value="draft">Draft</option>
-            <option value="published">Published</option>
-            <option value="archived">Archived</option>
-          </select>
-          <span className="text-sm text-green-600 ml-auto">
-            Total: <span className="font-semibold">{filteredItems.length}</span>
-          </span>
-        </div>
-      </div>
-
-      {/* List */}
-      <div className="bg-white rounded-xl shadow-lg overflow-hidden ring-1 ring-green-100">
-        {loading ? (
-          <div className="p-8 text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto"></div>
-            <p className="mt-2 text-green-600">Loading training content...</p>
-          </div>
-        ) : filteredItems.length === 0 ? (
-          <div className="p-8 text-center">
-            <GraduationCap className="h-12 w-12 text-green-400 mx-auto mb-4" />
-            <p className="text-green-600 text-lg font-medium mb-2">No training content found</p>
-            <p className="text-green-500 text-sm">Create your first training item to get started.</p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-green-100">
-              <thead className="bg-green-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-green-700 uppercase tracking-wider">Title</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-green-700 uppercase tracking-wider">Type</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-green-700 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-green-700 uppercase tracking-wider">Tags</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-green-700 uppercase tracking-wider">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-green-100">
-                {filteredItems.map((item) => {
-                  const Icon = contentTypeIcon(item.content_type);
-                  return (
-                    <tr key={item.id} className="hover:bg-green-50 transition-colors">
-                      <td className="px-6 py-4">
-                        <div className="text-sm font-medium text-green-900">{item.title}</div>
-                        <div className="text-xs text-green-600 line-clamp-1">{item.description}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="inline-flex items-center gap-1 text-sm text-green-800">
-                          <Icon className="h-4 w-4" /> {item.content_type}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ring-1 ${statusBadge(item.status)}`}>
-                          {item.status ? item.status.charAt(0).toUpperCase() + item.status.slice(1) : 'Draft'}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex flex-wrap gap-1">
-                          {(item.tags || []).map((tag) => (
-                            <span key={tag} className="px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs">{tag}</span>
-                          ))}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <div className="flex items-center space-x-3">
-                          <button
-                            onClick={() => openEditModal(item)}
-                            className="text-blue-600 hover:text-blue-800 transform hover:scale-110 transition"
-                            title="Edit"
-                            aria-label="Edit training content"
-                          >
-                            <Edit className="h-5 w-5" />
-                          </button>
-                          {item.status !== 'published' && (
-                            <button
-                              onClick={() => handlePublish(item)}
-                              className="text-green-600 hover:text-green-800 transform hover:scale-110 transition"
-                              title="Publish"
-                              aria-label="Publish training content"
-                            >
-                              <CheckCircle className="h-5 w-5" />
-                            </button>
-                          )}
-                          {item.status !== 'archived' && (
-                            <button
-                              onClick={() => handleArchive(item)}
-                              className="text-gray-600 hover:text-gray-800 transform hover:scale-110 transition"
-                              title="Archive"
-                              aria-label="Archive training content"
-                            >
-                              <Archive className="h-5 w-5" />
-                            </button>
-                          )}
-                          <button
-                            onClick={() => handleDelete(item)}
-                            className="text-red-600 hover:text-red-800 transform hover:scale-110 transition"
-                            title="Delete"
-                            aria-label="Delete training content"
-                          >
-                            <Trash2 className="h-5 w-5" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-      {/* Create/Edit Modal */}
-      {showFormModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-8 w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl ring-1 ring-green-200">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-semibold text-green-800">
-                {editingItem ? 'Edit Training Content' : 'New Training Content'}
-              </h3>
-              <button onClick={closeFormModal} className="text-green-400 hover:text-green-600" aria-label="Close">
-                <X className="h-6 w-6" />
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-green-700 mb-2">Title *</label>
-                <input
-                  type="text"
-                  value={formData.title}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, title: e.target.value }))}
-                  className="w-full p-3 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500"
-                  placeholder="Enter training title"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-green-700 mb-2">Description</label>
-                <textarea
-                  value={formData.description}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
-                  className="w-full p-3 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500"
-                  rows="3"
-                  placeholder="Describe the training content"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-green-700 mb-2">Content Type *</label>
-                  <select
-                    value={formData.content_type}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, content_type: e.target.value }))}
-                    className="w-full p-3 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500"
-                  >
-                    {CONTENT_TYPES.map((type) => (
-                      <option key={type} value={type}>{type.charAt(0).toUpperCase() + type.slice(1)}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-green-700 mb-2">Tags (comma separated)</label>
-                  <input
-                    type="text"
-                    value={formData.tags}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, tags: e.target.value }))}
-                    className="w-full p-3 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500"
-                    placeholder="pest-control, irrigation"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-green-700 mb-2">Content URL</label>
-                <input
-                  type="text"
-                  value={formData.content_url}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, content_url: e.target.value }))}
-                  className="w-full p-3 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500"
-                  placeholder="https://..."
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-green-700 mb-2">Thumbnail URL</label>
-                <input
-                  type="text"
-                  value={formData.thumbnail_url}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, thumbnail_url: e.target.value }))}
-                  className="w-full p-3 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500"
-                  placeholder="https://..."
-                />
-              </div>
-            </div>
-
-            <div className="flex justify-end space-x-4 mt-8">
-              <button
-                onClick={closeFormModal}
-                className="px-6 py-3 border border-green-300 rounded-lg text-green-700 hover:bg-green-50 transition-all"
-                disabled={saving}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSave}
-                className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all transform hover:scale-105"
-                disabled={saving}
-              >
-                {saving ? 'Saving...' : editingItem ? 'Update' : 'Create'}
-              </button>
-            </div>
-          </div>
-        </div>
+        </Dialog>
       )}
-    </div>
+
+      {form && (
+        <Dialog
+          title={form.id ? 'Edit training content' : 'New training content'}
+          subtitle={form.id ? undefined : 'Saved as a draft; publish it when ready.'}
+          size="lg"
+          onClose={() => !saving && setForm(null)}
+          footer={
+            <>
+              <Button variant="secondary" onClick={() => setForm(null)} disabled={saving}>Cancel</Button>
+              <Button type="submit" form="training-form" loading={saving}>{form.id ? 'Save changes' : 'Create draft'}</Button>
+            </>
+          }
+        >
+          <form id="training-form" onSubmit={submit} className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Field label="Title" required className="sm:col-span-2">
+              <input className={inputClass} value={form.values.title} onChange={(e) => setValue('title', e.target.value)} maxLength={200} required />
+            </Field>
+            <Field label="Type" required>
+              <select className={inputClass} value={form.values.content_type} onChange={(e) => setValue('content_type', e.target.value)}>
+                {CONTENT_TYPES.map((t) => <option key={t} value={t}>{TYPE_LABELS[t] || t}</option>)}
+              </select>
+            </Field>
+            <Field label="Category">
+              <input className={inputClass} value={form.values.category} onChange={(e) => setValue('category', e.target.value)} placeholder="e.g. Pest control" />
+            </Field>
+            <Field label="Short description" className="sm:col-span-2">
+              <input className={inputClass} value={form.values.description} onChange={(e) => setValue('description', e.target.value)} maxLength={300} />
+            </Field>
+            <Field label="Content" required hint="The article text, or a link (https://…) to the video / document." className="sm:col-span-2">
+              <textarea className={`${textareaClass} min-h-[160px]`} value={form.values.content} onChange={(e) => setValue('content', e.target.value)} required />
+            </Field>
+            <Field label="Tags" hint="Comma separated" className="sm:col-span-2">
+              <input className={inputClass} value={form.values.tags} onChange={(e) => setValue('tags', e.target.value)} placeholder="irrigation, hass, pruning" />
+            </Field>
+          </form>
+        </Dialog>
+      )}
+    </Page>
   );
 };
 

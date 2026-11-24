@@ -1,438 +1,194 @@
-import React, { useEffect, useState } from "react";
-import { 
-  Users, Activity, ShoppingBag, DollarSign, UserPlus, Store, 
-  MapPin, UserCheck, Sprout, SlidersHorizontal, Plus, ChevronUp, 
-  TrendingUp, TrendingDown, Layers, CheckCircle2 
-} from "lucide-react";
-import "../Styles/Statistics.css";
-import { getDashboardStatistics, getRegionalAnalytics, getAgentAnalytics, getFarmerAnalytics } from '../../services/analyticsService';
-import { useToast } from '../../components/Ui/Toast';
+import { useCallback, useEffect, useState } from 'react';
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from 'recharts';
+import { BarChart2, Users, Package, ShoppingBag, ClipboardList, RefreshCw } from 'lucide-react';
+import {
+  getDashboardStatistics, getUserAnalytics, getMonthlyOrderTrends, getRegionalAnalytics, getAgentAnalytics, getFarmerAnalytics,
+} from '../../services/analyticsService';
+import {
+  Page, PageHeader, Card, StatGrid, StatCard, Badge, Button, EmptyState, ErrorState, Spinner, Table, Td,
+} from '../../components/Ui/kit';
 
-// Helper functions (Unchanged)
-function humanizeKey(key) {
-  return key
-    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
-    .replace(/_/g, ' ')
-    .replace(/\b\w/g, (c) => c.toUpperCase());
-}
+const BRAND = '#15803d';
+const SECOND = '#60a5fa';
+const AXIS = { fontSize: 12, fill: '#64748b' };
+const label = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1).replace(/_/g, ' ') : '—');
+const rwf = (n) => `${Math.round(Number(n) || 0).toLocaleString()} RWF`;
+const daysAgo = (n) => new Date(Date.now() - n * 864e5).toISOString().slice(0, 10);
 
-function formatValue(value) {
-  if (value === null || value === undefined || value === '') return 'N/A';
-  if (typeof value === 'number') {
-    return Number.isInteger(value) ? value.toLocaleString() : value.toLocaleString(undefined, { maximumFractionDigits: 2 });
-  }
-  if (typeof value === 'boolean') return value ? 'Yes' : 'No';
-  if (Array.isArray(value)) return `${value.length} item${value.length === 1 ? '' : 's'}`;
-  if (typeof value === 'object') return 'N/A';
-  return String(value);
-}
+const ChartBox = ({ children, height = 260 }) => (
+  <div style={{ height }} className="w-full">
+    <ResponsiveContainer width="100%" height="100%">{children}</ResponsiveContainer>
+  </div>
+);
 
-function findArray(data) {
-  if (!data) return [];
-  if (Array.isArray(data)) return data;
-  if (typeof data !== 'object') return [];
-  const candidateKeys = ['data', 'items', 'results', 'regions', 'provinces', 'districts', 'agents', 'farmers', 'list', 'records', 'rows'];
-  for (const key of candidateKeys) {
-    if (Array.isArray(data[key])) return data[key];
-  }
-  const arrProp = Object.values(data).find((v) => Array.isArray(v));
-  return arrProp || [];
-}
+const Section = ({ result, empty, children }) => {
+  if (!result) return <Spinner />;
+  if (result.error) return <ErrorState message={result.error} />;
+  if (empty) return <EmptyState icon={BarChart2} title={empty} />;
+  return children;
+};
 
-function scalarEntries(data) {
-  if (!data || typeof data !== 'object' || Array.isArray(data)) return [];
-  return Object.entries(data).filter(([, v]) => v !== null && v !== undefined && typeof v !== 'object');
-}
-
-// Redesigned Summary Widget Bar
-function SummaryCards({ entries }) {
-  if (!entries || entries.length === 0) return null;
-  return (
-    <div className="widget-summary-grid">
-      {entries.map(([key, value]) => (
-        <div key={key} className="summary-data-item">
-          <div className="summary-data-header">
-            <span className="summary-data-label">{humanizeKey(key)}</span>
-          </div>
-          <p className="summary-data-value">{formatValue(value)}</p>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// Redesigned Data Table matching reference "Activity Monitor"
-function DataTable({ rows }) {
-  if (!rows || rows.length === 0) {
-    return <p className="widget-empty-txt">No data records available.</p>;
-  }
-  const columns = Object.keys(rows[0]).filter((k) => typeof rows[0][k] !== 'object' || rows[0][k] === null);
-  
-  return (
-    <div className="widget-table-wrapper">
-      <table className="widget-monitor-table">
-        <thead>
-          <tr>
-            {columns.map((col) => (
-              <th key={col}>
-                {humanizeKey(col)}
-              </th>
-            ))}
-            <th className="text-right">TREND</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row, idx) => (
-            <tr key={row.id ?? row._id ?? idx}>
-              {columns.map((col, cIdx) => (
-                <td key={col} className={cIdx === 0 ? "font-semibold text-gray-800" : ""}>
-                  {formatValue(row[col])}
-                </td>
-              ))}
-              <td className="text-right">
-                <TrendingUp className="w-3.5 h-3.5 text-emerald-500 inline-block" />
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-// Redesigned Analytics Container matching "System Usage" Card Panels
-function AnalyticsSection({ icon: Icon, title, loading, data }) {
-  return (
-    <div className="stat-card-widget">
-      <div className="widget-card-header">
-        <div className="widget-title-group">
-          <Icon className="w-4 h-4 text-cyan-600" />
-          <h3>{title}</h3>
-        </div>
-        <div className="widget-controls">
-          <SlidersHorizontal className="w-3.5 h-3.5 text-gray-400 cursor-pointer" />
-          <Plus className="w-3.5 h-3.5 text-gray-400 cursor-pointer" />
-        </div>
-      </div>
-
-      <div className="widget-card-body">
-        {loading ? (
-          <div className="widget-loading-state">
-            <div className="widget-spinner"></div>
-            <span>Fetching telemetry data...</span>
-          </div>
-        ) : (
-          <>
-            <SummaryCards entries={scalarEntries(data)} />
-            <DataTable rows={findArray(data)} />
-          </>
-        )}
-      </div>
-    </div>
-  );
-}
+/** Settle one request into { data } or { error } so one failing chart doesn't blank the page. */
+const settle = (p) => p.then((data) => ({ data })).catch((e) => ({ error: e?.response?.data?.message || e?.message || 'Failed to load' }));
 
 export default function Statistics() {
-  const [stats, setStats] = useState({
-    users: { total: 0, recent: 0, byRole: { admin: 0, agent: 0, farmer: 0, shop_manager: 0 } },
-    orders: { total: 0, recent: 0, revenue: { total: 0, last30Days: 0 } },
-    products: { total: 0, inStock: 0, outOfStock: 0 },
-    serviceRequests: { total: 0, byStatus: { pending: 0, assigned: 0, in_progress: 0, completed: 0, cancelled: 0, on_hold: 0 } },
-    topProducts: []
-  });
+  const [res, setRes] = useState({});
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
 
-  const [regionalData, setRegionalData] = useState(null);
-  const [regionalLoading, setRegionalLoading] = useState(true);
-  const [agentData, setAgentData] = useState(null);
-  const [agentLoading, setAgentLoading] = useState(true);
-  const [farmerData, setFarmerData] = useState(null);
-  const [farmerLoading, setFarmerLoading] = useState(true);
-
-  const toast = useToast();
-
-  useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const data = await getDashboardStatistics();
-        setStats(data || {});
-      } catch (err) {
-        console.error('Error fetching statistics:', err);
-        setError('Failed to load statistics');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchStats();
+  const load = useCallback(async () => {
+    setLoading(true);
+    const [dashboard, users, orders, regional, agents, farmers] = await Promise.all([
+      settle(getDashboardStatistics()),
+      settle(getUserAnalytics({ start_date: daysAgo(90) })),
+      settle(getMonthlyOrderTrends()),
+      settle(getRegionalAnalytics()),
+      settle(getAgentAnalytics()),
+      settle(getFarmerAnalytics()),
+    ]);
+    setRes({ dashboard, users, orders, regional, agents, farmers });
+    setLoading(false);
   }, []);
 
-  useEffect(() => {
-    const fetchRegional = async () => {
-      try {
-        const data = await getRegionalAnalytics();
-        setRegionalData(data);
-      } catch (err) {
-        console.error('Error fetching regional analytics:', err);
-        toast.error(err.message || 'Failed to load regional analytics');
-      } finally {
-        setRegionalLoading(false);
-      }
-    };
+  useEffect(() => { load(); }, [load]);
 
-    const fetchAgents = async () => {
-      try {
-        const data = await getAgentAnalytics();
-        setAgentData(data);
-      } catch (err) {
-        console.error('Error fetching agent analytics:', err);
-        toast.error(err.message || 'Failed to load agent analytics');
-      } finally {
-        setAgentLoading(false);
-      }
-    };
-
-    const fetchFarmers = async () => {
-      try {
-        const data = await getFarmerAnalytics();
-        setFarmerData(data);
-      } catch (err) {
-        console.error('Error fetching farmer analytics:', err);
-        toast.error(err.message || 'Failed to load farmer analytics');
-      } finally {
-        setFarmerLoading(false);
-      }
-    };
-
-    fetchRegional();
-    fetchAgents();
-    fetchFarmers();
-  }, []);
-
-  if (loading) {
-    return (
-      <div className="stats-dashboard-root font-poppins">
-        <div className="widget-loading-state">
-          <div className="widget-spinner"></div>
-          <span>Initializing system metrics...</span>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="stats-dashboard-root font-poppins">
-        <div className="stats-error-banner">{error}</div>
-      </div>
-    );
-  }
-
-  const activeUsersCount = (stats.users?.byRole?.admin || 0) + 
-                           (stats.users?.byRole?.agent || 0) + 
-                           (stats.users?.byRole?.farmer || 0) + 
-                           (stats.users?.byRole?.shop_manager || 0);
+  const d = res.dashboard?.data;
+  const regTrend = res.users?.data?.registrations?.trend || [];
+  const byRole = Object.entries(res.users?.data?.demographics?.byRole || d?.users?.byRole || {}).map(([role, count]) => ({ role: label(role), count }));
+  const orderTrend = res.orders?.data?.trends || [];
+  const regions = (res.regional?.data?.regions || []).map((r) => ({ ...r, province: r.province || 'Unknown' }));
+  const agents = Array.isArray(res.agents?.data) ? res.agents.data : [];
+  const verification = Object.entries(res.farmers?.data?.by_verification_status || {});
+  const srByStatus = Object.entries(d?.serviceRequests?.byStatus || {});
 
   return (
-    <div className="stats-dashboard-root font-poppins">
-      <div className="stats-wrapper">
-        
-        {/* Top Control Bar Header */}
-        <header className="stats-page-header">
-          <div>
-            <h1 className="stats-page-title">System Usage Statistics</h1>
-            <p className="stats-page-sub">Telemetry readout & real-time operational monitor</p>
-          </div>
-          <div className="header-actions">
-            <button className="pill-control-btn">
-              <SlidersHorizontal className="w-3.5 h-3.5" />
-              <span>Configure Widgets</span>
-            </button>
-          </div>
-        </header>
+    <Page>
+      <PageHeader
+        icon={BarChart2}
+        title="System Usage"
+        subtitle="Live platform activity: accounts, orders, regions and agent performance."
+        actions={<Button variant="secondary" icon={RefreshCw} loading={loading} onClick={load}>Refresh</Button>}
+      />
 
-        {/* Top Horizontal Hardware Monitor Style Layout */}
-        <div className="top-widgets-grid">
-          
-          {/* Card 1: Users Monitor */}
-          <div className="stat-card-widget">
-            <div className="widget-card-header">
-              <div className="widget-title-group">
-                <span>USERS MONITOR</span>
-              </div>
-              <ChevronUp className="w-4 h-4 text-gray-400" />
-            </div>
-            
-            <div className="widget-metric-hero">
-              <div className="hero-num-group">
-                <h2 className="hero-value text-cyan-600">{stats.users?.total?.toLocaleString() || 0}</h2>
-                <div className="hero-trend up">
-                  <TrendingUp className="w-3.5 h-3.5" />
-                  <span>12%</span>
-                </div>
-              </div>
-            </div>
+      {res.dashboard?.error ? (
+        <Card><ErrorState message={res.dashboard.error} onRetry={load} /></Card>
+      ) : (
+        <StatGrid>
+          <StatCard label="Users" value={d ? d.users?.total?.toLocaleString() : '—'} hint={d ? `${d.users?.recent ?? 0} joined in the last 7 days` : undefined} icon={Users} />
+          <StatCard label="Products" value={d ? d.products?.total ?? 0 : '—'} hint={d ? `${d.products?.inStock ?? 0} in stock · ${d.products?.outOfStock ?? 0} out` : undefined} icon={Package} tone="blue" />
+          <StatCard label="Orders (30 days)" value={d ? d.orders?.recent ?? 0 : '—'} hint={d ? `${rwf(d.orders?.revenue?.last30Days)} revenue` : undefined} icon={ShoppingBag} tone="amber" />
+          <StatCard label="Service requests" value={d ? d.serviceRequests?.total ?? 0 : '—'} hint={d ? `${d.orders?.total ?? 0} orders all time` : undefined} icon={ClipboardList} tone="slate" />
+        </StatGrid>
+      )}
 
-            <div className="widget-progress-stack">
-              <div className="progress-item">
-                <div className="progress-labels">
-                  <span>Admins</span>
-                  <span className="font-bold">{stats.users?.byRole?.admin || 0}</span>
-                </div>
-                <div className="progress-bar-bg"><div className="bar-fill bg-cyan" style={{ width: '25%' }}></div></div>
-              </div>
-
-              <div className="progress-item">
-                <div className="progress-labels">
-                  <span>Farmers</span>
-                  <span className="font-bold">{stats.users?.byRole?.farmer || 0}</span>
-                </div>
-                <div className="progress-bar-bg"><div className="bar-fill bg-emerald" style={{ width: '65%' }}></div></div>
-              </div>
-
-              <div className="progress-item">
-                <div className="progress-labels">
-                  <span>Agents</span>
-                  <span className="font-bold">{stats.users?.byRole?.agent || 0}</span>
-                </div>
-                <div className="progress-bar-bg"><div className="bar-fill bg-amber" style={{ width: '40%' }}></div></div>
-              </div>
-            </div>
-          </div>
-
-          {/* Card 2: Activity & Users Usage */}
-          <div className="stat-card-widget">
-            <div className="widget-card-header">
-              <div className="widget-title-group">
-                <span>ACTIVE USERS</span>
-              </div>
-              <ChevronUp className="w-4 h-4 text-gray-400" />
-            </div>
-
-            <div className="widget-spec-grid">
-              <div className="spec-row">
-                <span className="spec-label">ACTIVE ACCOUNT TOTAL</span>
-                <span className="spec-value">{activeUsersCount}</span>
-              </div>
-              <div className="spec-row">
-                <span className="spec-label">NEWLY REGISTERED</span>
-                <span className="spec-value">{stats.users?.recent || 0}</span>
-              </div>
-            </div>
-
-            <div className="widget-metric-hero mt-2">
-              <div className="hero-num-group">
-                <h2 className="hero-value text-emerald-600">{activeUsersCount}</h2>
-                <div className="hero-trend up">
-                  <TrendingUp className="w-3.5 h-3.5" />
-                  <span>8%</span>
-                </div>
-              </div>
-              <p className="hero-sub-lbl">Active Users Session Rate</p>
-            </div>
-          </div>
-
-          {/* Card 3: Revenue & Orders Allocation */}
-          <div className="stat-card-widget">
-            <div className="widget-card-header">
-              <div className="widget-title-group">
-                <span>TRANSACTIONS</span>
-              </div>
-              <ChevronUp className="w-4 h-4 text-gray-400" />
-            </div>
-
-            <div className="widget-spec-grid">
-              <div className="spec-row">
-                <span className="spec-label">TOTAL TRANSACTIONS</span>
-                <span className="spec-value">{stats.orders?.total?.toLocaleString() || 0}</span>
-              </div>
-              <div className="spec-row">
-                <span className="spec-label">30-DAY REVENUE</span>
-                <span className="spec-value">RWF {stats.orders?.revenue?.last30Days?.toLocaleString() || 0}</span>
-              </div>
-            </div>
-
-            <div className="widget-metric-hero mt-2">
-              <div className="hero-num-group">
-                <h2 className="hero-value text-rose-600">
-                  RWF {stats.orders?.revenue?.total?.toLocaleString() || 0}
-                </h2>
-                <div className="hero-trend down">
-                  <TrendingDown className="w-3.5 h-3.5" />
-                  <span>2%</span>
-                </div>
-              </div>
-              <p className="hero-sub-lbl">Gross System Turnover</p>
-            </div>
-          </div>
-
-          {/* Card 4: Ecosystem & Shops */}
-          <div className="stat-card-widget">
-            <div className="widget-card-header">
-              <div className="widget-title-group">
-                <span>ECOSYSTEM NETWORK</span>
-              </div>
-              <ChevronUp className="w-4 h-4 text-gray-400" />
-            </div>
-
-            <div className="widget-progress-stack mt-1">
-              <div className="progress-item">
-                <div className="progress-labels">
-                  <span>Registered Outlets</span>
-                  <span className="font-bold">{stats.users?.byRole?.shop_manager || 0}</span>
-                </div>
-                <div className="progress-bar-bg"><div className="bar-fill bg-purple" style={{ width: '80%' }}></div></div>
-              </div>
-
-              <div className="progress-item">
-                <div className="progress-labels">
-                  <span>Catalog Products</span>
-                  <span className="font-bold">{stats.products?.total || 0}</span>
-                </div>
-                <div className="progress-bar-bg"><div className="bar-fill bg-blue" style={{ width: '55%' }}></div></div>
-              </div>
-
-              <div className="progress-item">
-                <div className="progress-labels">
-                  <span>Service Requests</span>
-                  <span className="font-bold">{stats.serviceRequests?.total || 0}</span>
-                </div>
-                <div className="progress-bar-bg"><div className="bar-fill bg-emerald" style={{ width: '90%' }}></div></div>
-              </div>
-            </div>
-          </div>
-
-        </div>
-
-        {/* Detailed Analytics Grid Sections */}
-        <div className="analytics-sections-grid">
-          {/* Regional Analytics */}
-          <AnalyticsSection
-            icon={MapPin}
-            title="Regional Territory Analytics"
-            loading={regionalLoading}
-            data={regionalData}
-          />
-
-          {/* Agent Performance Analytics */}
-          <AnalyticsSection
-            icon={UserCheck}
-            title="Field Agent Operational Performance"
-            loading={agentLoading}
-            data={agentData}
-          />
-
-          {/* Farmer Engagement Analytics */}
-          <AnalyticsSection
-            icon={Sprout}
-            title="Farmer Engagement & Orchard Telemetry"
-            loading={farmerLoading}
-            data={farmerData}
-          />
-        </div>
-
+      <div className="grid gap-6 lg:grid-cols-3">
+        <Card title="New accounts" subtitle="Registrations per day, last 90 days" className="lg:col-span-2">
+          <Section result={res.users} empty={regTrend.length ? null : 'No registrations in the last 90 days'}>
+            <ChartBox>
+              <BarChart data={regTrend} margin={{ top: 5, right: 8, left: -16, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                <XAxis dataKey="date" tick={AXIS} tickLine={false} axisLine={{ stroke: '#e2e8f0' }} tickFormatter={(v) => v.slice(5)} />
+                <YAxis allowDecimals={false} tick={AXIS} tickLine={false} axisLine={false} />
+                <Tooltip cursor={{ fill: '#f1f5f9' }} />
+                <Bar dataKey="registrations" name="Registrations" fill={BRAND} radius={[4, 4, 0, 0]} maxBarSize={40} />
+              </BarChart>
+            </ChartBox>
+          </Section>
+        </Card>
+        <Card title="Accounts by role">
+          <Section result={res.users} empty={byRole.length ? null : 'No users'}>
+            <ChartBox>
+              <BarChart data={byRole} layout="vertical" margin={{ top: 5, right: 16, left: 8, bottom: 0 }}>
+                <XAxis type="number" allowDecimals={false} tick={AXIS} tickLine={false} axisLine={false} />
+                <YAxis type="category" dataKey="role" tick={AXIS} tickLine={false} axisLine={false} width={96} />
+                <Tooltip cursor={{ fill: '#f1f5f9' }} />
+                <Bar dataKey="count" name="Accounts" fill={BRAND} radius={[0, 4, 4, 0]} maxBarSize={28} />
+              </BarChart>
+            </ChartBox>
+          </Section>
+        </Card>
       </div>
-    </div>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card title="Growers and service requests by province">
+          <Section result={res.regional} empty={regions.length ? null : 'No regional data yet'}>
+            <ChartBox>
+              <BarChart data={regions} margin={{ top: 5, right: 8, left: -16, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                <XAxis dataKey="province" tick={AXIS} tickLine={false} axisLine={{ stroke: '#e2e8f0' }} tickFormatter={(v) => v.replace(' Province', '')} />
+                <YAxis allowDecimals={false} tick={AXIS} tickLine={false} axisLine={false} />
+                <Tooltip cursor={{ fill: '#f1f5f9' }} />
+                <Legend wrapperStyle={{ fontSize: 12 }} />
+                <Bar dataKey="farmer_count" name="Growers" fill={BRAND} radius={[4, 4, 0, 0]} maxBarSize={36} />
+                <Bar dataKey="service_requests" name="Service requests" fill={SECOND} radius={[4, 4, 0, 0]} maxBarSize={36} />
+              </BarChart>
+            </ChartBox>
+          </Section>
+        </Card>
+        <Card title="Orders per month" subtitle="Last 12 months, excluding cancelled">
+          <Section result={res.orders} empty={orderTrend.length ? null : 'No orders in the last 12 months'}>
+            <ChartBox>
+              <BarChart data={orderTrend} margin={{ top: 5, right: 8, left: -16, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                <XAxis dataKey="period" tick={AXIS} tickLine={false} axisLine={{ stroke: '#e2e8f0' }} />
+                <YAxis allowDecimals={false} tick={AXIS} tickLine={false} axisLine={false} />
+                <Tooltip cursor={{ fill: '#f1f5f9' }} formatter={(v, n, p) => (n === 'Orders' ? [`${v} (${rwf(p.payload.revenue)})`, n] : [v, n])} />
+                <Bar dataKey="orders" name="Orders" fill={BRAND} radius={[4, 4, 0, 0]} maxBarSize={36} />
+              </BarChart>
+            </ChartBox>
+          </Section>
+        </Card>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-3">
+        <Card title="Grower verification">
+          <Section result={res.farmers} empty={verification.length ? null : 'No grower profiles yet'}>
+            <ul className="space-y-3">
+              {verification.map(([s, n]) => {
+                const total = res.farmers.data.total_farmers || 1;
+                return (
+                  <li key={s}>
+                    <div className="mb-1 flex justify-between text-sm"><span className="text-slate-700">{label(s)}</span><span className="font-medium text-slate-900">{n}</span></div>
+                    <div className="h-2 rounded-full bg-slate-100"><div className="h-2 rounded-full bg-brand-600" style={{ width: `${(n / total) * 100}%` }} /></div>
+                  </li>
+                );
+              })}
+            </ul>
+          </Section>
+        </Card>
+        <Card title="Service requests by status">
+          <Section result={res.dashboard} empty={srByStatus.length ? null : 'No service requests yet'}>
+            <div className="flex flex-wrap gap-2">
+              {srByStatus.map(([s, n]) => <Badge key={s} tone={s === 'completed' ? 'brand' : s === 'pending' ? 'amber' : 'slate'}>{label(s)}: {n}</Badge>)}
+            </div>
+          </Section>
+        </Card>
+        <Card title="Top products (30 days)">
+          <Section result={res.dashboard} empty={d?.topProducts?.length ? null : 'No product sales in the last 30 days'}>
+            <ul className="divide-y divide-slate-100 text-sm">
+              {d?.topProducts?.map((p) => (
+                <li key={p.id} className="flex justify-between gap-2 py-2"><span className="truncate text-slate-700">{p.name}</span><span className="shrink-0 font-medium text-slate-900">{rwf(p.revenue)}</span></li>
+              ))}
+            </ul>
+          </Section>
+        </Card>
+      </div>
+
+      <Card title="Agent performance" subtitle="Active agents" padded={false}>
+        <Section result={res.agents} empty={agents.length ? null : 'No active agents'}>
+          <Table head={['Agent', 'Province', 'Farm visits', 'Service requests', 'Completion', 'Reports']}>
+            {agents.map((a) => (
+              <tr key={a.id}>
+                <Td><div className="font-medium text-slate-900">{a.full_name}</div><div className="text-xs text-slate-500">{a.email}</div></Td>
+                <Td>{a.agent_profile?.province || '—'}</Td>
+                <Td>{a.stats?.completed_visits ?? 0} / {a.stats?.total_visits ?? 0}</Td>
+                <Td>{a.stats?.completed_service_requests ?? 0} / {a.stats?.total_service_requests ?? 0}</Td>
+                <Td>{a.stats?.completion_rate_pct ?? 0}%</Td>
+                <Td>{a.stats?.total_reports ?? 0}</Td>
+              </tr>
+            ))}
+          </Table>
+        </Section>
+      </Card>
+    </Page>
   );
 }
