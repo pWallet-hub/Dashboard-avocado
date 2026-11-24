@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useRef, useState } from 'react';
+import { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react';
 
 const ToastContext = createContext(null);
 
@@ -21,11 +21,13 @@ export function ToastProvider({ children }) {
     return id;
   }, [removeToast]);
 
-  const toast = {
+  // Memoized so consumers can safely list `toast` in hook dependency arrays
+  // without re-running effects (and re-fetching) every time a toast appears.
+  const toast = useMemo(() => ({
     success: (message, duration) => showToast(message, 'success', duration),
     error: (message, duration) => showToast(message, 'error', duration),
     info: (message, duration) => showToast(message, 'info', duration),
-  };
+  }), [showToast]);
 
   return (
     <ToastContext.Provider value={toast}>

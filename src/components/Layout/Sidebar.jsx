@@ -31,7 +31,9 @@ import {
   Activity,
   GraduationCap,
   Map,
-  Globe2
+  Globe2,
+  LineChart,
+  PackageCheck
 } from 'lucide-react';
 import asr from '../../assets/image/pwallet-logo-new.png';
 import './Sidebar.css';
@@ -133,6 +135,8 @@ const Sidebar = ({ role: propRole }) => {
     { to: "/dashboard/admin/geography", icon: Globe2, text: "Geography" },
     { to: "/dashboard/admin/diseases", icon: Bug, text: "Disease Management" },
     { to: "/dashboard/admin/forecasting", icon: Map, text: "Regional Forecasting" },
+    { to: "/dashboard/admin/market-prices", icon: LineChart, text: "Market Prices" },
+    { to: "/dashboard/admin/harvest-lots", icon: PackageCheck, text: "Harvest Lots" },
     { to: "/dashboard/admin/DocumentReview", icon: FileCheck2, text: "Document Review" },
     { to: "/dashboard/admin/training", icon: GraduationCap, text: "Training Content" },
     { to: "/dashboard/admin/statistics", icon: BarChart2, text: "System Usage" },
@@ -151,6 +155,8 @@ const Sidebar = ({ role: propRole }) => {
     { to: "/dashboard/agent/farms", icon: Trees, text: "Farms" },
     { to: "/dashboard/agent/DiseaseCases", icon: Bug, text: "Disease Cases" },
     { to: "/dashboard/agent/Forecasting", icon: TrendingUp, text: "Harvest Forecasting" },
+    { to: "/dashboard/agent/harvest-lots", icon: PackageCheck, text: "Harvest Lots" },
+    { to: "/dashboard/agent/market-prices", icon: LineChart, text: "Market Prices" },
     { to: "/dashboard/agent/Visits", icon: CalendarClock, text: "Farm Visits" },
     { to: "/dashboard/agent/Documents", icon: FileText, text: "My Documents" },
     { to: "/dashboard/agent/ProfileAccessQR", icon: QrCode, text: "Farmer QR Access" },
@@ -165,6 +171,8 @@ const Sidebar = ({ role: propRole }) => {
     { to: "/dashboard/farmer/PestManagement", icon: Bug, text: "Book your Integrated Pest Management Day" },
     { to: "/dashboard/farmer/PropertyEvaluation", icon: MapPin, text: "Book your Propery Evaluation Day" },
     { to: "/dashboard/farmer/market", icon: ShoppingCart, text: "Farm Market" },
+    { to: "/dashboard/farmer/harvest-lots", icon: PackageCheck, text: "My Harvest Lots" },
+    { to: "/dashboard/farmer/market-prices", icon: LineChart, text: "Market Prices" },
     { to: "/dashboard/farmer/my-service-requests", icon: ClipboardList, text: "My Requests" },
     { to: "/dashboard/farmer/cart", icon: ShoppingBag, text: "My Cart" },
     { to: "/dashboard/farmer/Weather", icon: Cloud, text: "Weather" },
@@ -182,6 +190,7 @@ const Sidebar = ({ role: propRole }) => {
     { to: "/dashboard/shop-manager/procurement", icon: ClipboardList, text: "Procurement" },
     { to: "/dashboard/shop-manager/sales", icon: TrendingUp, text: "Sales" },
     { to: "/dashboard/shop-manager/analytics", icon: BarChart2, text: "Analytics" },
+    { to: "/dashboard/shop-manager/market-prices", icon: LineChart, text: "Market Prices" },
     { to: "/dashboard/shop-manager/profile", icon: User, text: "Shop Profile" },
   ];
 

@@ -1,0 +1,35 @@
+# Frontend stack: the React SPA built with Vite and served by nginx.
+#
+# Runs on its own, separately from the backend (dash-api). The browser talks
+# to the backend over HTTP at VITE_API_BASE_URL, which is baked in at build
+# time. Both stacks also join the shared "avocado-net" Docker network, so
+# either side can reach the other by container name if a reverse proxy is
+# added later.
+#
+#   docker compose up -d --build     # http://localhost:3000
+#   docker compose down
+#
+# Change the API URL (e.g. for staging):
+#   WEB_API_BASE_URL=https://staging-api.example.com/api docker compose up -d --build
+
+name: avocado-frontend
+
+services:
+  web:
+    build:
+      context: .
+      target: production
+      args:
+        # Deliberately NOT ${VITE_API_BASE_URL}: compose auto-reads the tracked .env,
+        # whose VITE_API_BASE_URL points at production.
+        VITE_API_BASE_URL: ${WEB_API_BASE_URL:-http://localhost:5000/api}
+    image: avocado/dashboard-web:latest
+    container_name: dashboard-web
+    restart: unless-stopped
+    ports:
+      - '${WEB_HOST_PORT:-3000}:80'
+    networks: [avocado-net]
+
+networks:
+  avocado-net:
+    name: avocado-net
