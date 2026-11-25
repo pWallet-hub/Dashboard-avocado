@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { QrCode, RefreshCw, Search, KeyRound, Download, Copy, History, Users, Printer } from 'lucide-react';
 import { listFarmers } from '../../services/usersService';
 import { getUserQRCode, generateAccessKeyQRCode, regenerateQRToken, getActivityLog } from '../../services/profileAccessService';
@@ -48,6 +48,7 @@ export default function ProfileAccessQR() {
   const [activity, setActivity] = useState([]);
   const [activityLoading, setActivityLoading] = useState(false);
   const [busy, setBusy] = useState(null); // 'regenerate' | 'key'
+  const detailRef = useRef(null);
 
   const loadFarmers = useCallback(async () => {
     setFarmersLoading(true);
@@ -101,6 +102,8 @@ export default function ProfileAccessQR() {
     setAccessKey(null);
     loadQr(f.id);
     loadActivity(f.id);
+    // On phones the detail panel sits below the list — bring it into view
+    if (window.innerWidth < 1024) setTimeout(() => detailRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
   };
 
   const regenerate = async () => {
@@ -210,7 +213,7 @@ export default function ProfileAccessQR() {
           )}
         </Card>
 
-        <div className="space-y-6">
+        <div ref={detailRef} className="scroll-mt-20 space-y-6">
           {!selected ? (
             <Card>
               <EmptyState icon={QrCode} title="Select a farmer" description="Pick a farmer from the list to see their QR card and access history." />

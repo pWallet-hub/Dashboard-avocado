@@ -17,10 +17,10 @@ const getBaseURL = () => {
 // Debug logging only in development — in production the console would expose
 // tokens and farmers' personal data to anyone with devtools open.
 const debug = (...args) => {
-  if (import.meta.env.DEV) console.log(...args); // eslint-disable-line no-console
+  if (import.meta.env.DEV) console.log(...args);
 };
 const debugError = (...args) => {
-  if (import.meta.env.DEV) console.error(...args); // eslint-disable-line no-console
+  if (import.meta.env.DEV) console.error(...args);
 };
 
 debug('🌍 Environment:', import.meta.env.MODE);

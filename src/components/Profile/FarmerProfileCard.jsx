@@ -1,1117 +1,321 @@
-import React, { useState, useEffect } from 'react';
+/* eslint-disable react/prop-types */
+import { useCallback, useEffect, useState } from 'react';
+import { User, Pencil, Phone, Mail, MapPin, Trees, HandHelping } from 'lucide-react';
 import { getFarmerInformation, updateFarmerInformation } from '../../services/farmer-information';
+import { updateProfile } from '../../services/authService';
+import { useToast } from '../Ui/Toast';
+import { Page, PageHeader, Card, Badge, Button, Field, inputClass, ErrorState, Spinner, Dialog, Tabs } from '../Ui/kit';
+import ProfilePictureUploader from './ProfilePictureUploader';
+import MembershipCard from './MembershipCard';
 
-/* ───────────── Icons ───────────── */
-const Icon = ({ name, className = 'farmer-icon' }) => {
-  const map = {
-    Person: (
-      <svg viewBox="0 0 24 24" className={className} fill="currentColor">
-        <path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5Zm0 2c-5 0-9 2.5-9 5.5A1.5 1.5 0 0 0 4.5 21h15A1.5 1.5 0 0 0 21 19.5C21 16.5 17 14 12 14Z"/>
-      </svg>
-    ),
-    Map: (
-      <svg viewBox="0 0 24 24" className={className} fill="currentColor">
-        <path d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7Zm0 9.5A2.5 2.5 0 1 1 14.5 9 2.5 2.5 0 0 1 12 11.5Z"/>
-      </svg>
-    ),
-    Leaf: (
-      <svg viewBox="0 0 24 24" className={className} fill="currentColor" stroke="currentColor" strokeWidth="2">
-        <path d="M21 3S11 2 6 7s-4 11-4 11 6 2 11-3S21 3 21 3Z" fill="none"/>
-        <path d="m12 9-2 4"/>
-      </svg>
-    ),
-    Hand: (
-      <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2">
-        <path d="M4 11v2a7 7 0 0 0 14 0V6a2 2 0 0 0-4 0v5M10 6v6M7 8v4"/>
-      </svg>
-    ),
-    Edit: (
-      <svg viewBox="0 0 24 24" className={className} fill="currentColor">
-        <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25z"/>
-        <path d="M20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75Z"/>
-      </svg>
-    ),
-    Check: (
-      <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="3">
-        <path d="m20 6-11 11L4 12"/>
-      </svg>
-    ),
-    Close: (
-      <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2">
-        <path d="M6 6l12 12M18 6 6 18"/>
-      </svg>
-    ),
-    AlertCircle: (
-      <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2">
-        <circle cx="12" cy="12" r="10"/>
-        <line x1="12" y1="8" x2="12" y2="12"/>
-        <line x1="12" y1="16" x2="12.01" y2="16"/>
-      </svg>
-    )
-  };
-  return map[name] || null;
+const PROVINCES = ['Kigali', 'Eastern Province', 'Northern Province', 'Southern Province', 'Western Province'];
+const AVOCADO_TYPES = ['Hass', 'Fuerte', 'Bacon', 'Zutano', 'Mixed'];
+const ASSISTANCE = ['irrigation', 'fertilizers', 'fertilizer', 'pesticide', 'training', 'equipment', 'seedlings', 'pest_control'];
+
+const INT_FIELDS = ['age', 'farm_age', 'tree_count'];
+const FLOAT_FIELDS = ['farm_size', 'mixed_percentage'];
+const PROFILE_FIELDS = [
+  'age', 'id_number', 'gender', 'marital_status', 'education_level',
+  'province', 'district', 'sector', 'cell', 'village',
+  'farm_age', 'planted', 'avocado_type', 'mixed_percentage', 'farm_size', 'tree_count', 'upi_number',
+  'farm_province', 'farm_district', 'farm_sector', 'farm_cell', 'farm_village', 'assistance',
+];
+
+const toForm = (user, fp) => {
+  const f = { full_name: user?.full_name || '', phone: user?.phone || '' };
+  PROFILE_FIELDS.forEach((k) => {
+    f[k] = k === 'assistance' ? fp?.assistance || [] : fp?.[k] ?? '';
+  });
+  return f;
 };
 
-export default function FarmerProfileCard({ 
-  onUpdate, 
-  showEditButton = true,
-  fullScreen = true,
-  cardOnly = false
-}) {
-  const [profileData, setProfileData] = useState(null);
+const Row = ({ label, value }) => (
+  <div className="flex justify-between gap-4 py-2 text-sm">
+    <dt className="text-slate-500">{label}</dt>
+    <dd className="text-right font-medium text-slate-900">{value === '' || value === null || value === undefined ? '—' : value}</dd>
+  </div>
+);
+
+const join = (...parts) => parts.filter(Boolean).join(', ');
+
+/**
+ * Farmer profile page: view + edit personal, location and farm details, and the
+ * profile picture. Used by /dashboard/farmer/profile.
+ */
+export default function FarmerProfileCard({ onUpdate, showEditButton = true }) {
+  const toast = useToast();
+  const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [activeTab, setActiveTab] = useState('personal');
-  const [showModal, setShowModal] = useState(false);
-  const [formData, setFormData] = useState({});
+  const [editing, setEditing] = useState(false);
+  const [tab, setTab] = useState('personal');
+  const [form, setForm] = useState({});
+  const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState(null);
-  const [saveSuccess, setSaveSuccess] = useState(false);
-  const [formInnerTab, setFormInnerTab] = useState('personal');
 
-  useEffect(() => {
-    fetchProfile();
-  }, []);
-
-  const getProfileLocation = (profile) => {
-    const farmLocation = [profile?.farm_sector, profile?.farm_district, profile?.farm_province].filter(Boolean);
-    const personalLocation = [profile?.sector, profile?.district, profile?.province].filter(Boolean);
-    return farmLocation.length > 0 ? farmLocation.join(', ') : personalLocation.length > 0 ? personalLocation.join(', ') : 'N/A';
-  };
-
-  const fetchProfile = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     setError(null);
-    
     try {
-      const response = await getFarmerInformation();
-      console.log('API Response:', response);
-      
-      const { user_info, farmer_profile } = response.data || response;
-
-      // Set defaults for tree varieties if not present
-      const hass_trees = farmer_profile?.hass_trees || 0;
-      const fuerte_trees = farmer_profile?.fuerte_trees || 0;
-      
-      // Calculate tree_count as sum of hass and fuerte if not provided, or use API value
-      const tree_count = farmer_profile?.tree_count || (hass_trees + fuerte_trees);
-
-      // Construct profile data with defaults for missing fields
-      const profile = {
-        id: user_info?.id,
-        full_name: user_info?.full_name || 'Farmer Name',
-        email: user_info?.email || '',
-        phone: user_info?.phone || '',
-        role: user_info?.role || 'farmer',
-        status: user_info?.status || 'active',
-        created_at: user_info?.created_at || new Date().toISOString(),
-        updated_at: user_info?.updated_at,
-        profile: {
-          ...farmer_profile,
-          hass_trees: hass_trees,
-          fuerte_trees: fuerte_trees,
-          tree_count: tree_count,
-        }
-      };
-
-      setProfileData(profile);
-      
-      // Initialize form data
-      setFormData({
-        full_name: user_info?.full_name || '',
-        email: user_info?.email || '',
-        phone: user_info?.phone || '',
-        age: farmer_profile?.age || '',
-        id_number: farmer_profile?.id_number || '',
-        gender: farmer_profile?.gender || '',
-        marital_status: farmer_profile?.marital_status || '',
-        education_level: farmer_profile?.education_level || '',
-        province: farmer_profile?.province || '',
-        district: farmer_profile?.district || '',
-        sector: farmer_profile?.sector || '',
-        cell: farmer_profile?.cell || '',
-        village: farmer_profile?.village || '',
-        farm_age: farmer_profile?.farm_age || '',
-        avocado_type: farmer_profile?.avocado_type || '',
-        farm_size: farmer_profile?.farm_size || '',
-        tree_count: farmer_profile?.tree_count || '',
-        hass_trees: farmer_profile?.hass_trees || 0,
-        fuerte_trees: farmer_profile?.fuerte_trees || 0,
-        upi_number: farmer_profile?.upi_number || '',
-        planted: farmer_profile?.planted || '',
-        mixed_percentage: farmer_profile?.mixed_percentage || '',
-        farm_province: farmer_profile?.farm_province || '',
-        farm_district: farmer_profile?.farm_district || '',
-        farm_sector: farmer_profile?.farm_sector || '',
-        farm_cell: farmer_profile?.farm_cell || '',
-        farm_village: farmer_profile?.farm_village || '',
-        assistance: farmer_profile?.assistance || [],
-        image: farmer_profile?.image || ''
-      });
-    } catch (err) {
-      console.error('Failed to fetch profile:', err);
-      setError(err?.response?.data?.message || 'Failed to load profile data');
+      const res = await getFarmerInformation();
+      setData(res?.data || res);
+    } catch (e) {
+      setError(e?.message || 'Failed to load your profile');
     } finally {
       setLoading(false);
     }
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const user = data?.user_info;
+  const fp = data?.farmer_profile || {};
+
+  const openEdit = () => {
+    setForm(toForm(user, fp));
+    setErrors({});
+    setTab('personal');
+    setEditing(true);
   };
 
-  const fp = profileData?.profile || {};
-
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+  const set = (k, v) => {
+    setForm((f) => ({ ...f, [k]: v }));
+    setErrors((e) => ({ ...e, [k]: undefined }));
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const validate = () => {
+    const e = {};
+    if (!form.full_name.trim() || form.full_name.trim().length < 2) e.full_name = 'Enter your full name';
+    if (form.phone && !/^\+?[0-9 ]{9,15}$/.test(form.phone.trim())) e.phone = 'Enter a valid phone number, e.g. +250788123456';
+    INT_FIELDS.concat(FLOAT_FIELDS).forEach((k) => {
+      if (form[k] !== '' && (Number.isNaN(Number(form[k])) || Number(form[k]) < 0)) e[k] = 'Must be a positive number';
+    });
+    if (form.mixed_percentage !== '' && Number(form.mixed_percentage) > 100) e.mixed_percentage = 'Must be between 0 and 100';
+    setErrors(e);
+    if (Object.keys(e).length) {
+      const first = Object.keys(e)[0];
+      setTab(['full_name', 'phone', 'age', 'id_number'].includes(first) ? 'personal' : ['farm_size', 'tree_count', 'farm_age', 'mixed_percentage'].includes(first) ? 'farm' : tab);
+    }
+    return Object.keys(e).length === 0;
+  };
+
+  const save = async () => {
+    if (!validate()) return;
     setSaving(true);
-    setSaveError(null);
-    setSaveSuccess(false);
-    
     try {
-      // 1. Strict Schema Keys Match: Exclude account fields (full_name, email, phone, id, user_id, verification_status)
-      const allowedFarmerSchemaKeys = [
-        'age',
-        'id_number',
-        'gender',
-        'marital_status',
-        'education_level',
-        'province',
-        'district',
-        'sector',
-        'cell',
-        'village',
-        'farm_age',
-        'planted',
-        'avocado_type',
-        'mixed_percentage',
-        'farm_size',
-        'tree_count',
-        'upi_number',
-        'farm_province',
-        'farm_district',
-        'farm_sector',
-        'farm_cell',
-        'farm_village',
-        'assistance',
-        'image'
-      ];
-
-      const updateData = {};
-
-      allowedFarmerSchemaKeys.forEach((key) => {
-        const value = formData[key];
-        
-        // Skip empty or undefined entries so we do not send empty strings as numbers
-        if (value === '' || value === null || typeof value === 'undefined') return;
-
-        // Parse integer schema fields
-        if (['age', 'farm_age', 'tree_count'].includes(key)) {
-          const parsed = parseInt(value, 10);
-          if (!isNaN(parsed)) updateData[key] = parsed;
-        } 
-        // Parse float schema fields
-        else if (['farm_size', 'mixed_percentage'].includes(key)) {
-          const parsed = parseFloat(value);
-          if (!isNaN(parsed)) updateData[key] = parsed;
-        } 
-        // Standard strings or array fields
-        else {
-          updateData[key] = value;
-        }
+      const payload = {};
+      PROFILE_FIELDS.forEach((k) => {
+        const v = form[k];
+        if (k === 'assistance') payload[k] = v;
+        else if (v === '' || v === null || v === undefined) payload[k] = null;
+        else if (INT_FIELDS.includes(k)) payload[k] = parseInt(v, 10);
+        else if (FLOAT_FIELDS.includes(k)) payload[k] = parseFloat(v);
+        else payload[k] = typeof v === 'string' ? v.trim() : v;
       });
-
-      console.log('Sending schema-compliant update payload:', updateData);
-      
-      const response = await updateFarmerInformation(updateData);
-      console.log('Update response:', response);
-      
-      const { user_info, farmer_profile } = response.data || response;
-
-      const hass_trees = parseInt(formData.hass_trees, 10) || farmer_profile?.hass_trees || 0;
-      const fuerte_trees = parseInt(formData.fuerte_trees, 10) || farmer_profile?.fuerte_trees || 0;
-      const tree_count = farmer_profile?.tree_count || updateData.tree_count || (hass_trees + fuerte_trees);
-
-      // Update local state with new data
-      const updatedProfile = {
-        ...profileData,
-        full_name: user_info?.full_name || formData.full_name || profileData.full_name,
-        email: user_info?.email || profileData.email,
-        phone: user_info?.phone || formData.phone || profileData.phone,
-        status: user_info?.status || profileData.status,
-        profile: {
-          ...farmer_profile,
-          hass_trees: hass_trees,
-          fuerte_trees: fuerte_trees,
-          tree_count: tree_count,
-        },
-      };
-
-      setProfileData(updatedProfile);
-      
-      // Update localStorage if needed
-      const storedUser = localStorage.getItem('user');
-      if (storedUser) {
-        try {
-          const userData = JSON.parse(storedUser);
-          localStorage.setItem('user', JSON.stringify({
-            ...userData,
-            ...updatedProfile
-          }));
-        } catch (e) {
-          console.error('Failed to update localStorage:', e);
-        }
+      const accountChanged = form.full_name.trim() !== (user?.full_name || '') || form.phone.trim() !== (user?.phone || '');
+      if (accountChanged) {
+        const updatedUser = await updateProfile({ full_name: form.full_name.trim(), ...(form.phone.trim() ? { phone: form.phone.trim() } : {}) });
+        if (updatedUser?.email) localStorage.setItem('username', updatedUser.email);
       }
-      
-      setSaveSuccess(true);
-      
-      // Call onUpdate callback if provided
-      if (onUpdate) {
-        onUpdate(updatedProfile);
-      }
-      
-      // Auto-close modal after success
-      setTimeout(() => {
-        setShowModal(false);
-        setSaveSuccess(false);
-      }, 1500);
-      
-    } catch (err) {
-      console.error('Update failed:', err);
-      setSaveError(err?.response?.data?.message || err?.message || 'Failed to update profile');
+      await updateFarmerInformation(payload);
+      toast.success('Profile updated');
+      setEditing(false);
+      await load();
+      onUpdate?.();
+    } catch (e) {
+      toast.error(e?.response?.data?.message || e?.message || 'Failed to update profile');
     } finally {
       setSaving(false);
     }
   };
 
-  if (loading) {
-    return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', background: '#f5f5f5' }}>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ width: 40, height: 40, border: '3px solid #2d5f2e', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto' }}></div>
-          <p style={{ marginTop: 16, color: '#666' }}>Loading profile…</p>
-        </div>
-        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-      </div>
-    );
-  }
+  const savePicture = async (url) => {
+    await updateFarmerInformation({ image: url });
+    const key = localStorage.getItem('username') || user?.email;
+    try {
+      if (key) {
+        if (url) localStorage.setItem(`profilePic_${key}`, url);
+        else localStorage.removeItem(`profilePic_${key}`);
+      }
+    } catch {
+      /* storage full / blocked — the server copy is what matters */
+    }
+    setData((d) => ({ ...d, farmer_profile: { ...(d?.farmer_profile || {}), image: url } }));
+    toast.success(url ? 'Profile picture updated' : 'Profile picture removed');
+  };
 
-  if (error) {
-    return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', background: '#f5f5f5' }}>
-        <div style={{ textAlign: 'center', padding: 20, background: 'white', borderRadius: 16, boxShadow: '0 4px 24px rgba(0,0,0,0.1)', maxWidth: 400 }}>
-          <Icon name="AlertCircle" className="farmer-icon" style={{ width: 48, height: 48, color: '#dc2626', margin: '0 auto 16px' }} />
-          <h3 style={{ color: '#dc2626', marginBottom: 8 }}>Failed to Load Profile</h3>
-          <p style={{ color: '#666', marginBottom: 16 }}>{error}</p>
-          <button 
-            onClick={fetchProfile}
-            style={{ padding: '10px 20px', background: '#2d5f2e', color: 'white', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}
-          >
-            Retry
-          </button>
-        </div>
-      </div>
-    );
-  }
+  const input = (k, props = {}) => (
+    <>
+      <input className={inputClass} value={form[k] ?? ''} onChange={(e) => set(k, e.target.value)} {...props} />
+      {errors[k] && <span className="mt-1 block text-xs text-rose-600">{errors[k]}</span>}
+    </>
+  );
+  const select = (k, options, placeholder = 'Select') => (
+    <select className={inputClass} value={form[k] ?? ''} onChange={(e) => set(k, e.target.value)}>
+      <option value="">{placeholder}</option>
+      {options.map((o) => <option key={o} value={o}>{o}</option>)}
+      {form[k] && !options.includes(form[k]) && <option value={form[k]}>{form[k]}</option>}
+    </select>
+  );
 
-  if (!profileData) return null;
+  const status = fp.verification_status || 'pending';
 
   return (
-    <>
-      <style>{`
-        @keyframes spin {
-          to { transform: rotate(360deg); }
-        }
-        
-        @keyframes float {
-          0%, 100% { 
-            transform: translateY(0) scale(1);
-          }
-          50% { 
-            transform: translateY(-20px) scale(1.05);
-          }
-        }
-        
-        @keyframes pulse {
-          0%, 100% { 
-            opacity: 0.6;
-            transform: scale(1);
-          }
-          50% { 
-            opacity: 0.8;
-            transform: scale(1.1);
-          }
-        }
-        
-        body {
-          margin: 0;
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-          background: #f5f5f5;
-          overflow-x: hidden;
-        }
-        
-        .farmer-profile-container {
-          width: 100%;
-          min-height: ${cardOnly ? 'auto' : '100vh'};
-          margin: 0;
-          background: white;
-          border-radius: 0;
-          overflow-x: hidden;
-          box-shadow: none;
-        }
-        
-        .farmer-profile-header {
-          background: linear-gradient(135deg, #1a4d1a 0%, #2d5f2e 100%);
-          padding: 18px;
-          color: white;
-          position: relative;
-          overflow: hidden;
-        }
-        
-        .farmer-profile-header::before {
-          content: '';
-          position: absolute;
-          width: 400px;
-          height: 400px;
-          background: rgba(255, 255, 255, 0.08);
-          border-radius: 50%;
-          top: -200px;
-          right: -100px;
-          z-index: 0;
-          animation: float 6s ease-in-out infinite;
-        }
-        
-        .farmer-profile-header::after {
-          content: '';
-          position: absolute;
-          width: 300px;
-          height: 300px;
-          background: rgba(255, 215, 0, 0.1);
-          border-radius: 50%;
-          bottom: -150px;
-          left: -50px;
-          z-index: 0;
-          animation: pulse 4s ease-in-out infinite;
-        }
-        
-        .farmer-profile-header > * {
-          position: relative;
-          z-index: 1;
-        }
-        
-        .farmer-membership-badge {
-          color: #ffd700;
-          text-align: center;
-          padding: 22px;
-          font-size: 16px;
-          font-weight: 700;
-          letter-spacing: 1.5px;
-          margin: -24px -24px -1px;
-        }
-        
-        .farmer-profile-top {
-          display: flex;
-          align-items: flex-start;
-          gap: 16px;
-          margin-bottom: 20px;
-        }
-        
-        .farmer-avatar {
-          width: 100px;
-          height: 100px;
-          background: white;
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          flex-shrink: 0;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-        }
-        
-        .farmer-avatar-silhouette {
-          width: 90%;
-          height: 90%;
-          background: radial-gradient(circle at 30% 30%, #333 0%, #000 100%);
-          border-radius: 50%;
-          position: relative;
-          overflow: hidden;
-        }
-        
-        .farmer-avatar-silhouette::before {
-          content: '';
-          position: absolute;
-          top: 20%;
-          left: 50%;
-          transform: translateX(-50%);
-          width: 30px;
-          height: 30px;
-          background: #555;
-          border-radius: 50%;
-        }
-        
-        .farmer-avatar-silhouette::after {
-          content: '';
-          position: absolute;
-          bottom: 10%;
-          left: 50%;
-          transform: translateX(-50%);
-          width: 50px;
-          height: 40px;
-          background: #555;
-          border-radius: 50% 50% 0 0;
-        }
-        
-        .farmer-profile-info {
-          flex: 1;
-          min-width: 0;
-        }
-        
-        .farmer-profile-name {
-          font-size: 20px;
-          font-weight: 700;
-          margin: 0 0 8px;
-        }
-        
-        .farmer-profile-stats {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 8px;
-          font-size: 12px;
-        }
-        
-        .farmer-stat-item {
-          display: flex;
-          gap: 1rem
-          
-        }
-        
-        .farmer-stat-label {
-          color: #ffd700;
-          font-weight: 600;
-          margin-bottom: 2px;
-        }
-        
-        .farmer-stat-value {
-          color: white;
-          font-weight: 500;
-        }
-        
-        .farmer-profile-tabs {
-          display: flex;
-          background: #e8f5e8;
-          padding: 4px;
-          gap: 4px;
-          border-radius: 12px;
-        }
-        
-        .farmer-tab-btn {
-          flex: 1;
-          padding: 10px 8px;
-          background: transparent;
-          border: none;
-          border-radius: 8px;
-          font-size: 11px;
-          font-weight: 600;
-          color: #2d5f2e;
-          cursor: pointer;
-          transition: all 0.2s;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 4px;
-        }
-        
-        .farmer-tab-btn.active {
-          background: #2d5f2e;
-          color: white;
-          box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        
-        .farmer-tab-btn .farmer-icon {
-          width: 18px;
-          height: 18px;
-        }
-        
-        .farmer-profile-content {
-          padding: 10px;
-          position: relative;
-          overflow: hidden;
-        }
-        
-        .farmer-profile-content::before {
-          content: '';
-          position: absolute;
-          width: 250px;
-          height: 250px;
-          background: radial-gradient(circle, rgba(45, 95, 46, 0.05) 0%, transparent 70%);
-          border-radius: 50%;
-          top: -50px;
-          right: -80px;
-          z-index: 0;
-          animation: pulse 5s ease-in-out infinite;
-        }
-        
-        .farmer-profile-content::after {
-          content: '';
-          position: absolute;
-          width: 200px;
-          height: 200px;
-          background: radial-gradient(circle, rgba(26, 77, 26, 0.06) 0%, transparent 70%);
-          border-radius: 50%;
-          bottom: -60px;
-          left: -70px;
-          z-index: 0;
-          animation: float 7s ease-in-out infinite;
-        }
-        
-        .farmer-profile-content > * {
-          position: relative;
-          z-index: 1;
-        }
-        
-        .farmer-info-list {
-          display: flex;
-          flex-direction: column;
-          gap: 2px;
-        }
-        
-        .farmer-info-row {
-          display: flex;
-          justify-content: space-between;
-          padding: 14px 16px;
-          background: #e8f5e8;
-          border-radius: 8px;
-          font-size: 13px;
-        }
-        
-        .farmer-info-label {
-          color: #2d5f2e;
-          font-weight: 600;
-        }
-        
-        .farmer-info-value {
-          color: #1a4d1a;
-          font-weight: 500;
-        }
-        
-        .farmer-edit-btn {
-          position: absolute;
-          top: 16px;
-          right: 16px;
-          width: 40px;
-          height: 40px;
-          background: rgba(255,255,255,0.2);
-          border: none;
-          border-radius: 50%;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          transition: all 0.2s;
-        }
-        
-        .farmer-edit-btn:hover {
-          background: rgba(255,255,255,0.3);
-          transform: scale(1.05);
-        }
-        
-        .farmer-edit-btn .farmer-icon {
-          width: 20px;
-          height: 20px;
-          color: white;
-        }
-        
-        .farmer-modal-overlay {
-          position: fixed;
-          inset: 0;
-          background: rgba(0,0,0,0.5);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          z-index: 1000;
-          padding: 20px;
-        }
-        
-        .farmer-modal {
-          background: white;
-          border-radius: 16px;
-          width: 100%;
-          max-width: 500px;
-          max-height: 90vh;
-          overflow: hidden;
-          display: flex;
-          flex-direction: column;
-        }
-        
-        .farmer-modal-header {
-          padding: 20px 24px;
-          border-bottom: 1px solid #eee;
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-        }
-        
-        .farmer-modal-header h2 {
-          margin: 0;
-          font-size: 20px;
-          color: #1a4d1a;
-        }
-        
-        .farmer-close-btn {
-          width: 32px;
-          height: 32px;
-          border: none;
-          background: transparent;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          border-radius: 8px;
-          transition: background 0.2s;
-        }
-        
-        .farmer-close-btn:hover {
-          background: #f5f5f5;
-        }
-        
-        .farmer-close-btn .farmer-icon {
-          width: 20px;
-          height: 20px;
-          color: #666;
-        }
-        
-        .farmer-form-tabs {
-          display: flex;
-          padding: 16px 24px 0;
-          gap: 8px;
-          border-bottom: 1px solid #eee;
-        }
-        
-        .farmer-form-tab {
-          padding: 8px 16px;
-          background: transparent;
-          border: none;
-          border-bottom: 2px solid transparent;
-          font-size: 13px;
-          font-weight: 600;
-          color: #666;
-          cursor: pointer;
-          transition: all 0.2s;
-        }
-        
-        .farmer-form-tab.active {
-          color: #2d5f2e;
-          border-bottom-color: #2d5f2e;
-        }
-        
-        .farmer-modal-form {
-          flex: 1;
-          overflow-y: auto;
-          padding: 24px;
-        }
-        
-        .farmer-form-grid {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 12px;
-        }
-        
-        .farmer-form-grid input,
-        .farmer-form-grid select {
-          padding: 12px;
-          border: 1px solid #ddd;
-          border-radius: 8px;
-          font-size: 14px;
-          font-family: inherit;
-        }
-        
-        .farmer-form-grid input:focus,
-        .farmer-form-grid select:focus {
-          outline: none;
-          border-color: #2d5f2e;
-        }
-        
-        .farmer-success-alert {
-          background: #d4edda;
-          color: #155724;
-          padding: 12px 16px;
-          border-radius: 8px;
-          margin-bottom: 16px;
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          font-size: 14px;
-          font-weight: 500;
-        }
-        
-        .farmer-success-alert .farmer-icon {
-          width: 18px;
-          height: 18px;
-        }
-        
-        .farmer-error-alert {
-          background: #f8d7da;
-          color: #721c24;
-          padding: 12px 16px;
-          border-radius: 8px;
-          margin-bottom: 16px;
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          font-size: 14px;
-          font-weight: 500;
-        }
-        
-        .farmer-error-alert .farmer-icon {
-          width: 18px;
-          height: 18px;
-        }
-        
-        .farmer-modal-footer {
-          padding: 16px 24px;
-          border-top: 1px solid #eee;
-          display: flex;
-          gap: 12px;
-          justify-content: flex-end;
-        }
-        
-        .farmer-btn {
-          padding: 10px 24px;
-          border: none;
-          border-radius: 8px;
-          font-size: 14px;
-          font-weight: 600;
-          cursor: pointer;
-          transition: all 0.2s;
-        }
-        
-        .farmer-btn-cancel {
-          background: #f5f5f5;
-          color: #666;
-        }
-        
-        .farmer-btn-cancel:hover {
-          background: #eee;
-        }
-        
-        .farmer-btn-save {
-          background: #2d5f2e;
-          color: white;
-        }
-        
-        .farmer-btn-save:hover {
-          background: #1a4d1a;
-        }
-        
-        .farmer-btn-save:disabled {
-          opacity: 0.6;
-          cursor: not-allowed;
-        }
-        
-        .farmer-assistance-tags {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 8px;
-        }
-        
-        .farmer-tag {
-          padding: 8px 16px;
-          background: #e8f5e8;
-          color: #2d5f2e;
-          border-radius: 20px;
-          font-size: 13px;
-          font-weight: 500;
-        }
-      `}</style>
-
-      <div className="farmer-profile-container">
-        <div className="farmer-profile-header">
-          <div className="farmer-membership-badge">
-            FARMERS MEMBERSHIP CARD
+    <Page>
+      <PageHeader
+        icon={User}
+        title="My Profile"
+        subtitle="Keep your details up to date so agents and buyers can reach you."
+        actions={showEditButton && data && <Button icon={Pencil} onClick={openEdit}>Edit profile</Button>}
+      />
+      {loading ? (
+        <Card><Spinner label="Loading profile…" /></Card>
+      ) : error ? (
+        <Card><ErrorState message={error} onRetry={load} /></Card>
+      ) : (
+        <div className="grid gap-6 lg:grid-cols-3">
+          <div className="space-y-6">
+            <Card>
+              <div className="flex flex-col items-center gap-3 text-center">
+                <ProfilePictureUploader currentPicture={fp.image} name={user?.full_name} onUpload={savePicture} onDelete={() => savePicture(null)} />
+                <div>
+                  <p className="text-lg font-semibold text-slate-900">{user?.full_name}</p>
+                  <p className="text-sm text-slate-500">Farmer</p>
+                </div>
+                <Badge tone={status === 'verified' ? 'brand' : status === 'rejected' ? 'rose' : 'amber'} className="capitalize">Profile {status}</Badge>
+                <dl className="w-full space-y-2 border-t border-slate-100 pt-3 text-left text-sm">
+                  <div className="flex items-center gap-2 text-slate-700"><Mail className="h-4 w-4 text-slate-400" /> <span className="truncate">{user?.email}</span></div>
+                  <div className="flex items-center gap-2 text-slate-700"><Phone className="h-4 w-4 text-slate-400" /> {user?.phone || '—'}</div>
+                  <div className="flex items-center gap-2 text-slate-700"><MapPin className="h-4 w-4 text-slate-400" /> {join(fp.district, fp.province) || '—'}</div>
+                </dl>
+              </div>
+            </Card>
+            <MembershipCard
+              name={user?.full_name}
+              treeCount={fp.tree_count != null ? Number(fp.tree_count).toLocaleString() : undefined}
+              propertyId={fp.upi_number}
+              location={join(fp.farm_district || fp.district, fp.farm_province || fp.province)}
+              variety={fp.avocado_type}
+              profileImage={fp.image}
+              role="farmer"
+              memberSince={user?.created_at}
+              status={user?.status}
+            />
           </div>
-          
-          {showEditButton && !cardOnly && (
-            <button className="farmer-edit-btn" onClick={() => setShowModal(true)}>
-              <Icon name="Edit" />
-            </button>
-          )}
-          
-          <div className="farmer-profile-top">
-            <div className="farmer-avatar">
-              <div className="farmer-avatar-silhouette"></div>
-            </div>
-            
-            <div className="farmer-profile-info">
-              <h1 className="farmer-profile-name">{profileData?.full_name || 'Farmer Name'}</h1>
-              <div className="farmer-profile-stats">
-                <div className="farmer-stat-item">
-                  <span className="farmer-stat-label">Number of Trees :</span>
-                  <span className="farmer-stat-value">{fp.tree_count || 'N/A'}</span>
-                </div>
-                <div className="farmer-stat-item">
-                  <span className="farmer-stat-label">Variety :</span>
-                  <span className="farmer-stat-value">
-                    {`Hass: ${fp.hass_trees || 345}, Fuerte: ${fp.fuerte_trees || 0}`}
-                  </span>
-                </div>
-                <div className="farmer-stat-item">
-                  <span className="farmer-stat-label">Farmers Property ID :</span>
-                  <span className="farmer-stat-value">{fp.upi_number || 'N/A'}</span>
-                </div>
-                <div className="farmer-stat-item">
-                  <span className="farmer-stat-label">Location :</span>
-                  <span className="farmer-stat-value">
-                    {[fp.sector, fp.district, fp.province, 'Rwanda'].filter(Boolean).join(', ') || 'N/A'}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          {!cardOnly && (
-            <div className="farmer-profile-tabs">
-              {[
-                { id: 'personal', label: 'Personal Information', icon: 'Person' },
-                { id: 'location', label: 'Location', icon: 'Map' },
-                { id: 'farm', label: 'Farm Details', icon: 'Leaf' },
-                { id: 'assistance', label: 'Assistance', icon: 'Hand' },
-              ].map(t => (
-                <button
-                  key={t.id}
-                  className={`farmer-tab-btn ${activeTab === t.id ? 'active' : ''}`}
-                  onClick={() => setActiveTab(t.id)}
-                >
-                  <Icon name={t.icon} />
-                  <span>{t.label}</span>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
 
-        {!cardOnly && (
-          <div className="farmer-profile-content">
-            {activeTab === 'personal' && (
-              <div className="farmer-info-list">
-                <div className="farmer-info-row">
-                  <span className="farmer-info-label">Date Of Birth</span>
-                  <span className="farmer-info-value">1980 - 01 - 01</span>
-                </div>
-                <div className="farmer-info-row">
-                  <span className="farmer-info-label">ID Number</span>
-                  <span className="farmer-info-value">{fp.id_number || 'N/A'}</span>
-                </div>
-                <div className="farmer-info-row">
-                  <span className="farmer-info-label">Gender</span>
-                  <span className="farmer-info-value">{fp.gender || 'N/A'}</span>
-                </div>
-                <div className="farmer-info-row">
-                  <span className="farmer-info-label">Marital Status</span>
-                  <span className="farmer-info-value">{fp.marital_status || 'N/A'}</span>
-                </div>
-                <div className="farmer-info-row">
-                  <span className="farmer-info-label">Education Level</span>
-                  <span className="farmer-info-value">{fp.education_level || 'N/A'}</span>
-                </div>
-                <div className="farmer-info-row">
-                  <span className="farmer-info-label">Farmers Property ID</span>
-                  <span className="farmer-info-value">{fp.upi_number || 'N/A'}</span>
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'location' && (
-              <div className="farmer-info-list">
-                <div className="farmer-info-row">
-                  <span className="farmer-info-label">Province</span>
-                  <span className="farmer-info-value">{fp.province || 'N/A'}</span>
-                </div>
-                <div className="farmer-info-row">
-                  <span className="farmer-info-label">District</span>
-                  <span className="farmer-info-value">{fp.district || 'N/A'}</span>
-                </div>
-                <div className="farmer-info-row">
-                  <span className="farmer-info-label">Sector</span>
-                  <span className="farmer-info-value">{fp.sector || 'N/A'}</span>
-                </div>
-                <div className="farmer-info-row">
-                  <span className="farmer-info-label">Cell</span>
-                  <span className="farmer-info-value">{fp.cell || 'N/A'}</span>
-                </div>
-                <div className="farmer-info-row">
-                  <span className="farmer-info-label">Village</span>
-                  <span className="farmer-info-value">{fp.village || 'N/A'}</span>
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'farm' && (
-              <div className="farmer-info-list">
-                <div className="farmer-info-row">
-                  <span className="farmer-info-label">Farm Age</span>
-                  <span className="farmer-info-value">{fp.farm_age || 'N/A'} yrs</span>
-                </div>
-                <div className="farmer-info-row">
-                  <span className="farmer-info-label">Avocado Type</span>
-                  <span className="farmer-info-value">{fp.avocado_type || 'N/A'}</span>
-                </div>
-                <div className="farmer-info-row">
-                  <span className="farmer-info-label">Hass Trees</span>
-                  <span className="farmer-info-value">{fp.hass_trees || 0}</span>
-                </div>
-                <div className="farmer-info-row">
-                  <span className="farmer-info-label">Fuerte Trees</span>
-                  <span className="farmer-info-value">{fp.fuerte_trees || 0}</span>
-                </div>
-                <div className="farmer-info-row">
-                  <span className="farmer-info-label">Farm Size</span>
-                  <span className="farmer-info-value">{fp.farm_size || 'N/A'} ha</span>
-                </div>
-                <div className="farmer-info-row">
-                  <span className="farmer-info-label">Total Trees</span>
-                  <span className="farmer-info-value">{fp.tree_count || 'N/A'}</span>
-                </div>
-                <div className="farmer-info-row">
-                  <span className="farmer-info-label">UPI Number</span>
-                  <span className="farmer-info-value">{fp.upi_number || 'N/A'}</span>
-                </div>
-                <div className="farmer-info-row">
-                  <span className="farmer-info-label">Planted Year</span>
-                  <span className="farmer-info-value">{fp.planted || 'N/A'}</span>
-                </div>
-                <div className="farmer-info-row">
-                  <span className="farmer-info-label">Mixed Percentage</span>
-                  <span className="farmer-info-value">{fp.mixed_percentage || 'N/A'}%</span>
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'assistance' && (
-              <div className="farmer-assistance-tags">
-                {Array.isArray(fp.assistance) && fp.assistance.length > 0 ? (
-                  fp.assistance.map((item, i) => (
-                    <span key={i} className="farmer-tag">{item}</span>
-                  ))
-                ) : (
-                  <span className="farmer-info-value">No assistance recorded</span>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      {showModal && (
-        <div className="farmer-modal-overlay" onClick={() => setShowModal(false)}>
-          <div className="farmer-modal" onClick={e => e.stopPropagation()}>
-            <div className="farmer-modal-header">
-              <h2>Update Profile</h2>
-              <button className="farmer-close-btn" onClick={() => setShowModal(false)}>
-                <Icon name="Close" />
-              </button>
-            </div>
-
-            <div className="farmer-form-tabs">
-              {['personal', 'location', 'farm', 'farm_location'].map(id => (
-                <button
-                  key={id}
-                  className={`farmer-form-tab ${formInnerTab === id ? 'active' : ''}`}
-                  onClick={() => setFormInnerTab(id)}
-                >
-                  {id === 'personal' && 'Personal'}
-                  {id === 'location' && 'Location'}
-                  {id === 'farm' && 'Farm'}
-                  {id === 'farm_location' && 'Farm Location'}
-                </button>
-              ))}
-            </div>
-
-            <form onSubmit={handleSubmit} className="farmer-modal-form">
-              {saveError && (
-                <div className="farmer-error-alert">
-                  <Icon name="AlertCircle" />
-                  {saveError}
-                </div>
+          <div className="space-y-6 lg:col-span-2">
+            <Card title="Personal details">
+              <dl className="grid gap-x-8 sm:grid-cols-2">
+                <Row label="Age" value={fp.age} />
+                <Row label="Gender" value={fp.gender} />
+                <Row label="National ID" value={fp.id_number} />
+                <Row label="Marital status" value={fp.marital_status} />
+                <Row label="Education" value={fp.education_level} />
+                <Row label="Residence" value={join(fp.village, fp.cell, fp.sector, fp.district, fp.province)} />
+              </dl>
+            </Card>
+            <Card title="Farm" actions={<Trees className="h-5 w-5 text-slate-400" />}>
+              <dl className="grid gap-x-8 sm:grid-cols-2">
+                <Row label="Farm size" value={fp.farm_size ? `${fp.farm_size} ha` : ''} />
+                <Row label="Trees" value={fp.tree_count} />
+                <Row label="Variety" value={fp.avocado_type} />
+                <Row label="Mixed %" value={fp.mixed_percentage} />
+                <Row label="Farm age" value={fp.farm_age ? `${fp.farm_age} years` : ''} />
+                <Row label="Year planted" value={fp.planted} />
+                <Row label="Land title (UPI)" value={fp.upi_number} />
+                <Row label="Farm location" value={join(fp.farm_village, fp.farm_cell, fp.farm_sector, fp.farm_district, fp.farm_province)} />
+              </dl>
+            </Card>
+            <Card title="Assistance received" actions={<HandHelping className="h-5 w-5 text-slate-400" />}>
+              {fp.assistance?.length ? (
+                <div className="flex flex-wrap gap-2">{fp.assistance.map((a) => <Badge key={a} tone="brand" className="capitalize">{a.replace(/_/g, ' ')}</Badge>)}</div>
+              ) : (
+                <p className="text-sm text-slate-500">None recorded.</p>
               )}
-              
-              {saveSuccess && (
-                <div className="farmer-success-alert">
-                  <Icon name="Check" />
-                  Profile updated successfully!
-                </div>
-              )}
-
-              {formInnerTab === 'personal' && (
-                <div className="farmer-form-grid">
-                  <input name="full_name" placeholder="Full Name" value={formData.full_name || ''} onChange={handleInputChange} />
-                  <input name="email" type="email" placeholder="Email" value={formData.email || ''} onChange={handleInputChange} disabled />
-                  <input name="phone" type="tel" placeholder="Phone" value={formData.phone || ''} onChange={handleInputChange} />
-                  <input name="age" type="number" placeholder="Age" value={formData.age || ''} onChange={handleInputChange} />
-                  <input name="id_number" placeholder="ID Number" value={formData.id_number || ''} onChange={handleInputChange} />
-                  <select name="gender" value={formData.gender || ''} onChange={handleInputChange}>
-                    <option value="">Gender</option>
-                    <option>Male</option>
-                    <option>Female</option>
-                    <option>Other</option>
-                  </select>
-                  <select name="marital_status" value={formData.marital_status || ''} onChange={handleInputChange}>
-                    <option value="">Marital Status</option>
-                    <option>Single</option>
-                    <option>Married</option>
-                    <option>Divorced</option>
-                    <option>Widowed</option>
-                  </select>
-                  <input name="education_level" placeholder="Education" value={formData.education_level || ''} onChange={handleInputChange} />
-                </div>
-              )}
-
-              {formInnerTab === 'location' && (
-                <div className="farmer-form-grid">
-                  <input name="province" placeholder="Province" value={formData.province || ''} onChange={handleInputChange} />
-                  <input name="district" placeholder="District" value={formData.district || ''} onChange={handleInputChange} />
-                  <input name="sector" placeholder="Sector" value={formData.sector || ''} onChange={handleInputChange} />
-                  <input name="cell" placeholder="Cell" value={formData.cell || ''} onChange={handleInputChange} />
-                  <input name="village" placeholder="Village" value={formData.village || ''} onChange={handleInputChange} />
-                </div>
-              )}
-
-              {formInnerTab === 'farm' && (
-                <div className="farmer-form-grid">
-                  <input name="farm_age" type="number" placeholder="Farm Age (yrs)" value={formData.farm_age || ''} onChange={handleInputChange} />
-                  <input name="avocado_type" placeholder="Avocado Type" value={formData.avocado_type || ''} onChange={handleInputChange} />
-                  <input name="hass_trees" type="number" placeholder="Hass Trees" value={formData.hass_trees || ''} onChange={handleInputChange} />
-                  <input name="fuerte_trees" type="number" placeholder="Fuerte Trees" value={formData.fuerte_trees || ''} onChange={handleInputChange} />
-                  <input name="farm_size" placeholder="Farm Size (ha)" value={formData.farm_size || ''} onChange={handleInputChange} />
-                  <input name="tree_count" type="number" placeholder="Total Trees" value={formData.tree_count || ''} onChange={handleInputChange} />
-                  <input name="upi_number" placeholder="UPI Number" value={formData.upi_number || ''} onChange={handleInputChange} />
-                  <input name="planted" placeholder="Planted Year" value={formData.planted || ''} onChange={handleInputChange} />
-                  <input name="mixed_percentage" placeholder="Mixed %" value={formData.mixed_percentage || ''} onChange={handleInputChange} />
-                </div>
-              )}
-
-              {formInnerTab === 'farm_location' && (
-                <div className="farmer-form-grid">
-                  <input name="farm_province" placeholder="Province" value={formData.farm_province || ''} onChange={handleInputChange} />
-                  <input name="farm_district" placeholder="District" value={formData.farm_district || ''} onChange={handleInputChange} />
-                  <input name="farm_sector" placeholder="Sector" value={formData.farm_sector || ''} onChange={handleInputChange} />
-                  <input name="farm_cell" placeholder="Cell" value={formData.farm_cell || ''} onChange={handleInputChange} />
-                  <input name="farm_village" placeholder="Village" value={formData.farm_village || ''} onChange={handleInputChange} />
-                </div>
-              )}
-
-              <div className="farmer-modal-footer">
-                <button type="button" className="farmer-btn farmer-btn-cancel" onClick={() => setShowModal(false)} disabled={saving}>
-                  Cancel
-                </button>
-                <button type="submit" className="farmer-btn farmer-btn-save" disabled={saving}>
-                  {saving ? 'Saving…' : 'Save Changes'}
-                </button>
-              </div>
-            </form>
+            </Card>
           </div>
         </div>
       )}
-    </>
+
+      <Dialog
+        open={editing}
+        title="Edit profile"
+        size="lg"
+        onClose={() => !saving && setEditing(false)}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setEditing(false)} disabled={saving}>Cancel</Button>
+            <Button onClick={save} loading={saving}>Save changes</Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <Tabs
+            tabs={[{ id: 'personal', label: 'Personal' }, { id: 'location', label: 'Location' }, { id: 'farm', label: 'Farm' }]}
+            value={tab}
+            onChange={setTab}
+          />
+          {tab === 'personal' && (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Full name" required>{input('full_name')}</Field>
+              <Field label="Phone">{input('phone', { placeholder: '+250788123456' })}</Field>
+              <Field label="Age">{input('age', { type: 'number', min: 0 })}</Field>
+              <Field label="National ID">{input('id_number')}</Field>
+              <Field label="Gender">{select('gender', ['Male', 'Female', 'Other'])}</Field>
+              <Field label="Marital status">{select('marital_status', ['Single', 'Married', 'Divorced', 'Widowed'])}</Field>
+              <Field label="Education">{select('education_level', ['None', 'Primary', 'Secondary', 'University'])}</Field>
+            </div>
+          )}
+          {tab === 'location' && (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <p className="text-sm font-medium text-slate-700 sm:col-span-2">Where you live</p>
+              <Field label="Province">{select('province', PROVINCES)}</Field>
+              <Field label="District">{input('district')}</Field>
+              <Field label="Sector">{input('sector')}</Field>
+              <Field label="Cell">{input('cell')}</Field>
+              <Field label="Village">{input('village')}</Field>
+              <p className="mt-2 text-sm font-medium text-slate-700 sm:col-span-2">Where your farm is</p>
+              <Field label="Farm province">{select('farm_province', PROVINCES)}</Field>
+              <Field label="Farm district">{input('farm_district')}</Field>
+              <Field label="Farm sector">{input('farm_sector')}</Field>
+              <Field label="Farm cell">{input('farm_cell')}</Field>
+              <Field label="Farm village">{input('farm_village')}</Field>
+            </div>
+          )}
+          {tab === 'farm' && (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Farm size (ha)">{input('farm_size', { type: 'number', min: 0, step: 0.1 })}</Field>
+              <Field label="Number of trees">{input('tree_count', { type: 'number', min: 0 })}</Field>
+              <Field label="Avocado variety">{select('avocado_type', AVOCADO_TYPES)}</Field>
+              <Field label="Mixed percentage (%)">{input('mixed_percentage', { type: 'number', min: 0, max: 100 })}</Field>
+              <Field label="Farm age (years)">{input('farm_age', { type: 'number', min: 0 })}</Field>
+              <Field label="Year planted">{input('planted')}</Field>
+              <Field label="Land title (UPI)" className="sm:col-span-2">{input('upi_number', { placeholder: '5/01/02/03/1234' })}</Field>
+              <fieldset className="sm:col-span-2">
+                <legend className="mb-2 text-sm font-medium text-slate-700">Assistance received</legend>
+                <div className="flex flex-wrap gap-2">
+                  {[...new Set([...ASSISTANCE, ...(form.assistance || [])])].map((a) => {
+                    const on = form.assistance?.includes(a);
+                    return (
+                      <button
+                        type="button"
+                        key={a}
+                        aria-pressed={on}
+                        onClick={() => set('assistance', on ? form.assistance.filter((x) => x !== a) : [...(form.assistance || []), a])}
+                        className={`rounded-full px-3 py-1.5 text-sm capitalize ring-1 ring-inset ${on ? 'bg-brand-600 text-white ring-brand-600' : 'bg-white text-slate-700 ring-slate-300 hover:bg-slate-50'}`}
+                      >
+                        {a.replace(/_/g, ' ')}
+                      </button>
+                    );
+                  })}
+                </div>
+              </fieldset>
+            </div>
+          )}
+        </div>
+      </Dialog>
+    </Page>
   );
 }

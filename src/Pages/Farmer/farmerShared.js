@@ -85,3 +85,31 @@ export const formatLocation = (loc) => {
 };
 
 export const errMsg = (e, fallback = 'Something went wrong') => e?.response?.data?.message || e?.message || fallback;
+
+/**
+ * Category id → label and (where one exists) the legacy route that shows it.
+ * The shop category routes (/farmer/IrrigationKits, /farmer/HarvestingKit, …)
+ * all render this one component with a `category` prop.
+ */
+export const SHOP_CATEGORIES = [
+  { id: '', label: 'All products', path: '/dashboard/farmer/market' },
+  { id: 'irrigation', label: 'Irrigation kits', path: '/dashboard/farmer/IrrigationKits' },
+  { id: 'harvesting', label: 'Harvesting kits', path: '/dashboard/farmer/HarvestingKit' },
+  { id: 'containers', label: 'Containers', path: '/dashboard/farmer/container' },
+  { id: 'pest-management', label: 'Pest management', path: '/dashboard/farmer/pest' },
+  { id: 'protection', label: 'Protective equipment', path: '/dashboard/farmer/protection' },
+  { id: 'seeds', label: 'Seeds & seedlings' },
+  { id: 'fertilizers', label: 'Fertilizers' },
+  { id: 'tools', label: 'Tools' },
+];
+
+export const categoryLabel = (id) => SHOP_CATEGORIES.find((c) => c.id === id)?.label || (id ? id.replace(/-/g, ' ') : 'Other');
+
+
+/** Uploads files one call (max 5) and returns their public URLs. */
+export async function uploadPhotos(files, uploadMultiple) {
+  if (!files.length) return [];
+  const res = await uploadMultiple(files);
+  const list = res?.data?.files || [];
+  return list.map((f) => f.url).filter(Boolean);
+}

@@ -23,7 +23,6 @@ const retryWithBackoff = async (fn, retries = 2, delay = 1000) => {
       throw error;
     }
     
-    console.log(`⏳ Retrying... (${retries} attempts left, waiting ${delay}ms)`);
     await new Promise(resolve => setTimeout(resolve, delay));
     return retryWithBackoff(fn, retries - 1, delay * 2);
   }
@@ -50,16 +49,11 @@ export const createShop = async (shopData) => {
  */
 export const getAllShops = async () => {
   try {
-    console.log('🔍 Fetching shops from:', `${SHOP_API_BASE}`);
-    console.log('⏰ Note: First request may take 30-60s if backend is waking up from sleep');
     
     const response = await retryWithBackoff(async () => {
       return await apiClient.get(SHOP_API_BASE);
     });
     
-    console.log('✅ Shop API Response Status:', response.status);
-    console.log('✅ Shop API Response Data:', response.data);
-    console.log('✅ Number of shops:', response.data?.data?.length || 0);
     
     // API returns: { success: true, data: [...], message: "Shops retrieved successfully", meta: {...} }
     return response.data;

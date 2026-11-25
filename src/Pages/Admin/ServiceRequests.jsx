@@ -120,6 +120,10 @@ export default function ServiceRequests() {
     );
   }, [data.rows, farmers]);
 
+  // Stable close handlers: the kit Dialog re-focuses its panel whenever onClose changes.
+  const closeDetail = useCallback(() => setDetailId(null), []);
+  const closeAction = useCallback(() => setAction(null), []);
+
   const agentName = useCallback((id) => {
     if (!id) return null;
     const a = agents.find((x) => x.id === id);
@@ -298,7 +302,7 @@ export default function ServiceRequests() {
                     <p>{f?.full_name || (r.farmer_id in farmers ? 'Unknown farmer' : '…')}</p>
                     {f?.phone && <p className="text-xs text-slate-500">{f.phone}</p>}
                   </Td>
-                  <Td className="max-w-[220px] truncate">{formatLocation(r.location)}</Td>
+                  <Td className="max-w-[180px] truncate">{formatLocation(r.location)}</Td>
                   <Td>{formatDate(r.requested_date || r.created_at)}</Td>
                   <Td>
                     <div className="flex flex-wrap items-center gap-1">
@@ -332,12 +336,12 @@ export default function ServiceRequests() {
       {detailId && (
         <RequestDetailDialog
           requestId={detailId}
-          onClose={() => setDetailId(null)}
+          onClose={closeDetail}
           footer={(req) => <div className="flex flex-wrap justify-end gap-2">{actionButtons(req)}</div>}
         />
       )}
       {action && (
-        <ActionDialog type={action.type} request={action.request} agents={agents} onClose={() => setAction(null)} onSubmit={runAction} />
+        <ActionDialog type={action.type} request={action.request} agents={agents} onClose={closeAction} onSubmit={runAction} />
       )}
     </Page>
   );

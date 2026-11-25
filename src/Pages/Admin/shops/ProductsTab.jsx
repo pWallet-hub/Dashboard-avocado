@@ -55,7 +55,7 @@ export default function ProductsTab() {
   useEffect(() => { load(); }, [load]);
   useEffect(() => { setPage(1); }, [debouncedSearch, category, status]);
   useEffect(() => {
-    getSuppliers().then((d) => setSuppliers(Array.isArray(d) ? d : [])).catch(() => setSuppliers([]));
+    getSuppliers({ include_shops: 'true', limit: 100 }).then((d) => setSuppliers(Array.isArray(d) ? d : [])).catch(() => setSuppliers([]));
   }, []);
 
   const supplierName = (id) => suppliers.find((s) => s.id === id)?.name;

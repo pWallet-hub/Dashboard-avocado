@@ -10,7 +10,11 @@ function Login() {
   const [loading, setLoading] = useState(false);
   const [searchParams] = useSearchParams();
   const [message, setMessage] = useState(
-    searchParams.get('resetSuccess') ? 'Password reset successful! Please log in with your new password.' : ''
+    searchParams.get('resetSuccess')
+      ? 'Password reset successful! Please log in with your new password.'
+      : searchParams.get('registered') === 'pending'
+        ? 'Registration received. An administrator will activate your account — you can sign in once it is approved.'
+        : ''
   );
   const navigate = useNavigate();
   
@@ -123,7 +127,7 @@ function Login() {
             className={authInput}
           />
         </label>
-        <AuthMessage message={message} success={message.includes('successful')} />
+        <AuthMessage message={message} success={message.includes('successful') || message.startsWith('Registration received')} />
         <button type="submit" disabled={loading} className={authButton}>
           {loading ? <><Loader2 className="h-4 w-4 animate-spin" />Logging in...</> : <><LogIn className="h-4 w-4" />Sign In</>}
         </button>

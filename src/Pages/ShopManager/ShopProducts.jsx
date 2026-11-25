@@ -1,3 +1,4 @@
+/* eslint-disable react/prop-types */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ShoppingBag, Plus, Search, Pencil, Trash2, Eye, ImagePlus, X, RefreshCw, ImageOff } from 'lucide-react';
 import { addToShopInventory, updateShopInventory, deleteInventoryItem } from '../../services/marketStorageService';
@@ -122,6 +123,8 @@ const ShopProducts = () => {
     const qty = Number(form.quantity);
     const minStock = Number(form.min_stock);
     if (form.name.trim().length < 2) return toast.error('Enter a product name (at least 2 characters)');
+    const dup = products.find((p) => isActiveProduct(p) && p.name.trim().toLowerCase() === form.name.trim().toLowerCase() && (editing === 'new' || p.id !== editing.id));
+    if (dup) return toast.error(`You already have a product called "${dup.name}"`);
     if (!(price > 0)) return toast.error('Enter a selling price greater than 0');
     if (form.cost !== '' && !(Number(form.cost) >= 0)) return toast.error('Cost must be 0 or more');
     if (editing === 'new' && (!Number.isInteger(qty) || qty < 0)) return toast.error('Opening stock must be a whole number, 0 or more');

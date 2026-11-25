@@ -1,7 +1,8 @@
 /* eslint-disable react/prop-types */
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { User, Settings, LogOut, ChevronDown, Camera, Menu, ChevronRight } from 'lucide-react';
+import { User, Settings, LogOut, ChevronDown, Camera, Menu, ChevronRight, Bell } from 'lucide-react';
+import { getUnreadCount } from '../../services/notificationsService';
 import SettingsModal from '../Settings/SettingsModal';
 import { findActiveLink, normalizeRole, ROLE_LABELS, homeRouteFor } from './navConfig';
 import './TopBar.css';
@@ -109,6 +110,9 @@ const TopBar = ({ onLogout, user, onOpenMobileNav }) => {
         <h1 className="truncate text-base font-semibold text-slate-900 sm:text-lg">{pageTitle}</h1>
       </div>
 
+      {/* Notifications */}
+      <NotificationBell onOpen={() => navigate('/dashboard/notifications')} pathname={location.pathname} />
+
       {/* User menu */}
       <div className="relative" ref={menuRef}>
         <button
@@ -172,3 +176,36 @@ const TopBar = ({ onLogout, user, onOpenMobileNav }) => {
 };
 
 export default TopBar;
+
+
+/** Bell with unread count; refreshes on navigation and every 60 s while the tab is visible. */
+function NotificationBell({ onOpen, pathname }) {
+  const [count, setCount] = useState(0);
+  useEffect(() => {
+    let cancelled = false;
+    const refresh = () => {
+      if (document.visibilityState !== 'visible') return;
+      getUnreadCount()
+        .then((d) => { if (!cancelled) setCount(Number(d?.count) || 0); })
+        .catch(() => {});
+    };
+    refresh();
+    const t = setInterval(refresh, 60000);
+    return () => { cancelled = true; clearInterval(t); };
+  }, [pathname]);
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      className="relative rounded-full p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+      aria-label={count ? `Notifications, ${count} unread` : 'Notifications'}
+    >
+      <Bell className="h-5 w-5" />
+      {count > 0 && (
+        <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-rose-600 px-1 text-[10px] font-semibold text-white">
+          {count > 99 ? '99+' : count}
+        </span>
+      )}
+    </button>
+  );
+}

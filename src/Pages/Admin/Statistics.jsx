@@ -76,7 +76,7 @@ export default function Statistics() {
           <StatCard label="Users" value={d ? d.users?.total?.toLocaleString() : '—'} hint={d ? `${d.users?.recent ?? 0} joined in the last 7 days` : undefined} icon={Users} />
           <StatCard label="Products" value={d ? d.products?.total ?? 0 : '—'} hint={d ? `${d.products?.inStock ?? 0} in stock · ${d.products?.outOfStock ?? 0} out` : undefined} icon={Package} tone="blue" />
           <StatCard label="Orders (30 days)" value={d ? d.orders?.recent ?? 0 : '—'} hint={d ? `${rwf(d.orders?.revenue?.last30Days)} revenue` : undefined} icon={ShoppingBag} tone="amber" />
-          <StatCard label="Service requests" value={d ? d.serviceRequests?.total ?? 0 : '—'} hint={d ? `${d.orders?.total ?? 0} orders all time` : undefined} icon={ClipboardList} tone="slate" />
+          <StatCard label="Service requests" value={d ? d.serviceRequests?.total ?? 0 : '—'} hint={d ? `${d.serviceRequests?.byStatus?.pending ?? 0} pending` : undefined} icon={ClipboardList} tone="slate" />
         </StatGrid>
       )}
 

@@ -1,3 +1,4 @@
+/* eslint-disable react/prop-types */
 import { useCallback, useEffect, useState } from 'react';
 import { Truck, Search, Eye, Star, RefreshCw, Plus, Pencil, Trash2, Info } from 'lucide-react';
 import {
@@ -23,8 +24,8 @@ const SCORES = [
   ['price_score', 'Price'],
   ['service_score', 'Service'],
 ];
-/** The backend only lets administrators create, edit or delete suppliers (routes/suppliers.ts). */
-const SUPPLIER_WRITE_ROLES = ['admin'];
+/** Admins and shop managers can add/edit suppliers; only admins delete or change status (routes/suppliers.ts). */
+const SUPPLIER_WRITE_ROLES = ['admin', 'shop_manager'];
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const Stars = ({ value }) => (
@@ -55,6 +56,7 @@ const ShopSuppliers = () => {
   const toast = useToast();
   const confirm = useConfirm();
   const canWrite = SUPPLIER_WRITE_ROLES.includes(localStorage.getItem('role'));
+  const isAdmin = localStorage.getItem('role') === 'admin';
 
   const [rows, setRows] = useState([]);
   const [pagination, setPagination] = useState({});
@@ -146,7 +148,9 @@ const ShopSuppliers = () => {
     const payload = {
       name: form.name.trim(), category: form.category, contact_person: form.contact_person.trim(), email: form.email.trim(),
       phone: form.phone.trim(), website: form.website.trim() || null, payment_terms: form.payment_terms.trim() || null,
-      notes: form.notes.trim() || null, status: form.status,
+      notes: form.notes.trim() || null,
+      // New suppliers from shop managers start as pending approval; only admins set status.
+      ...(isAdmin ? { status: form.status } : {}),
       address: { ...(editing !== 'new' ? editing.address : {}), city: form.city.trim(), province: form.province.trim(), country: 'Rwanda' },
     };
     setSaving(true);
@@ -226,7 +230,7 @@ const ShopSuppliers = () => {
                       <Button variant="ghost" size="sm" aria-label={`View ${s.name}`} onClick={() => openDetail(s)}><Eye className="h-4 w-4" /></Button>
                       {canWrite && <>
                         <Button variant="ghost" size="sm" aria-label={`Edit ${s.name}`} onClick={() => openEdit(s)}><Pencil className="h-4 w-4" /></Button>
-                        <Button variant="ghost" size="sm" aria-label={`Delete ${s.name}`} onClick={() => remove(s)}><Trash2 className="h-4 w-4 text-rose-600" /></Button>
+                        {isAdmin && <Button variant="ghost" size="sm" aria-label={`Delete ${s.name}`} onClick={() => remove(s)}><Trash2 className="h-4 w-4 text-rose-600" /></Button>}
                       </>}
                     </div>
                   </Td>
@@ -327,9 +331,11 @@ const ShopSuppliers = () => {
             <Field label="Category" required>
               <select className={inputClass} value={form.category} onChange={set('category')}>{CATEGORIES.map((c) => <option key={c} value={c}>{humanize(c)}</option>)}</select>
             </Field>
-            <Field label="Status">
-              <select className={inputClass} value={form.status} onChange={set('status')}>{STATUSES.map((c) => <option key={c} value={c}>{humanize(c)}</option>)}</select>
-            </Field>
+            {isAdmin && (
+              <Field label="Status">
+                <select className={inputClass} value={form.status} onChange={set('status')}>{STATUSES.map((c) => <option key={c} value={c}>{humanize(c)}</option>)}</select>
+              </Field>
+            )}
             <Field label="Contact person" required><input className={inputClass} value={form.contact_person} onChange={set('contact_person')} /></Field>
             <Field label="Phone" required><input type="tel" className={inputClass} value={form.phone} onChange={set('phone')} /></Field>
             <Field label="Email" required><input type="email" className={inputClass} value={form.email} onChange={set('email')} /></Field>

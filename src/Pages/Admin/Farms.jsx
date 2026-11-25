@@ -253,9 +253,9 @@ const AdminFarms = () => {
                     <Td className="text-right">
                       {!archived && (
                         <div className="flex justify-end gap-1">
-                          <Button size="sm" variant="ghost" icon={UserCheck} onClick={() => { setAssignTarget(f); setAgentId(''); }}>Assign agent</Button>
-                          <Button size="sm" variant="ghost" icon={Pencil} onClick={() => openEdit(f)} aria-label={`Edit ${farmName(f)}`} />
-                          <Button size="sm" variant="ghost" icon={Archive} onClick={() => doArchive(f)} aria-label={`Archive ${farmName(f)}`} />
+                          <Button size="sm" variant="ghost" icon={UserCheck} onClick={() => { setAssignTarget(f); setAgentId(''); }} aria-label={`Assign agent to ${farmName(f)}`} title="Assign agent" />
+                          <Button size="sm" variant="ghost" icon={Pencil} onClick={() => openEdit(f)} aria-label={`Edit ${farmName(f)}`} title="Edit" />
+                          <Button size="sm" variant="ghost" icon={Archive} onClick={() => doArchive(f)} aria-label={`Archive ${farmName(f)}`} title="Archive" />
                         </div>
                       )}
                     </Td>

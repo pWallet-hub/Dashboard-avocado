@@ -148,10 +148,12 @@ export default function Forecasting() {
         subtitle="Forecast avocado yields per farm or region, then record actual harvests to track accuracy."
         actions={
           <>
-            <select className={inputClass + ' w-32'} aria-label="Forecast year" value={year} onChange={(e) => setYear(e.target.value)}>
-              <option value="">All years</option>
-              {YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
-            </select>
+            <div className="w-32">
+              <select className={inputClass} aria-label="Forecast year" value={year} onChange={(e) => setYear(e.target.value)}>
+                <option value="">All years</option>
+                {YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
+              </select>
+            </div>
             <Button variant="secondary" icon={RefreshCw} onClick={load} disabled={loading}>Refresh</Button>
             <Button icon={Plus} onClick={() => setForm(emptyCreate())}>New forecast</Button>
           </>

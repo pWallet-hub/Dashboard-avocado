@@ -6,26 +6,7 @@ import { getAllProducts } from '../../services/productsService';
 import { addCartItem, getCart } from '../../services/cartService';
 import { useToast } from '../../components/Ui/Toast';
 import { Page, PageHeader, Card, Badge, Button, inputClass, EmptyState, ErrorState, Spinner, Pagination, Tabs } from '../../components/Ui/kit';
-import { rwf, errMsg } from './farmerShared';
-
-/**
- * Category id → label and (where one exists) the legacy route that shows it.
- * The shop category routes (/farmer/IrrigationKits, /farmer/HarvestingKit, …)
- * all render this one component with a `category` prop.
- */
-export const SHOP_CATEGORIES = [
-  { id: '', label: 'All products', path: '/dashboard/farmer/market' },
-  { id: 'irrigation', label: 'Irrigation kits', path: '/dashboard/farmer/IrrigationKits' },
-  { id: 'harvesting', label: 'Harvesting kits', path: '/dashboard/farmer/HarvestingKit' },
-  { id: 'containers', label: 'Containers', path: '/dashboard/farmer/container' },
-  { id: 'pest-management', label: 'Pest management', path: '/dashboard/farmer/pest' },
-  { id: 'protection', label: 'Protective equipment', path: '/dashboard/farmer/protection' },
-  { id: 'seeds', label: 'Seeds & seedlings' },
-  { id: 'fertilizers', label: 'Fertilizers' },
-  { id: 'tools', label: 'Tools' },
-];
-
-export const categoryLabel = (id) => SHOP_CATEGORIES.find((c) => c.id === id)?.label || (id ? id.replace(/-/g, ' ') : 'Other');
+import { rwf, errMsg, SHOP_CATEGORIES, categoryLabel } from './farmerShared';
 
 const PAGE_SIZE = 12;
 
@@ -82,6 +63,12 @@ export default function Market({ category: initialCategory = '' }) {
   const [error, setError] = useState(null);
   const [addingId, setAddingId] = useState(null);
   const [cartCount, setCartCount] = useState(0);
+
+  // The category routes can reuse this instance, so follow the prop.
+  useEffect(() => {
+    setCategory(initialCategory);
+    setPage(1);
+  }, [initialCategory]);
 
   // Debounce the search box.
   useEffect(() => {

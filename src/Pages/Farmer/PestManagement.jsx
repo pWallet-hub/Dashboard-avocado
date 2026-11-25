@@ -1,12 +1,13 @@
-import { useEffect, useState } from 'react';
+/* eslint-disable react/prop-types */
+import { useEffect, useRef, useState } from 'react';
 import { Bug } from 'lucide-react';
 import { createPestManagementRequest } from '../../services/serviceRequestsService';
 import { getFarmerInformation } from '../../services/farmer-information';
 import { uploadMultiple } from '../../services/uploadService';
 import { useToast } from '../../components/Ui/Toast';
 import { Page, PageHeader, Card, Button, Field, inputClass, textareaClass } from '../../components/Ui/kit';
-import { PhotoPicker, RequestSubmitted, uploadPhotos } from './FarmerBits';
-import { isoDay, farmLocationFromProfile, errMsg } from './farmerShared';
+import { PhotoPicker, RequestSubmitted } from './FarmerBits';
+import { isoDay, farmLocationFromProfile, errMsg, uploadPhotos } from './farmerShared';
 
 const diseases = [
   { disease: "Root Rot (Phytophthora Root Rot)", symptoms: "Wilting, leaf yellowing, twig dieback, root decay with brown/black rot, stunted trees" },
@@ -90,6 +91,7 @@ export default function PestManagement() {
   const [info, setInfo] = useState({ user: null, location: {} });
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
+  const inFlight = useRef(false); // guards against double submission
   const [submitted, setSubmitted] = useState(null);
 
   useEffect(() => {
@@ -122,10 +124,12 @@ export default function PestManagement() {
 
   const submit = async (ev) => {
     ev.preventDefault();
+    if (inFlight.current) return;
     if (!validate()) {
       toast.error('Please fix the highlighted fields');
       return;
     }
+    inFlight.current = true;
     setSaving(true);
     try {
       const attachments = await uploadPhotos(photos, uploadMultiple);
@@ -159,6 +163,7 @@ export default function PestManagement() {
     } catch (e) {
       toast.error(errMsg(e, 'Failed to submit request'));
     } finally {
+      inFlight.current = false;
       setSaving(false);
     }
   };

@@ -218,6 +218,7 @@ export default function Shop() {
       const res = await checkout([who.trim(), notes.trim()].filter(Boolean).join(' — '), {
         shipping_address: address,
         payment_method: paymentMethod,
+        ...(mode === 'farmer' && farmer?.id ? { farmer_id: farmer.id } : {}),
       });
       setPlacedOrder(res?.order || res);
       setCheckoutOpen(false);

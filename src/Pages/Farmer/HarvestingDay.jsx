@@ -1,12 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { CalendarCheck } from 'lucide-react';
 import { createHarvestRequest } from '../../services/serviceRequestsService';
 import { getFarmerInformation } from '../../services/farmer-information';
 import { uploadMultiple } from '../../services/uploadService';
 import { useToast } from '../../components/Ui/Toast';
 import { Page, PageHeader, Card, Button, Field, inputClass, textareaClass } from '../../components/Ui/kit';
-import { PhotoPicker, RequestSubmitted, uploadPhotos } from './FarmerBits';
-import { isoDay, addDays, farmLocationFromProfile, formatDate, errMsg } from './farmerShared';
+import { PhotoPicker, RequestSubmitted } from './FarmerBits';
+import { isoDay, addDays, farmLocationFromProfile, formatDate, errMsg, uploadPhotos } from './farmerShared';
 
 const EQUIPMENT = ['Harvest clippers', 'Picking poles', 'Plastic crates', 'Ladders', 'Picking bags'];
 
@@ -28,6 +28,7 @@ export default function HarvestingDay() {
   const [photos, setPhotos] = useState([]);
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
+  const inFlight = useRef(false); // guards against double submission
   const [submitted, setSubmitted] = useState(null);
 
   useEffect(() => {
@@ -63,7 +64,9 @@ export default function HarvestingDay() {
 
   const submit = async (ev) => {
     ev.preventDefault();
+    if (inFlight.current) return;
     if (!validate()) return;
+    inFlight.current = true;
     setSaving(true);
     try {
       const harvestImages = await uploadPhotos(photos, uploadMultiple);
@@ -83,6 +86,7 @@ export default function HarvestingDay() {
     } catch (e) {
       toast.error(errMsg(e, 'Failed to submit harvest request'));
     } finally {
+      inFlight.current = false;
       setSaving(false);
     }
   };

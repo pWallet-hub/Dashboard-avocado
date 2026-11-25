@@ -1,8 +1,8 @@
+/* eslint-disable react/prop-types */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { BarChart2, RefreshCw, TrendingUp, ShoppingCart, Package, Users } from 'lucide-react';
 import { getShopAnalytics } from '../../services/shopService';
-import { getShopCustomers } from '../../services/marketStorageService';
 import { Page, PageHeader, Card, StatGrid, StatCard, Button, EmptyState, ErrorState, Spinner, Tabs } from '../../components/Ui/kit';
 import {
   useMyShop, ShopGate, fetchAllShopProducts, fetchAllShopOrders, rwf, num, humanize, errMsg, normCategory, shopItems,
@@ -17,7 +17,7 @@ const RANGES = [
   { id: '90', label: 'Last 90 days' },
   { id: '365', label: 'Last 12 months' },
 ];
-const compact = (n) => (Math.abs(n) >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : Math.abs(n) >= 1e3 ? `${(n / 1e3).toFixed(0)}k` : String(Math.round(n)));
+const compact = (n) => (Math.abs(n) >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : Math.abs(n) >= 1e3 ? `${+(n / 1e3).toFixed(1)}k` : String(Math.round(n)));
 const dayKey = (d) => new Date(d).toISOString().slice(0, 10);
 const monthKey = (d) => new Date(d).toISOString().slice(0, 7);
 
@@ -40,13 +40,12 @@ const ShopAnalytics = () => {
     setLoading(true);
     setError(null);
     try {
-      const [summary, orders, products, customers] = await Promise.all([
+      const [summary, orders, products] = await Promise.all([
         getShopAnalytics(shop.shop_number),
         fetchAllShopOrders(shop.shop_number),
         fetchAllShopProducts(shop.shop_number),
-        getShopCustomers({ limit: 1 }).catch(() => null),
       ]);
-      setData({ summary: summary?.data || {}, orders, products, customersHint: Array.isArray(customers) ? null : null });
+      setData({ summary: summary?.data || {}, orders, products });
     } catch (e) {
       setError(errMsg(e, 'Could not load analytics'));
     } finally {

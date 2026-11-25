@@ -161,6 +161,23 @@ export async function getServiceRequestsForAgent(agentId, options = {}) {
   return extractData(response);
 }
 
+// Paginated variant for an agent's assigned requests (all types): returns { data, pagination }
+export async function listServiceRequestsForAgentPage(agentId, options = {}) {
+  if (!agentId) {
+    throw new Error("Agent ID is required");
+  }
+  const params = {};
+  ['page', 'limit', 'status', 'service_type'].forEach((k) => {
+    if (options[k]) params[k] = options[k];
+  });
+  const response = await apiClient.get(`/service-requests/agent/${agentId}`, { params });
+  const body = response.data || {};
+  return {
+    data: Array.isArray(body.data) ? body.data : [],
+    pagination: body.meta?.pagination || { page: 1, totalPages: 1, total: 0 },
+  };
+}
+
 // =============================================================================
 // HARVEST REQUEST FUNCTIONS
 // =============================================================================
@@ -1465,4 +1482,15 @@ export async function rejectServiceRequest(requestId, rejectionReason) {
   if (!rejectionReason?.trim()) throw new Error('Rejection reason is required');
   const response = await apiClient.put(`/service-requests/${requestId}/reject`, { rejection_reason: rejectionReason.trim() });
   return extractData(response);
+}
+
+// Agent takes an unassigned request (PUT /service-requests/:id/claim)
+export async function claimServiceRequest(id) {
+  if (!id) throw new Error('Request ID is required');
+  try {
+    const response = await apiClient.put(`/service-requests/${id}/claim`);
+    return extractData(response);
+  } catch (error) {
+    throw new Error(error.response?.data?.message || error.message || 'Could not claim this request');
+  }
 }

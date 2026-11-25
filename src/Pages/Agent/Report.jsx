@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { FileText, Plus, RefreshCw, Download, Eye, Pencil, Search, Clock, Play, CheckCircle2, ClipboardList, Paperclip } from 'lucide-react';
 import {
-  listReportsPage, getReportStatistics, getReport, createReport, updateReport, uploadReportAttachments, exportReports,
+  listReportsPage, getReportStatistics, getReport, createReport, updateReport, uploadReportAttachments, downloadReportAttachment, exportReports,
 } from '../../services/reportsService';
 import { listFarmers } from '../../services/usersService';
 import { useToast } from '../../components/Ui/Toast';
@@ -10,9 +10,12 @@ import {
   EmptyState, ErrorState, Spinner, Table, Td, Dialog, Pagination, Tabs,
 } from '../../components/Ui/kit';
 
-// POST /api/reports/:id/attachments has no multipart middleware yet, so every
-// upload is rejected with "No files uploaded". Flip this once the API is fixed.
-const ATTACHMENTS_ENABLED = false;
+// Attachment limits mirror the API (reports.ts attachmentUpload): 5 files per upload, 5 MB each, 20 per report
+const ATTACHMENT_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
+const MAX_FILE_BYTES = 5 * 1024 * 1024;
+const MAX_ATTACHMENTS = 20;
+// Stored keys look like "private/reports/<id>/<ts>-<rand>-<original name>"
+const attachmentName = (key) => key.split('/').pop().replace(/^\d+-[0-9a-f]+-/, '');
 
 const REPORT_TYPES = ['inspection', 'audit', 'assessment', 'survey', 'other'];
 const PRIORITIES = ['low', 'medium', 'high', 'urgent'];
@@ -172,6 +175,10 @@ export default function Report() {
 
   const uploadFiles = async () => {
     if (files.length === 0) return toast.error('Choose at least one file');
+    if (files.length > 5) return toast.error('Upload at most 5 files at a time');
+    if ((viewing.attachments?.length || 0) + files.length > MAX_ATTACHMENTS) return toast.error(`A report can have at most ${MAX_ATTACHMENTS} attachments`);
+    const bad = files.find((f) => !ATTACHMENT_TYPES.includes(f.type) || f.size > MAX_FILE_BYTES);
+    if (bad) return toast.error(`${bad.name}: use a PDF, PNG, JPEG or WEBP file up to 5 MB`);
     setBusy(true);
     try {
       await uploadReportAttachments(viewing.id, files);
@@ -372,23 +379,23 @@ export default function Report() {
               <p className="font-medium text-slate-700">Attachments</p>
               {viewing.attachments?.length ? (
                 <ul className="space-y-1">
-                  {viewing.attachments.map((a) => (
-                    <li key={a} className="flex items-center gap-2 text-slate-700"><Paperclip className="h-4 w-4 text-slate-400" />{a.split('/').pop()}</li>
+                  {viewing.attachments.map((a, i) => (
+                    <li key={a} className="flex items-center justify-between gap-2 text-slate-700">
+                      <span className="flex min-w-0 items-center gap-2"><Paperclip className="h-4 w-4 shrink-0 text-slate-400" /><span className="truncate">{attachmentName(a)}</span></span>
+                      <Button size="sm" variant="ghost" icon={Download} aria-label={`Download ${attachmentName(a)}`} onClick={() => downloadReportAttachment(viewing.id, i, attachmentName(a)).catch((err) => toast.error(err.message))}>
+                        Download
+                      </Button>
+                    </li>
                   ))}
                 </ul>
               ) : (
                 <p className="text-slate-500">No attachments.</p>
               )}
-              {ATTACHMENTS_ENABLED ? (
-                <div className="flex flex-col gap-2 sm:flex-row">
-                  <input type="file" multiple className={inputClass} aria-label="Choose attachments" onChange={(e) => setFiles(Array.from(e.target.files || []))} />
-                  <Button icon={Paperclip} loading={busy} onClick={uploadFiles}>Upload</Button>
-                </div>
-              ) : (
-                <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800 ring-1 ring-inset ring-amber-200">
-                  Adding attachments is temporarily unavailable — the server does not accept file uploads for reports yet.
-                </p>
-              )}
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <input type="file" multiple accept="application/pdf,image/png,image/jpeg,image/webp" className={inputClass} aria-label="Choose attachments" onChange={(e) => setFiles(Array.from(e.target.files || []))} />
+                <Button icon={Paperclip} loading={busy} onClick={uploadFiles}>Upload</Button>
+              </div>
+              <p className="text-xs text-slate-500">PDF or images, up to 5 files of 5 MB each.</p>
             </div>
           </div>
         </Dialog>

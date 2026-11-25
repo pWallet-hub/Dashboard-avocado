@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { MapPin } from 'lucide-react';
 import {
@@ -49,6 +49,7 @@ export default function PropertyEvaluation() {
   const [loadError, setLoadError] = useState(null);
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
+  const inFlight = useRef(false); // guards against double submission
   const [submitted, setSubmitted] = useState(null);
 
   const loadExisting = useCallback(async () => {
@@ -130,7 +131,9 @@ export default function PropertyEvaluation() {
 
   const submit = async (ev) => {
     ev.preventDefault();
+    if (inFlight.current) return;
     if (!validate()) return;
+    inFlight.current = true;
     setSaving(true);
     const payload = {
       ...form,
@@ -156,6 +159,7 @@ export default function PropertyEvaluation() {
     } catch (e) {
       toast.error(errMsg(e, 'Failed to save request'));
     } finally {
+      inFlight.current = false;
       setSaving(false);
     }
   };

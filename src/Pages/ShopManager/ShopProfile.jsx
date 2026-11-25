@@ -1,435 +1,202 @@
-import React, { useEffect, useState } from 'react';
-import { User, Mail, Phone, MapPin, Calendar, Store, Edit3, Save, X, Award, Package, Users, Wallet, History } from 'lucide-react';
+/* eslint-disable react/prop-types */
+import { useCallback, useEffect, useState } from 'react';
+import { Store, Wallet, Pencil, RefreshCw } from 'lucide-react';
 import { getProfile, updateProfile } from '../../services/authService';
-import { getAllShops, getShopWallet } from '../../services/shopService';
-import MembershipCard from '../../components/Profile/MembershipCard';
-import '../Styles/Shop.css';
+import { getShopWallet, updateShop } from '../../services/shopService';
+import { RWANDA_PROVINCES, RWANDA_DISTRICTS, ALL_DISTRICTS } from '../../utils/rwanda';
+import { useToast } from '../../components/Ui/Toast';
+import {
+  Page, PageHeader, Card, Button, Field, inputClass, textareaClass, EmptyState, ErrorState, Spinner, Table, Td, Dialog,
+  Pagination, Badge, StatGrid, StatCard,
+} from '../../components/Ui/kit';
+import { useMyShop, ShopGate, rwf, fmtDate, fmtDateTime, humanize, errMsg } from './shopCommon';
 
-export default function ShopProfile() {
-  const [shopProfile, setShopProfile] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [isEditing, setIsEditing] = useState(false);
-  const [editedProfile, setEditedProfile] = useState({});
+const PHONE_RE = /^\+?[\d\s\-()]{10,15}$/;
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-  const [shopNumber, setShopNumber] = useState(null);
-  const [wallet, setWallet] = useState(null);
-  const [walletLoading, setWalletLoading] = useState(false);
-  const [walletError, setWalletError] = useState(null);
+const Detail = ({ label, value }) => (
+  <div><dt className="text-sm text-slate-500">{label}</dt><dd className="mt-0.5 text-sm font-medium text-slate-900">{value || '—'}</dd></div>
+);
 
-  useEffect(() => {
-    const fetchShopProfile = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const profileData = await getProfile();
-        setShopProfile(profileData);
-        setEditedProfile(profileData);
-      } catch (error) {
-        setError('There was an error fetching the profile data!');
-        console.error('Error fetching profile:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
+const ShopProfile = () => {
+  const toast = useToast();
+  const shopState = useMyShop();
+  const { shop, setShop } = shopState;
 
-    fetchShopProfile();
+  const [profile, setProfile] = useState(null);
+  const [profileError, setProfileError] = useState(null);
+  const [wallet, setWallet] = useState({ rows: [], pagination: {}, balance: 0, loading: false, error: null });
+  const [walletPage, setWalletPage] = useState(1);
+  const [editing, setEditing] = useState(null); // 'account' | 'shop'
+  const [form, setForm] = useState({});
+  const [saving, setSaving] = useState(false);
+
+  const loadProfile = useCallback(async () => {
+    setProfileError(null);
+    try {
+      setProfile(await getProfile());
+    } catch (e) {
+      setProfileError(errMsg(e, 'Could not load your profile'));
+    }
   }, []);
+  useEffect(() => { loadProfile(); }, [loadProfile]);
 
-  useEffect(() => {
-    const fetchOwnShopNumber = async () => {
-      try {
-        const response = await getAllShops();
-        const shops = response?.data || [];
-        const ownShop = shops[0];
-        if (ownShop) {
-          const number = ownShop.shop_number ?? ownShop.shopNumber;
-          setShopNumber(number);
-        }
-      } catch (err) {
-        console.error('Error fetching shop for wallet lookup:', err);
-        setWalletError('Unable to load wallet information.');
-      }
-    };
+  const loadWallet = useCallback(async () => {
+    if (!shop) return;
+    setWallet((w) => ({ ...w, loading: true, error: null }));
+    try {
+      const res = await getShopWallet(shop.shop_number, { page: walletPage, limit: 10 });
+      setWallet({ rows: Array.isArray(res?.data) ? res.data : [], pagination: res?.meta?.pagination || {}, balance: res?.meta?.balance ?? shop.balance ?? 0, loading: false, error: null });
+    } catch (e) {
+      setWallet((w) => ({ ...w, loading: false, error: errMsg(e, 'Could not load wallet history') }));
+    }
+  }, [shop, walletPage]);
+  useEffect(() => { loadWallet(); }, [loadWallet]);
 
-    fetchOwnShopNumber();
-  }, []);
-
-  useEffect(() => {
-    if (!shopNumber) return;
-
-    const fetchWallet = async () => {
-      setWalletLoading(true);
-      setWalletError(null);
-      try {
-        const response = await getShopWallet(shopNumber);
-        setWallet(response?.data || null);
-      } catch (err) {
-        console.error('Error fetching shop wallet:', err);
-        setWalletError('Unable to load wallet information.');
-      } finally {
-        setWalletLoading(false);
-      }
-    };
-
-    fetchWallet();
-  }, [shopNumber]);
-
-  const handleEditProfile = () => {
-    setEditedProfile({ ...shopProfile });
-    setIsEditing(true);
+  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+  const openAccount = () => { setForm({ full_name: profile?.full_name || '', phone: profile?.phone || '' }); setEditing('account'); };
+  const openShop = () => {
+    setForm({
+      shopName: shop.shopName || '', description: shop.description || '', province: shop.province || '', district: shop.district || '',
+      ownerName: shop.ownerName || '', ownerEmail: shop.ownerEmail || '', ownerPhone: shop.ownerPhone || '',
+    });
+    setEditing('shop');
   };
 
-  const handleSaveProfile = async () => {
-    setLoading(true);
-    setError(null);
-    
+  const save = async (e) => {
+    e.preventDefault();
+    setSaving(true);
     try {
-      // Prepare update data
-      const updateData = {
-        full_name: editedProfile.full_name,
-        phone: editedProfile.phone
-      };
-      
-      // Add profile data if it exists
-      if (editedProfile.profile) {
-        updateData.profile = editedProfile.profile;
+      if (editing === 'account') {
+        if (form.full_name.trim().length < 2) throw new Error('Enter your full name');
+        if (form.phone && !PHONE_RE.test(form.phone.trim())) throw new Error('Enter a valid phone number, e.g. +250788123456');
+        setProfile(await updateProfile({ full_name: form.full_name.trim(), phone: form.phone.trim() }));
+        toast.success('Account updated');
+      } else {
+        if (form.shopName.trim().length < 2) throw new Error('Shop name must be at least 2 characters');
+        if (form.ownerName.trim().length < 2) throw new Error('Owner name must be at least 2 characters');
+        if (form.ownerEmail && !EMAIL_RE.test(form.ownerEmail.trim())) throw new Error('Enter a valid owner email');
+        if (form.ownerPhone && !PHONE_RE.test(form.ownerPhone.trim())) throw new Error('Enter a valid owner phone, e.g. +250788123456');
+        const payload = Object.fromEntries(Object.entries(form).map(([k, v]) => [k, String(v).trim()]));
+        const res = await updateShop(shop.shop_number, payload);
+        setShop(res?.data || { ...shop, ...payload });
+        toast.success('Shop details updated');
       }
-      
-      const updatedProfile = await updateProfile(updateData);
-      setShopProfile(updatedProfile);
-      setIsEditing(false);
+      setEditing(null);
     } catch (err) {
-      setError(err.message || 'Failed to update profile');
+      const fieldErr = err?.response?.data?.errors?.[0]?.message;
+      toast.error(fieldErr || errMsg(err, 'Could not save changes'));
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
 
-  const handleCancelEdit = () => {
-    setEditedProfile({ ...shopProfile });
-    setIsEditing(false);
-  };
-
-  const handleProfileChange = (field, value) => {
-    setEditedProfile(prev => ({
-      ...prev,
-      [field]: value
-    }));
-  };
-
-  const handleProfileNestedChange = (parent, field, value) => {
-    setEditedProfile(prev => ({
-      ...prev,
-      [parent]: {
-        ...prev[parent],
-        [field]: value
-      }
-    }));
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    window.location.href = '/';
-  };
-
-  const ProfileCard = ({ icon: Icon, title, value, subtitle }) => (
-    <div className="p-6 bg-white rounded-xl shadow-md hover:shadow-lg transition-all duration-300 border border-gray-100">
-      <div className="flex items-center justify-between mb-4">
-        <div className="p-3 rounded-lg bg-blue-50">
-          <Icon className="w-6 h-6 text-blue-600" aria-hidden="true" />
-        </div>
-        <div className="text-right">
-          <p className="text-2xl font-bold text-gray-800">{value || 'N/A'}</p>
-          {subtitle && <p className="text-sm text-gray-500">{subtitle}</p>}
-        </div>
-      </div>
-      <h3 className="text-sm font-medium text-gray-600">{title}</h3>
-    </div>
-  );
-
-  const InfoField = ({ label, value, icon: Icon, isEditing, onChange, type = "text" }) => (
-    <div className="flex items-center p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors duration-200">
-      <div className="p-2 rounded-lg mr-4 bg-blue-50">
-        <Icon className="w-5 h-5 text-blue-600" aria-hidden="true" />
-      </div>
-      <div className="flex-1">
-        <p className="text-sm text-gray-500 mb-1">{label}</p>
-        {isEditing ? (
-          <input
-            type={type}
-            value={value || ''}
-            onChange={(e) => onChange(e.target.value)}
-            className="w-full px-3 py-1 border border-gray-300 rounded-md"
-          />
-        ) : (
-          <p className="font-semibold text-gray-800">{value || 'N/A'}</p>
-        )}
-      </div>
-    </div>
-  );
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div
-            className="animate-spin rounded-full h-16 w-16 border-4 border-gray-300 border-t-blue-600 mb-4"
-            role="status"
-            aria-label="Loading"
-          ></div>
-          <p className="text-gray-600">Loading profile...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-md">
-          <p className="text-red-700">{error}</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!shopProfile) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 max-w-md">
-          <p className="text-gray-700">No profile data available.</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Extract shop-specific profile data
-  const shopProfileData = shopProfile.profile || {};
+  const provinceOptions = [...new Set([...RWANDA_PROVINCES, form.province].filter(Boolean))];
+  const districtOptions = [...new Set([...(RWANDA_DISTRICTS[form.province] || ALL_DISTRICTS), form.district].filter(Boolean))];
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="shadow-sm bg-blue-600">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <div className="flex items-center">
-              <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center mr-3">
-                <Store className="w-6 h-6 text-blue-600" aria-hidden="true" />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold text-white">Shop Manager Profile</h1>
-                <p className="text-blue-200 text-sm">Manage your shop information</p>
-              </div>
-            </div>
-            <button
-              onClick={handleLogout}
-              className="flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors duration-200"
-              aria-label="Logout"
-            >
-              <span>Logout</span>
-            </button>
-          </div>
-        </div>
+    <Page>
+      <PageHeader icon={Store} title="Shop profile" subtitle="Your account, shop details and wallet" />
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card title="Your account" actions={profile && <Button variant="secondary" size="sm" icon={Pencil} onClick={openAccount}>Edit</Button>}>
+          {profileError ? <ErrorState message={profileError} onRetry={loadProfile} /> : !profile ? <Spinner /> : (
+            <dl className="grid gap-4 sm:grid-cols-2">
+              <Detail label="Full name" value={profile.full_name} />
+              <Detail label="Email" value={profile.email} />
+              <Detail label="Phone" value={profile.phone} />
+              <Detail label="Role" value={humanize(profile.role)} />
+              <Detail label="Status" value={<Badge tone={profile.status === 'active' ? 'brand' : 'amber'}>{humanize(profile.status)}</Badge>} />
+              <Detail label="Member since" value={fmtDate(profile.created_at)} />
+            </dl>
+          )}
+        </Card>
+
+        <Card title="Shop details" actions={shop && <Button variant="secondary" size="sm" icon={Pencil} onClick={openShop}>Edit</Button>}>
+          {!shop ? <ShopGate state={shopState} bare /> : (
+            <dl className="grid gap-4 sm:grid-cols-2">
+              <Detail label="Shop name" value={shop.shopName} />
+              <Detail label="Shop number" value={`#${shop.shop_number}`} />
+              <Detail label="Location" value={[shop.district, shop.province].filter(Boolean).join(', ')} />
+              <Detail label="Selling" value={<Badge tone={shop.can_sell ? 'brand' : 'rose'}>{shop.can_sell ? 'Allowed' : 'Suspended by admin'}</Badge>} />
+              <Detail label="Owner" value={shop.ownerName} />
+              <Detail label="Owner contact" value={[shop.ownerPhone, shop.ownerEmail].filter(Boolean).join(' · ')} />
+              <div className="sm:col-span-2"><Detail label="Description" value={shop.description} /></div>
+            </dl>
+          )}
+        </Card>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Membership Card Section */}
-        <div className="mb-8">
-          <div style={{display:'flex',justifyContent:'center'}}>
-            <MembershipCard
-              name={shopProfile.full_name}
-              treeCount={shopProfileData.products_count || 'N/A'}
-              propertyId={shopProfileData.license_number || 'N/A'}
-              location={`${shopProfileData.city || ''}${shopProfileData.province ? `, ${shopProfileData.province}` : ''}`.trim() || 'N/A'}
-              variety={shopProfileData.shop_name || 'N/A'}
-              profileImage={shopProfileData.profileImage}
-              role={shopProfile.role}
-              memberSince={shopProfile.created_at}
-              status={shopProfile.status}
-            />
-          </div>
-        </div>
+      {shop && (
+        <>
+          <StatGrid cols={3}>
+            <StatCard label="Wallet balance" value={rwf(wallet.balance)} icon={Wallet} />
+            <StatCard label="Wallet transactions" value={String(wallet.pagination.total ?? 0)} tone="slate" />
+            <StatCard label="Shop created" value={fmtDate(shop.created_at)} tone="slate" />
+          </StatGrid>
+          <Card title="Wallet history" subtitle="Top-ups and adjustments made by administrators" padded={false}
+            actions={<Button variant="secondary" size="sm" icon={RefreshCw} onClick={loadWallet} loading={wallet.loading}>Refresh</Button>}>
+            {wallet.loading && !wallet.rows.length ? <Spinner /> : wallet.error ? <ErrorState message={wallet.error} onRetry={loadWallet} /> : wallet.rows.length === 0 ? (
+              <EmptyState icon={Wallet} title="No wallet transactions yet" description="When an administrator tops up your shop wallet it will show here." />
+            ) : (
+              <>
+                <Table head={['Date', 'Reference', 'Description', 'Method', 'Amount', 'Status']}>
+                  {wallet.rows.map((t) => (
+                    <tr key={t.id}>
+                      <Td>{fmtDateTime(t.created_at)}</Td>
+                      <Td className="font-mono text-xs">{t.transaction_number}</Td>
+                      <Td className="max-w-xs truncate">{t.description || '—'}</Td>
+                      <Td>{humanize(t.payment_method)}</Td>
+                      <Td className="font-medium text-slate-900">{rwf(t.amount)}</Td>
+                      <Td><Badge tone={t.status === 'completed' ? 'brand' : 'amber'}>{humanize(t.status)}</Badge></Td>
+                    </tr>
+                  ))}
+                </Table>
+                <Pagination page={wallet.pagination.page || walletPage} totalPages={wallet.pagination.totalPages} total={wallet.pagination.total} onChange={setWalletPage} />
+              </>
+            )}
+          </Card>
+        </>
+      )}
 
-        {/* Action Buttons */}
-        <div className="flex justify-end mb-6">
-          {!isEditing ? (
-            <button
-              onClick={handleEditProfile}
-              className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200"
-            >
-              <Edit3 className="w-4 h-4 mr-2" />
-              Edit Profile
-            </button>
-          ) : (
-            <div className="flex space-x-2">
-              <button
-                onClick={handleSaveProfile}
-                disabled={loading}
-                className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 disabled:opacity-50"
-              >
-                {loading ? (
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                ) : (
-                  <Save className="w-4 h-4 mr-2" />
-                )}
-                Save
-              </button>
-              <button
-                onClick={handleCancelEdit}
-                className="flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors duration-200"
-              >
-                <X className="w-4 h-4 mr-2" />
-                Cancel
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* Statistics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <ProfileCard
-            icon={Package}
-            title="Products"
-            value={shopProfileData.products_count}
-            subtitle="In inventory"
-          />
-          <ProfileCard
-            icon={Users}
-            title="Customers"
-            value={shopProfileData.customer_count}
-            subtitle="Active"
-          />
-          <ProfileCard
-            icon={Award}
-            title="Rating"
-            value={shopProfileData.rating}
-            subtitle="Average"
-          />
-          <ProfileCard
-            icon={Calendar}
-            title="Member Since"
-            value={shopProfile.created_at ? new Date(shopProfile.created_at).getFullYear() : 'N/A'}
-            subtitle="Years"
-          />
-        </div>
-
-        {/* Personal Information Cards */}
-        <div className="mb-8">
-          <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center">
-            <User className="w-5 h-5 mr-2 text-blue-600" aria-hidden="true" />
-            Personal Information
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <ProfileCard
-              icon={User}
-              title="Full Name"
-              value={shopProfile.full_name}
-              subtitle={null}
-            />
-            <ProfileCard
-              icon={Mail}
-              title="Email Address"
-              value={shopProfile.email}
-              subtitle={null}
-            />
-            <ProfileCard
-              icon={Phone}
-              title="Phone Number"
-              value={shopProfile.phone}
-              subtitle={null}
-            />
-            <ProfileCard
-              icon={Award}
-              title="Business License"
-              value={shopProfileData.license_number}
-              subtitle={null}
-            />
-          </div>
-        </div>
-
-        {/* Wallet Section */}
-        <div className="mb-8">
-          <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center">
-            <Wallet className="w-5 h-5 mr-2 text-blue-600" aria-hidden="true" />
-            Wallet
-          </h3>
-
-          {walletError && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-              <p className="text-sm text-red-700">{walletError}</p>
-            </div>
-          )}
-
-          {walletLoading ? (
-            <div className="p-6 bg-white rounded-xl shadow-md border border-gray-100 flex items-center justify-center">
-              <div className="w-6 h-6 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin mr-3"></div>
-              <p className="text-gray-600">Loading wallet...</p>
-            </div>
-          ) : (
-            <>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-                <ProfileCard
-                  icon={Wallet}
-                  title="Wallet Balance"
-                  value={
-                    wallet && wallet.balance !== undefined && wallet.balance !== null
-                      ? `${Number(wallet.balance).toLocaleString()} RWF`
-                      : null
-                  }
-                  subtitle="Current balance"
-                />
-              </div>
-
-              <div className="bg-white rounded-xl shadow-md border border-gray-100 p-6">
-                <h4 className="text-md font-semibold text-gray-800 mb-4 flex items-center">
-                  <History className="w-5 h-5 mr-2 text-blue-600" aria-hidden="true" />
-                  Transaction History
-                </h4>
-
-                {wallet && Array.isArray(wallet.transactions) && wallet.transactions.length > 0 ? (
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead>
-                        <tr>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type / Description</th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payment Method</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-100">
-                        {wallet.transactions.map((tx, index) => (
-                          <tr key={tx.id ?? index} className="hover:bg-gray-50">
-                            <td className="px-4 py-3 text-sm text-gray-700">
-                              {tx.date || tx.created_at
-                                ? new Date(tx.date || tx.created_at).toLocaleDateString()
-                                : 'N/A'}
-                            </td>
-                            <td className="px-4 py-3 text-sm font-semibold text-gray-800">
-                              {tx.amount !== undefined && tx.amount !== null
-                                ? `${Number(tx.amount).toLocaleString()} RWF`
-                                : 'N/A'}
-                            </td>
-                            <td className="px-4 py-3 text-sm text-gray-700">
-                              {tx.type || tx.description || 'N/A'}
-                            </td>
-                            <td className="px-4 py-3 text-sm text-gray-700">
-                              {tx.payment_method || 'N/A'}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : (
-                  <p className="text-sm text-gray-500">No wallet transactions yet.</p>
-                )}
-              </div>
-            </>
-          )}
-        </div>
-      </div>
-    </div>
+      {editing && (
+        <Dialog title={editing === 'account' ? 'Edit account' : 'Edit shop details'} onClose={() => !saving && setEditing(null)} size={editing === 'shop' ? 'lg' : 'md'}
+          footer={<>
+            <Button variant="secondary" onClick={() => setEditing(null)} disabled={saving}>Cancel</Button>
+            <Button type="submit" form="profile-form" loading={saving}>Save</Button>
+          </>}>
+          <form id="profile-form" onSubmit={save} className="grid gap-4 sm:grid-cols-2">
+            {editing === 'account' ? (
+              <>
+                <Field label="Full name" required className="sm:col-span-2"><input className={inputClass} value={form.full_name} onChange={set('full_name')} /></Field>
+                <Field label="Phone" className="sm:col-span-2"><input type="tel" className={inputClass} value={form.phone} onChange={set('phone')} /></Field>
+              </>
+            ) : (
+              <>
+                <Field label="Shop name" required className="sm:col-span-2"><input className={inputClass} value={form.shopName} onChange={set('shopName')} maxLength={200} /></Field>
+                <Field label="Province">
+                  <select className={inputClass} value={form.province} onChange={(e) => setForm((f) => ({ ...f, province: e.target.value, district: '' }))}>
+                    <option value="">Select…</option>
+                    {provinceOptions.map((p) => <option key={p} value={p}>{p}</option>)}
+                  </select>
+                </Field>
+                <Field label="District">
+                  <select className={inputClass} value={form.district} onChange={set('district')}>
+                    <option value="">Select…</option>
+                    {districtOptions.map((d) => <option key={d} value={d}>{d}</option>)}
+                  </select>
+                </Field>
+                <Field label="Owner name" required><input className={inputClass} value={form.ownerName} onChange={set('ownerName')} /></Field>
+                <Field label="Owner phone"><input type="tel" className={inputClass} value={form.ownerPhone} onChange={set('ownerPhone')} /></Field>
+                <Field label="Owner email" className="sm:col-span-2"><input type="email" className={inputClass} value={form.ownerEmail} onChange={set('ownerEmail')} /></Field>
+                <Field label="Description" className="sm:col-span-2"><textarea className={textareaClass} value={form.description} onChange={set('description')} maxLength={1000} /></Field>
+              </>
+            )}
+          </form>
+        </Dialog>
+      )}
+    </Page>
   );
-}
+};
+
+export default ShopProfile;

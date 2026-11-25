@@ -188,7 +188,7 @@ export default function Agents() {
       if (rows.length === 1 && page > 1) setPage((p) => p - 1);
       refresh();
     } catch (e) {
-      toast.error(errMsg(e, 'Failed to delete agent. They may have visits or reports linked to them — deactivate instead.'));
+      toast.error(`Couldn't delete ${agent.full_name} (${errMsg(e, 'server error')}). Accounts with linked records such as profiles, farms or shops can't be deleted — deactivate them instead.`, 8000);
     }
   };
 

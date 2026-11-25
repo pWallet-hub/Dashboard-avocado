@@ -10,41 +10,17 @@ export async function listPurchaseOrders(options = {}) {
     if (options.supplier_id) params.supplier_id = options.supplier_id;
 
     const response = await apiClient.get('/procurement', { params });
-    const extractedData = extractData(response);
-
-    // Handle different response structures
-    if (extractedData && extractedData.data) {
-      return {
-        data: Array.isArray(extractedData.data) ? extractedData.data : [],
-        pagination: extractedData.pagination || {
-          currentPage: 1,
-          totalPages: 1,
-          totalItems: extractedData.data ? extractedData.data.length : 0,
-          itemsPerPage: options.limit || 10
-        }
-      };
-    } else if (Array.isArray(extractedData)) {
-      return {
-        data: extractedData,
-        pagination: {
-          currentPage: 1,
-          totalPages: 1,
-          totalItems: extractedData.length,
-          itemsPerPage: options.limit || 10
-        }
-      };
-    } else {
-      console.warn('Unexpected response structure:', extractedData);
-      return {
-        data: [],
-        pagination: {
-          currentPage: 1,
-          totalPages: 1,
-          totalItems: 0,
-          itemsPerPage: options.limit || 10
-        }
-      };
-    }
+    const rows = Array.isArray(response.data?.data) ? response.data.data : [];
+    const meta = response.data?.meta?.pagination || {};
+    return {
+      data: rows,
+      pagination: {
+        currentPage: meta.page || options.page || 1,
+        totalPages: meta.totalPages || 1,
+        totalItems: meta.total ?? rows.length,
+        itemsPerPage: meta.limit || options.limit || 20,
+      },
+    };
   } catch (error) {
     console.error('Error in listPurchaseOrders:', error);
     throw new Error(error.response?.data?.message || error.message || 'Failed to load purchase orders');

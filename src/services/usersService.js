@@ -38,7 +38,6 @@ export async function createUser(userData) {
   const isAgentData = userData.province || userData.district || userData.sector;
   
   if (isAgentData) {
-    console.log('Creating agent with data:', userData);
     // Use the agent-specific endpoint
     const response = await apiClient.post('/users/agents', userData);
     return extractData(response);
@@ -75,11 +74,9 @@ export async function createAgent(agentData) {
     throw new Error("Email and full name are required");
   }
   
-  console.log('Creating agent with endpoint /users/agents and data:', agentData);
   
   try {
     const response = await apiClient.post('/users/agents', agentData);
-    console.log('Agent creation response:', response);
     return extractData(response);
   } catch (error) {
     console.error('Agent creation error:', error);
@@ -140,9 +137,9 @@ export async function listFarmers(options = {}) {
 // UPDATED: Get all agents with better error handling
 export async function listAgents(options = {}) {
   try {
-    console.log('Fetching agents from /users/agents');
-    const response = await apiClient.get('/users/agents');
-    console.log('Agents response:', response);
+    const params = {};
+    ['page', 'limit', 'status', 'search'].forEach((k) => { if (options[k]) params[k] = options[k]; });
+    const response = await apiClient.get('/users/agents', { params });
     return extractData(response);
   } catch (error) {
     console.error('Error fetching agents:', error);
@@ -158,9 +155,7 @@ export async function getShopManagers(options = {}) {
     if (options.page) params.page = options.page;
     if (options.limit) params.limit = options.limit;
 
-    console.log('Fetching shop managers from /users/shop-managers');
     const response = await apiClient.get('/users/shop-managers', { params });
-    console.log('Shop managers response:', response);
     return extractData(response);
   } catch (error) {
     console.error('Error fetching shop managers:', error);

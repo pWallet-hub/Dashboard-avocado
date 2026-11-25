@@ -1,717 +1,223 @@
-import React, { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { Bug, Send, ClipboardList } from 'lucide-react';
+import { createIPMRoutineRequest, listServiceRequestsForAgentPage } from '../../services/serviceRequestsService';
+import { statusMeta, formatDate } from '../Admin/serviceRequests/helpers';
+import { useToast } from '../../components/Ui/Toast';
+import {
+  Page, PageHeader, Card, Badge, Button, Field, inputClass, textareaClass, Spinner, EmptyState, ErrorState, Table, Td,
+} from '../../components/Ui/kit';
+import { FarmerPicker, LocationFields } from './agentShared';
+import { farmerLocation } from './agentHelpers';
 
-const diseases = [
-  { disease: "Root Rot (Phytophthora Root Rot)", symptoms: "Wilting, leaf yellowing, twig dieback, root decay with brown/black rot, stunted trees" },
-  { disease: "Anthracnose", symptoms: "Black sunken spots on fruit, lesions on twigs and leaves, postharvest rot" },
-  { disease: "Stem-End Rot", symptoms: "Brown to black decay at fruit stem end, extends inward postharvest" },
-  { disease: "Cercospora Spot (Leaf and Fruit Spot)", symptoms: "Purplish-brown leaf spots, small dark fruit lesions that crack" },
-  { disease: "Scab", symptoms: "Raised corky brown lesions on fruit, leaves, and twigs" },
-  { disease: "Botryosphaeria Dieback / Canker", symptoms: "Branch dieback, bark cracking, gumming" },
-  { disease: "Powdery Mildew", symptoms: "White powdery growth on young leaves, defoliation, flower abortion" },
-  { disease: "Armillaria Root Rot", symptoms: "Honey-colored mushrooms at base, white mycelial mats under bark" },
-  { disease: "Bacterial Canker", symptoms: "Water-soaked leaf spots, twig dieback, cankers on stems" },
-  { disease: "Bacterial Soft Rot (Postharvest)", symptoms: "Soft, watery fruit decay, foul odor" },
-  { disease: "Sunblotch", symptoms: "Yellow streaks on fruit, cracked bark, reduced fruit set, stunted growth" },
-  { disease: "Tip Burn / Leaf Burn", symptoms: "Brown leaf tips and margins" },
-  { disease: "Fruit Drop", symptoms: "Premature fruit fall" },
-  { disease: "Sunburn", symptoms: "Brown patches on fruit and exposed bark" }
+// Common avocado pests and diseases in Rwanda (reference list for the routine form)
+const PESTS = [
+  'Fruit fly', 'Seed weevil', 'Avocado seed moth', 'Avocado lace bug', 'Leaf miner', 'Thrips', 'Loopers / caterpillars',
+  'Whiteflies', 'Shot hole borer', 'Bark beetle', 'Stem borer', 'Persea mite', 'Avocado brown mite', 'Root weevil',
+  'Root mealybugs', 'Termites', 'Snails & slugs', 'Rodents', 'Birds',
 ];
-
-const pests = [
-  { pest: "Fruit fly", damage: "Larvae bore into fruit, causing rotting and early drop" },
-  { pest: "Seed weevil", damage: "Larvae feed inside the seed, fruit often drops" },
-  { pest: "Avocado seed moth", damage: "Larvae tunnel in seed and pulp" },
-  { pest: "Avocado lace bug", damage: "Sucks sap from underside of leaves to yellow stippling, leaf drop" },
-  { pest: "Leaf miner", damage: "Mines leaves, distorting growth" },
-  { pest: "Thrips", damage: "Feed on fruit epidermis to russeting and scarring" },
-  { pest: "Loopers / Caterpillars", damage: "Feed on tender leaves, flowers" },
-  { pest: "Whiteflies", damage: "Sap sucking to honeydew to sooty mold" },
-  { pest: "Shot hole borer / Ambrosia beetle", damage: "Bore into stems, inoculate fungi to dieback" },
-  { pest: "Bark beetle", damage: "Bores into branches; associated with Fusarium fungi" },
-  { pest: "Stem borer", damage: "Boring holes in stems and branches" },
-  { pest: "Persea mite", damage: "Yellow necrotic spots on underside of leaves; defoliation" },
-  { pest: "Avocado brown mite", damage: "Causes bronzing of leaves" },
-  { pest: "Root weevil", damage: "Larvae feed on roots, adults notch leaves" },
-  { pest: "Root mealybugs", damage: "Suck root sap, promote fungal growth" },
-  { pest: "Termites", damage: "Feed on bark, weaken tree base" },
-  { pest: "Snails & slugs", damage: "Feed on young shoots and leaves" },
-  { pest: "Rodents (rats, squirrels)", damage: "Gnaw fruits, bark, and seedlings" },
-  { pest: "Birds (esp. bulbuls, starlings)", damage: "Peck ripe fruits" }
+const DISEASES = [
+  'Phytophthora root rot', 'Anthracnose', 'Stem-end rot', 'Cercospora spot', 'Scab', 'Botryosphaeria dieback',
+  'Powdery mildew', 'Armillaria root rot', 'Bacterial canker', 'Sunblotch',
 ];
+const METHODS = ['Monitoring & scouting', 'Cultural control', 'Mechanical / traps', 'Biological control', 'Chemical (targeted)', 'Orchard sanitation', 'Pruning'];
 
-export default function App() {
-  const [selectedDisease, setSelectedDisease] = useState('');
-  const [selectedSymptom, setSelectedSymptom] = useState('');
-  const [selectedPest, setSelectedPest] = useState('');
-  const [selectedDamage, setSelectedDamage] = useState('');
-  const [pestNoticed, setPestNoticed] = useState('');
-  const [controlMethods, setControlMethods] = useState('');
-  const [primaryImage, setPrimaryImage] = useState(null);
-  const [secondaryImage, setSecondaryImage] = useState(null);
-  const [errors, setErrors] = useState({});
-  const [submitted, setSubmitted] = useState(false);
+const today = () => new Date().toISOString().slice(0, 10);
+const emptyForm = () => ({
+  scheduledDate: '', followUpDate: '', farmSize: '', targetArea: '', laborRequired: '', severity: 'medium',
+  pestType: [], ipmMethod: [], chemicalsNeeded: '', equipmentNeeded: '', preventiveMeasures: '', specialInstructions: '', notes: '',
+});
+const splitList = (s) => s.split(',').map((x) => x.trim()).filter(Boolean);
 
-  const handleDiseaseChange = (e) => {
-    const index = e.target.value;
-    setSelectedDisease(index);
-    setSelectedSymptom(index);
-    if (errors.disease) {
-      setErrors(prev => ({ ...prev, disease: '' }));
+const Chips = ({ options, value, onToggle }) => (
+  <div className="flex flex-wrap gap-2">
+    {options.map((o) => {
+      const on = value.includes(o);
+      return (
+        <button
+          key={o}
+          type="button"
+          aria-pressed={on}
+          onClick={() => onToggle(o)}
+          className={`rounded-full px-3 py-1 text-xs font-medium ring-1 ring-inset transition ${on ? 'bg-brand-50 text-brand-700 ring-brand-300' : 'bg-white text-slate-600 ring-slate-300 hover:bg-slate-50'}`}
+        >
+          {o}
+        </button>
+      );
+    })}
+  </div>
+);
+
+/**
+ * Agent schedules an IPM (integrated pest management) routine for a farmer via
+ * POST /service-requests/ipm-routine. On admin approval the backend generates
+ * the IPM form PDF as a document for the farmer.
+ */
+export default function IPMRoutine() {
+  const toast = useToast();
+  const me = localStorage.getItem('id');
+  const [farmer, setFarmer] = useState(null);
+  const [location, setLocation] = useState(farmerLocation(null));
+  const [form, setForm] = useState(emptyForm);
+  const [saving, setSaving] = useState(false);
+  const [recent, setRecent] = useState([]);
+  const [recentLoading, setRecentLoading] = useState(true);
+  const [recentError, setRecentError] = useState(null);
+
+  const loadRecent = useCallback(async () => {
+    setRecentLoading(true);
+    setRecentError(null);
+    try {
+      setRecent((await listServiceRequestsForAgentPage(me, { service_type: 'ipm_routine', limit: 5 })).data);
+    } catch (err) {
+      setRecentError(err.message);
+    } finally {
+      setRecentLoading(false);
     }
+  }, [me]);
+  useEffect(() => { loadRecent(); }, [loadRecent]);
+
+  const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+  const toggle = (k, v) => setForm((f) => ({ ...f, [k]: f[k].includes(v) ? f[k].filter((x) => x !== v) : [...f[k], v] }));
+  const pickFarmer = (f) => {
+    setFarmer(f);
+    setLocation(farmerLocation(f));
+    if (f?.farm_size && !form.farmSize) set('farmSize', String(f.farm_size));
   };
 
-  const handleSymptomChange = (e) => {
-    const index = e.target.value;
-    setSelectedSymptom(index);
-    setSelectedDisease(index);
-    if (errors.disease) {
-      setErrors(prev => ({ ...prev, disease: '' }));
-    }
-  };
-
-  const handlePestChange = (e) => {
-    const index = e.target.value;
-    setSelectedPest(index);
-    setSelectedDamage(index);
-    if (errors.pest) {
-      setErrors(prev => ({ ...prev, pest: '' }));
-    }
-  };
-
-  const handleDamageChange = (e) => {
-    const index = e.target.value;
-    setSelectedDamage(index);
-    setSelectedPest(index);
-    if (errors.pest) {
-      setErrors(prev => ({ ...prev, pest: '' }));
-    }
-  };
-
-  const handlePrimaryImage = (e) => {
-    const file = e.target.files[0];
-    if (file && file.type.startsWith('image/')) {
-      setPrimaryImage(file);
-      setErrors(prev => ({ ...prev, primaryImage: '' }));
-    } else if (file) {
-      setErrors(prev => ({ ...prev, primaryImage: 'Please upload a valid image file' }));
-    }
-  };
-
-  const handleSecondaryImage = (e) => {
-    const file = e.target.files[0];
-    if (file && file.type.startsWith('image/')) {
-      setSecondaryImage(file);
-    }
-  };
-
-  const validateForm = () => {
-    const newErrors = {};
-
-    if (!selectedDisease && !selectedPest) {
-      newErrors.general = 'Please select at least one disease or pest issue';
-    }
-
-    if (!pestNoticed) {
-      newErrors.pestNoticed = 'Please select when you noticed the issue';
-    }
-
-    if (!primaryImage) {
-      newErrors.primaryImage = 'Primary image is required';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleSubmit = (e) => {
+  const submit = async (e) => {
     e.preventDefault();
-    if (validateForm()) {
-      setSubmitted(true);
+    if (!farmer) return toast.error('Select the farmer this routine is for');
+    if (form.pestType.length === 0) return toast.error('Select at least one pest or disease');
+    if (form.ipmMethod.length === 0) return toast.error('Select at least one IPM method');
+    if (form.followUpDate && form.followUpDate < form.scheduledDate) return toast.error('Follow-up must be after the scheduled date');
+    setSaving(true);
+    try {
+      const loc = Object.fromEntries(Object.entries(location).filter(([, v]) => v && v.trim()).map(([k, v]) => [k, v.trim()]));
+      await createIPMRoutineRequest({
+        farmer_id: farmer.id,
+        farmerInfo: { name: farmer.full_name, phone: farmer.phone || '', email: farmer.email || '' },
+        location: loc,
+        scheduledDate: form.scheduledDate,
+        followUpDate: form.followUpDate || undefined,
+        farmSize: form.farmSize,
+        targetArea: `${form.targetArea} ha`,
+        laborRequired: `${form.laborRequired} workers`,
+        severity: form.severity,
+        pestType: form.pestType,
+        ipmMethod: form.ipmMethod,
+        chemicalsNeeded: splitList(form.chemicalsNeeded),
+        equipmentNeeded: splitList(form.equipmentNeeded),
+        preventiveMeasures: form.preventiveMeasures.trim(),
+        specialInstructions: form.specialInstructions.trim(),
+        notes: form.notes.trim(),
+      });
+      toast.success(`IPM routine filed for ${farmer.full_name}. It is now waiting for admin approval.`);
+      setForm(emptyForm());
+      loadRecent();
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setSaving(false);
     }
   };
-
-  if (submitted) {
-    return (
-      <div style={{
-        minHeight: '100vh',
-        background: 'linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '20px'
-      }}>
-        <div style={{
-          maxWidth: '600px',
-          width: '100%',
-          background: 'white',
-          borderRadius: '16px',
-          // padding: '48px 32px',
-          boxShadow: '0 12px 40px rgba(0, 0, 0, 0.1)',
-          textAlign: 'center'
-        }}>
-          <div style={{
-            width: '80px',
-            height: '80px',
-            background: 'linear-gradient(135deg, #27ae60, #219653)',
-            borderRadius: '50%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            margin: '0 auto 24px'
-          }}>
-            <svg width="40" height="40" fill="none" stroke="white" strokeWidth="3" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-            </svg>
-          </div>
-          <h2 style={{
-            fontSize: '28px',
-            color: '#1b5e20',
-            marginBottom: '16px',
-            fontWeight: '700'
-          }}>
-            Diagnosis Submitted Successfully!
-          </h2>
-          <p style={{
-            fontSize: '16px',
-            color: '#555',
-            lineHeight: '1.6',
-            marginBottom: '32px'
-          }}>
-            Thank you for submitting your pest and disease diagnostic form. Our agricultural experts will review your submission and contact you within 24-48 hours with recommendations.
-          </p>
-          <button
-            onClick={() => {
-              setSubmitted(false);
-              setSelectedDisease('');
-              setSelectedSymptom('');
-              setSelectedPest('');
-              setSelectedDamage('');
-              setPestNoticed('');
-              setControlMethods('');
-              setPrimaryImage(null);
-              setSecondaryImage(null);
-              setErrors({});
-            }}
-            style={{
-              padding: '14px 32px',
-              background: 'linear-gradient(to right, #27ae60, #219653)',
-              color: 'white',
-              border: 'none',
-              borderRadius: '8px',
-              fontSize: '16px',
-              fontWeight: '600',
-              cursor: 'pointer',
-              transition: 'transform 0.2s'
-            }}
-            onMouseOver={(e) => e.target.style.transform = 'translateY(-2px)'}
-            onMouseOut={(e) => e.target.style.transform = 'translateY(0)'}
-          >
-            Submit Another Diagnosis
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      // background: 'linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%)',
-      // padding: '40px 20px',
-      fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
-    }}>
-      <div style={{
-        maxWidth: '900px',
-        margin: '0 auto',
-        background: 'white',
-        borderRadius: '16px',
-        padding: '9px',
-        boxShadow: '0 12px 40px rgba(0, 0, 0, 0.08)'
-      }}>
-        {/* Header */}
-        <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-          <h1 style={{
-            fontSize: '28px',
-            color: '#1b5e20',
-            marginBottom: '8px',
-            fontWeight: '700',
-            letterSpacing: '-0.5px'
-          }}>
-            Avocado Pest & Disease Diagnostic <br /> Plus Regural Agronomic Scouting
-          </h1>
-          <p style={{
-            fontSize: '15px',
-            color: '#666',
-            lineHeight: '1.5'
-          }}>
-            Help us identify and treat issues within  your avocado orchard!
-          </p>
+    <Page>
+      <PageHeader
+        icon={Bug}
+        title="Schedule IPM routine"
+        subtitle="Plan an integrated pest management routine for a farmer. Once approved, the IPM form is added to the farmer's documents."
+        actions={<Link to="/dashboard/agent/ServiceHistory"><Button variant="secondary" icon={ClipboardList}>My service requests</Button></Link>}
+      />
+
+      <form onSubmit={submit} className="space-y-6">
+        <Card title="Farmer" subtitle="Location is pre-filled from the farmer's profile — correct it if needed.">
+          <div className="space-y-4">
+            <FarmerPicker value={farmer} onChange={pickFarmer} required />
+            <LocationFields value={location} onChange={setLocation} />
+          </div>
+        </Card>
+
+        <Card title="Pests & diseases targeted" subtitle="Select everything observed on the farm.">
+          <div className="space-y-4">
+            <div>
+              <p className="mb-2 text-sm font-medium text-slate-700">Pests</p>
+              <Chips options={PESTS} value={form.pestType} onToggle={(v) => toggle('pestType', v)} />
+            </div>
+            <div>
+              <p className="mb-2 text-sm font-medium text-slate-700">Diseases</p>
+              <Chips options={DISEASES} value={form.pestType} onToggle={(v) => toggle('pestType', v)} />
+            </div>
+            <div>
+              <p className="mb-2 text-sm font-medium text-slate-700">IPM methods <span className="text-rose-600">*</span></p>
+              <Chips options={METHODS} value={form.ipmMethod} onToggle={(v) => toggle('ipmMethod', v)} />
+            </div>
+          </div>
+        </Card>
+
+        <Card title="Routine details">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <Field label="Scheduled date" required>
+              <input type="date" min={today()} className={inputClass} value={form.scheduledDate} onChange={(e) => set('scheduledDate', e.target.value)} required />
+            </Field>
+            <Field label="Follow-up date">
+              <input type="date" min={form.scheduledDate || today()} className={inputClass} value={form.followUpDate} onChange={(e) => set('followUpDate', e.target.value)} />
+            </Field>
+            <Field label="Severity">
+              <select className={inputClass} value={form.severity} onChange={(e) => set('severity', e.target.value)}>
+                {['low', 'medium', 'high', 'urgent'].map((s) => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
+              </select>
+            </Field>
+            <Field label="Farm size (ha)" required>
+              <input type="number" min="0.01" step="0.01" className={inputClass} value={form.farmSize} onChange={(e) => set('farmSize', e.target.value)} required />
+            </Field>
+            <Field label="Area to treat (ha)" required>
+              <input type="number" min="0.01" step="0.01" className={inputClass} value={form.targetArea} onChange={(e) => set('targetArea', e.target.value)} required />
+            </Field>
+            <Field label="Workers needed" required>
+              <input type="number" min="1" className={inputClass} value={form.laborRequired} onChange={(e) => set('laborRequired', e.target.value)} required />
+            </Field>
+            <Field label="Chemicals needed" hint="Comma separated" className="sm:col-span-2 lg:col-span-1">
+              <input className={inputClass} value={form.chemicalsNeeded} onChange={(e) => set('chemicalsNeeded', e.target.value)} placeholder="e.g. Copper oxychloride" />
+            </Field>
+            <Field label="Equipment needed" hint="Comma separated" className="sm:col-span-2">
+              <input className={inputClass} value={form.equipmentNeeded} onChange={(e) => set('equipmentNeeded', e.target.value)} placeholder="e.g. Knapsack sprayer, PPE" />
+            </Field>
+            <Field label="Preventive measures" className="sm:col-span-2 lg:col-span-3">
+              <textarea className={textareaClass} value={form.preventiveMeasures} onChange={(e) => set('preventiveMeasures', e.target.value)} />
+            </Field>
+            <Field label="Special instructions" className="sm:col-span-2 lg:col-span-3">
+              <textarea className={textareaClass} value={form.specialInstructions} onChange={(e) => set('specialInstructions', e.target.value)} />
+            </Field>
+          </div>
+        </Card>
+
+        <div className="flex justify-end">
+          <Button type="submit" icon={Send} loading={saving}>Submit routine</Button>
         </div>
+      </form>
 
-        <form onSubmit={handleSubmit}>
-          {errors.general && (
-            <div style={{
-              padding: '14px 16px',
-              background: '#fee',
-              border: '1px solid #fcc',
-              borderRadius: '8px',
-              color: '#c33',
-              fontSize: '14px',
-              marginBottom: '24px'
-            }}>
-              {errors.general}
-            </div>
-          )}
-
-          {/* Diseases Section */}
-          <div style={{
-            background: '#f9fafb',
-            padding: '28px',
-            borderRadius: '12px',
-            marginBottom: '24px',
-            border: '2px solid #e5e7eb'
-          }}>
-            <h2 style={{
-              fontSize: '20px',
-              color: '#1b5e20',
-              marginBottom: '20px',
-              fontWeight: '600',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px'
-            }}>
-              <span style={{
-                width: '32px',
-                height: '32px',
-                background: '#27ae60',
-                borderRadius: '6px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'white',
-                fontSize: '16px',
-                fontWeight: '700'
-              }}>1</span>
-              Disease Identification
-            </h2>
-
-            <div style={{ 
-              display: 'grid', 
-              gridTemplateColumns: selectedDisease === '' ? '1fr' : '1fr 1fr',
-              gap: '20px',
-              marginBottom: '20px'
-            }}>
-              <div>
-                <label style={{
-                  display: 'block',
-                  marginBottom: '8px',
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  color: '#374151'
-                }}>
-                  Select by Symptoms
-                </label>
-                <select
-                  value={selectedSymptom}
-                  onChange={handleSymptomChange}
-                  style={{
-                    width: '100%',
-                    padding: '12px 16px',
-                    fontSize: '15px',
-                    border: '2px solid #d1d5db',
-                    borderRadius: '8px',
-                    background: 'white',
-                    cursor: 'pointer',
-                    marginBottom: '20px'
-                  }}
-                >
-                  <option value="">-- Select symptoms --</option>
-                  {diseases.map((item, index) => (
-                    <option key={index} value={index}>{item.symptoms}</option>
-                  ))}
-                </select>
-
-                <div>
-                  <label style={{
-                    display: 'block',
-                    marginBottom: '8px',
-                    fontSize: '14px',
-                    fontWeight: '600',
-                    color: '#374151'
-                  }}>
-                    When did you first notice the issue? <span style={{ color: '#ef4444' }}>*</span>
-                  </label>
-                  <select
-                    value={pestNoticed}
-                    onChange={(e) => {
-                      setPestNoticed(e.target.value);
-                      setErrors(prev => ({ ...prev, pestNoticed: '' }));
-                    }}
-                    style={{
-                      width: '100%',
-                      padding: '12px 16px',
-                      fontSize: '15px',
-                      border: errors.pestNoticed ? '2px solid #ef4444' : '2px solid #d1d5db',
-                      borderRadius: '8px',
-                      background: 'white',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    <option value="">-- Select timeframe --</option>
-                    <option value="this_week">This week</option>
-                    <option value="few_weeks">A few weeks ago</option>
-                    <option value="2_months">In the last 2 months</option>
-                    <option value="last_year">Last year</option>
-                  </select>
-                  {errors.pestNoticed && (
-                    <p style={{ color: '#ef4444', fontSize: '13px', marginTop: '6px' }}>{errors.pestNoticed}</p>
-                  )}
-                </div>
-              </div>
-
-              {selectedDisease !== '' && (
-                <div style={{
-                  padding: '16px',
-                  background: 'linear-gradient(135deg, #e8f5e9 0%, #d4edda 100%)',
-                  borderRadius: '8px',
-                  border: '1px solid #a5d6a7',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '12px'
-                }}>
-                  <div>
-                    <p style={{ fontSize: '13px', color: '#1b5e20', marginBottom: '4px', fontWeight: '600' }}>
-                      Disease:
-                    </p>
-                    <p style={{ fontSize: '14px', color: '#2e7d32' }}>
-                      {diseases[selectedDisease].disease}
-                    </p>
-                  </div>
-                  <div>
-                    <p style={{ fontSize: '13px', color: '#1b5e20', marginBottom: '4px', fontWeight: '600' }}>
-                      Symptoms:
-                    </p>
-                    <p style={{ fontSize: '14px', color: '#2e7d32' }}>
-                      {diseases[selectedDisease].symptoms}
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Pests Section */}
-          <div style={{
-            background: '#f9fafb',
-            padding: '28px',
-            borderRadius: '12px',
-            marginBottom: '24px',
-            border: '2px solid #e5e7eb'
-          }}>
-            <h2 style={{
-              fontSize: '20px',
-              color: '#1b5e20',
-              marginBottom: '20px',
-              fontWeight: '600',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px'
-            }}>
-              <span style={{
-                width: '32px',
-                height: '32px',
-                background: '#27ae60',
-                borderRadius: '6px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'white',
-                fontSize: '16px',
-                fontWeight: '700'
-              }}>2</span>
-              Pest Identification
-            </h2>
-
-            <div style={{ 
-              display: 'grid', 
-              gridTemplateColumns: selectedPest === '' ? '1fr' : '1fr 1fr',
-              gap: '20px',
-              marginBottom: '20px'
-            }}>
-              <div>
-                <label style={{
-                  display: 'block',
-                  marginBottom: '8px',
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  color: '#374151'
-                }}>
-                  Select by Damage Type
-                </label>
-                <select
-                  value={selectedDamage}
-                  onChange={handleDamageChange}
-                  style={{
-                    width: '100%',
-                    padding: '12px 16px',
-                    fontSize: '15px',
-                    border: '2px solid #d1d5db',
-                    borderRadius: '8px',
-                    background: 'white',
-                    cursor: 'pointer',
-                    marginBottom: '20px'
-                  }}
-                >
-                  <option value="">-- Select damage type --</option>
-                  {pests.map((item, index) => (
-                    <option key={index} value={index}>{item.damage}</option>
-                  ))}
-                </select>
-
-                <div>
-                  <label style={{
-                    display: 'block',
-                    marginBottom: '8px',
-                    fontSize: '14px',
-                    fontWeight: '600',
-                    color: '#374151'
-                  }}>
-                    When did you first notice the issue? <span style={{ color: '#ef4444' }}>*</span>
-                  </label>
-                  <select
-                    value={pestNoticed}
-                    onChange={(e) => {
-                      setPestNoticed(e.target.value);
-                      setErrors(prev => ({ ...prev, pestNoticed: '' }));
-                    }}
-                    style={{
-                      width: '100%',
-                      padding: '12px 16px',
-                      fontSize: '15px',
-                      border: errors.pestNoticed ? '2px solid #ef4444' : '2px solid #d1d5db',
-                      borderRadius: '8px',
-                      background: 'white',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    <option value="">-- Select timeframe --</option>
-                    <option value="this_week">This week</option>
-                    <option value="few_weeks">A few weeks ago</option>
-                    <option value="2_months">In the last 2 months</option>
-                    <option value="last_year">Last year</option>
-                  </select>
-                  {errors.pestNoticed && (
-                    <p style={{ color: '#ef4444', fontSize: '13px', marginTop: '6px' }}>{errors.pestNoticed}</p>
-                  )}
-                </div>
-              </div>
-
-              {selectedPest !== '' && (
-                <div style={{
-                  padding: '16px',
-                  background: 'linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%)',
-                  borderRadius: '8px',
-                  border: '1px solid #ffb74d',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '12px'
-                }}>
-                  <div>
-                    <p style={{ fontSize: '13px', color: '#e65100', marginBottom: '4px', fontWeight: '600' }}>
-                      Pest:
-                    </p>
-                    <p style={{ fontSize: '14px', color: '#f57c00' }}>
-                      {pests[selectedPest].pest}
-                    </p>
-                  </div>
-                  <div>
-                    <p style={{ fontSize: '13px', color: '#e65100', marginBottom: '4px', fontWeight: '600' }}>
-                      Damage:
-                    </p>
-                    <p style={{ fontSize: '14px', color: '#f57c00' }}>
-                      {pests[selectedPest].damage}
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Additional Information */}
-          <div style={{
-            background: '#f9fafb',
-            padding: '28px',
-            borderRadius: '12px',
-            marginBottom: '24px',
-            border: '2px solid #e5e7eb'
-          }}>
-            <h2 style={{
-              fontSize: '20px',
-              color: '#1b5e20',
-              marginBottom: '20px',
-              fontWeight: '600',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px'
-            }}>
-              <span style={{
-                width: '32px',
-                height: '32px',
-                background: '#27ae60',
-                borderRadius: '6px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'white',
-                fontSize: '16px',
-                fontWeight: '700'
-              }}>3</span>
-              Additional Details
-            </h2>
-
-            <div style={{ 
-              display: 'grid', 
-              gridTemplateColumns: '1fr 1fr', 
-              gap: '20px',
-              marginBottom: '20px'
-            }}>
-              <div>
-                <label style={{
-                  display: 'block',
-                  marginBottom: '8px',
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  color: '#374151'
-                }}>
-                  Control methods already tried
-                </label>
-                <textarea
-                  value={controlMethods}
-                  onChange={(e) => setControlMethods(e.target.value)}
-                  placeholder="e.g., neem oil, copper spray, traps, sanitation practices..."
-                  rows="4"
-                  style={{
-                    width: '100%',
-                    padding: '12px 16px',
-                    fontSize: '15px',
-                    border: '2px solid #d1d5db',
-                    borderRadius: '8px',
-                    resize: 'vertical',
-                    fontFamily: 'inherit'
-                  }}
-                />
-              </div>
-
-              <div>
-                <label style={{
-                  display: 'block',
-                  marginBottom: '8px',
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  color: '#374151'
-                }}>
-                  Upload Image of Problem <span style={{ color: '#ef4444' }}>*</span>
-                </label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handlePrimaryImage}
-                  style={{
-                    width: '100%',
-                    padding: '12px',
-                    fontSize: '14px',
-                    border: errors.primaryImage ? '2px dashed #ef4444' : '2px dashed #d1d5db',
-                    borderRadius: '8px',
-                    background: '#f9fafb',
-                    cursor: 'pointer'
-                  }}
-                />
-                {primaryImage && (
-                  <p style={{ color: '#27ae60', fontSize: '14px', marginTop: '8px', fontWeight: '500' }}>
-                     Selected: {primaryImage.name}
-                  </p>
-                )}
-                {errors.primaryImage && (
-                  <p style={{ color: '#ef4444', fontSize: '13px', marginTop: '6px' }}>{errors.primaryImage}</p>
-                )}
-              </div>
-            </div>
-
-            <div style={{ 
-              display: 'grid', 
-              gridTemplateColumns: '1fr 1fr', 
-              gap: '20px',
-              marginBottom: '20px'
-            }}>
-              <div>
-                <label style={{
-                  display: 'block',
-                  marginBottom: '8px',
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  color: '#374151'
-                }}>
-                  Additional Image (Optional)
-                </label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleSecondaryImage}
-                  style={{
-                    width: '100%',
-                    padding: '12px',
-                    fontSize: '14px',
-                    border: '2px dashed #d1d5db',
-                    borderRadius: '8px',
-                    background: '#f9fafb',
-                    cursor: 'pointer'
-                  }}
-                />
-                {secondaryImage && (
-                  <p style={{ color: '#27ae60', fontSize: '14px', marginTop: '8px', fontWeight: '500' }}>
-                    ✓ Selected: {secondaryImage.name}
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Submit Button */}
-          <button
-            type="submit"
-            style={{
-              width: '40%',
-              padding: '16px',
-              background: 'linear-gradient(to right, #27ae60, #219653)',
-              color: 'white',
-              border: 'none',
-              borderRadius: '10px',
-              fontSize: '17px',
-              fontWeight: '700',
-              cursor: 'pointer',
-              textTransform: 'uppercase',
-              letterSpacing: '0.5px',
-              boxShadow: '0 4px 14px rgba(39, 174, 96, 0.4)',
-              transition: 'all 0.3s'
-            }}
-            onMouseOver={(e) => {
-              e.target.style.transform = 'translateY(-2px)';
-              e.target.style.boxShadow = '0 6px 20px rgba(39, 174, 96, 0.5)';
-            }}
-            onMouseOut={(e) => {
-              e.target.style.transform = 'translateY(0)';
-              e.target.style.boxShadow = '0 4px 14px rgba(39, 174, 96, 0.4)';
-            }}
-          >
-            Submit Diagnosis
-          </button>
-        </form>
-
-        
-        
-         
-       
-      </div>
-    </div>
+      <Card title="Recent IPM routines you filed" padded={false}>
+        {recentLoading ? <Spinner /> : recentError ? <ErrorState message={recentError} onRetry={loadRecent} /> : recent.length === 0 ? (
+          <EmptyState icon={Bug} title="Nothing filed yet" description="Routines you submit appear here." />
+        ) : (
+          <Table head={['Request', 'Targets', 'Scheduled', 'Status']}>
+            {recent.map((r) => {
+              const st = statusMeta(r.status);
+              const d = r.ipm_routine_details || {};
+              return (
+                <tr key={r.id}>
+                  <Td className="font-medium text-slate-900">{r.request_number}</Td>
+                  <Td className="max-w-xs truncate">{Array.isArray(d.pestType) ? d.pestType.join(', ') : '—'}</Td>
+                  <Td>{formatDate(d.scheduledDate)}</Td>
+                  <Td><Badge tone={st.tone}>{st.label}</Badge></Td>
+                </tr>
+              );
+            })}
+          </Table>
+        )}
+      </Card>
+    </Page>
   );
 }

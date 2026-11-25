@@ -163,7 +163,7 @@ const Training = () => {
         }
       />
 
-      <Card padded={false} title="Library" subtitle={`${pagination.total ?? items.length} items in total`} actions={<Tabs tabs={tabs} value={statusTab} onChange={setStatusTab} />}>
+      <Card padded={false} title="Library" subtitle={`${pagination.total ?? items.length} item${(pagination.total ?? items.length) === 1 ? "" : "s"} in total`} actions={<Tabs tabs={tabs} value={statusTab} onChange={setStatusTab} />}>
         {loading ? (
           <Spinner label="Loading training content…" />
         ) : error ? (

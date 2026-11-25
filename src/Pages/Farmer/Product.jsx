@@ -5,8 +5,7 @@ import { getProductById } from '../../services/productsService';
 import { addCartItem } from '../../services/cartService';
 import { useToast } from '../../components/Ui/Toast';
 import { Page, PageHeader, Card, Badge, Button, EmptyState, ErrorState, Spinner } from '../../components/Ui/kit';
-import { categoryLabel, SHOP_CATEGORIES } from './Market';
-import { rwf, errMsg } from './farmerShared';
+import { rwf, errMsg, categoryLabel, SHOP_CATEGORIES } from './farmerShared';
 
 /** Product detail: /dashboard/farmer/product?id=<productId> */
 export default function Product() {

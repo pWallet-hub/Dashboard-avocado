@@ -292,7 +292,7 @@ export default function Users() {
       if (rows.length === 1 && page > 1) setPage((p) => p - 1);
       refresh();
     } catch (e) {
-      toast.error(errMsg(e, 'Failed to delete grower. They may have farms or records linked to them — deactivate instead.'));
+      toast.error(`Couldn't delete ${row.user_info?.full_name} (${errMsg(e, 'server error')}). Accounts with linked records such as profiles, farms or shops can't be deleted — deactivate them instead.`, 8000);
     }
   };
 

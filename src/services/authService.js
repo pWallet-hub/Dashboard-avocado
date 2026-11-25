@@ -115,15 +115,12 @@ export async function updateProfile(profileData) {
     if (userRole === 'farmer') {
       // Farmers use the enhanced profile endpoint with flattened data structure
       endpoint = '/users/me';
-      console.log('Updating farmer profile at /users/me with data:', profileData);
     } else {
       // Other roles use the standard auth profile endpoint
       endpoint = '/auth/profile';
-      console.log('Updating profile at /auth/profile for role:', userRole, 'with data:', profileData);
     }
     
     const response = await apiClient.put(endpoint, profileData);
-    console.log('Profile update response:', response);
     
     const updatedUser = extractData(response);
     

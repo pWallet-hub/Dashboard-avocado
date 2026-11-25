@@ -89,10 +89,3 @@ export function RequestSubmitted({ title, request, children, onAnother }) {
   );
 }
 
-/** Uploads files one call (max 5) and returns their public URLs. */
-export async function uploadPhotos(files, uploadMultiple) {
-  if (!files.length) return [];
-  const res = await uploadMultiple(files);
-  const list = res?.data?.files || [];
-  return list.map((f) => f.url).filter(Boolean);
-}

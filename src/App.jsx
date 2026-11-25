@@ -11,11 +11,6 @@ import Users from './Pages/Admin/Users';
 import Home from './Pages/Home';
 import Layout from './components/Layout/Layout';
 import Market from './Pages/Farmer/Market';
-import IrrigationKits from './Pages/Farmer/Irrigationkits';
-import HarvestingKit from './Pages/Farmer/HarvestingKit';
-import Protection from './Pages/Farmer/Protection';
-import Container from './Pages/Farmer/Container';
-import Pest from './Pages/Farmer/Pest';
 import Profile from './Pages/Farmer/Profile';
 import AdminProfile from './Pages/Admin/Profile';
 import AgentProfile from './Pages/Agent/Profile';
@@ -64,6 +59,7 @@ import TraceLot from './Pages/Trace/TraceLot';
 import FarmMap from './Pages/Shared/FarmMap';
 import Surveys from './Pages/Shared/Surveys';
 import MyFarm from './Pages/Farmer/MyFarm';
+import Notifications from './Pages/Dashboard/Notifications';
 import ClaimAccount from './Pages/Login/ClaimAccount';
 
 import ShopInventory from './Pages/ShopManager/ShopInventory';
@@ -99,6 +95,8 @@ function App() {
 
               <Route path="/dashboard" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
                 <Route index element={<Home />} />
+                {/* Notifications for the signed-in user (any role) */}
+                <Route path="notifications" element={<Notifications />} />
                 
                 {/* Admin Routes */}
                 <Route path="admin" element={<RoleBasedRoute allowedRoles={['admin']}><Admin /></RoleBasedRoute>} />
@@ -148,11 +146,11 @@ function App() {
                 {/* Farmer Routes */}
                 <Route path="farmer" element={<RoleBasedRoute allowedRoles={['farmer']}><Farmer /></RoleBasedRoute>} />
                 <Route path="farmer/market" element={<RoleBasedRoute allowedRoles={['farmer']}><Market /></RoleBasedRoute>} />
-                <Route path="farmer/IrrigationKits" element={<RoleBasedRoute allowedRoles={['farmer']}><IrrigationKits /></RoleBasedRoute>} />
-                <Route path="farmer/HarvestingKit" element={<RoleBasedRoute allowedRoles={['farmer']}><HarvestingKit /></RoleBasedRoute>} />
-                <Route path="farmer/protection" element={<RoleBasedRoute allowedRoles={['farmer']}><Protection/></RoleBasedRoute>}/>
-                <Route path="farmer/container" element={<RoleBasedRoute allowedRoles={['farmer']}><Container/></RoleBasedRoute>}/>
-                <Route path="farmer/pest" element={<RoleBasedRoute allowedRoles={['farmer']}><Pest/></RoleBasedRoute>}/>
+                <Route path="farmer/IrrigationKits" element={<RoleBasedRoute allowedRoles={['farmer']}><Market category="irrigation" /></RoleBasedRoute>} />
+                <Route path="farmer/HarvestingKit" element={<RoleBasedRoute allowedRoles={['farmer']}><Market category="harvesting" /></RoleBasedRoute>} />
+                <Route path="farmer/protection" element={<RoleBasedRoute allowedRoles={['farmer']}><Market category="protection" /></RoleBasedRoute>}/>
+                <Route path="farmer/container" element={<RoleBasedRoute allowedRoles={['farmer']}><Market category="containers" /></RoleBasedRoute>}/>
+                <Route path="farmer/pest" element={<RoleBasedRoute allowedRoles={['farmer']}><Market category="pest-management" /></RoleBasedRoute>}/>
                 <Route path="farmer/service" element={<RoleBasedRoute allowedRoles={['farmer']}><Service/></RoleBasedRoute>}/>
                 <Route path="farmer/PestManagement" element={<RoleBasedRoute allowedRoles={['farmer']}><PestManagement/></RoleBasedRoute>}/>
                 <Route path="farmer/HarvestingDay" element={<RoleBasedRoute allowedRoles={['farmer']}><HarvestingDay/></RoleBasedRoute>}/>

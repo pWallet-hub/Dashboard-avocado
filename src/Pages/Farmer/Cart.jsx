@@ -122,7 +122,8 @@ export default function Cart() {
       toast.success('Order placed');
       await load();
     } catch (e) {
-      setFormError(errMsg(e, 'Checkout failed'));
+      const msg = errMsg(e, 'Checkout failed');
+      setFormError(msg);
     } finally {
       setCheckingOut(false);
     }

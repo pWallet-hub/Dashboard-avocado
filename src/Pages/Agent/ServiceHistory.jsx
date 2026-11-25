@@ -1,436 +1,446 @@
-import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ClipboardList, Eye, Play, CheckCircle2, XCircle, CalendarClock, RefreshCw, Inbox, Clock, ListChecks, Hand } from 'lucide-react';
 import {
-  Search, Eye,
-  CheckCircle, Clock, XCircle, AlertCircle,
-  User, Package, Leaf, Sprout, Bug,
-  TrendingUp, FileText, RefreshCw
-} from 'lucide-react';
-import {
-  getHarvestRequestsForCurrentAgent,
-  getHarvestingPlanRequestsForCurrentAgent,
-  getIPMRoutineRequestsForCurrentAgent
+  listServiceRequestsForAgentPage,
+  listServiceRequestsByType,
+  getServiceRequest,
+  startServiceRequest,
+  completeServiceRequestByType,
+  cancelServiceRequest,
+  scheduleEvaluationVisit,
+  rescheduleEvaluationVisit,
 } from '../../services/serviceRequestsService';
-import { getAgentInformation } from '../../services/agent-information';
+import { listFarmers } from '../../services/usersService';
+import { claimServiceRequest } from '../../services/serviceRequestsService';
+import { useConfirm } from '../../components/Ui/ConfirmDialog';
+import { SERVICE_TYPES, typeLabel, STATUSES, statusMeta, PRIORITY_TONES, uiType, formatDate } from '../Admin/serviceRequests/helpers';
 import { useToast } from '../../components/Ui/Toast';
+import {
+  Page, PageHeader, Card, StatGrid, StatCard, Badge, Button, Field, inputClass, textareaClass,
+  EmptyState, ErrorState, Spinner, Table, Td, Dialog, Pagination, Tabs,
+} from '../../components/Ui/kit';
 
-const SERVICE_TYPE_META = {
-  harvest: { label: 'Harvest Request', icon: Leaf },
-  harvesting_plan: { label: 'Harvesting Plan', icon: Sprout },
-  ipm_routine: { label: 'IPM Routine', icon: Bug }
+// UI type key -> backend service_type value used by /service-requests/agent/:id?service_type=
+const BACKEND_TYPE = { property_evaluation: 'other' };
+const cap = (s) => (s ? String(s).charAt(0).toUpperCase() + String(s).slice(1).replace(/_/g, ' ') : '—');
+const myId = () => localStorage.getItem('id');
+
+const locationText = (loc) => {
+  if (!loc || typeof loc !== 'object') return '—';
+  return [loc.farm_name, loc.sector, loc.district].filter(Boolean).join(', ') || loc.province || '—';
 };
 
-// Normalize a variety of response shapes into a plain array
-const toArray = (result) => {
-  if (Array.isArray(result)) return result;
-  if (Array.isArray(result?.data)) return result.data;
-  return [];
+// Fields the backend accepts on each type's complete-* endpoint (dash-api serviceRequests.ts)
+const COMPLETE_FIELDS = {
+  harvest: [
+    { key: 'actual_workers_used', label: 'Workers used', type: 'number' },
+    { key: 'actual_harvest_amount', label: 'Harvested amount (kg)', type: 'number' },
+    { key: 'harvest_quality_notes', label: 'Quality notes', type: 'textarea' },
+  ],
+  harvesting_plan: [{ key: 'actual_yield', label: 'Actual yield (kg)', type: 'number' }],
+  ipm_routine: [{ key: 'treatment_outcome', label: 'Treatment outcome', type: 'textarea' }],
+  pest_control: [{ key: 'treatment_applied', label: 'Treatment applied', type: 'textarea' }],
+  property_evaluation: [
+    { key: 'evaluation_report', label: 'Evaluation report', type: 'textarea', required: true },
+    { key: 'follow_up_date', label: 'Follow-up date (optional)', type: 'date' },
+  ],
 };
+
+// Actions an assigned agent may take (mirrors backend guards)
+const agentActions = (r, me) => {
+  const mine = r.agent_id && r.agent_id === me;
+  const s = r.status;
+  return {
+    start: mine && (s === 'approved' || s === 'assigned'),
+    complete: mine && s === 'in_progress',
+    visit: mine && r.service_type === 'other' && ['approved', 'assigned', 'in_progress'].includes(s),
+    cancel: mine && !['completed', 'cancelled', 'rejected'].includes(s),
+  };
+};
+
+// Flatten a details JSON object into [label, value] rows (primitives and primitive arrays only)
+const detailRows = (obj) =>
+  obj && typeof obj === 'object'
+    ? Object.entries(obj).flatMap(([k, v]) => {
+        if (Array.isArray(v)) return v.length && v.every((x) => typeof x !== 'object') ? [[k, v.join(', ')]] : [];
+        if (v === null || v === undefined || v === '' || typeof v === 'object') return [];
+        return [[k, v]];
+      })
+    : [];
+
+const Item = ({ label, children }) => (
+  <div>
+    <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</dt>
+    <dd className="mt-0.5 break-words text-sm text-slate-900">{children || '—'}</dd>
+  </div>
+);
 
 export default function ServiceHistory() {
-  const [requests, setRequests] = useState([]);
-  const [filteredRequests, setFilteredRequests] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [agentInfo, setAgentInfo] = useState(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [typeFilter, setTypeFilter] = useState('all');
-  const [selectedRequest, setSelectedRequest] = useState(null);
-  const [showModal, setShowModal] = useState(false);
   const toast = useToast();
+  const me = myId();
 
-  // Helper function to get agent ID from multiple sources
-  const getAgentId = () => {
-    const sources = [
-      agentInfo?.agent_profile?.id,
-      agentInfo?.user_info?.id,
-      agentInfo?.id,
-      localStorage.getItem('userId'),
-      localStorage.getItem('agentId')
-    ];
+  const [tab, setTab] = useState('mine');
+  const [type, setType] = useState('');
+  const [status, setStatus] = useState('');
+  const [page, setPage] = useState(1);
+  const [rows, setRows] = useState([]);
+  const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0 });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [counts, setCounts] = useState({});
+  const [farmerNames, setFarmerNames] = useState({});
 
-    for (const source of sources) {
-      if (source) {
-        return source;
-      }
+  const [detail, setDetail] = useState(null); // { loading, request }
+  const [action, setAction] = useState(null); // { kind, request, values }
+  const [busy, setBusy] = useState(false);
+
+  const confirmDialog = useConfirm();
+  const [claimingId, setClaimingId] = useState(null);
+  const claim = async (r) => {
+    const ok = await confirmDialog(`Take on ${r.request_number || 'this request'} for ${farmerName(r)}? It will be assigned to you and the farmer will be notified.`, { confirmLabel: 'Claim request', danger: false });
+    if (!ok) return;
+    setClaimingId(r.id);
+    try {
+      await claimServiceRequest(r.id);
+      toast.success('Request claimed — it is now in “Assigned to me”');
+      load();
+    } catch (e) {
+      toast.error(e.message);
+      load();
+    } finally {
+      setClaimingId(null);
     }
-
-    return null;
   };
 
-  // Fetch agent info
-  useEffect(() => {
-    const fetchAgentInfo = async () => {
-      try {
-        const data = await getAgentInformation();
-        setAgentInfo(data);
-      } catch (error) {
-        console.error('Error fetching agent info:', error);
-        const fallbackInfo = {
-          agent_profile: { id: localStorage.getItem('userId') }
-        };
-        setAgentInfo(fallbackInfo);
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      if (tab === 'mine') {
+        const res = await listServiceRequestsForAgentPage(me, {
+          page, limit: 15, status, service_type: type ? BACKEND_TYPE[type] || type : '',
+        });
+        setRows(res.data);
+        setPagination(res.pagination);
+      } else {
+        // Unassigned pool: each type list returns assigned + unassigned for agents; keep agent_id === null
+        const types = type ? [type] : SERVICE_TYPES.map((t) => t.id);
+        const lists = await Promise.all(types.map((t) => listServiceRequestsByType(t, { limit: 100, status })));
+        const open = lists
+          .flatMap((l) => l.data)
+          .filter((r) => !r.agent_id && !['completed', 'cancelled', 'rejected'].includes(r.status))
+          .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        setRows(open);
+        setPagination({ page: 1, totalPages: 1, total: open.length });
       }
-    };
-    fetchAgentInfo();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [tab, page, status, type, me]);
+
+  const loadCounts = useCallback(async () => {
+    try {
+      const entries = await Promise.all(
+        ['assigned', 'approved', 'in_progress', 'completed'].map(async (s) => [
+          s,
+          (await listServiceRequestsForAgentPage(me, { status: s, limit: 1 })).pagination.total || 0,
+        ])
+      );
+      setCounts(Object.fromEntries(entries));
+    } catch {
+      setCounts({});
+    }
+  }, [me]);
+
+  useEffect(() => { load(); }, [load]);
+  useEffect(() => { loadCounts(); }, [loadCounts]);
+  useEffect(() => {
+    listFarmers({ limit: 100 })
+      .then((res) => setFarmerNames(Object.fromEntries((res?.data || []).map((f) => [f.id, f.full_name]))))
+      .catch(() => setFarmerNames({}));
   }, []);
 
-  // Fetch service requests (harvest, harvesting plan, IPM routine) assigned to the agent
-  useEffect(() => {
-    const fetchRequests = async () => {
-      setLoading(true);
-      try {
-        const currentAgentId = getAgentId();
+  const refresh = () => { load(); loadCounts(); };
+  const farmerName = (r) => r.farmer?.full_name || farmerNames[r.farmer_id] || r.farmer_info?.name || '—';
 
-        if (!currentAgentId) {
-          console.error('No agent ID available');
-          setRequests([]);
-          setFilteredRequests([]);
-          setLoading(false);
-          return;
+  const openDetail = async (r) => {
+    setDetail({ loading: true, request: r });
+    try {
+      setDetail({ loading: false, request: await getServiceRequest(r.id) });
+    } catch (err) {
+      toast.error(err.message);
+      setDetail(null);
+    }
+  };
+
+  const openAction = (kind, request) => {
+    let values = {};
+    if (kind === 'complete') values = { completion_notes: '', follow_up_required: false };
+    if (kind === 'visit') {
+      const v = request.visit_details || {};
+      values = v.visit_date
+        ? { reschedule: true, new_visit_date: '', new_visit_time: v.visit_time || '09:00', reason: '' }
+        : { visit_date: '', visit_time: '09:00', estimated_duration: '', preparation_notes: '', farmer_instructions: '' };
+    }
+    setAction({ kind, request, values });
+  };
+  const setVal = (k, v) => setAction((a) => ({ ...a, values: { ...a.values, [k]: v } }));
+
+  const submitAction = async (e) => {
+    e.preventDefault();
+    const { kind, request, values } = action;
+    const t = uiType(request.service_type);
+    setBusy(true);
+    try {
+      if (kind === 'start') {
+        await startServiceRequest(request.id, values.start_notes ? { start_notes: values.start_notes.trim() } : {});
+        toast.success('Request started');
+      } else if (kind === 'complete') {
+        const body = {};
+        Object.entries(values).forEach(([k, v]) => {
+          if (k === 'follow_up_required') return;
+          if (v !== '' && v !== null && v !== undefined) body[k] = typeof v === 'string' ? v.trim() : v;
+        });
+        if (t === 'property_evaluation') {
+          if (!body.evaluation_report) throw new Error('Evaluation report is required');
+          body.follow_up_required = !!values.follow_up_required;
         }
-
-        const [harvestResult, planResult, ipmResult] = await Promise.allSettled([
-          getHarvestRequestsForCurrentAgent({ limit: 100 }),
-          getHarvestingPlanRequestsForCurrentAgent({ limit: 100 }),
-          getIPMRoutineRequestsForCurrentAgent({ limit: 100 })
-        ]);
-
-        const harvestRequests = harvestResult.status === 'fulfilled' ? toArray(harvestResult.value) : [];
-        const planRequests = planResult.status === 'fulfilled' ? toArray(planResult.value) : [];
-        const ipmRequests = ipmResult.status === 'fulfilled' ? toArray(ipmResult.value) : [];
-
-        const failures = [harvestResult, planResult, ipmResult].filter(r => r.status === 'rejected');
-        if (failures.length > 0) {
-          console.error('Some service request types failed to load:', failures.map(f => f.reason?.message));
-          toast.error('Some service requests could not be loaded. Showing available data.');
+        if (body.actual_workers_used) body.actual_workers_used = Number(body.actual_workers_used);
+        await completeServiceRequestByType(request.id, t, body);
+        toast.success('Request marked as completed');
+      } else if (kind === 'cancel') {
+        if (!values.reason?.trim()) throw new Error('Please give a reason for cancelling');
+        await cancelServiceRequest(request.id, values.reason.trim());
+        toast.success('Request cancelled');
+      } else if (kind === 'visit') {
+        if (values.reschedule) {
+          if (!values.new_visit_date || !values.reason?.trim()) throw new Error('New date and reason are required');
+          await rescheduleEvaluationVisit(request.id, { new_visit_date: values.new_visit_date, new_visit_time: values.new_visit_time, reason: values.reason.trim() });
+          toast.success('Visit rescheduled');
+        } else {
+          if (!values.visit_date || !values.visit_time) throw new Error('Visit date and time are required');
+          await scheduleEvaluationVisit(request.id, values);
+          toast.success('Visit scheduled — the farmer has been notified');
         }
-
-        const combined = [
-          ...harvestRequests.map(req => ({ ...req, _serviceType: 'harvest' })),
-          ...planRequests.map(req => ({ ...req, _serviceType: 'harvesting_plan' })),
-          ...ipmRequests.map(req => ({ ...req, _serviceType: 'ipm_routine' }))
-        ];
-
-        setRequests(combined);
-        setFilteredRequests(combined);
-      } catch (error) {
-        console.error('Error fetching service history:', error);
-        toast.error(error.message || 'Failed to load service history');
-        setRequests([]);
-        setFilteredRequests([]);
-      } finally {
-        setLoading(false);
       }
-    };
-
-    if (agentInfo) {
-      fetchRequests();
+      setAction(null);
+      refresh();
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setBusy(false);
     }
-  }, [agentInfo]);
-
-  // Filter requests
-  useEffect(() => {
-    let filtered = requests;
-
-    if (typeFilter !== 'all') {
-      filtered = filtered.filter(req => req._serviceType === typeFilter);
-    }
-
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter(req => req.status === statusFilter);
-    }
-
-    if (searchTerm.trim()) {
-      filtered = filtered.filter(req =>
-        req.request_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        req.farmer_info?.name?.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
-    setFilteredRequests(filtered);
-  }, [requests, statusFilter, typeFilter, searchTerm]);
-
-  const getStatusBadge = (status) => {
-    const config = {
-      pending: { bg: 'bg-yellow-100', text: 'text-yellow-800', icon: Clock },
-      approved: { bg: 'bg-blue-100', text: 'text-blue-800', icon: CheckCircle },
-      in_progress: { bg: 'bg-purple-100', text: 'text-purple-800', icon: TrendingUp },
-      completed: { bg: 'bg-green-100', text: 'text-green-800', icon: CheckCircle },
-      rejected: { bg: 'bg-red-100', text: 'text-red-800', icon: XCircle }
-    };
-
-    const c = config[status] || config.pending;
-    const Icon = c.icon;
-
-    return (
-      <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${c.bg} ${c.text}`}>
-        <Icon className="w-3.5 h-3.5" />
-        {(status || 'pending').replace('_', ' ').toUpperCase()}
-      </span>
-    );
   };
 
-  const stats = {
-    total: requests.length,
-    pending: requests.filter(r => r.status === 'pending').length,
-    approved: requests.filter(r => r.status === 'approved').length,
-    completed: requests.filter(r => r.status === 'completed').length,
-    inProgress: requests.filter(r => r.status === 'in_progress').length
-  };
+  const tabs = useMemo(() => [
+    { id: 'mine', label: 'Assigned to me', icon: ListChecks },
+    { id: 'pool', label: 'Unassigned', icon: Inbox },
+  ], []);
 
-  const typeTabs = [
-    { value: 'all', label: 'All Requests' },
-    { value: 'harvest', label: 'Harvest' },
-    { value: 'harvesting_plan', label: 'Harvesting Plan' },
-    { value: 'ipm_routine', label: 'IPM Routine' }
-  ];
+  const actionTitle = action && {
+    start: 'Start request',
+    complete: 'Complete request',
+    cancel: 'Cancel request',
+    visit: action.values.reschedule ? 'Reschedule evaluation visit' : 'Schedule evaluation visit',
+  }[action.kind];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-6">
-      <div className="max-w-7xl mx-auto">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-            <FileText className="w-8 h-8 text-green-600" />
-            Service Request History
-          </h1>
-          <p className="text-gray-600 mt-2">
-            Track all service requests (harvest, harvesting plan, and IPM routine) assigned to you
+    <Page>
+      <PageHeader
+        icon={ClipboardList}
+        title="Service requests"
+        subtitle="Requests assigned to you — start them, record the outcome and complete them."
+        actions={<Button variant="secondary" icon={RefreshCw} onClick={refresh}>Refresh</Button>}
+      />
+
+      <StatGrid>
+        <StatCard label="Waiting to start" value={(counts.assigned || 0) + (counts.approved || 0)} icon={Clock} tone="amber" />
+        <StatCard label="In progress" value={counts.in_progress ?? 0} icon={Play} tone="blue" />
+        <StatCard label="Completed" value={counts.completed ?? 0} icon={CheckCircle2} />
+        <StatCard label="Total assigned" value={tab === 'mine' && !status && !type ? pagination.total ?? 0 : '—'} icon={ClipboardList} tone="slate" hint={tab === 'mine' && !status && !type ? undefined : 'Clear filters to see total'} />
+      </StatGrid>
+
+      <Card padded={false}>
+        <div className="flex flex-col gap-3 border-b border-slate-100 p-4 lg:flex-row lg:items-center lg:justify-between">
+          <Tabs tabs={tabs} value={tab} onChange={(v) => { setTab(v); setPage(1); }} />
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <select aria-label="Filter by type" className={inputClass} value={type} onChange={(e) => { setType(e.target.value); setPage(1); }}>
+              <option value="">All types</option>
+              {SERVICE_TYPES.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
+            </select>
+            <select aria-label="Filter by status" className={inputClass} value={status} onChange={(e) => { setStatus(e.target.value); setPage(1); }}>
+              <option value="">All statuses</option>
+              {STATUSES.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
+            </select>
+          </div>
+        </div>
+
+        {tab === 'pool' && (
+          <p className="border-b border-slate-100 bg-slate-50 px-4 py-2 text-xs text-slate-600">
+            Open requests not yet assigned to an agent. Claim one to take it on — it then moves to “Assigned to me”.
           </p>
-        </div>
-
-        {/* Statistics Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-          <div className="bg-white p-4 rounded-xl shadow-sm border">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <Package className="w-5 h-5 text-blue-600" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Total</p>
-                <p className="text-2xl font-bold">{stats.total}</p>
-              </div>
-            </div>
-          </div>
-          <div className="bg-white p-4 rounded-xl shadow-sm border">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-yellow-100 rounded-lg">
-                <Clock className="w-5 h-5 text-yellow-600" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Pending</p>
-                <p className="text-2xl font-bold">{stats.pending}</p>
-              </div>
-            </div>
-          </div>
-          <div className="bg-white p-4 rounded-xl shadow-sm border">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <CheckCircle className="w-5 h-5 text-blue-600" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Approved</p>
-                <p className="text-2xl font-bold">{stats.approved}</p>
-              </div>
-            </div>
-          </div>
-          <div className="bg-white p-4 rounded-xl shadow-sm border">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-purple-100 rounded-lg">
-                <TrendingUp className="w-5 h-5 text-purple-600" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">In Progress</p>
-                <p className="text-2xl font-bold">{stats.inProgress}</p>
-              </div>
-            </div>
-          </div>
-          <div className="bg-white p-4 rounded-xl shadow-sm border">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-green-100 rounded-lg">
-                <CheckCircle className="w-5 h-5 text-green-600" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Completed</p>
-                <p className="text-2xl font-bold">{stats.completed}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Type Tabs */}
-        <div className="flex flex-wrap gap-2 mb-6">
-          {typeTabs.map(tab => (
-            <button
-              key={tab.value}
-              onClick={() => setTypeFilter(tab.value)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
-                typeFilter === tab.value
-                  ? 'bg-green-600 text-white border-green-600'
-                  : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Filters */}
-        <div className="bg-white p-4 rounded-xl shadow-sm border mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search by request # or farmer name..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-              />
-            </div>
-            <div className="relative">
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-              >
-                <option value="all">All Status</option>
-                <option value="pending">Pending</option>
-                <option value="approved">Approved</option>
-                <option value="in_progress">In Progress</option>
-                <option value="completed">Completed</option>
-                <option value="rejected">Rejected</option>
-              </select>
-            </div>
-          </div>
-        </div>
-
-        {/* Results */}
-        {loading ? (
-          <div className="bg-white rounded-xl shadow-sm border p-12 text-center">
-            <RefreshCw className="w-12 h-12 text-green-600 animate-spin mx-auto mb-4" />
-            <p className="text-gray-600">Loading service history...</p>
-          </div>
-        ) : filteredRequests.length === 0 ? (
-          <div className="bg-white rounded-xl shadow-sm border p-12 text-center">
-            <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-600 text-lg mb-2">No service requests found</p>
-            <p className="text-sm text-gray-500 mb-6">
-              You have not been assigned any harvest, harvesting plan, or IPM routine requests matching these filters.
-            </p>
-
-            <div className="mt-6">
-              <Link
-                to="/dashboard/agent/HarvestingPlan"
-                className="inline-flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold"
-              >
-                <Package className="w-5 h-5" />
-                Create Harvest Request
-              </Link>
-            </div>
-          </div>
-        ) : (
-          <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b">
-                <tr>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">Request #</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">Farmer</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">Service Type</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">Date</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">Status</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {filteredRequests.map((request) => {
-                  const meta = SERVICE_TYPE_META[request._serviceType] || SERVICE_TYPE_META.harvest;
-                  const TypeIcon = meta.icon;
-                  return (
-                    <tr key={`${request._serviceType}-${request.id}`} className="hover:bg-gray-50">
-                      <td className="px-6 py-4">
-                        <span className="text-sm font-medium">{request.request_number || 'N/A'}</span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
-                            <User className="w-5 h-5 text-green-600" />
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium">{request.farmer_info?.name || request.farmer_id?.full_name || 'N/A'}</p>
-                            <p className="text-xs text-gray-500">{request.farmer_info?.phone || request.farmer_id?.phone || 'N/A'}</p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          <TypeIcon className="w-4 h-4 text-green-600" />
-                          <span className="text-sm">{meta.label}</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="text-sm text-gray-600">
-                          {new Date(request.requested_date || request.created_at).toLocaleDateString()}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">{getStatusBadge(request.status)}</td>
-                      <td className="px-6 py-4">
-                        <button
-                          onClick={() => {
-                            setSelectedRequest(request);
-                            setShowModal(true);
-                          }}
-                          className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-green-600 hover:bg-green-50 rounded-lg"
-                        >
-                          <Eye className="w-4 h-4" />
-                          View
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
         )}
-      </div>
 
-      {/* Modal - Basic version */}
-      {showModal && selectedRequest && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between">
-              <h3 className="text-xl font-bold">Request Details</h3>
-              <button onClick={() => setShowModal(false)} className="p-2 hover:bg-gray-100 rounded-lg">
-                <XCircle className="w-6 h-6 text-gray-500" />
-              </button>
-            </div>
-            <div className="p-6">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium text-gray-600">Request Number</label>
-                  <p className="text-base mt-1">{selectedRequest.request_number}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-600">Service Type</label>
-                  <p className="text-base mt-1">{(SERVICE_TYPE_META[selectedRequest._serviceType] || SERVICE_TYPE_META.harvest).label}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-600">Status</label>
-                  <div className="mt-1">{getStatusBadge(selectedRequest.status)}</div>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-600">Farmer Name</label>
-                  <p className="text-base mt-1">{selectedRequest.farmer_info?.name || selectedRequest.farmer_id?.full_name || 'N/A'}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-600">Phone</label>
-                  <p className="text-base mt-1">{selectedRequest.farmer_info?.phone || selectedRequest.farmer_id?.phone || 'N/A'}</p>
-                </div>
+        {loading ? (
+          <Spinner />
+        ) : error ? (
+          <ErrorState message={error} onRetry={load} />
+        ) : rows.length === 0 ? (
+          <EmptyState
+            icon={ClipboardList}
+            title={tab === 'mine' ? 'No requests assigned to you' : 'No unassigned requests'}
+            description={status || type ? 'Try clearing the filters.' : tab === 'mine' ? 'When an administrator assigns you a request it will show up here.' : 'Everything has been assigned.'}
+          />
+        ) : (
+          <>
+            <Table head={['Request', 'Type', 'Farmer', 'Status', 'Priority', 'Date', '']}>
+              {rows.map((r) => {
+                const st = statusMeta(r.status);
+                const can = agentActions(r, me);
+                return (
+                  <tr key={r.id} className="hover:bg-slate-50">
+                    <Td className="font-medium text-slate-900">{r.request_number || r.id.slice(0, 8)}</Td>
+                    <Td>{typeLabel(uiType(r.service_type))}</Td>
+                    <Td>
+                      <div className="text-slate-900">{farmerName(r)}</div>
+                      <div className="text-xs text-slate-500">{locationText(r.location)}</div>
+                    </Td>
+                    <Td><Badge tone={st.tone}>{st.label}</Badge></Td>
+                    <Td><Badge tone={PRIORITY_TONES[r.priority] || 'slate'}>{cap(r.priority)}</Badge></Td>
+                    <Td>{formatDate(r.scheduled_date || r.requested_date || r.created_at)}</Td>
+                    <Td>
+                      <div className="flex justify-end gap-1">
+                        <Button size="sm" variant="ghost" icon={Eye} onClick={() => openDetail(r)} aria-label={`View ${r.request_number}`} title="View details" />
+                        {tab === 'pool' && !r.agent_id && ['pending', 'approved'].includes(r.status) && (
+                          <Button size="sm" icon={Hand} loading={claimingId === r.id} onClick={() => claim(r)}>Claim</Button>
+                        )}
+                        {can.start && <Button size="sm" variant="secondary" icon={Play} onClick={() => openAction('start', r)}>Start</Button>}
+                        {can.complete && <Button size="sm" icon={CheckCircle2} onClick={() => openAction('complete', r)}>Complete</Button>}
+                        {can.visit && <Button size="sm" variant="secondary" icon={CalendarClock} onClick={() => openAction('visit', r)}>{r.visit_details?.visit_date ? 'Reschedule' : 'Schedule visit'}</Button>}
+                        {can.cancel && <Button size="sm" variant="ghost" icon={XCircle} onClick={() => openAction('cancel', r)} aria-label={`Cancel ${r.request_number}`} title="Cancel request" />}
+                      </div>
+                    </Td>
+                  </tr>
+                );
+              })}
+            </Table>
+            {tab === 'mine' && (
+              <Pagination page={pagination.page || page} totalPages={pagination.totalPages} total={pagination.total} onChange={setPage} />
+            )}
+          </>
+        )}
+      </Card>
+
+      {detail && (
+        <Dialog title={detail.request.request_number || 'Service request'} subtitle={typeLabel(uiType(detail.request.service_type))} onClose={() => setDetail(null)} size="lg"
+          footer={<Button variant="secondary" onClick={() => setDetail(null)}>Close</Button>}>
+          {detail.loading ? <Spinner /> : <RequestDetail r={detail.request} farmerName={farmerName(detail.request)} />}
+        </Dialog>
+      )}
+
+      {action && (
+        <Dialog
+          title={actionTitle}
+          subtitle={`${action.request.request_number} · ${farmerName(action.request)}`}
+          onClose={() => !busy && setAction(null)}
+          footer={
+            <>
+              <Button variant="secondary" onClick={() => setAction(null)} disabled={busy}>Close</Button>
+              <Button type="submit" form="sr-action-form" loading={busy} variant={action.kind === 'cancel' ? 'danger' : 'primary'}>
+                {action.kind === 'start' ? 'Start' : action.kind === 'complete' ? 'Mark completed' : action.kind === 'cancel' ? 'Cancel request' : 'Save'}
+              </Button>
+            </>
+          }
+        >
+          <form id="sr-action-form" onSubmit={submitAction} className="space-y-3">
+            {action.kind === 'start' && (
+              <Field label="Start notes (optional)">
+                <textarea className={textareaClass} value={action.values.start_notes || ''} onChange={(e) => setVal('start_notes', e.target.value)} placeholder="e.g. Arrived on site with 3 workers" />
+              </Field>
+            )}
+            {action.kind === 'complete' && (
+              <>
+                {(COMPLETE_FIELDS[uiType(action.request.service_type)] || []).map((f) => (
+                  <Field key={f.key} label={f.label} required={f.required}>
+                    {f.type === 'textarea' ? (
+                      <textarea className={textareaClass} value={action.values[f.key] || ''} onChange={(e) => setVal(f.key, e.target.value)} required={f.required} />
+                    ) : (
+                      <input type={f.type} min={f.type === 'number' ? 0 : undefined} className={inputClass} value={action.values[f.key] || ''} onChange={(e) => setVal(f.key, e.target.value)} />
+                    )}
+                  </Field>
+                ))}
+                {uiType(action.request.service_type) === 'property_evaluation' && (
+                  <label className="flex items-center gap-2 text-sm text-slate-700">
+                    <input type="checkbox" checked={!!action.values.follow_up_required} onChange={(e) => setVal('follow_up_required', e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-brand-600" />
+                    Follow-up visit required
+                  </label>
+                )}
+                <Field label="Completion notes">
+                  <textarea className={textareaClass} value={action.values.completion_notes || ''} onChange={(e) => setVal('completion_notes', e.target.value)} />
+                </Field>
+              </>
+            )}
+            {action.kind === 'cancel' && (
+              <Field label="Reason" required>
+                <textarea className={textareaClass} value={action.values.reason || ''} onChange={(e) => setVal('reason', e.target.value)} required />
+              </Field>
+            )}
+            {action.kind === 'visit' && (action.values.reschedule ? (
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <Field label="New date" required><input type="date" className={inputClass} value={action.values.new_visit_date} onChange={(e) => setVal('new_visit_date', e.target.value)} required /></Field>
+                <Field label="New time"><input type="time" className={inputClass} value={action.values.new_visit_time} onChange={(e) => setVal('new_visit_time', e.target.value)} /></Field>
+                <Field label="Reason" required className="sm:col-span-2"><textarea className={textareaClass} value={action.values.reason} onChange={(e) => setVal('reason', e.target.value)} required /></Field>
               </div>
-            </div>
-          </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <Field label="Visit date" required><input type="date" className={inputClass} value={action.values.visit_date} onChange={(e) => setVal('visit_date', e.target.value)} required /></Field>
+                <Field label="Visit time" required><input type="time" className={inputClass} value={action.values.visit_time} onChange={(e) => setVal('visit_time', e.target.value)} required /></Field>
+                <Field label="Estimated duration" className="sm:col-span-2"><input className={inputClass} value={action.values.estimated_duration} onChange={(e) => setVal('estimated_duration', e.target.value)} placeholder="e.g. 2 hours" /></Field>
+                <Field label="Preparation notes" className="sm:col-span-2"><textarea className={textareaClass} value={action.values.preparation_notes} onChange={(e) => setVal('preparation_notes', e.target.value)} /></Field>
+                <Field label="Instructions for the farmer" className="sm:col-span-2"><textarea className={textareaClass} value={action.values.farmer_instructions} onChange={(e) => setVal('farmer_instructions', e.target.value)} /></Field>
+              </div>
+            ))}
+          </form>
+        </Dialog>
+      )}
+    </Page>
+  );
+}
+
+function RequestDetail({ r, farmerName }) {
+  const details = r.harvest_details || r.harvesting_plan_details || r.ipm_routine_details || r.pest_management_details;
+  const st = statusMeta(r.status);
+  return (
+    <div className="space-y-5">
+      <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Item label="Status"><Badge tone={st.tone}>{st.label}</Badge></Item>
+        <Item label="Priority">{cap(r.priority)}</Item>
+        <Item label="Farmer">{farmerName}{r.farmer?.phone ? ` · ${r.farmer.phone}` : ''}</Item>
+        <Item label="Location">{locationText(r.location)}</Item>
+        <Item label="Requested">{formatDate(r.requested_date || r.created_at)}</Item>
+        <Item label="Scheduled">{formatDate(r.scheduled_date)}</Item>
+        {r.due_date && <Item label="Due">{formatDate(r.due_date)}</Item>}
+        {r.visit_details?.visit_date && <Item label="Evaluation visit">{`${formatDate(r.visit_details.visit_date)} ${r.visit_details.visit_time || ''}`}</Item>}
+      </dl>
+      {r.description && <p className="text-sm text-slate-700">{r.description}</p>}
+      {detailRows(details).length > 0 && (
+        <div>
+          <h3 className="mb-2 text-sm font-semibold text-slate-900">Request details</h3>
+          <dl className="grid grid-cols-1 gap-3 rounded-xl bg-slate-50 p-4 sm:grid-cols-2">
+            {detailRows(details).map(([k, v]) => (
+              <Item key={k} label={cap(k)}>{/date/i.test(k) ? formatDate(v) : String(v)}</Item>
+            ))}
+          </dl>
         </div>
+      )}
+      {(r.notes || r.start_notes || r.completion_notes) && (
+        <dl className="grid grid-cols-1 gap-3">
+          {r.notes && <Item label="Notes">{r.notes}</Item>}
+          {r.start_notes && <Item label="Start notes">{r.start_notes}</Item>}
+          {r.completion_notes && <Item label="Completion notes">{r.completion_notes}</Item>}
+        </dl>
       )}
     </div>
   );

@@ -3,7 +3,7 @@
  * Shared helpers for the shop-manager pages: resolving the manager's own shop,
  * paging through shop-scoped lists, formatting and status badges.
  */
-import { useCallback, useEffect, useState } from 'react';
+import { Fragment, useCallback, useEffect, useState } from 'react';
 import { Store } from 'lucide-react';
 import { getAllShops, getShopInventory, getShopOrders } from '../../services/shopService';
 import { Badge, Card, EmptyState, ErrorState, Spinner } from '../../components/Ui/kit';
@@ -91,18 +91,19 @@ export function useMyShop() {
 }
 
 /** Renders loading / error / "no shop" states; returns null when the shop is ready. */
-export const ShopGate = ({ state }) => {
-  if (state.loading) return <Card><Spinner label="Loading your shop…" /></Card>;
-  if (state.error) return <Card><ErrorState message={state.error} onRetry={state.reload} /></Card>;
+export const ShopGate = ({ state, bare = false }) => {
+  const Wrap = bare ? Fragment : Card;
+  if (state.loading) return <Wrap><Spinner label="Loading your shop…" /></Wrap>;
+  if (state.error) return <Wrap><ErrorState message={state.error} onRetry={state.reload} /></Wrap>;
   if (!state.shop)
     return (
-      <Card>
+      <Wrap>
         <EmptyState
           icon={Store}
           title="No shop linked to your account"
           description="Your account is not set as the manager of any shop yet. Ask an administrator to assign you to a shop."
         />
-      </Card>
+      </Wrap>
     );
   return null;
 };

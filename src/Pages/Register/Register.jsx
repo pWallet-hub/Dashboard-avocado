@@ -1,8 +1,13 @@
+/* eslint-disable react/prop-types */
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { UserPlus } from 'lucide-react';
 import { register } from '../../services/authService';
 import { uploadSingle } from '../../services/uploadService';
+import { updateFarmerInformation } from '../../services/farmer-information';
+import { inputClass } from '../../components/Ui/kit';
+import { authButton, AuthMessage } from '../../components/Layout/AuthShell';
+import logo from '../../assets/image/LOGO_-_Avocado_Society_of_Rwanda.png';
 
 const PROVINCES = ['Kigali', 'Eastern Province', 'Northern Province', 'Southern Province', 'Western Province'];
 
@@ -39,7 +44,7 @@ const initialFormData = {
 function Section({ title, children }) {
   return (
     <div className="mb-6">
-      <h3 className="mb-3 text-sm font-bold tracking-wide text-green-700 uppercase">{title}</h3>
+      <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-500">{title}</h3>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">{children}</div>
     </div>
   );
@@ -48,15 +53,14 @@ function Section({ title, children }) {
 function Field({ label, required, full, children }) {
   return (
     <div className={full ? 'sm:col-span-2' : ''}>
-      <label className="block mb-1 text-sm font-medium text-gray-700">
-        <span>{label} {required && <span className="text-red-500">*</span>}</span>
+      <label className="block text-sm font-medium text-slate-700">
+        <span>{label} {required && <span className="text-rose-600">*</span>}</span>
         <span className="block mt-1">{children}</span>
       </label>
     </div>
   );
 }
 
-const inputClass = 'w-full p-2.5 border border-gray-300 rounded focus:outline-none focus:border-green-500';
 
 export default function Register() {
   const [formData, setFormData] = useState(initialFormData);
@@ -117,12 +121,19 @@ export default function Register() {
         payload[f] = payload[f] === '' ? undefined : Number(payload[f]);
       });
 
-      if (formData.role === 'farmer' && profileImageFile) {
-        const uploadResult = await uploadSingle(profileImageFile);
-        if (uploadResult?.data?.url) payload.image = uploadResult.data.url;
+      if (formData.role !== 'farmer') {
+        // Farmer-only fields are irrelevant for other roles.
+        ['assistance', 'organic_certified'].forEach((f) => delete payload[f]);
       }
+      Object.keys(payload).forEach((k) => { if (payload[k] === '') delete payload[k]; });
 
       const data = await register(payload);
+
+      // Agent / shop-manager sign-ups wait for an administrator to activate them.
+      if (data?.pending_approval) {
+        navigate('/?registered=pending', { replace: true });
+        return;
+      }
 
       localStorage.setItem('token', data.token);
       if (data.refreshToken) localStorage.setItem('refreshToken', data.refreshToken);
@@ -130,6 +141,20 @@ export default function Register() {
       localStorage.setItem('role', data.user.role);
       localStorage.setItem('id', data.user.id);
       localStorage.setItem('username', data.user.email);
+
+      // Uploads require a signed-in user, so the photo is attached right after the account exists.
+      if (formData.role === 'farmer' && profileImageFile) {
+        try {
+          const uploadResult = await uploadSingle(profileImageFile);
+          const url = uploadResult?.data?.url;
+          if (url) {
+            await updateFarmerInformation({ image: url });
+            localStorage.setItem(`profilePic_${data.user.email}`, url);
+          }
+        } catch {
+          // Account is created; the photo can be added later from the Profile page.
+        }
+      }
 
       navigate(`/dashboard/${data.user.role.replace('_', '-')}`);
     } catch (err) {
@@ -143,20 +168,22 @@ export default function Register() {
   const farmDistrictOptions = DISTRICTS[formData.farm_province] || [];
 
   return (
-    <div className="flex items-center justify-center min-h-screen py-10 bg-gradient-to-r from-green-400 to-green-500">
-      <div className="w-11/12 max-w-3xl p-8 bg-white rounded-lg shadow-lg">
-        <div className="mb-6 text-center">
-          <h2 className="flex items-center justify-center gap-2 text-2xl font-bold text-gray-800 md:text-3xl">
-            <UserPlus className="text-green-600" /> Create your account
-          </h2>
-          <p className="mt-2 text-sm text-gray-500">Tell us about yourself so we can set up your dashboard.</p>
+    <div className="min-h-screen bg-slate-50 px-4 py-10 sm:px-8">
+      <div className="mx-auto w-full max-w-3xl">
+        <div className="mb-6 flex items-center gap-3">
+          <img src={logo} alt="" className="h-10 w-10 rounded-xl bg-white object-contain p-1 ring-1 ring-slate-200" />
+          <span className="font-semibold text-slate-900">Avocado Society of Rwanda</span>
+        </div>
+      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+        <div className="mb-6">
+          <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-brand-100 text-brand-700">
+            <UserPlus className="h-5 w-5" />
+          </div>
+          <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Create your account</h1>
+          <p className="mt-1 text-sm text-slate-500">Tell us about yourself so we can set up your dashboard.</p>
         </div>
 
-        {error && (
-          <div className="w-full p-3 mb-4 text-sm text-center text-red-700 bg-red-100 rounded" role="alert">
-            {error}
-          </div>
-        )}
+        {error && <div className="mb-4"><AuthMessage message={error} /></div>}
 
         <form onSubmit={handleSubmit}>
           <Section title="I am a...">
@@ -171,7 +198,7 @@ export default function Register() {
                     type="button"
                     key={opt.value}
                     onClick={() => set('role', opt.value)}
-                    className={`px-4 py-2 rounded border ${formData.role === opt.value ? 'bg-green-600 text-white border-green-600' : 'bg-white text-gray-700 border-gray-300'}`}
+                    className={`rounded-lg px-4 py-2 text-sm font-medium ring-1 ring-inset ${formData.role === opt.value ? 'bg-brand-600 text-white ring-brand-600' : 'bg-white text-slate-700 ring-slate-300 hover:bg-slate-50'}`}
                     aria-pressed={formData.role === opt.value}
                   >
                     {opt.label}
@@ -311,7 +338,7 @@ export default function Register() {
                       onChange={(e) => set('organic_certified', e.target.checked)}
                       disabled={loading}
                     />
-                    <span className="text-sm font-medium text-gray-700">My farm is certified organic</span>
+                    <span className="text-sm font-medium text-slate-700">My farm is certified organic</span>
                   </label>
                 </div>
               </Section>
@@ -348,7 +375,7 @@ export default function Register() {
                         type="button"
                         key={opt}
                         onClick={() => toggleAssistance(opt)}
-                        className={`px-3 py-1.5 text-sm rounded-full border ${formData.assistance.includes(opt) ? 'bg-green-600 text-white border-green-600' : 'bg-white text-gray-700 border-gray-300'}`}
+                        className={`rounded-full px-3 py-1.5 text-sm capitalize ring-1 ring-inset ${formData.assistance.includes(opt) ? 'bg-brand-600 text-white ring-brand-600' : 'bg-white text-slate-700 ring-slate-300 hover:bg-slate-50'}`}
                         aria-pressed={formData.assistance.includes(opt)}
                       >
                         {opt.replace('_', ' ')}
@@ -423,17 +450,13 @@ export default function Register() {
             </Section>
           )}
 
-          <button
-            type="submit"
-            disabled={loading}
-            className={`w-full p-3 mt-2 text-white rounded ${loading ? 'bg-green-400' : 'bg-green-500 hover:bg-green-600'}`}
-          >
-            {loading ? 'Creating account...' : 'Create account'}
+          <button type="submit" disabled={loading} className={authButton}>
+            {loading ? 'Creating account…' : 'Create account'}
           </button>
         </form>
-
-        <p className="mt-4 text-sm text-center text-gray-600">
-          Already have an account? <Link to="/" className="font-medium text-green-600 hover:underline">Sign in</Link>
+      </div>
+        <p className="mt-6 text-center text-sm text-slate-600">
+          Already have an account? <Link to="/" className="font-medium text-brand-700 hover:underline">Sign in</Link>
         </p>
       </div>
     </div>

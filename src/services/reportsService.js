@@ -185,6 +185,24 @@ export async function uploadReportAttachments(reportId, files) {
   }
 }
 
+// Download one attachment (by its index in report.attachments) and trigger a browser download
+export async function downloadReportAttachment(reportId, index, filename) {
+  try {
+    const response = await apiClient.get(`/reports/${reportId}/attachments/${index}`, { responseType: 'blob' });
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = window.document.createElement('a');
+    link.href = url;
+    link.download = filename || `attachment-${index + 1}`;
+    window.document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+    return true;
+  } catch (error) {
+    throw new Error(error.response?.data?.message || error.message || 'Failed to download attachment');
+  }
+}
+
 // Export reports as a CSV or JSON file download
 export async function exportReports(options = {}) {
   try {

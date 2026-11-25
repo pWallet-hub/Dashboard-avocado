@@ -16,9 +16,9 @@ const conditionIcon = (text = '') => {
 };
 
 /**
- * Weather for the farmer's own farm(s). The backend weather endpoints are not
- * yet connected to a real weather provider, so the page says so clearly and
- * does not show the (randomly generated) multi-day forecast.
+ * Weather for the farmer's own farm(s): live readings and a 7-day forecast
+ * (Open-Meteo, via the API) at the farm's GPS point or its district, plus
+ * practical advice. If the API ever returns non-live data the page says so.
  */
 export default function Weather() {
   const [farms, setFarms] = useState(null);
@@ -84,14 +84,12 @@ export default function Weather() {
         }
       />
 
-      <div className="flex gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900" role="note">
-        <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
-        <p>
-          <span className="font-medium">Sample data.</span> A live weather service is not connected yet, so the values below are
-          placeholder readings for your district — do not rely on them for spraying or harvest decisions. The multi-day forecast
-          will appear here once a real weather source is connected.
-        </p>
-      </div>
+      {data && data.source !== 'open-meteo' && (
+        <div className="flex gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900" role="note">
+          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
+          <p><span className="font-medium">Sample data.</span> These values are not from a live weather service — do not rely on them for spraying or harvest decisions.</p>
+        </div>
+      )}
 
       {farms === null ? (
         <Card><Spinner /></Card>
@@ -124,7 +122,11 @@ export default function Weather() {
                   <p className="text-sm text-slate-600">{c.conditions || '—'}</p>
                 </div>
               </div>
-              {loadedAt && <p className="text-xs text-slate-400">Updated {formatDate(loadedAt, true)}</p>}
+              <div className="text-xs text-slate-400 sm:text-right">
+                {loadedAt && <p>Updated {formatDate(loadedAt, true)}</p>}
+                {data.weather_point && <p>Measured at: {data.weather_point}</p>}
+                {data.source === 'open-meteo' && <p>Source: Open-Meteo</p>}
+              </div>
             </div>
           </Card>
 
@@ -156,6 +158,27 @@ export default function Weather() {
               )}
             </Card>
           </div>
+
+          {Array.isArray(data.forecast) && data.forecast.length > 0 && (
+            <Card title="Next 7 days" subtitle="Daily minimum–maximum temperature, rain and chance of rain">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
+                {data.forecast.slice(0, 7).map((d) => {
+                  const DayIcon = conditionIcon(d.conditions);
+                  return (
+                    <div key={d.date} className="rounded-xl border border-slate-200 p-3 text-center">
+                      <p className="text-xs font-medium text-slate-500">
+                        {new Date(`${d.date}T12:00:00`).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric' })}
+                      </p>
+                      <DayIcon className="mx-auto my-2 h-7 w-7 text-blue-600" aria-hidden="true" />
+                      <p className="text-sm font-semibold text-slate-900">{Math.round(d.temp_max_c)}° <span className="font-normal text-slate-400">/ {Math.round(d.temp_min_c)}°</span></p>
+                      <p className="text-xs text-slate-600">{d.conditions}</p>
+                      <p className="mt-1 text-xs text-blue-700">{Math.round((d.rainfall_mm || 0) * 10) / 10} mm{d.rain_probability_pct != null ? ` · ${d.rain_probability_pct}%` : ''}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            </Card>
+          )}
         </>
       ) : null}
     </Page>

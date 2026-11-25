@@ -94,11 +94,12 @@ export async function checkout(notes, details = {}) {
     if (details.shipping_address) payload.shipping_address = details.shipping_address;
     if (details.payment_method) payload.payment_method = details.payment_method;
     if (details.customer_id) payload.customer_id = details.customer_id;
+    // Agents ordering for a farmer: the order is recorded against that farmer.
+    if (details.farmer_id) payload.farmer_id = details.farmer_id;
 
     const response = await apiClient.post('/cart/checkout', payload);
     return extractData(response);
   } catch (error) {
-    console.error('Error in checkout:', error);
     throw new Error(error.response?.data?.message || error.message || 'Failed to checkout cart');
   }
 }

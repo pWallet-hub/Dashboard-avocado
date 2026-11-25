@@ -101,7 +101,7 @@ export function detailRows(req) {
         ['Irrigation timing', p.irrigation_timing],
         ['Soil testing', p.soil_testing === undefined ? null : p.soil_testing ? 'Yes' : 'No'],
         ['Visit window', p.visit_start_date ? `${formatDate(p.visit_start_date)} – ${formatDate(p.visit_end_date)}` : null],
-        ['Visit date', formatDateOrNull(req?.visit_details?.visit_date)],
+        ['Farm visit', req?.visit_details?.visit_date ? `${formatDate(req.visit_details.visit_date)}${req.visit_details.visit_time ? ` at ${req.visit_details.visit_time}` : ''}` : null],
       ];
     case 'harvesting_plan':
       return [
