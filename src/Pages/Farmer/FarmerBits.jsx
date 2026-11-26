@@ -1,4 +1,3 @@
-/* eslint-disable react/prop-types */
 import { useEffect, useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { CheckCircle2, ImagePlus, X } from 'lucide-react';

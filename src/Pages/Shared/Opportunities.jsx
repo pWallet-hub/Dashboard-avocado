@@ -1,4 +1,3 @@
-/* eslint-disable react/prop-types */
 import { useCallback, useEffect, useState } from 'react';
 import {
   Sparkles, Plus, RefreshCw, Phone, Mail, ExternalLink, CalendarClock, MapPin, Users, Pencil, Trash2, Lock, Unlock, HandHeart, Search,

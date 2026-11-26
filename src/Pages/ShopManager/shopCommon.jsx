@@ -1,4 +1,4 @@
-/* eslint-disable react/prop-types, react-refresh/only-export-components */
+/* eslint-disable react-refresh/only-export-components */
 /**
  * Shared helpers for the shop-manager pages: resolving the manager's own shop,
  * paging through shop-scoped lists, formatting and status badges.

@@ -1,4 +1,3 @@
-/* eslint-disable react/prop-types */
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { UserPlus } from 'lucide-react';
@@ -11,7 +10,7 @@ import logo from '../../assets/image/LOGO_-_Avocado_Society_of_Rwanda.png';
 import LocationPicker from '../../components/Location/LocationPicker';
 
 const AVOCADO_TYPES = ['Hass', 'Fuerte', 'Bacon', 'Zutano', 'Mixed'];
-const ASSISTANCE_OPTIONS = ['irrigation', 'fertilizers', 'training', 'equipment', 'seedlings', 'pest_control'];
+const ASSISTANCE_OPTIONS = ['irrigation', 'fertilizers', 'training', 'advisory', 'credit', 'equipment', 'seedlings', 'pest_control'];
 const IRRIGATION_SYSTEMS = ['None (rain-fed)', 'Drip irrigation', 'Sprinkler', 'Furrow', 'Manual watering'];
 const SOIL_TYPES = ['Loam', 'Clay', 'Sandy', 'Volcanic', 'Silt'];
 

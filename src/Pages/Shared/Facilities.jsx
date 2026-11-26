@@ -1,4 +1,3 @@
-/* eslint-disable react/prop-types */
 import { useCallback, useEffect, useState } from 'react';
 import { Building2, Plus, RefreshCw, Pencil, Trash2, LocateFixed, Search, Navigation } from 'lucide-react';
 import {

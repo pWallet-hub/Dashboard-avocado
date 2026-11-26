@@ -1,4 +1,3 @@
-/* eslint-disable react/prop-types */
 import { useEffect, useState } from 'react';
 import { MapPinned, Plus, Trash2, Users } from 'lucide-react';
 import { Dialog, Button, Badge, Spinner } from '../Ui/kit';

@@ -1,4 +1,3 @@
-/* eslint-disable react/prop-types */
 import { useMemo } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { X, ChevronsLeft, Store } from 'lucide-react';

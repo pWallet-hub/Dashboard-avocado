@@ -233,7 +233,7 @@ export default function MyFarm() {
                   <li>Press <b>Save land details</b>. Your VBA verifies it on the next visit.</li>
                 </ol>
               </div>
-              <LandEditor key={current.id} farmId={current.id} mapHeight={440} />
+              <LandEditor key={current.id} farmId={current.id} mapHeight={440} onSaved={load} />
             </Card>
           )}
         </>

@@ -1,4 +1,3 @@
-/* eslint-disable react/prop-types */
 import logo from '../../assets/image/LOGO_-_Avocado_Society_of_Rwanda.png';
 
 const fmt = (value) => {

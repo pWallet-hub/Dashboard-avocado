@@ -1,4 +1,3 @@
-/* eslint-disable react/prop-types */
 import { useEffect, useRef, useState } from 'react';
 import { Bug } from 'lucide-react';
 import { createPestManagementRequest } from '../../services/serviceRequestsService';

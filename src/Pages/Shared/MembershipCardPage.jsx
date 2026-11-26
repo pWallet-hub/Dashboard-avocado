@@ -1,4 +1,3 @@
-/* eslint-disable react/prop-types */
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { IdCard, Printer, Link2, ExternalLink, RefreshCw, ShieldCheck, CalendarClock, ScanLine, Store, RotateCcw, AlertTriangle } from 'lucide-react';

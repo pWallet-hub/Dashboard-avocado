@@ -1,11 +1,10 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { 
   X, 
   User, 
   Bell, 
   Shield, 
   Palette, 
-  Globe, 
   Moon, 
   Sun, 
   Monitor,
@@ -14,8 +13,7 @@ import {
   EyeOff,
   Smartphone,
   Mail,
-  Volume2,
-  VolumeX
+  Volume2
 } from 'lucide-react';
 
 const SettingsModal = ({ user, isOpen, onClose }) => {
@@ -304,7 +302,7 @@ const SettingsModal = ({ user, isOpen, onClose }) => {
           <div className="flex items-center justify-between py-2">
             <div>
               <label className="text-sm font-medium text-gray-700">Show Online Status</label>
-              <p className="text-xs text-gray-500">Let others see when you're online</p>
+              <p className="text-xs text-gray-500">Let others see when you&apos;re online</p>
             </div>
             <button
               onClick={() => handleSettingChange('showOnlineStatus', !settings.showOnlineStatus)}

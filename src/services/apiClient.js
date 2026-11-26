@@ -101,6 +101,13 @@ apiClient.interceptors.response.use(
       return Promise.reject(new Error('Network error. Please check your internet connection.'));
     }
     
+    // A 401 from a sign-in style call is a wrong password / inactive account,
+    // not an expired session: show the server's message instead of reloading.
+    const isPublicAuthCall = /\/auth\/(login|register|verify-phone|forgot-password|reset-password)/.test(originalRequest?.url || '');
+    if (error.response?.status === 401 && isPublicAuthCall) {
+      return rejectWithResponse(error.response?.data?.message || 'Invalid credentials', error);
+    }
+
     // Handle token refresh for 401 errors (except for refresh token requests)
     if (error.response?.status === 401 && !originalRequest._retry) {
       // Don't retry refresh token requests
@@ -161,9 +168,9 @@ apiClient.interceptors.response.use(
       return rejectWithResponse('Access denied. You do not have permission to perform this action.', error);
     }
     
-    // Add specific handling for 409 Conflict errors (user already exists)
+    // 409 Conflict: the server says what clashed (email, UPI, batch already imported …)
     if (error.response?.status === 409) {
-      return rejectWithResponse('User with this email already exists.', error);
+      return rejectWithResponse(error.response?.data?.message || 'This conflicts with existing data.', error);
     }
     
     // Add specific handling for 400/422 validation errors

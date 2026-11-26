@@ -1,4 +1,3 @@
-/* eslint-disable react/prop-types */
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { User, Settings, LogOut, ChevronDown, Camera, Menu, ChevronRight, Bell } from 'lucide-react';

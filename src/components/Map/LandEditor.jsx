@@ -1,10 +1,9 @@
-/* eslint-disable react/prop-types */
 import { useCallback, useEffect, useState } from 'react';
-import { BadgeCheck, CheckCircle2, AlertTriangle, Save, Search, ShieldCheck } from 'lucide-react';
+import { BadgeCheck, CheckCircle2, AlertTriangle, Save, Search, ShieldCheck, ExternalLink } from 'lucide-react';
 import ParcelEditor, { ringToGeoJson, geoJsonToRing, areaSqm } from './ParcelEditor';
-import { Button, Field, inputClass, Badge, Spinner } from '../Ui/kit';
+import { Button, Field, inputClass, Badge, Spinner, ErrorState } from '../Ui/kit';
 import { useToast } from '../Ui/Toast';
-import { getFarmLand, saveFarmLand, verifyFarmLand, checkUpi, looksLikeUpi, formatArea } from '../../services/landService';
+import { getFarmLand, saveFarmLand, verifyFarmLand, checkUpi, looksLikeUpi, formatArea, RWASIS_PORTAL_URL } from '../../services/landService';
 
 const LAND_USES = ['Agriculture', 'Agroforestry', 'Residential & agriculture', 'Forestry', 'Other'];
 const TENURES = ['Freehold (owned)', 'Emphyteutic lease', 'Rented / leased', 'Family / customary', 'Cooperative', 'Other'];
@@ -24,19 +23,35 @@ export default function LandEditor({ farmId, canVerify = false, onSaved, mapHeig
   const [saving, setSaving] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [warnings, setWarnings] = useState([]);
+  const [loadError, setLoadError] = useState('');
 
   const load = useCallback(async () => {
+    setLoadError('');
     try {
       const l = await getFarmLand(farmId);
       setLand(l);
       setForm({ upi: l.upi || '', land_use: l.land_use || '', land_tenure: l.land_tenure || '' });
       setGeo({ point: l.latitude != null ? { lat: l.latitude, lng: l.longitude } : null, ring: geoJsonToRing(l.parcel_boundary) });
       setUpiCheck(null);
-      setWarnings([]);
+      setWarnings((l.checks || []).filter((c) => c.code !== 'not_on_map').map((c) => c.message));
     } catch (e) {
-      toast.error(e.message);
+      setLoadError(e.message);
     }
-  }, [farmId, toast]);
+  }, [farmId]);
+
+  /** RwaSIS has no link-by-UPI: copy the UPI so it can be pasted in its search box. */
+  const openRwasis = async () => {
+    const upi = form.upi.trim();
+    if (upi) {
+      try {
+        await navigator.clipboard?.writeText(upi);
+        toast.success(`UPI ${upi} copied — paste it in the RwaSIS search, then trace the parcel here`);
+      } catch {
+        toast.info(`Search for UPI ${upi} on RwaSIS, then trace the parcel here`);
+      }
+    }
+    window.open(RWASIS_PORTAL_URL, '_blank', 'noopener,noreferrer');
+  };
 
   useEffect(() => {
     setLand(null);
@@ -102,6 +117,7 @@ export default function LandEditor({ farmId, canVerify = false, onSaved, mapHeig
     }
   };
 
+  if (loadError) return <ErrorState title="Could not load the land details" message={loadError} onRetry={load} />;
   if (!land) return <Spinner label="Loading land details…" />;
 
   const drawnArea = areaSqm(geo.ring);
@@ -131,6 +147,9 @@ export default function LandEditor({ farmId, canVerify = false, onSaved, mapHeig
               Check
             </Button>
           </div>
+          <button type="button" onClick={openRwasis} className="mt-1.5 inline-flex items-center gap-1 text-xs font-medium text-brand-700 hover:underline">
+            <ExternalLink className="h-3.5 w-3.5" /> See this parcel on RwaSIS{form.upi ? ' (UPI is copied)' : ''}
+          </button>
         </Field>
         <Field label="Land use">
           <select className={inputClass} value={form.land_use} onChange={(e) => setForm({ ...form, land_use: e.target.value })}>
@@ -160,7 +179,7 @@ export default function LandEditor({ farmId, canVerify = false, onSaved, mapHeig
                 <p className="flex items-center gap-1.5 text-amber-700"><AlertTriangle className="h-4 w-4" /> Already registered to another farm in the system.</p>
               )}
               <p className="text-xs text-slate-500">
-                {upiCheck.registry.status === 'disabled' && 'National land registry not connected — checked by format and location codes only.'}
+                {upiCheck.registry.status === 'disabled' && 'Checked by format and location codes. To get the exact shape, open the parcel on RwaSIS and trace it on the map below.'}
                 {upiCheck.registry.status === 'found' && `Land registry: ${formatArea(upiCheck.registry.parcel.area_sqm)} · ${upiCheck.registry.parcel.land_use || 'use n/a'}`}
                 {upiCheck.registry.status === 'not_found' && 'Not found in the land registry.'}
                 {upiCheck.registry.status === 'error' && upiCheck.registry.message}

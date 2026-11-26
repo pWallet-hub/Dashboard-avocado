@@ -1,4 +1,3 @@
-/* eslint-disable react/prop-types */
 import { Leaf, ShieldCheck, LineChart, Sprout } from 'lucide-react';
 import logo from '../../assets/image/LOGO_-_Avocado_Society_of_Rwanda.png';
 

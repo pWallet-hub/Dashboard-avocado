@@ -1,4 +1,3 @@
-/* eslint-disable react/prop-types */
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
@@ -12,6 +11,7 @@ import { getHarvestLotSummary } from '../../services/harvestLotsService';
 import { listNotifications } from '../../services/notificationsService';
 import { listOpportunities, getOpportunityInsights, opportunityTypeLabel } from '../../services/opportunitiesService';
 import { getNearby, facilityTypeLabel } from '../../services/facilitiesService';
+import ProfileCompletion from '../../components/Profile/ProfileCompletion';
 import { Page, PageHeader, Card, StatGrid, StatCard, Badge, EmptyState, Spinner } from '../../components/Ui/kit';
 import { serviceTypeLabel, requestStatusMeta, formatDate, currentUser, rwf } from './farmerShared';
 
@@ -101,6 +101,7 @@ export default function Farmer() {
   return (
     <Page>
       <PageHeader icon={Home} title={`Muraho, ${name.split(' ')[0]}`} subtitle="Here is what is happening on your farm." />
+      <ProfileCompletion compact />
 
       {loading ? (
         <Card><Spinner label="Loading your overview…" /></Card>

@@ -25,10 +25,11 @@ function Login() {
       return false;
     }
     
-    // Basic email validation
+    // Email address, or a phone number (farmers who activated without an email)
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(username)) {
-      setMessage('Please enter a valid email address');
+    const phoneRegex = /^[+\d][\d\s\-()]{7,}$/;
+    if (!emailRegex.test(username.trim()) && !phoneRegex.test(username.trim())) {
+      setMessage('Enter your email address or phone number');
       return false;
     }
     
@@ -100,12 +101,12 @@ function Login() {
     >
       <form onSubmit={handleLogin} className="space-y-4" noValidate>
         <label className="block text-sm">
-          <span className="mb-1 block font-medium text-slate-700">Email</span>
+          <span className="mb-1 block font-medium text-slate-700">Email or phone number</span>
           <input
             type="text"
             inputMode="email"
             autoComplete="username"
-            placeholder="Email"
+            placeholder="you@example.com or 0788 123 456"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             disabled={loading}

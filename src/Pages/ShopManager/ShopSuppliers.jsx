@@ -1,4 +1,3 @@
-/* eslint-disable react/prop-types */
 import { useCallback, useEffect, useState } from 'react';
 import { Truck, Search, Eye, Star, RefreshCw, Plus, Pencil, Trash2, Info } from 'lucide-react';
 import {

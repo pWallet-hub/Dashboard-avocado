@@ -40,9 +40,23 @@ export async function listImportBatches() {
   }
 }
 
+/** Cheap progress check while a large import runs in the background. */
+export async function getImportStatus(batchId) {
+  try {
+    return extractData(await apiClient.get(`/surveys/import/batches/${batchId}/status`));
+  } catch (error) {
+    throw new Error(errorMessage(error, 'Failed to load import progress'));
+  }
+}
+
+/**
+ * Start the import. Small files finish right away ({ ...result });
+ * large ones answer 202 with { status: 'committing' } — poll getImportStatus.
+ */
 export async function commitSurveyImport(batchId, options = {}) {
   try {
-    const response = await apiClient.post(`/surveys/import/batches/${batchId}/commit`, options, { timeout: 600000 });
+    const response = await apiClient.post(`/surveys/import/batches/${batchId}/commit`, options, { timeout: 120000 });
+    if (response.status === 202) return { background: true, ...extractData(response) };
     return extractData(response);
   } catch (error) {
     throw new Error(errorMessage(error, 'Import failed'));

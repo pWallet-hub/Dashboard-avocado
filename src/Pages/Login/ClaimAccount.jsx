@@ -62,18 +62,22 @@ export default function ClaimAccount() {
       return setMessage('Password needs 8+ characters with an uppercase letter, a lowercase letter, a number and a symbol (@$!%*?&)');
     }
     if (form.password !== form.confirm) return setMessage('Passwords do not match');
+    if (form.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) return setMessage('Enter a valid email, or leave it empty');
     setLoading(true);
     try {
+      const email = form.email.trim();
       await apiClient.post('/auth/verify-phone', {
         phone: normalized,
         code: form.code.trim(),
-        email: form.email.trim(),
+        ...(email ? { email } : {}),
         password: form.password,
       });
       setStep('done');
       setSuccess(true);
-      setMessage('Your account is ready. Sign in with your new email and password.');
-      setTimeout(() => navigate('/'), 2500);
+      setMessage(email
+        ? 'Your account is ready. Sign in with your email or phone number and your new password.'
+        : 'Your account is ready. Sign in with your phone number and your new password.');
+      setTimeout(() => navigate('/'), 3000);
     } catch (error) {
       setMessage(apiError(error, 'Could not activate the account'));
     } finally {
@@ -86,7 +90,7 @@ export default function ClaimAccount() {
   return (
     <AuthShell
       title="Activate your account"
-      subtitle="Were you registered by a field agent or during the farmer survey? Confirm the phone number you gave them, then set your own login."
+      subtitle="Registered by the Avocado Society of Rwanda, a field agent or during the farmer survey? Enter the phone number you gave them — we send you a code by SMS — then choose your password."
       footer={<>Already activated? <Link to="/" className="font-medium text-brand-700 hover:underline">Sign in</Link></>}
     >
       {step === 'phone' && (
@@ -121,8 +125,8 @@ export default function ClaimAccount() {
             </div>
           </label>
           <label className="block text-sm">
-            <span className="mb-1 block font-medium text-slate-700">Email you will log in with</span>
-            <input className={authInput} type="email" autoComplete="email" placeholder="you@example.com" value={form.email} onChange={set('email')} required />
+            <span className="mb-1 block font-medium text-slate-700">Email <span className="font-normal text-slate-500">(optional — you can always sign in with your phone number)</span></span>
+            <input className={authInput} type="email" autoComplete="email" placeholder="you@example.com" value={form.email} onChange={set('email')} />
           </label>
           <label className="block text-sm">
             <span className="mb-1 block font-medium text-slate-700">New password</span>

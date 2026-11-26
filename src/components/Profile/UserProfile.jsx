@@ -1,4 +1,3 @@
-/* eslint-disable react/prop-types */
 import { useEffect, useState } from 'react';
 import { User, Mail, Phone, ShieldCheck, KeyRound, MapPin } from 'lucide-react';
 import { updateProfile, changePassword, getProfile } from '../../services/authService';

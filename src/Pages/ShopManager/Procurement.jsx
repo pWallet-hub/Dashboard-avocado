@@ -1,4 +1,3 @@
-/* eslint-disable react/prop-types */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ClipboardList, Plus, Trash2, Send, CheckCircle2, XCircle, PackageCheck, Eye, RefreshCw } from 'lucide-react';
 import {

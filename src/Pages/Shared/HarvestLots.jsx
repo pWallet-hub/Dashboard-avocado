@@ -1,4 +1,3 @@
-/* eslint-disable react/prop-types */
 import { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Package, Plus, RefreshCw, X, QrCode, CheckCircle2, XCircle, HandCoins, Truck, Trash2, Search, Printer, Scale, TrendingUp, CalendarDays } from 'lucide-react';

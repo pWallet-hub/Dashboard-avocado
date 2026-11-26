@@ -1,4 +1,3 @@
-/* eslint-disable react/prop-types */
 import { useCallback, useEffect, useState } from 'react';
 import { User, Pencil, Phone, Mail, MapPin, Trees, HandHelping } from 'lucide-react';
 import { getFarmerInformation, updateFarmerInformation } from '../../services/farmer-information';
@@ -188,7 +187,7 @@ export default function FarmerProfileCard({ onUpdate, showEditButton = true }) {
                 </div>
                 <Badge tone={status === 'verified' ? 'brand' : status === 'rejected' ? 'rose' : 'amber'} className="capitalize">Profile {status}</Badge>
                 <dl className="w-full space-y-2 border-t border-slate-100 pt-3 text-left text-sm">
-                  <div className="flex items-center gap-2 text-slate-700"><Mail className="h-4 w-4 text-slate-400" /> <span className="truncate">{user?.email}</span></div>
+                  <div className="flex items-center gap-2 text-slate-700"><Mail className="h-4 w-4 text-slate-400" /> <span className="truncate">{/@[a-z-]+-import\.local$/.test(user?.email || '') ? 'No email yet — you sign in with your phone' : user?.email}</span></div>
                   <div className="flex items-center gap-2 text-slate-700"><Phone className="h-4 w-4 text-slate-400" /> {user?.phone || '—'}</div>
                   <div className="flex items-center gap-2 text-slate-700"><MapPin className="h-4 w-4 text-slate-400" /> {join(fp.district, fp.province) || '—'}</div>
                 </dl>

@@ -1,4 +1,3 @@
-/* eslint-disable react/prop-types */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { CalendarCheck, User, Users, Search, CheckCircle2, Trees, MapPin, ChevronDown, ChevronUp, Plus, UserPlus } from 'lucide-react';

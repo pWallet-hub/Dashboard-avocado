@@ -1,4 +1,3 @@
-/* eslint-disable react/prop-types */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import LocationPicker from '../../components/Location/LocationPicker';
 import { listMyFarms } from '../../services/farmsService';

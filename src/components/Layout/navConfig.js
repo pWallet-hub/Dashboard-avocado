@@ -37,6 +37,8 @@ import {
   Sparkles,
   Building2,
   IdCard,
+  Smartphone,
+  MapPinOff,
 } from 'lucide-react';
 
 /** Normalise 'shop_manager' / 'shop-manager' etc. to the hyphen form used in URLs. */
@@ -79,7 +81,8 @@ export const NAV_SECTIONS = {
         { to: '/dashboard/admin/users', icon: Users, text: 'Manage Growers' },
         { to: '/dashboard/admin/agents', icon: UserCheck, text: 'Manage Agents' },
         { to: '/dashboard/admin/shop-managers', icon: Store, text: 'Shop Managers' },
-        { to: '/dashboard/admin/surveys', icon: FileSpreadsheet, text: 'Farmer Surveys' },
+        { to: '/dashboard/admin/surveys', icon: FileSpreadsheet, text: 'Import Farmers (Excel)' },
+        { to: '/dashboard/admin/activation', icon: Smartphone, text: 'Farmer Activation' },
       ],
     },
     {
@@ -87,6 +90,7 @@ export const NAV_SECTIONS = {
       links: [
         { to: '/dashboard/admin/farms', icon: Trees, text: 'Farms' },
         { to: '/dashboard/admin/farm-map', icon: MapPinned, text: 'Farm Map' },
+        { to: '/dashboard/admin/land-issues', icon: MapPinOff, text: 'Land Data Issues' },
         { to: '/dashboard/admin/harvest-lots', icon: PackageCheck, text: 'Harvest Lots' },
         { to: '/dashboard/admin/forecasting', icon: Map, text: 'Regional Forecasting' },
         { to: '/dashboard/admin/diseases', icon: Bug, text: 'Disease Management' },
@@ -130,7 +134,8 @@ export const NAV_SECTIONS = {
       label: 'Farmers',
       links: [
         { to: '/dashboard/agent/FarmerList', icon: Users, text: 'My Farmers' },
-        { to: '/dashboard/agent/surveys', icon: FileSpreadsheet, text: 'Farmer Surveys' },
+        { to: '/dashboard/agent/surveys', icon: FileSpreadsheet, text: 'Import Farmers (Excel)' },
+        { to: '/dashboard/agent/activation', icon: Smartphone, text: 'Farmer Activation' },
         { to: '/dashboard/agent/ProfileAccessQR', icon: QrCode, text: 'Farmer QR Access' },
       ],
     },
@@ -139,6 +144,7 @@ export const NAV_SECTIONS = {
       links: [
         { to: '/dashboard/agent/farms', icon: Trees, text: 'Farms' },
         { to: '/dashboard/agent/farm-map', icon: MapPinned, text: 'Farm Map' },
+        { to: '/dashboard/agent/land-issues', icon: MapPinOff, text: 'Land Data Issues' },
         { to: '/dashboard/agent/Visits', icon: CalendarClock, text: 'Farm Visits' },
         { to: '/dashboard/agent/HarvestingPlan', icon: Calendar, text: 'Schedule Harvesting Plan' },
         { to: '/dashboard/agent/IPMRoutine', icon: Bug, text: 'Schedule IPM Routine' },

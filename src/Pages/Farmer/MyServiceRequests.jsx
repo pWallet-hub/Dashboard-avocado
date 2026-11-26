@@ -1,4 +1,3 @@
-/* eslint-disable react/prop-types */
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ClipboardList, RefreshCw, Eye, XCircle, Pencil, Star, CalendarCheck, Bug, MapPin } from 'lucide-react';

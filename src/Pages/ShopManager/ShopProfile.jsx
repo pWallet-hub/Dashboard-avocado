@@ -1,4 +1,3 @@
-/* eslint-disable react/prop-types */
 import { useCallback, useEffect, useState } from 'react';
 import { Store, Wallet, Pencil, RefreshCw } from 'lucide-react';
 import { getProfile, updateProfile } from '../../services/authService';

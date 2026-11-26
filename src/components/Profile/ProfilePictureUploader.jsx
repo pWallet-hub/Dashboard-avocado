@@ -1,4 +1,3 @@
-/* eslint-disable react/prop-types */
 import { useEffect, useRef, useState } from 'react';
 import { Camera, Loader2, Trash2 } from 'lucide-react';
 import { uploadSingle } from '../../services/uploadService';

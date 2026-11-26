@@ -1,4 +1,3 @@
-/* eslint-disable react/prop-types */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ShoppingBag, Plus, Search, Pencil, Trash2, Eye, ImagePlus, X, RefreshCw, ImageOff } from 'lucide-react';
 import { addToShopInventory, updateShopInventory, deleteInventoryItem } from '../../services/marketStorageService';

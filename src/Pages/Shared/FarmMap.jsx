@@ -1,4 +1,3 @@
-/* eslint-disable react/prop-types */
 import { useCallback, useEffect, useState } from 'react';
 import { Map as MapIcon, MapPinned, Trees, BadgeCheck, MapPinOff, Phone, X, LandPlot, RefreshCw } from 'lucide-react';
 import FarmMapView, { STATUS_COLORS } from '../../components/Map/FarmMapView';

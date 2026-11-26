@@ -1,4 +1,3 @@
-/* eslint-disable react/prop-types */
 import { useMemo, useState } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import { createOrder, updateOrder, updateOrderStatus } from '../../services/orderService';

@@ -1,4 +1,3 @@
-/* eslint-disable react/prop-types */
 // Shared bits for agent pages that file service requests on a farmer's behalf.
 import { useEffect, useState } from 'react';
 import { Search } from 'lucide-react';

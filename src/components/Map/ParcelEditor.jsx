@@ -1,9 +1,9 @@
-/* eslint-disable react/prop-types */
-import { useEffect, useState } from 'react';
-import { MapContainer, Marker, Polygon, Polyline, CircleMarker, useMap, useMapEvents, ScaleControl } from 'react-leaflet';
+import { useEffect, useRef, useState } from 'react';
+import { MapContainer, Marker, Polygon, Polyline, useMap, useMapEvents, ScaleControl } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { MapPin, PenLine, Undo2, Trash2, LocateFixed } from 'lucide-react';
+import { MapPin, PenLine, Undo2, Trash2, LocateFixed, Footprints, FileUp } from 'lucide-react';
+import { readBoundaryFile } from '../../services/landService';
 import { BaseLayers } from './FarmMapView';
 import { RWANDA_CENTER } from '../../utils/rwanda';
 
@@ -13,6 +13,17 @@ const pinIcon = L.divIcon({
   iconSize: [18, 18],
   iconAnchor: [9, 9],
 });
+
+/** Corner handle: drag to fine-tune a traced boundary. */
+const cornerIcon = L.divIcon({
+  className: '',
+  html: '<span style="display:block;width:12px;height:12px;border-radius:9999px;background:#15803d;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.5);cursor:move"></span>',
+  iconSize: [12, 12],
+  iconAnchor: [6, 6],
+});
+
+/** GPS readings worse than this are too rough for a farm corner. */
+export const MAX_CORNER_ACCURACY_M = 25;
 
 /** Geodesic area of a [lat,lng] ring in m² (same formula as the API). */
 export function areaSqm(latlngs) {
@@ -35,6 +46,7 @@ function ClickHandler({ mode, onPoint, onVertex, onZoom }) {
   const map = useMapEvents({
     click(e) {
       const { lat, lng } = e.latlng;
+      if (mode === 'walk') return; // corners come from GPS only
       if (mode === 'point') {
         onPoint({ lat, lng });
         if (map.getZoom() < 14) map.setView(e.latlng, 16); // zoom in so the farmer can refine/draw
@@ -72,6 +84,8 @@ export default function ParcelEditor({ value, onChange, height = 420, disabled =
   const [geoError, setGeoError] = useState('');
   const [zoom, setZoom] = useState(value.point ? 16 : 8);
   const [recenterKey, setRecenterKey] = useState(0);
+  const [walkNote, setWalkNote] = useState('');
+  const fileRef = useRef(null);
   const ring = value.ring || [];
   const point = value.point || null;
   const area = areaSqm(ring);
@@ -97,6 +111,53 @@ export default function ParcelEditor({ value, onChange, height = 420, disabled =
     );
   };
 
+  /** Walk the boundary: stand on each corner of the field and record it. */
+  const addCornerHere = () => {
+    if (!navigator.geolocation) {
+      setGeoError('This device has no GPS / location support');
+      return;
+    }
+    setLocating(true);
+    setGeoError('');
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setLocating(false);
+        const acc = Math.round(pos.coords.accuracy || 0);
+        if (acc > MAX_CORNER_ACCURACY_M) {
+          setGeoError(`GPS is only accurate to ±${acc} m here. Wait a moment in the open (away from trees and roofs) and try again.`);
+          return;
+        }
+        const next = [...ring, [pos.coords.latitude, pos.coords.longitude]];
+        onChange({ ...value, ring: next, point: value.point || { lat: pos.coords.latitude, lng: pos.coords.longitude } });
+        setWalkNote(`Corner ${next.length} recorded (±${acc} m). Walk to the next corner of the field.`);
+        setRecenterKey((k) => k + 1);
+      },
+      (err) => {
+        setLocating(false);
+        setGeoError(err.code === 1 ? 'Location permission was denied' : 'Could not get your location');
+      },
+      { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
+    );
+  };
+
+  const importFile = async (file) => {
+    if (!file) return;
+    setGeoError('');
+    try {
+      const pts = await readBoundaryFile(file);
+      onChange({ ...value, ring: pts });
+      setMode('draw');
+      setRecenterKey((k) => k + 1);
+      setWalkNote(`Boundary loaded from ${file.name} (${pts.length} corners). Drag corners to adjust, then save.`);
+    } catch (e) {
+      setGeoError(e.message);
+    } finally {
+      if (fileRef.current) fileRef.current.value = '';
+    }
+  };
+
+  const moveCorner = (i, latlng) => onChange({ ...value, ring: ring.map((v, j) => (j === i ? [latlng.lat, latlng.lng] : v)) });
+
   const tool = (active) =>
     `inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium ring-1 ring-inset transition ${
       active ? 'bg-brand-600 text-white ring-brand-600' : 'bg-white text-slate-700 ring-slate-300 hover:bg-slate-50'
@@ -112,10 +173,22 @@ export default function ParcelEditor({ value, onChange, height = 420, disabled =
           <button type="button" className={tool(mode === 'draw')} onClick={() => setMode('draw')}>
             <PenLine className="h-3.5 w-3.5" /> Draw boundary
           </button>
+          <button type="button" className={tool(mode === 'walk')} onClick={() => { setMode('walk'); setWalkNote('Stand on a corner of the field and press “Add corner here”. Repeat at every corner.'); }}>
+            <Footprints className="h-3.5 w-3.5" /> Walk the boundary
+          </button>
+          <button type="button" className={tool(false)} onClick={() => fileRef.current?.click()}>
+            <FileUp className="h-3.5 w-3.5" /> Import file
+          </button>
+          <input ref={fileRef} type="file" accept=".geojson,.json,.kml" className="hidden" onChange={(e) => importFile(e.target.files?.[0])} data-testid="boundary-file" />
           <button type="button" className={tool(false)} onClick={useGps} disabled={locating}>
             <LocateFixed className="h-3.5 w-3.5" /> {locating ? 'Locating…' : 'Use my GPS'}
           </button>
-          {mode === 'draw' && (
+          {mode === 'walk' && (
+            <button type="button" className={tool(true)} onClick={addCornerHere} disabled={locating}>
+              <LocateFixed className="h-3.5 w-3.5" /> {locating ? 'Reading GPS…' : 'Add corner here'}
+            </button>
+          )}
+          {mode !== 'point' && (
             <>
               <button type="button" className={tool(false)} disabled={!ring.length} onClick={() => onChange({ ...value, ring: ring.slice(0, -1) })}>
                 <Undo2 className="h-3.5 w-3.5" /> Undo point
@@ -132,9 +205,11 @@ export default function ParcelEditor({ value, onChange, height = 420, disabled =
           ? 'Read only.'
           : mode === 'point'
             ? 'Click the map where the farm is (or use GPS while standing on the farm).'
-            : zoom < MIN_DRAW_ZOOM
+            : mode === 'walk'
+              ? walkNote || 'Record each corner with your phone while standing on it.'
+              : zoom < MIN_DRAW_ZOOM
               ? 'Zoom in to your field first — click the map to zoom there, then click each corner of the parcel.'
-              : 'Click each corner of the parcel in order. Switch to Satellite (top right) to see field edges.'}
+              : 'Click each corner of the parcel in order — drag a corner to move it. Switch to Satellite (top right) to see field edges.'}
         {ring.length >= 3 && <span className="ml-1 font-medium text-slate-700">Boundary area ≈ {(area / 10000).toFixed(3)} ha ({Math.round(area).toLocaleString()} m²)</span>}
       </p>
       {geoError && <p className="text-xs text-rose-600">{geoError}</p>}
@@ -154,7 +229,9 @@ export default function ParcelEditor({ value, onChange, height = 420, disabled =
           {point && <Marker position={[point.lat, point.lng]} icon={pinIcon} />}
           {ring.length >= 3 && <Polygon positions={ring} pathOptions={{ color: '#15803d', weight: 2, fillOpacity: 0.2 }} />}
           {ring.length === 2 && <Polyline positions={ring} pathOptions={{ color: '#15803d', weight: 2 }} />}
-          {mode === 'draw' && ring.map((v, i) => <CircleMarker key={i} center={v} radius={4} pathOptions={{ color: '#fff', fillColor: '#15803d', fillOpacity: 1, weight: 2 }} />)}
+          {mode !== 'point' && !disabled && ring.map((v, i) => (
+            <Marker key={`${i}-${v[0]}-${v[1]}`} position={v} icon={cornerIcon} draggable eventHandlers={{ dragend: (e) => moveCorner(i, e.target.getLatLng()) }} />
+          ))}
         </MapContainer>
       </div>
     </div>

@@ -1,4 +1,3 @@
-/* eslint-disable react/prop-types */
 /**
  * Shared UI kit — the building blocks every page should use so the app looks
  * consistent. Colours come from the `brand` palette in tailwind.config.js.
