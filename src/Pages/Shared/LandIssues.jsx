@@ -12,7 +12,8 @@ const ISSUES = [
   { code: 'not_on_map', label: 'Not on the map' },
   { code: 'point_outside_boundary', label: 'GPS point outside boundary' },
   { code: 'area_mismatch', label: 'Area ≠ farm size' },
-  { code: 'far_from_district', label: 'Wrong district' },
+  { code: 'outside_recorded_area', label: 'Map ≠ recorded address' },
+  { code: 'upi_elsewhere', label: 'UPI in another district' },
 ];
 
 /**
