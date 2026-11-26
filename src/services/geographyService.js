@@ -224,3 +224,38 @@ export async function createVillage(villageData) {
     throw new Error(error.response?.data?.message || error.message || 'Failed to create village');
   }
 }
+
+// ---- Official divisions, boundaries and per-area statistics ----
+
+/** Fill the division tables with Rwanda's official provinces → villages (admin). */
+export async function syncOfficialDivisions() {
+  try {
+    return extractData(await apiClient.post('/geography/sync', {}, { timeout: 120000 }));
+  } catch (error) {
+    throw new Error(error.response?.data?.message || error.message || 'Could not load the official divisions');
+  }
+}
+
+const boundaryCache = new Map();
+/** GeoJSON boundaries: level = province | district | sector | cell (sector/cell can be limited to a district). */
+export async function getBoundaries(level, { district } = {}) {
+  const key = `${level}|${district || ''}`;
+  if (!boundaryCache.has(key)) {
+    boundaryCache.set(key, apiClient.get(`/geography/boundaries/${level}`, { params: district ? { district } : {} }).then(extractData));
+  }
+  try {
+    return await boundaryCache.get(key);
+  } catch (error) {
+    boundaryCache.delete(key);
+    throw new Error(error.response?.data?.message || error.message || 'Failed to load boundaries');
+  }
+}
+
+/** Farmers, farms, trees, hectares … per district, or per sector of one district. */
+export async function getAreaStats({ level = 'district', district } = {}) {
+  try {
+    return extractData(await apiClient.get('/geography/stats', { params: { level, ...(district ? { district } : {}) } }));
+  } catch (error) {
+    throw new Error(error.response?.data?.message || error.message || 'Failed to load area statistics');
+  }
+}

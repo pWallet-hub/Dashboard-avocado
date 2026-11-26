@@ -57,3 +57,21 @@ export async function getLandIssues(filters = {}) {
     throw new Error(errorMessage(error, 'Failed to load land issues'));
   }
 }
+
+/** Account + profile fields staff can complete for one farmer. */
+export async function getActivationFarmer(id) {
+  try {
+    return extractData(await apiClient.get(`/activation/farmers/${id}`));
+  } catch (error) {
+    throw new Error(errorMessage(error, 'Failed to load the farmer'));
+  }
+}
+
+/** Save missing details (phone, national ID, gender, age, home and farm location). */
+export async function updateActivationFarmer(id, body) {
+  try {
+    return extractData(await apiClient.patch(`/activation/farmers/${id}`, body));
+  } catch (error) {
+    throw new Error(errorMessage(error, 'Could not save the farmer'));
+  }
+}

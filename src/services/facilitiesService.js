@@ -75,3 +75,24 @@ export const currentPosition = () =>
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }
     );
   });
+
+/** Facility types that can be searched on OpenStreetMap. */
+export const OSM_TYPES = ['market', 'sacco_bank', 'input_supplier', 'government_office', 'airport', 'nursery', 'cold_storage'];
+
+/** Search OpenStreetMap (admin). { types, district? } → { items, total, new, attribution } */
+export async function searchOsmFacilities(body) {
+  try {
+    return extractData(await apiClient.post('/facilities/osm/search', body, { timeout: 120000 }));
+  } catch (error) {
+    throw new Error(error.response?.data?.message || error.message || 'OpenStreetMap search failed');
+  }
+}
+
+/** Save selected OpenStreetMap places to the directory (admin). */
+export async function importOsmFacilities(items) {
+  try {
+    return extractData(await apiClient.post('/facilities/osm/import', { items }));
+  } catch (error) {
+    throw new Error(error.response?.data?.message || error.message || 'Import failed');
+  }
+}

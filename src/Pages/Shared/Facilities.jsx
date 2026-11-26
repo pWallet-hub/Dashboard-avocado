@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Building2, Plus, RefreshCw, Pencil, Trash2, LocateFixed, Search, Navigation } from 'lucide-react';
+import { Building2, Plus, RefreshCw, Pencil, Trash2, LocateFixed, Search, Navigation, Globe } from 'lucide-react';
 import {
   listFacilities, saveFacility, deleteFacility, currentPosition, directionsUrl, FACILITY_TYPES, facilityTypeLabel,
 } from '../../services/facilitiesService';
 import { useToast } from '../../components/Ui/Toast';
 import { useConfirm } from '../../components/Ui/ConfirmDialog';
+import OsmImportDialog from '../../components/Facilities/OsmImportDialog';
 import { Page, PageHeader, Card, Badge, Button, Field, inputClass, textareaClass, EmptyState, Spinner, Dialog, Pagination, Table, Td } from '../../components/Ui/kit';
 import { ALL_DISTRICTS } from '../../utils/rwanda';
 
@@ -102,6 +103,8 @@ export default function Facilities({ role = 'admin' }) {
 
   const v = form?.values;
 
+  const [osmOpen, setOsmOpen] = useState(false);
+
   return (
     <Page>
       <PageHeader
@@ -111,6 +114,7 @@ export default function Facilities({ role = 'admin' }) {
         actions={
           <>
             <Button icon={Plus} onClick={() => openForm(null)}>Add facility</Button>
+            {role === 'admin' && <Button variant="secondary" icon={Globe} onClick={() => setOsmOpen(true)}>Import from OpenStreetMap</Button>}
             <Button variant="secondary" icon={RefreshCw} onClick={load} loading={loading}>Refresh</Button>
           </>
         }
@@ -227,6 +231,7 @@ export default function Facilities({ role = 'admin' }) {
           </form>
         </Dialog>
       )}
+      {osmOpen && <OsmImportDialog onClose={() => setOsmOpen(false)} onImported={() => { setOsmOpen(false); load(); }} />}
     </Page>
   );
 }

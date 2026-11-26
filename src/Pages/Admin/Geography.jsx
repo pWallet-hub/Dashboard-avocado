@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { MapPin, ChevronDown, ChevronRight, Plus, Pencil, Trash2, Globe2, RefreshCw, Search } from 'lucide-react';
+import { MapPin, ChevronDown, ChevronRight, Plus, Pencil, Trash2, Globe2, RefreshCw, Search, Download } from 'lucide-react';
+import AreaMap from '../../components/Map/AreaMap';
+import { syncOfficialDivisions } from '../../services/geographyService';
 import {
   getFullGeography,
   listProvinces,
@@ -129,6 +131,7 @@ const AdminGeography = () => {
   const [modal, setModal] = useState(null);
   const [saving, setSaving] = useState(false);
 
+  const [syncing, setSyncing] = useState(false);
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -247,6 +250,22 @@ const AdminGeography = () => {
     }
   };
 
+  const syncOfficial = async () => {
+    const ok = await confirm('Load Rwanda’s official divisions (5 provinces, 30 districts, 416 sectors, 2,148 cells, 14,837 villages)? Existing entries are kept; only missing ones are added.', { confirmLabel: 'Load divisions' });
+    if (!ok) return;
+    setSyncing(true);
+    try {
+      const r = await syncOfficialDivisions();
+      const added = Object.values(r).reduce((n, x) => n + x.added, 0);
+      toast.success(added ? `Added ${added.toLocaleString()} official divisions` : 'Already up to date');
+      load();
+    } catch (e) {
+      toast.error(e.message);
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   return (
     <Page>
       <PageHeader
@@ -256,10 +275,13 @@ const AdminGeography = () => {
         actions={
           <>
             <Button variant="secondary" icon={RefreshCw} onClick={load} disabled={loading}>Refresh</Button>
+            <Button variant="secondary" icon={Download} loading={syncing} onClick={syncOfficial}>Load official divisions</Button>
             <Button icon={Plus} onClick={() => openAdd('province')}>Add province</Button>
           </>
         }
       />
+
+      <AreaMap />
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
         <StatCard label="Provinces" value={totals.provinces} />

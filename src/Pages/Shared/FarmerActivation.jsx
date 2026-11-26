@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Smartphone, UserCheck, UserX, Send, Search, PhoneOff, MailCheck, X } from 'lucide-react';
+import { Smartphone, UserCheck, UserX, Send, Search, PhoneOff, MailCheck, X, Pencil } from 'lucide-react';
+import FarmerDetailsDialog from '../../components/Agents/FarmerDetailsDialog';
 import { Page, PageHeader, Card, StatGrid, StatCard, Badge, Button, Table, Td, EmptyState, Spinner, ErrorState, Pagination, inputClass } from '../../components/Ui/kit';
 import { useToast } from '../../components/Ui/Toast';
 import { useConfirm } from '../../components/Ui/ConfirmDialog';
@@ -30,6 +31,8 @@ export default function FarmerActivation({ role }) {
   const [error, setError] = useState('');
   const [sending, setSending] = useState(false);
   const [job, setJob] = useState(null);
+  const [selected, setSelected] = useState(() => new Set());
+  const [editing, setEditing] = useState(null);
 
   const scope = { batch_id: batchId, district: filters.district };
 
@@ -93,7 +96,13 @@ export default function FarmerActivation({ role }) {
     }
   };
 
-  const set = (patch) => setFilters((f) => ({ ...f, page: 1, ...patch }));
+  const set = (patch) => { setSelected(new Set()); setFilters((f) => ({ ...f, page: 1, ...patch })); };
+  const selectable = (list?.data || []).filter((f) => f.can_activate);
+  const toggleMany = (rows, on) => setSelected((cur) => {
+    const next = new Set(cur);
+    rows.forEach((r) => (on ? next.add(r.id) : next.delete(r.id)));
+    return next;
+  });
   const jobRunning = job && !job.done;
 
   return (
@@ -173,9 +182,19 @@ export default function FarmerActivation({ role }) {
             {list.data.length === 0 ? (
               <EmptyState icon={UserCheck} title="No farmers here" description="Nobody matches these filters." />
             ) : (
-              <Table head={['Farmer', 'Phone', 'District', 'Status', 'Invited', '']}>
+              <Table head={[
+                <input key="all" type="checkbox" aria-label="Select all on this page" className="h-4 w-4 rounded border-slate-300 text-brand-600"
+                  checked={selectable.length > 0 && selectable.every((f) => selected.has(f.id))}
+                  onChange={(e) => toggleMany(selectable, e.target.checked)} />,
+                'Farmer', 'Phone', 'District', 'Status', 'Invited', '']}>
                 {list.data.map((f) => (
-                  <tr key={f.id}>
+                  <tr key={f.id} className={selected.has(f.id) ? 'bg-brand-50/50' : ''}>
+                    <Td>
+                      {f.can_activate && (
+                        <input type="checkbox" aria-label={`Select ${f.full_name}`} className="h-4 w-4 rounded border-slate-300 text-brand-600"
+                          checked={selected.has(f.id)} onChange={(e) => toggleMany([f], e.target.checked)} />
+                      )}
+                    </Td>
                     <Td>
                       <div className="font-medium text-slate-900">{f.full_name}</div>
                       <div className="font-mono text-xs text-slate-500">{f.national_id || 'no national ID'}</div>
@@ -186,7 +205,10 @@ export default function FarmerActivation({ role }) {
                       {f.activated ? <Badge tone="brand">Activated</Badge> : f.can_activate ? <Badge tone="blue">Can activate</Badge> : <Badge tone="amber">Needs a phone</Badge>}
                     </Td>
                     <Td className="text-xs text-slate-500">{f.invited_at ? new Date(f.invited_at).toLocaleDateString() : '—'}</Td>
-                    <Td>
+                    <Td className="space-x-2">
+                      <Button size="sm" variant="ghost" icon={Pencil} onClick={() => setEditing(f)}>
+                        {f.phone ? 'Edit' : 'Add phone'}
+                      </Button>
                       {f.can_activate && (
                         <Button size="sm" variant="secondary" icon={Send} disabled={sending || jobRunning}
                           onClick={() => invite({ farmer_ids: [f.id], resend: true }, `farmer (${f.full_name})`)}>
@@ -198,14 +220,27 @@ export default function FarmerActivation({ role }) {
                 ))}
               </Table>
             )}
+            {selected.size > 0 && (
+              <div className="flex flex-wrap items-center gap-3 border-t border-slate-100 bg-brand-50/60 px-4 py-3 text-sm">
+                <span className="font-medium text-slate-800">{selected.size} selected</span>
+                <Button size="sm" icon={Send} loading={sending} disabled={jobRunning}
+                  onClick={async () => { await invite({ farmer_ids: [...selected], resend: true }, 'selected farmers'); setSelected(new Set()); }}>
+                  Send activation SMS to selected
+                </Button>
+                <button className="text-slate-600 hover:text-slate-900" onClick={() => setSelected(new Set())}>Clear selection</button>
+              </div>
+            )}
             <Pagination page={list.pagination.page} totalPages={list.pagination.totalPages} total={list.pagination.total} onChange={(page) => setFilters((f) => ({ ...f, page }))} />
           </Card>
 
           <p className="text-xs text-slate-500">
             {role === 'agent' ? 'You see farmers in your assigned area. ' : ''}
-            To give a farmer a phone number, edit them in {role === 'admin' ? 'Manage Growers' : 'My Farmers'}. A number can belong to only one farmer, because the activation code is sent to it.
+            Use “Add phone” / “Edit” to complete a farmer’s details. A number can belong to only one farmer, because the activation code is sent to it.
           </p>
         </div>
+      )}
+      {editing && (
+        <FarmerDetailsDialog farmerId={editing.id} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); load(); }} />
       )}
     </Page>
   );
