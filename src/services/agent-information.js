@@ -136,3 +136,21 @@ export async function updateAgentPerformance(agentUserId, metricsData) {
     throw error;
   }
 }
+
+/** Areas a VBA serves and how many farmers that covers. */
+export async function getAgentTerritory(agentId) {
+  try {
+    return extractData(await apiClient.get(`/agent-information/${agentId}/territory`));
+  } catch (error) {
+    throw new Error(error.response?.data?.message || error.message || 'Failed to load the area');
+  }
+}
+
+/** Admin: replace the areas a VBA serves. areas: [{ province?, district?, sector?, cell?, village? }] */
+export async function setAgentTerritory(agentId, areas) {
+  try {
+    return extractData(await apiClient.put(`/agent-information/${agentId}/territory`, { territory: areas }));
+  } catch (error) {
+    throw new Error(error.response?.data?.message || error.message || 'Failed to save the area');
+  }
+}

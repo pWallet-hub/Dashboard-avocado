@@ -6,6 +6,8 @@ import { getAgentAnalytics } from '../../services/analyticsService';
 import { RWANDA_PROVINCES, RWANDA_DISTRICTS, ALL_DISTRICTS } from '../../utils/rwanda';
 import { useToast } from '../../components/Ui/Toast';
 import { useConfirm } from '../../components/Ui/ConfirmDialog';
+import TerritoryDialog from '../../components/Agents/TerritoryDialog';
+import { describeArea } from '../../utils/rwandaLocations';
 import {
   Page, PageHeader, Card, StatGrid, StatCard, Badge, Button, Field, inputClass, EmptyState, ErrorState, Spinner, Table, Td, Dialog, Pagination,
 } from '../../components/Ui/kit';
@@ -14,10 +16,9 @@ const PAGE_SIZE = 15;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const errMsg = (e, fallback) => e?.response?.data?.errors?.[0]?.msg || e?.response?.data?.message || e?.message || fallback;
 const fmtDate = (v) => (v ? new Date(v).toLocaleDateString() : '—');
-const territoryText = (t) => (Array.isArray(t) ? t.map((x) => (typeof x === 'string' ? x : [x?.sector, x?.district].filter(Boolean).join(', '))).filter(Boolean).join('; ') : '');
 
 const emptyAgent = () => ({
-  full_name: '', email: '', phone: '', province: '', district: '', sector: '', territory: '', specialization: '', experience: '', certification: '',
+  full_name: '', email: '', phone: '', province: '', district: '', sector: '', specialization: '', experience: '', certification: '',
 });
 
 function useDebounced(value, delay = 350) {
@@ -61,6 +62,7 @@ export default function Agents() {
   const [dialog, setDialog] = useState(null);
   const [form, setForm] = useState(emptyAgent);
   const [saving, setSaving] = useState(false);
+  const [areaFor, setAreaFor] = useState(null); // agent whose area is being assigned
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -122,7 +124,7 @@ export default function Agents() {
       ...emptyAgent(),
       full_name: agent.full_name || '', email: agent.email || '', phone: agent.phone || '',
       province: agent.province || '', district: agent.district || '', sector: agent.sector || '',
-      territory: territoryText(agent.territory), specialization: agent.specialization || '',
+      specialization: agent.specialization || '',
       experience: agent.experience || '', certification: agent.certification || '',
     });
     setDialog({ type: 'edit', agent });
@@ -150,7 +152,6 @@ export default function Agents() {
         await updateUser(dialog.agent.id, account);
         await updateAgentProfileById(dialog.agent.id, {
           province: form.province, district: form.district, sector: form.sector.trim(),
-          territory: form.territory.split(/[;,]/).map((t) => t.trim()).filter(Boolean),
           specialization: form.specialization.trim(), experience: form.experience.trim(), certification: form.certification.trim(),
         });
         toast.success('Agent updated');
@@ -248,13 +249,20 @@ export default function Agents() {
                     <div className="text-xs text-slate-500">{a.email}</div>
                   </Td>
                   <Td>{a.phone || '—'}</Td>
-                  <Td>{[a.sector, a.district, a.province].filter(Boolean).join(', ') || '—'}</Td>
+                  <Td className="whitespace-normal">
+                    <button type="button" onClick={() => setAreaFor(a)} className="text-left hover:underline">
+                      {Array.isArray(a.territory) && a.territory.length
+                        ? <span className="text-slate-800">{a.territory.map(describeArea).join('; ')}</span>
+                        : <Badge tone="amber">No area — assign</Badge>}
+                    </button>
+                  </Td>
                   <Td>{a.specialization || '—'}</Td>
                   <Td>{perf[a.id] ? `${perf[a.id].completed_visits ?? 0}/${perf[a.id].total_visits ?? 0}` : '—'}</Td>
                   <Td><Badge tone={a.status === 'active' ? 'brand' : 'slate'}>{a.status}</Badge></Td>
                   <Td className="text-right">
                     <div className="flex justify-end gap-1">
                       <Button size="sm" variant="ghost" icon={Eye} aria-label={`View ${a.full_name}`} onClick={() => openView(a)} />
+                      <Button size="sm" variant="ghost" icon={MapPinned} aria-label={`Assign area to ${a.full_name}`} title="Assign area" onClick={() => setAreaFor(a)} />
                       <Button size="sm" variant="ghost" icon={Pencil} aria-label={`Edit ${a.full_name}`} onClick={() => openEdit(a)} />
                       <Button size="sm" variant="ghost" icon={Power} aria-label={`${a.status === 'active' ? 'Deactivate' : 'Reactivate'} ${a.full_name}`} onClick={() => toggleStatus(a)} />
                       <Button size="sm" variant="ghost" icon={Trash2} className="text-rose-600 hover:bg-rose-50" aria-label={`Delete ${a.full_name}`} onClick={() => remove(a)} />
@@ -290,7 +298,6 @@ export default function Agents() {
             <Field label="Province"><Select value={form.province} onChange={setField('province')} options={RWANDA_PROVINCES} placeholder="—" /></Field>
             <Field label="District"><Select value={form.district} onChange={setField('district')} options={RWANDA_DISTRICTS[form.province] || ALL_DISTRICTS} placeholder="—" /></Field>
             {text('sector', 'Sector')}
-            {dialog.type === 'edit' && text('territory', 'Territory', { placeholder: 'Areas covered, comma separated' })}
             {text('specialization', 'Specialization', { placeholder: 'e.g. Pest management' })}
             {text('experience', 'Experience', { placeholder: 'e.g. 5 years' })}
             {text('certification', 'Certification')}
@@ -327,7 +334,7 @@ export default function Agents() {
                 <Detail label="Phone" value={dialog.agent.phone} />
                 <Detail label="Joined" value={fmtDate(dialog.agent.created_at)} />
                 <Detail label="Area" value={[dp.sector ?? dialog.agent.sector, dp.district ?? dialog.agent.district, dp.province ?? dialog.agent.province].filter(Boolean).join(', ')} />
-                <Detail label="Territory" value={territoryText(dp.territory ?? dialog.agent.territory)} />
+                <Detail label="Area served" value={(dp.territory ?? dialog.agent.territory ?? []).map(describeArea).join('; ') || 'None assigned'} />
                 <Detail label="Specialization" value={dp.specialization ?? dialog.agent.specialization} />
                 <Detail label="Experience" value={dp.experience ?? dialog.agent.experience} />
                 <Detail label="Certification" value={dp.certification ?? dialog.agent.certification} />
@@ -347,6 +354,7 @@ export default function Agents() {
           )}
         </Dialog>
       )}
+      {areaFor && <TerritoryDialog agent={areaFor} onClose={() => setAreaFor(null)} onSaved={refresh} />}
     </Page>
   );
 }

@@ -1,4 +1,7 @@
+/* eslint-disable react/prop-types */
 import { useCallback, useEffect, useRef, useState } from 'react';
+import LocationPicker from '../../components/Location/LocationPicker';
+import { listMyFarms } from '../../services/farmsService';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { MapPin } from 'lucide-react';
 import {
@@ -315,17 +318,23 @@ export default function PropertyEvaluation() {
             </div>
 
             <div className="space-y-6">
-              <Card title="Property location" subtitle="Pre-filled from your profile.">
+              <Card title="Property location" subtitle="Pick one of your farms, or choose the place.">
                 <div className="space-y-3">
+                  <FarmQuickPick
+                    current={form.location.farm_name}
+                    onPick={(f) => setForm((x) => ({ ...x, location: { province: '', district: '', sector: '', cell: '', village: '', ...(f.location || {}), farm_name: f.farmName } }))}
+                  />
                   <Field label="Farm name">
                     <input className={inputClass} value={form.location.farm_name || ''} onChange={(e) => setLoc('farm_name', e.target.value)} />
                   </Field>
-                  {['province', 'district', 'sector', 'cell', 'village'].map((k) => (
-                    <Field key={k} label={k[0].toUpperCase() + k.slice(1)} required={k === 'province'}>
-                      <input className={inputClass} value={form.location[k] || ''} onChange={(e) => setLoc(k, e.target.value)} />
-                      {k === 'province' && err('province')}
-                    </Field>
-                  ))}
+                  <LocationPicker
+                    idPrefix="pe"
+                    columns={1}
+                    required="province"
+                    value={form.location}
+                    onChange={(l) => setForm((x) => ({ ...x, location: { ...x.location, ...l } }))}
+                    errors={{ province: errors.province }}
+                  />
                 </div>
               </Card>
               <Button type="submit" loading={saving} className="w-full">{editId ? 'Save changes' : 'Submit request'}</Button>
@@ -334,5 +343,28 @@ export default function PropertyEvaluation() {
         </form>
       )}
     </Page>
+  );
+}
+
+/** One-tap choice among the farmer's registered farms (fills name and location). */
+function FarmQuickPick({ current, onPick }) {
+  const [farms, setFarms] = useState([]);
+  useEffect(() => {
+    listMyFarms().then(setFarms).catch(() => setFarms([]));
+  }, []);
+  if (!farms.length) return null;
+  return (
+    <div className="flex flex-wrap gap-2">
+      {farms.map((f) => (
+        <button
+          key={f.id}
+          type="button"
+          onClick={() => onPick(f)}
+          className={`rounded-full px-3 py-1.5 text-sm ring-1 ring-inset ${current === f.farmName ? 'bg-brand-600 text-white ring-brand-600' : 'bg-white text-slate-700 ring-slate-300 hover:bg-slate-50'}`}
+        >
+          {f.farmName}
+        </button>
+      ))}
+    </div>
   );
 }

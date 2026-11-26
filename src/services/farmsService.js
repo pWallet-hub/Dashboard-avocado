@@ -227,3 +227,22 @@ export async function getFarmProductionStats(farmId) {
     throw new Error(error.response?.data?.message || error.message || 'Failed to load farm production stats');
   }
 }
+
+/** Farmer: my active farms (a farmer can have several). */
+export async function listMyFarms() {
+  try {
+    const data = extractData(await apiClient.get('/farms/mine'));
+    return Array.isArray(data) ? data : [];
+  } catch (error) {
+    throw new Error(error.response?.data?.message || error.message || 'Failed to load your farms');
+  }
+}
+
+/** Farmer: add one of my farms. Only farm_name and a district are required. */
+export async function addMyFarm(farmData) {
+  try {
+    return extractData(await apiClient.post('/farms', farmData));
+  } catch (error) {
+    throw new Error(error.response?.data?.message || error.message || 'Failed to add the farm');
+  }
+}

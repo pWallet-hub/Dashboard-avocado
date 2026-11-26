@@ -6,9 +6,11 @@ import { updateProfile } from '../../services/authService';
 import { useToast } from '../Ui/Toast';
 import { Page, PageHeader, Card, Badge, Button, Field, inputClass, ErrorState, Spinner, Dialog, Tabs } from '../Ui/kit';
 import ProfilePictureUploader from './ProfilePictureUploader';
-import MembershipCard from './MembershipCard';
+import LocationPicker from '../Location/LocationPicker';
+import { Link } from 'react-router-dom';
+import { CardFront } from './MembershipCard';
+import { getMyCard } from '../../services/membershipService';
 
-const PROVINCES = ['Kigali', 'Eastern Province', 'Northern Province', 'Southern Province', 'Western Province'];
 const AVOCADO_TYPES = ['Hass', 'Fuerte', 'Bacon', 'Zutano', 'Mixed'];
 const ASSISTANCE = ['irrigation', 'fertilizers', 'fertilizer', 'pesticide', 'training', 'equipment', 'seedlings', 'pest_control'];
 
@@ -192,17 +194,7 @@ export default function FarmerProfileCard({ onUpdate, showEditButton = true }) {
                 </dl>
               </div>
             </Card>
-            <MembershipCard
-              name={user?.full_name}
-              treeCount={fp.tree_count != null ? Number(fp.tree_count).toLocaleString() : undefined}
-              propertyId={fp.upi_number}
-              location={join(fp.farm_district || fp.district, fp.farm_province || fp.province)}
-              variety={fp.avocado_type}
-              profileImage={fp.image}
-              role="farmer"
-              memberSince={user?.created_at}
-              status={user?.status}
-            />
+            <CardPreview />
           </div>
 
           <div className="space-y-6 lg:col-span-2">
@@ -269,19 +261,35 @@ export default function FarmerProfileCard({ onUpdate, showEditButton = true }) {
             </div>
           )}
           {tab === 'location' && (
-            <div className="grid gap-4 sm:grid-cols-2">
-              <p className="text-sm font-medium text-slate-700 sm:col-span-2">Where you live</p>
-              <Field label="Province">{select('province', PROVINCES)}</Field>
-              <Field label="District">{input('district')}</Field>
-              <Field label="Sector">{input('sector')}</Field>
-              <Field label="Cell">{input('cell')}</Field>
-              <Field label="Village">{input('village')}</Field>
-              <p className="mt-2 text-sm font-medium text-slate-700 sm:col-span-2">Where your farm is</p>
-              <Field label="Farm province">{select('farm_province', PROVINCES)}</Field>
-              <Field label="Farm district">{input('farm_district')}</Field>
-              <Field label="Farm sector">{input('farm_sector')}</Field>
-              <Field label="Farm cell">{input('farm_cell')}</Field>
-              <Field label="Farm village">{input('farm_village')}</Field>
+            <div className="space-y-5">
+              <div>
+                <p className="mb-2 text-sm font-medium text-slate-700">Where you live</p>
+                <LocationPicker
+                  idPrefix="home"
+                  value={{ province: form.province, district: form.district, sector: form.sector, cell: form.cell, village: form.village }}
+                  onChange={(l) => setForm((f) => ({ ...f, province: l.province, district: l.district, sector: l.sector, cell: l.cell, village: l.village }))}
+                  required="province"
+                />
+              </div>
+              <div>
+                <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-sm font-medium text-slate-700">Where your main farm is</p>
+                  <button
+                    type="button"
+                    className="text-xs font-medium text-brand-700 hover:underline"
+                    onClick={() => setForm((f) => ({ ...f, farm_province: f.province, farm_district: f.district, farm_sector: f.sector, farm_cell: f.cell, farm_village: f.village }))}
+                  >
+                    Same as where I live
+                  </button>
+                </div>
+                <LocationPicker
+                  idPrefix="farm"
+                  value={{ province: form.farm_province, district: form.farm_district, sector: form.farm_sector, cell: form.farm_cell, village: form.farm_village }}
+                  onChange={(l) => setForm((f) => ({ ...f, farm_province: l.province, farm_district: l.district, farm_sector: l.sector, farm_cell: l.cell, farm_village: l.village }))}
+                  required="province"
+                />
+                <p className="mt-2 text-xs text-slate-500">Other farms are added on the <Link to="/dashboard/farmer/my-farm" className="font-medium text-brand-700 hover:underline">My Farms</Link> page.</p>
+              </div>
             </div>
           )}
           {tab === 'farm' && (
@@ -317,5 +325,23 @@ export default function FarmerProfileCard({ onUpdate, showEditButton = true }) {
         </div>
       </Dialog>
     </Page>
+  );
+}
+
+/** The farmer's real membership card, linking to the full card page. */
+function CardPreview() {
+  const [card, setCard] = useState(null);
+  useEffect(() => {
+    getMyCard().then(setCard).catch(() => setCard(false));
+  }, []);
+  if (card === null) return null;
+  if (card === false) return null;
+  return (
+    <div className="space-y-2">
+      <CardFront card={card} />
+      <Link to="/dashboard/farmer/membership-card" className="block text-center text-sm font-medium text-brand-700 hover:underline">
+        Open, print or share my card
+      </Link>
+    </div>
   );
 }

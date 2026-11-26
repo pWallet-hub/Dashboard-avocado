@@ -8,16 +8,7 @@ import { updateFarmerInformation } from '../../services/farmer-information';
 import { inputClass } from '../../components/Ui/kit';
 import { authButton, AuthMessage } from '../../components/Layout/AuthShell';
 import logo from '../../assets/image/LOGO_-_Avocado_Society_of_Rwanda.png';
-
-const PROVINCES = ['Kigali', 'Eastern Province', 'Northern Province', 'Southern Province', 'Western Province'];
-
-const DISTRICTS = {
-  'Kigali': ['Gasabo', 'Kicukiro', 'Nyarugenge'],
-  'Eastern Province': ['Bugesera', 'Gatsibo', 'Kayonza', 'Kirehe', 'Ngoma', 'Nyagatare', 'Rwamagana'],
-  'Northern Province': ['Burera', 'Gakenke', 'Gicumbi', 'Musanze', 'Rulindo'],
-  'Southern Province': ['Gisagara', 'Huye', 'Kamonyi', 'Muhanga', 'Nyamagabe', 'Nyanza', 'Nyaruguru', 'Ruhango'],
-  'Western Province': ['Karongi', 'Ngororero', 'Nyabihu', 'Nyamasheke', 'Rubavu', 'Rusizi', 'Rutsiro'],
-};
+import LocationPicker from '../../components/Location/LocationPicker';
 
 const AVOCADO_TYPES = ['Hass', 'Fuerte', 'Bacon', 'Zutano', 'Mixed'];
 const ASSISTANCE_OPTIONS = ['irrigation', 'fertilizers', 'training', 'equipment', 'seedlings', 'pest_control'];
@@ -70,6 +61,13 @@ export default function Register() {
   const navigate = useNavigate();
 
   const set = (field, value) => setFormData(prev => ({ ...prev, [field]: value }));
+  /** LocationPicker → form fields with an optional prefix ('farm_'). */
+  const setLocation = (prefix) => (l) =>
+    setFormData((prev) => ({
+      ...prev,
+      [`${prefix}province`]: l.province || '', [`${prefix}district`]: l.district || '', [`${prefix}sector`]: l.sector || '',
+      [`${prefix}cell`]: l.cell || '', [`${prefix}village`]: l.village || '',
+    }));
 
   const toggleAssistance = (type) => {
     setFormData(prev => ({
@@ -164,8 +162,6 @@ export default function Register() {
     }
   };
 
-  const districtOptions = DISTRICTS[formData.province] || [];
-  const farmDistrictOptions = DISTRICTS[formData.farm_province] || [];
 
   return (
     <div className="min-h-screen bg-slate-50 px-4 py-10 sm:px-8">
@@ -270,27 +266,14 @@ export default function Register() {
               </Section>
 
               <Section title="Personal location">
-                <Field label="Province" required>
-                  <select className={inputClass} value={formData.province} onChange={(e) => { set('province', e.target.value); set('district', ''); }} disabled={loading}>
-                    <option value="">Select province</option>
-                    {PROVINCES.map(p => <option key={p} value={p}>{p}</option>)}
-                  </select>
-                </Field>
-                <Field label="District" required>
-                  <select className={inputClass} value={formData.district} onChange={(e) => set('district', e.target.value)} disabled={loading || !formData.province}>
-                    <option value="">Select district</option>
-                    {districtOptions.map(d => <option key={d} value={d}>{d}</option>)}
-                  </select>
-                </Field>
-                <Field label="Sector">
-                  <input className={inputClass} value={formData.sector} onChange={(e) => set('sector', e.target.value)} disabled={loading} />
-                </Field>
-                <Field label="Cell">
-                  <input className={inputClass} value={formData.cell} onChange={(e) => set('cell', e.target.value)} disabled={loading} />
-                </Field>
-                <Field label="Village">
-                  <input className={inputClass} value={formData.village} onChange={(e) => set('village', e.target.value)} disabled={loading} />
-                </Field>
+                <div className="sm:col-span-2">
+                  <LocationPicker
+                    idPrefix="reg-home"
+                    value={{ province: formData.province, district: formData.district, sector: formData.sector, cell: formData.cell, village: formData.village }}
+                    onChange={setLocation('')}
+                    disabled={loading}
+                  />
+                </div>
               </Section>
 
               <Section title="Farm details">
@@ -344,27 +327,23 @@ export default function Register() {
               </Section>
 
               <Section title="Farm location">
-                <Field label="Farm Province">
-                  <select className={inputClass} value={formData.farm_province} onChange={(e) => { set('farm_province', e.target.value); set('farm_district', ''); }} disabled={loading}>
-                    <option value="">Select province</option>
-                    {PROVINCES.map(p => <option key={p} value={p}>{p}</option>)}
-                  </select>
-                </Field>
-                <Field label="Farm District">
-                  <select className={inputClass} value={formData.farm_district} onChange={(e) => set('farm_district', e.target.value)} disabled={loading || !formData.farm_province}>
-                    <option value="">Select district</option>
-                    {farmDistrictOptions.map(d => <option key={d} value={d}>{d}</option>)}
-                  </select>
-                </Field>
-                <Field label="Farm Sector">
-                  <input className={inputClass} value={formData.farm_sector} onChange={(e) => set('farm_sector', e.target.value)} disabled={loading} />
-                </Field>
-                <Field label="Farm Cell">
-                  <input className={inputClass} value={formData.farm_cell} onChange={(e) => set('farm_cell', e.target.value)} disabled={loading} />
-                </Field>
-                <Field label="Farm Village">
-                  <input className={inputClass} value={formData.farm_village} onChange={(e) => set('farm_village', e.target.value)} disabled={loading} />
-                </Field>
+                <div className="sm:col-span-2">
+                  <button
+                    type="button"
+                    className="mb-3 text-xs font-medium text-brand-700 hover:underline"
+                    onClick={() => setFormData((f) => ({ ...f, farm_province: f.province, farm_district: f.district, farm_sector: f.sector, farm_cell: f.cell, farm_village: f.village }))}
+                  >
+                    My farm is where I live
+                  </button>
+                  <LocationPicker
+                    idPrefix="reg-farm"
+                    labelPrefix="Farm"
+                    required="province"
+                    value={{ province: formData.farm_province, district: formData.farm_district, sector: formData.farm_sector, cell: formData.farm_cell, village: formData.farm_village }}
+                    onChange={setLocation('farm_')}
+                    disabled={loading}
+                  />
+                </div>
               </Section>
 
               <Section title="Assistance needed">
@@ -389,28 +368,16 @@ export default function Register() {
 
           {formData.role === 'agent' && (
             <>
-              <Section title="Territory">
-                <Field label="Province" required>
-                  <select className={inputClass} value={formData.province} onChange={(e) => { set('province', e.target.value); set('district', ''); }} disabled={loading}>
-                    <option value="">Select province</option>
-                    {PROVINCES.map(p => <option key={p} value={p}>{p}</option>)}
-                  </select>
-                </Field>
-                <Field label="District" required>
-                  <select className={inputClass} value={formData.district} onChange={(e) => set('district', e.target.value)} disabled={loading || !formData.province}>
-                    <option value="">Select district</option>
-                    {districtOptions.map(d => <option key={d} value={d}>{d}</option>)}
-                  </select>
-                </Field>
-                <Field label="Sector">
-                  <input className={inputClass} value={formData.sector} onChange={(e) => set('sector', e.target.value)} disabled={loading} />
-                </Field>
-                <Field label="Cell">
-                  <input className={inputClass} value={formData.cell} onChange={(e) => set('cell', e.target.value)} disabled={loading} />
-                </Field>
-                <Field label="Village">
-                  <input className={inputClass} value={formData.village} onChange={(e) => set('village', e.target.value)} disabled={loading} />
-                </Field>
+              <Section title="Where you work">
+                <div className="sm:col-span-2">
+                  <LocationPicker
+                    idPrefix="reg-agent"
+                    value={{ province: formData.province, district: formData.district, sector: formData.sector, cell: formData.cell, village: formData.village }}
+                    onChange={setLocation('')}
+                    disabled={loading}
+                  />
+                  <p className="mt-2 text-xs text-slate-500">An administrator confirms the area you serve when your account is activated.</p>
+                </div>
               </Section>
 
               <Section title="Expertise">
@@ -432,18 +399,15 @@ export default function Register() {
               <Field label="Shop Name" required>
                 <input className={inputClass} value={formData.shopName} onChange={(e) => set('shopName', e.target.value)} disabled={loading} />
               </Field>
-              <Field label="Province" required>
-                <select className={inputClass} value={formData.province} onChange={(e) => { set('province', e.target.value); set('district', ''); }} disabled={loading}>
-                  <option value="">Select province</option>
-                  {PROVINCES.map(p => <option key={p} value={p}>{p}</option>)}
-                </select>
-              </Field>
-              <Field label="District" required>
-                <select className={inputClass} value={formData.district} onChange={(e) => set('district', e.target.value)} disabled={loading || !formData.province}>
-                  <option value="">Select district</option>
-                  {districtOptions.map(d => <option key={d} value={d}>{d}</option>)}
-                </select>
-              </Field>
+              <div className="sm:col-span-2">
+                <LocationPicker
+                  idPrefix="reg-shop"
+                  depth="district"
+                  value={{ province: formData.province, district: formData.district }}
+                  onChange={setLocation('')}
+                  disabled={loading}
+                />
+              </div>
               <Field label="Description" required full>
                 <textarea className={inputClass} rows="3" value={formData.description} onChange={(e) => set('description', e.target.value)} disabled={loading} />
               </Field>

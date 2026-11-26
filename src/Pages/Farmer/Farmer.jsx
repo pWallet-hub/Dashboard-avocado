@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Home, ClipboardList, Trees, LineChart, PackageCheck, CalendarCheck, Bug, MapPin, ShoppingBag, GraduationCap,
-  CloudSun, Bell, ArrowRight, TrendingUp, TrendingDown, Sparkles, Compass, Phone, UserCheck, Lightbulb,
+  CloudSun, Bell, ArrowRight, TrendingUp, TrendingDown, Sparkles, Compass, Phone, UserCheck, Lightbulb, IdCard,
 } from 'lucide-react';
 import { getFarmerInformation } from '../../services/farmer-information';
 import { listServiceRequestsForFarmerPage } from '../../services/serviceRequestsService';
@@ -16,16 +16,16 @@ import { Page, PageHeader, Card, StatGrid, StatCard, Badge, EmptyState, Spinner 
 import { serviceTypeLabel, requestStatusMeta, formatDate, currentUser, rwf } from './farmerShared';
 
 const QUICK_ACTIONS = [
-  { to: '/dashboard/farmer/HarvestingDay', icon: CalendarCheck, label: 'Book harvesting day' },
+  { to: '/dashboard/farmer/HarvestingDay', icon: CalendarCheck, label: 'Book a harvest' },
   { to: '/dashboard/farmer/PestManagement', icon: Bug, label: 'Book IPM day' },
   { to: '/dashboard/farmer/PropertyEvaluation', icon: MapPin, label: 'Property evaluation' },
   { to: '/dashboard/farmer/harvest-lots', icon: PackageCheck, label: 'Record a harvest lot' },
   { to: '/dashboard/farmer/nearby', icon: Compass, label: 'Near my farm' },
   { to: '/dashboard/farmer/opportunities', icon: Sparkles, label: 'Opportunities' },
   { to: '/dashboard/farmer/market', icon: ShoppingBag, label: 'Buy farm inputs' },
+  { to: '/dashboard/farmer/membership-card', icon: IdCard, label: 'My membership card' },
   { to: '/dashboard/farmer/training', icon: GraduationCap, label: 'Training' },
   { to: '/dashboard/farmer/Weather', icon: CloudSun, label: 'Weather' },
-  { to: '/dashboard/notifications', icon: Bell, label: 'Notifications' },
 ];
 
 const OPEN_STATUSES = ['pending', 'approved', 'assigned', 'in_progress'];
@@ -237,7 +237,7 @@ export default function Farmer() {
               )}
             </Card>
 
-            <Card title="My farm" actions={<MoreLink to="/dashboard/farmer/my-farm">My farm & land</MoreLink>}>
+            <Card title="My farm" actions={<MoreLink to="/dashboard/farmer/my-farm">My farms</MoreLink>}>
               {state.profileFailed ? (
                 <Unavailable onRetry={load} />
               ) : !profile ? (

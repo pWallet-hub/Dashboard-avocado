@@ -59,7 +59,9 @@ describe('Register page', () => {
     fireEvent.change(screen.getByLabelText(/Phone/i), { target: { value: '+250788000000' } });
     fireEvent.change(screen.getByLabelText(/Password/i), { target: { value: 'TestPass123!' } });
     fireEvent.change(screen.getByLabelText(/Gender/i), { target: { value: 'Male' } });
-    fireEvent.change(screen.getByLabelText(/^Province/i), { target: { value: 'Kigali' } });
+    fireEvent.change(screen.getByLabelText(/^Province/i), { target: { value: 'Kigali City' } });
+    // District options come from the rwanda package, loaded on demand.
+    await screen.findByRole('option', { name: 'Gasabo' });
     fireEvent.change(screen.getByLabelText(/^District/i), { target: { value: 'Gasabo' } });
     fireEvent.change(screen.getByLabelText(/Farm Size/i), { target: { value: '2.5' } });
     fireEvent.change(screen.getByLabelText(/Avocado Type/i), { target: { value: 'Hass' } });

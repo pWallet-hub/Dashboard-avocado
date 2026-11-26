@@ -36,6 +36,7 @@ import {
   Compass,
   Sparkles,
   Building2,
+  IdCard,
 } from 'lucide-react';
 
 /** Normalise 'shop_manager' / 'shop-manager' etc. to the hyphen form used in URLs. */
@@ -173,7 +174,7 @@ export const NAV_SECTIONS = {
     {
       label: 'My Farm',
       links: [
-        { to: '/dashboard/farmer/my-farm', icon: LandPlot, text: 'My Farm & Land' },
+        { to: '/dashboard/farmer/my-farm', icon: LandPlot, text: 'My Farms' },
         { to: '/dashboard/farmer/harvest-lots', icon: PackageCheck, text: 'My Harvest Lots' },
         { to: '/dashboard/farmer/nearby', icon: Compass, text: 'Near My Farm' },
         { to: '/dashboard/farmer/Weather', icon: Cloud, text: 'Weather' },
@@ -201,6 +202,7 @@ export const NAV_SECTIONS = {
       label: 'Learn & Account',
       links: [
         { to: '/dashboard/farmer/training', icon: GraduationCap, text: 'Training' },
+        { to: '/dashboard/farmer/membership-card', icon: IdCard, text: 'My Membership Card' },
         { to: '/dashboard/farmer/profile', icon: User, text: 'Profile' },
       ],
     },

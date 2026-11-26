@@ -184,29 +184,27 @@ export async function listServiceRequestsForAgentPage(agentId, options = {}) {
 
 // Create harvest request
 export async function createHarvestRequest(harvestData) {
-  // Validate required fields
+  // Only the start date is always required: trees, crew size, end date and
+  // location default from the chosen farm on the server.
   if (!harvestData || typeof harvestData !== 'object') {
     throw new Error("Harvest request data is required");
   }
-  
-  if (!harvestData.workersNeeded) {
-    throw new Error("Workers needed is required");
+  if (!harvestData.harvestDateFrom) {
+    throw new Error("Choose the day the harvest can start");
   }
-  
-  if (!harvestData.treesToHarvest) {
-    throw new Error("Number of trees to harvest is required");
-  }
-  
-  if (!harvestData.harvestDateFrom || !harvestData.harvestDateTo) {
-    throw new Error("Harvest date range is required");
-  }
-  
-  if (!harvestData.location) {
-    throw new Error("Location is required");
-  }
-  
   const response = await apiClient.post('/service-requests/harvest', harvestData);
   return extractData(response);
+}
+
+/** Find a registered farmer by phone, to request a harvest for them. */
+export async function lookupFarmerByPhone(phone) {
+  try {
+    return extractData(await apiClient.get('/service-requests/farmer-lookup', { params: { phone } }));
+  } catch (error) {
+    const err = new Error(error.response?.data?.message || error.message || 'Lookup failed');
+    err.status = error.response?.status;
+    throw err;
+  }
 }
 
 // Get the authenticated agent's assigned harvest requests

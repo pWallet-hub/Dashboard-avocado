@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import * as XLSX from 'xlsx';
-import { Users, UserPlus, Search, Download, Eye, RefreshCw, UserCheck, ShieldCheck, KeyRound, Copy } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import MyAreaBanner from '../../components/Agents/MyAreaBanner';
+import { Users, UserPlus, Search, Download, Eye, RefreshCw, UserCheck, ShieldCheck, KeyRound, Copy, IdCard } from 'lucide-react';
 import { createFarmer, listUsersPage } from '../../services/usersService';
 import { listFarmsPage } from '../../services/farmsService';
 import { LocationFields } from './Farms';
@@ -218,7 +220,7 @@ export default function FarmerList() {
       <PageHeader
         icon={Users}
         title="My Farmers"
-        subtitle="Registered avocado farmers you can serve. Register new farmers and export the list."
+        subtitle="Farmers in the area assigned to you. Register new farmers and export the list."
         actions={
           <>
             <Button variant="secondary" icon={RefreshCw} onClick={() => { load(); loadCounts(); }} disabled={loading}>Refresh</Button>
@@ -227,6 +229,8 @@ export default function FarmerList() {
           </>
         }
       />
+
+      <MyAreaBanner />
 
       <StatGrid cols={3}>
         <StatCard label="Farmers" value={fmt(counts.all)} icon={Users} />
@@ -283,7 +287,12 @@ export default function FarmerList() {
                   <Td><Badge tone={VERIFY_TONE[f.verification_status] || 'slate'}>{cap(f.verification_status || 'unknown')}</Badge></Td>
                   <Td><Badge tone={f.status === 'active' ? 'brand' : 'slate'}>{cap(f.status)}</Badge></Td>
                   <Td className="text-right">
-                    <Button variant="ghost" size="sm" icon={Eye} onClick={() => openView(f)} aria-label={`View ${f.full_name}`}>View</Button>
+                    <div className="flex justify-end gap-1">
+                      <Link to={`/dashboard/agent/member-card/${f.id}`} className="inline-flex h-8 items-center gap-1 rounded-lg px-2 text-sm font-medium text-slate-700 hover:bg-slate-100" aria-label={`Membership card of ${f.full_name}`}>
+                        <IdCard className="h-4 w-4" /> Card
+                      </Link>
+                      <Button variant="ghost" size="sm" icon={Eye} onClick={() => openView(f)} aria-label={`View ${f.full_name}`}>View</Button>
+                    </div>
                   </Td>
                 </tr>
               ))}

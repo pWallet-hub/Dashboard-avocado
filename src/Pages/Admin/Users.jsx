@@ -1,8 +1,8 @@
+import { Link } from 'react-router-dom';
 import { useCallback, useEffect, useState } from 'react';
 import * as XLSX from 'xlsx';
 import {
-  Sprout, Plus, Search, Download, Eye, Pencil, Trash2, Power, CheckCircle2, XCircle, Users as UsersIcon, ShieldCheck, Clock, KeyRound,
-} from 'lucide-react';
+  Sprout, Plus, Search, Download, Eye, Pencil, Trash2, Power, CheckCircle2, XCircle, Users as UsersIcon, ShieldCheck, Clock, KeyRound, IdCard } from 'lucide-react';
 import { createFarmer, updateUser, deleteUser, updateUserStatus } from '../../services/usersService';
 import {
   listFarmerProfiles, getFarmerProfileById, updateFarmerProfileById, verifyFarmerProfile,
@@ -416,6 +416,7 @@ export default function Users() {
                     <Td className="text-right">
                       <div className="flex justify-end gap-1">
                         <Button size="sm" variant="ghost" icon={Eye} aria-label={`View ${u.full_name}`} onClick={() => openView(row)} />
+                        <Link to={`/dashboard/admin/member-card/${u.id}`} title="Membership card" aria-label={`Membership card of ${u.full_name}`} className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100"><IdCard className="h-4 w-4" /></Link>
                         <Button size="sm" variant="ghost" icon={Pencil} aria-label={`Edit ${u.full_name}`} onClick={() => openEdit(row)} />
                         <Button size="sm" variant="ghost" icon={Power} aria-label={`${u.status === 'active' ? 'Deactivate' : 'Reactivate'} ${u.full_name}`} onClick={() => toggleStatus(row)} />
                         <Button size="sm" variant="ghost" icon={Trash2} className="text-rose-600 hover:bg-rose-50" aria-label={`Delete ${u.full_name}`} onClick={() => remove(row)} />
