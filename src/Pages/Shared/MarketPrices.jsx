@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { TrendingUp, TrendingDown, Minus, RefreshCw, Plus, Trash2, X, LineChart as LineChartIcon } from 'lucide-react';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, Legend, CartesianGrid } from 'recharts';
+import { ALL_DISTRICTS } from '../../utils/rwanda';
 import {
   PRICE_TYPES,
   GRADES,
@@ -92,7 +93,7 @@ const MarketPrices = ({ role = 'farmer' }) => {
     load();
   }, [load]);
 
-  const districts = useMemo(() => [...new Set(latest.map((p) => p.district))].sort(), [latest]);
+  const districts = useMemo(() => [...new Set([...ALL_DISTRICTS, ...latest.map((p) => p.district)])].sort(), [latest]);
   const visibleTypes = filters.price_type ? [filters.price_type] : PRICE_TYPES.map((t) => t.value);
 
   const setFilter = (key, value) => {

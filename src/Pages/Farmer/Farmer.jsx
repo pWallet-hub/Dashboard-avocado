@@ -3,13 +3,15 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Home, ClipboardList, Trees, LineChart, PackageCheck, CalendarCheck, Bug, MapPin, ShoppingBag, GraduationCap,
-  CloudSun, Bell, ArrowRight, TrendingUp, TrendingDown,
+  CloudSun, Bell, ArrowRight, TrendingUp, TrendingDown, Sparkles, Compass, Phone, UserCheck, Lightbulb,
 } from 'lucide-react';
 import { getFarmerInformation } from '../../services/farmer-information';
 import { listServiceRequestsForFarmerPage } from '../../services/serviceRequestsService';
 import { getPriceSummary, PRICE_TYPES, labelFor } from '../../services/marketPricesService';
 import { getHarvestLotSummary } from '../../services/harvestLotsService';
 import { listNotifications } from '../../services/notificationsService';
+import { listOpportunities, getOpportunityInsights, opportunityTypeLabel } from '../../services/opportunitiesService';
+import { getNearby, facilityTypeLabel } from '../../services/facilitiesService';
 import { Page, PageHeader, Card, StatGrid, StatCard, Badge, EmptyState, Spinner } from '../../components/Ui/kit';
 import { serviceTypeLabel, requestStatusMeta, formatDate, currentUser, rwf } from './farmerShared';
 
@@ -18,6 +20,8 @@ const QUICK_ACTIONS = [
   { to: '/dashboard/farmer/PestManagement', icon: Bug, label: 'Book IPM day' },
   { to: '/dashboard/farmer/PropertyEvaluation', icon: MapPin, label: 'Property evaluation' },
   { to: '/dashboard/farmer/harvest-lots', icon: PackageCheck, label: 'Record a harvest lot' },
+  { to: '/dashboard/farmer/nearby', icon: Compass, label: 'Near my farm' },
+  { to: '/dashboard/farmer/opportunities', icon: Sparkles, label: 'Opportunities' },
   { to: '/dashboard/farmer/market', icon: ShoppingBag, label: 'Buy farm inputs' },
   { to: '/dashboard/farmer/training', icon: GraduationCap, label: 'Training' },
   { to: '/dashboard/farmer/Weather', icon: CloudSun, label: 'Weather' },
@@ -46,13 +50,16 @@ export default function Farmer() {
   const load = useCallback(async () => {
     setState((s) => ({ ...s, loading: true }));
     const id = user?.id || localStorage.getItem('id');
-    const [info, requests, openCount, prices, lots, notes] = await Promise.allSettled([
+    const [info, requests, openCount, prices, lots, notes, opps, insights, nearby] = await Promise.allSettled([
       getFarmerInformation(),
       id ? listServiceRequestsForFarmerPage(id, { page: 1, limit: 5 }) : Promise.reject(new Error('no user')),
       id ? Promise.all(OPEN_STATUSES.map((s) => listServiceRequestsForFarmerPage(id, { status: s, limit: 1 }))) : Promise.reject(new Error('no user')),
       getPriceSummary({ days: 30 }),
       getHarvestLotSummary(),
       listNotifications({ page: 1, limit: 4 }),
+      listOpportunities({ page: 1, limit: 4 }),
+      getOpportunityInsights(),
+      getNearby({ limit: 1 }),
     ]);
     const ok = (r) => (r.status === 'fulfilled' ? r.value : undefined);
     const infoData = ok(info);
@@ -64,10 +71,15 @@ export default function Farmer() {
       requests: ok(requests)?.data,
       requestsTotal: ok(requests)?.pagination?.total,
       openRequests: ok(openCount)?.reduce((sum, r) => sum + (r.pagination?.total || 0), 0),
-      prices: ok(prices)?.summary,
+      prices: ok(prices)?.summary?.filter((p) => p.average_price != null),
       lots: ok(lots),
       notifications: ok(notes)?.data,
       unread: ok(notes)?.meta?.unreadCount,
+      opportunities: ok(opps)?.data,
+      opportunitiesTotal: ok(opps)?.pagination?.total,
+      insights: ok(insights)?.insights,
+      nearby: ok(nearby),
+      nearbyError: nearby.status === 'rejected' ? nearby.reason?.message : null,
     });
     // `user` comes from localStorage and is stable for the session.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -77,7 +89,11 @@ export default function Farmer() {
     load();
   }, [load]);
 
-  const { loading, profile, userInfo, requests, prices, lots, notifications } = state;
+  const { loading, profile, userInfo, requests, prices, lots, notifications, opportunities, insights, nearby } = state;
+  const nearestAgent = nearby?.agents?.[0];
+  const nearestPlaces = nearby
+    ? Object.values(nearby.facilities || {}).map((list) => list[0]).filter(Boolean).sort((a, b) => a.distance_km - b.distance_km).slice(0, 4)
+    : [];
   const name = userInfo?.full_name || user?.full_name || 'Farmer';
   const farmGate = prices?.find((p) => p.price_type === 'farm_gate');
   const location = [profile?.farm_sector || profile?.sector, profile?.farm_district || profile?.district, profile?.farm_province || profile?.province].filter(Boolean).join(', ');
@@ -95,7 +111,7 @@ export default function Farmer() {
             <StatCard label="My trees" value={profile?.tree_count != null ? Number(profile.tree_count).toLocaleString() : '—'} hint={profile?.farm_size ? `${profile.farm_size} ha · ${profile.avocado_type || 'variety not set'}` : 'Add farm details on your profile'} icon={Trees} />
             <StatCard
               label="Farm-gate price (30 days)"
-              value={farmGate ? `${Math.round(farmGate.average_price).toLocaleString()} RWF/kg` : '—'}
+              value={farmGate?.average_price != null ? `${Math.round(farmGate.average_price).toLocaleString()} RWF/kg` : '—'}
               hint={farmGate?.change_pct != null ? `${farmGate.change_pct > 0 ? '+' : ''}${farmGate.change_pct}% vs previous period` : 'No recent prices'}
               icon={LineChart}
               tone="blue"
@@ -104,7 +120,7 @@ export default function Farmer() {
           </StatGrid>
 
           <Card title="Quick actions">
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-5">
               {QUICK_ACTIONS.map(({ to, icon: Icon, label }) => (
                 <Link key={to} to={to} className="flex flex-col items-start gap-2 rounded-xl border border-slate-200 p-3 text-sm font-medium text-slate-800 hover:border-brand-300 hover:bg-brand-50">
                   <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-100 text-brand-700"><Icon className="h-5 w-5" /></span>
@@ -113,6 +129,89 @@ export default function Farmer() {
               ))}
             </div>
           </Card>
+
+          <div className="grid gap-6 lg:grid-cols-3">
+            <Card
+              title="Opportunities for you"
+              subtitle="Buyers, contracts, grants and trainings open in your area"
+              actions={<MoreLink to="/dashboard/farmer/opportunities">{state.opportunitiesTotal ? `All ${state.opportunitiesTotal}` : 'All opportunities'}</MoreLink>}
+              className="lg:col-span-2"
+              padded={false}
+            >
+              {opportunities === undefined && insights === undefined ? (
+                <Unavailable onRetry={load} />
+              ) : !opportunities?.length && !insights?.length ? (
+                <EmptyState icon={Sparkles} title="No open opportunities right now" description="We will notify you when a buyer, grant or training is posted for your area." />
+              ) : (
+                <ul className="divide-y divide-slate-100">
+                  {(opportunities || []).map((o) => (
+                    <li key={o.id}>
+                      <Link to="/dashboard/farmer/opportunities" className="flex items-center justify-between gap-3 px-5 py-3 hover:bg-slate-50">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium text-slate-900">{o.title}</p>
+                          <p className="text-xs text-slate-500">
+                            {opportunityTypeLabel(o.type)}
+                            {o.price_per_kg ? ` · ${Number(o.price_per_kg).toLocaleString()} RWF/kg` : ''}
+                            {o.deadline ? ` · until ${formatDate(o.deadline)}` : ''}
+                          </p>
+                        </div>
+                        {o.my_interest ? <Badge tone="brand">Interested</Badge> : <Badge tone="amber">New</Badge>}
+                      </Link>
+                    </li>
+                  ))}
+                  {(insights || []).slice(0, 2).map((i) => (
+                    <li key={`${i.price_type}-${i.district}`} className="flex items-start gap-3 px-5 py-3">
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-50 text-amber-700"><Lightbulb className="h-4 w-4" /></span>
+                      <p className="text-sm text-slate-700">
+                        <span className="font-medium text-slate-900">Better {labelFor(PRICE_TYPES, i.price_type).toLowerCase()} price in {i.district}:</span>{' '}
+                        {Math.round(i.average_price).toLocaleString()} RWF/kg, {i.difference_pct}% above {i.compared_to === 'your_district' ? 'your district' : 'the national average'} (last 30 days).
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Card>
+
+            <Card title="Near my farm" actions={<MoreLink to="/dashboard/farmer/nearby">See all</MoreLink>} padded={false}>
+              {!nearby ? (
+                <div className="px-5 py-6 text-sm text-slate-500">
+                  {state.nearbyError || 'Couldn\u2019t load nearby services.'}{' '}
+                  <Link to="/dashboard/farmer/nearby" className="font-medium text-brand-700 hover:underline">Use my current location</Link>
+                </div>
+              ) : (
+                <ul className="divide-y divide-slate-100">
+                  {nearestAgent ? (
+                    <li className="flex items-center justify-between gap-3 px-5 py-3">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-700"><UserCheck className="h-4 w-4" /></span>
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium text-slate-900">{nearestAgent.full_name}</p>
+                          <p className="text-xs text-slate-500">Your nearest agent · {nearestAgent.district}</p>
+                        </div>
+                      </div>
+                      {nearestAgent.phone && (
+                        <a href={`tel:${nearestAgent.phone}`} aria-label={`Call ${nearestAgent.full_name}`} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-600 text-white hover:bg-brand-700"><Phone className="h-4 w-4" /></a>
+                      )}
+                    </li>
+                  ) : (
+                    <li className="px-5 py-3 text-sm text-slate-500">No agent found for your area yet.</li>
+                  )}
+                  {nearestPlaces.map((f) => (
+                    <li key={f.id} className="flex items-center justify-between gap-3 px-5 py-3 text-sm">
+                      <div className="min-w-0">
+                        <p className="truncate font-medium text-slate-900">{f.name}</p>
+                        <p className="text-xs text-slate-500">{facilityTypeLabel(f.type)}</p>
+                      </div>
+                      <span className="shrink-0 font-medium text-slate-700">{f.distance_km < 1 ? '< 1' : f.distance_km} km</span>
+                    </li>
+                  ))}
+                  {!nearestPlaces.length && (
+                    <li className="px-5 py-3 text-sm text-slate-500">Markets and collection centres will appear here once they are registered.</li>
+                  )}
+                </ul>
+              )}
+            </Card>
+          </div>
 
           <div className="grid gap-6 lg:grid-cols-3">
             <Card title="My recent requests" actions={<MoreLink to="/dashboard/farmer/my-service-requests">All requests</MoreLink>} className="lg:col-span-2" padded={false}>

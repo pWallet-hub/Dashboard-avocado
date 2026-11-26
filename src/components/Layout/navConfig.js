@@ -33,6 +33,9 @@ import {
   FileSpreadsheet,
   LandPlot,
   ScrollText,
+  Compass,
+  Sparkles,
+  Building2,
 } from 'lucide-react';
 
 /** Normalise 'shop_manager' / 'shop-manager' etc. to the hyphen form used in URLs. */
@@ -87,12 +90,14 @@ export const NAV_SECTIONS = {
         { to: '/dashboard/admin/forecasting', icon: Map, text: 'Regional Forecasting' },
         { to: '/dashboard/admin/diseases', icon: Bug, text: 'Disease Management' },
         { to: '/dashboard/admin/geography', icon: Globe2, text: 'Geography' },
+        { to: '/dashboard/admin/facilities', icon: Building2, text: 'Facilities & Infrastructure' },
       ],
     },
     {
       label: 'Market & Sales',
       links: [
         { to: '/dashboard/admin/market-prices', icon: LineChart, text: 'Market Prices' },
+        { to: '/dashboard/admin/opportunities', icon: Sparkles, text: 'Opportunities' },
         { to: '/dashboard/admin/shops', icon: ShoppingCart, text: 'Manage Shops' },
         { to: '/dashboard/admin/transactions', icon: Receipt, text: 'Transactions' },
       ],
@@ -145,6 +150,8 @@ export const NAV_SECTIONS = {
         { to: '/dashboard/agent/harvest-lots', icon: PackageCheck, text: 'Harvest Lots' },
         { to: '/dashboard/agent/Forecasting', icon: TrendingUp, text: 'Harvest Forecasting' },
         { to: '/dashboard/agent/market-prices', icon: LineChart, text: 'Market Prices' },
+        { to: '/dashboard/agent/opportunities', icon: Sparkles, text: 'Opportunities' },
+        { to: '/dashboard/agent/facilities', icon: Building2, text: 'Facilities & Infrastructure' },
         { to: '/dashboard/agent/Shop', icon: ShoppingBag, text: 'My Shop' },
       ],
     },
@@ -168,6 +175,7 @@ export const NAV_SECTIONS = {
       links: [
         { to: '/dashboard/farmer/my-farm', icon: LandPlot, text: 'My Farm & Land' },
         { to: '/dashboard/farmer/harvest-lots', icon: PackageCheck, text: 'My Harvest Lots' },
+        { to: '/dashboard/farmer/nearby', icon: Compass, text: 'Near My Farm' },
         { to: '/dashboard/farmer/Weather', icon: Cloud, text: 'Weather' },
       ],
     },
@@ -184,6 +192,7 @@ export const NAV_SECTIONS = {
       label: 'Market',
       links: [
         { to: '/dashboard/farmer/market-prices', icon: LineChart, text: 'Market Prices' },
+        { to: '/dashboard/farmer/opportunities', icon: Sparkles, text: 'Opportunities' },
         { to: '/dashboard/farmer/market', icon: ShoppingCart, text: 'Farm Market' },
         { to: '/dashboard/farmer/cart', icon: ShoppingBag, text: 'My Cart' },
       ],

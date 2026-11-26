@@ -88,7 +88,7 @@ export default function FarmerProfileCard({ onUpdate, showEditButton = true }) {
   const validate = () => {
     const e = {};
     if (!form.full_name.trim() || form.full_name.trim().length < 2) e.full_name = 'Enter your full name';
-    if (form.phone && !/^\+?[0-9 ]{9,15}$/.test(form.phone.trim())) e.phone = 'Enter a valid phone number, e.g. +250788123456';
+    if (form.phone && !/^\+?[0-9 ]{10,15}$/.test(form.phone.trim())) e.phone = 'Enter a valid phone number, e.g. +250788123456';
     INT_FIELDS.concat(FLOAT_FIELDS).forEach((k) => {
       if (form[k] !== '' && (Number.isNaN(Number(form[k])) || Number(form[k]) < 0)) e[k] = 'Must be a positive number';
     });

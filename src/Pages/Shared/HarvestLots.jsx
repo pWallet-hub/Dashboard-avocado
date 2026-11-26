@@ -1,6 +1,8 @@
+/* eslint-disable react/prop-types */
 import { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { Package, Plus, RefreshCw, X, QrCode, CheckCircle2, XCircle, HandCoins, Truck, Trash2, Search, Printer, Scale, TrendingUp } from 'lucide-react';
+import { Package, Plus, RefreshCw, X, QrCode, CheckCircle2, XCircle, HandCoins, Truck, Trash2, Search, Printer, Scale, TrendingUp, CalendarDays } from 'lucide-react';
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from 'recharts';
 import {
   LOT_STATUSES,
   statusMeta,
@@ -20,12 +22,21 @@ import { GRADES, labelFor } from '../../services/marketPricesService';
 import { useToast } from '../../components/Ui/Toast';
 import { useConfirm } from '../../components/Ui/ConfirmDialog';
 import { Page, PageHeader, Card, StatGrid, StatCard, Badge, Button, Field, inputClass, EmptyState, Spinner, Table, Td } from '../../components/Ui/kit';
+import { isoDay } from '../Farmer/farmerShared';
 
 const DRY_MATTER_MIN = 23;
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => isoDay();
 const kg = (n) => `${Number(n || 0).toLocaleString()} kg`;
 const rwf = (n) => (n === null || n === undefined ? '—' : `${Math.round(n).toLocaleString()} RWF`);
 const input = inputClass;
+
+const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const monthLabel = (key, short = false) => {
+  const [y, m] = key.split('-').map(Number);
+  return `${(short ? MONTH_NAMES[m - 1].slice(0, 3) : MONTH_NAMES[m - 1])} ${short ? String(y).slice(2) : y}`;
+};
+const THIS_YEAR = new Date().getFullYear();
+const YEARS = Array.from({ length: 6 }, (_, i) => THIS_YEAR - i);
 
 const emptyLot = () => ({ farm_id: '', harvest_date: today(), quantity_kg: '', crates: '', grade: 'grade_a', dry_matter_pct: '', variety: '', notes: '' });
 
@@ -54,6 +65,7 @@ const HarvestLots = ({ role = 'farmer' }) => {
   const [lots, setLots] = useState([]);
   const [pagination, setPagination] = useState({ page: 1, totalPages: 1 });
   const [summary, setSummary] = useState(null);
+  const [period, setPeriod] = useState({ year: '', month: '' }); // '' year = all time / last 12 months
   const [farms, setFarms] = useState([]);
   const [filters, setFilters] = useState({ status: '', search: '' });
   const [page, setPage] = useState(1);
@@ -68,7 +80,7 @@ const HarvestLots = ({ role = 'farmer' }) => {
     try {
       const [list, sum] = await Promise.all([
         listHarvestLots({ ...filters, page, limit: 15 }),
-        getHarvestLotSummary(),
+        getHarvestLotSummary(period),
       ]);
       setLots(list.data);
       setPagination(list.pagination);
@@ -78,7 +90,7 @@ const HarvestLots = ({ role = 'farmer' }) => {
     } finally {
       setLoading(false);
     }
-  }, [filters, page, toast]);
+  }, [filters, page, period, toast]);
 
   useEffect(() => {
     load();
@@ -200,6 +212,10 @@ const HarvestLots = ({ role = 'farmer' }) => {
     );
   };
 
+  const periodLabel = period.year
+    ? period.month ? `${MONTH_NAMES[Number(period.month) - 1]} ${period.year}` : `the whole of ${period.year}`
+    : 'all time';
+
   const toneFor = { recorded: 'slate', verified: 'blue', sold: 'amber', delivered: 'brand', rejected: 'rose' };
 
   return (
@@ -222,14 +238,91 @@ const HarvestLots = ({ role = 'farmer' }) => {
         }
       />
 
-      {/* Summary */}
+      {/* Summary — totals for the chosen period */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-sm text-slate-600">
+          Showing <span className="font-medium text-slate-900">{periodLabel}</span>
+        </p>
+        <div className="flex gap-2">
+          <select
+            aria-label="Year"
+            className={`${input} w-36`}
+            value={period.year}
+            onChange={(e) => setPeriod({ year: e.target.value, month: '' })}
+          >
+            <option value="">All time</option>
+            {YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
+          </select>
+          <select
+            aria-label="Month"
+            className={`${input} w-40`}
+            value={period.month}
+            disabled={!period.year}
+            onChange={(e) => setPeriod((p) => ({ ...p, month: e.target.value }))}
+          >
+            <option value="">Whole year</option>
+            {MONTH_NAMES.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
+          </select>
+        </div>
+      </div>
       {summary && (
         <StatGrid>
-          <StatCard label="Lots recorded" value={summary.total_lots.toLocaleString()} icon={Package} />
-          <StatCard label="Total harvested" value={kg(summary.total_kg)} icon={Scale} tone="blue" />
-          <StatCard label="Revenue (sold)" value={rwf(summary.revenue)} icon={HandCoins} tone="amber" />
-          <StatCard label="Average price" value={summary.average_price_per_kg ? `${rwf(summary.average_price_per_kg)}/kg` : '—'} icon={TrendingUp} tone="slate" />
+          <StatCard label="Lots recorded" value={summary.total_lots.toLocaleString()} hint={periodLabel} icon={Package} />
+          <StatCard label="Total harvested" value={kg(summary.total_kg)} hint={summary.sold_kg ? `${kg(summary.sold_kg)} sold` : periodLabel} icon={Scale} tone="blue" />
+          <StatCard label="Revenue (sold)" value={rwf(summary.revenue)} hint={periodLabel} icon={HandCoins} tone="amber" />
+          <StatCard label="Average price" value={summary.average_price_per_kg ? `${rwf(summary.average_price_per_kg)}/kg` : '—'} hint={periodLabel} icon={TrendingUp} tone="slate" />
         </StatGrid>
+      )}
+
+      {/* Monthly breakdown — the same figures, month by month */}
+      {summary?.by_month?.length > 0 && (
+        <Card
+          title="Month by month"
+          subtitle={period.year ? `Every month of ${period.year}. Click a month to see its totals above.` : 'The last 12 months. Click a month to see its totals above.'}
+          padded={false}
+        >
+          {summary.by_month.some((m) => m.lots > 0) ? (
+            <>
+              <div className="h-64 w-full px-2 pt-4">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={summary.by_month.map((m) => ({ ...m, label: monthLabel(m.month, true) }))} margin={{ left: 8, right: 8 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="label" tick={{ fontSize: 12 }} />
+                    <YAxis tick={{ fontSize: 12 }} tickFormatter={(n) => n.toLocaleString()} />
+                    <Tooltip formatter={(value, name) => [kg(value), name]} />
+                    <Legend />
+                    <Bar dataKey="total_kg" name="Harvested" fill="#16a34a" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="sold_kg" name="Sold" fill="#d97706" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="rejected_kg" name="Rejected" fill="#e11d48" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+              <Table head={['Month', 'Lots', 'Harvested', 'Sold', 'Rejected', 'Revenue', 'Avg price']}>
+                {summary.by_month.slice().reverse().map((m) => {
+                  const [y, mo] = m.month.split('-').map(Number);
+                  const selected = Number(period.year) === y && Number(period.month) === mo;
+                  return (
+                    <tr
+                      key={m.month}
+                      onClick={() => setPeriod(selected ? { year: String(y), month: '' } : { year: String(y), month: String(mo) })}
+                      className={`cursor-pointer hover:bg-slate-50 ${selected ? 'bg-brand-50' : ''} ${m.lots ? '' : 'text-slate-400'}`}
+                    >
+                      <Td className="font-medium text-slate-900"><CalendarDays className="mr-1 inline h-4 w-4 text-slate-400" />{monthLabel(m.month)}</Td>
+                      <Td>{m.lots}</Td>
+                      <Td>{kg(m.total_kg)}</Td>
+                      <Td>{kg(m.sold_kg)}</Td>
+                      <Td>{m.rejected_kg ? kg(m.rejected_kg) : '—'}</Td>
+                      <Td>{m.revenue ? rwf(m.revenue) : '—'}</Td>
+                      <Td>{m.average_price_per_kg ? `${rwf(m.average_price_per_kg)}/kg` : '—'}</Td>
+                    </tr>
+                  );
+                })}
+              </Table>
+            </>
+          ) : (
+            <EmptyState icon={CalendarDays} title="No harvest recorded in these months" />
+          )}
+        </Card>
       )}
 
       {/* Record form */}

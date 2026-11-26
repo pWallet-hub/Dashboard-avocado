@@ -57,6 +57,9 @@ import MarketPrices from './Pages/Shared/MarketPrices';
 import HarvestLots from './Pages/Shared/HarvestLots';
 import TraceLot from './Pages/Trace/TraceLot';
 import FarmMap from './Pages/Shared/FarmMap';
+import Opportunities from './Pages/Shared/Opportunities';
+import Facilities from './Pages/Shared/Facilities';
+import Nearby from './Pages/Farmer/Nearby';
 import Surveys from './Pages/Shared/Surveys';
 import MyFarm from './Pages/Farmer/MyFarm';
 import Notifications from './Pages/Dashboard/Notifications';
@@ -122,6 +125,8 @@ function App() {
                 <Route path="admin/farm-map" element={<RoleBasedRoute allowedRoles={['admin']}><FarmMap role="admin"/></RoleBasedRoute>} />
                 <Route path="admin/surveys" element={<RoleBasedRoute allowedRoles={['admin']}><Surveys role="admin"/></RoleBasedRoute>} />
                 <Route path="admin/harvest-lots" element={<RoleBasedRoute allowedRoles={['admin']}><HarvestLots role="admin"/></RoleBasedRoute>} />
+                <Route path="admin/opportunities" element={<RoleBasedRoute allowedRoles={['admin']}><Opportunities role="admin"/></RoleBasedRoute>} />
+                <Route path="admin/facilities" element={<RoleBasedRoute allowedRoles={['admin']}><Facilities role="admin"/></RoleBasedRoute>} />
                 
                 {/* Agent Routes */}
                 <Route path="agent" element={<RoleBasedRoute allowedRoles={['agent']}><Agent /></RoleBasedRoute>} />
@@ -142,6 +147,8 @@ function App() {
                 <Route path="agent/farm-map" element={<RoleBasedRoute allowedRoles={['agent']}><FarmMap role="agent"/></RoleBasedRoute>}/>
                 <Route path="agent/surveys" element={<RoleBasedRoute allowedRoles={['agent']}><Surveys role="agent"/></RoleBasedRoute>}/>
                 <Route path="agent/harvest-lots" element={<RoleBasedRoute allowedRoles={['agent']}><HarvestLots role="agent"/></RoleBasedRoute>}/>
+                <Route path="agent/opportunities" element={<RoleBasedRoute allowedRoles={['agent']}><Opportunities role="agent"/></RoleBasedRoute>}/>
+                <Route path="agent/facilities" element={<RoleBasedRoute allowedRoles={['agent']}><Facilities role="agent"/></RoleBasedRoute>}/>
                 
                 {/* Farmer Routes */}
                 <Route path="farmer" element={<RoleBasedRoute allowedRoles={['farmer']}><Farmer /></RoleBasedRoute>} />
@@ -164,6 +171,8 @@ function App() {
                 <Route path="farmer/market-prices" element={<RoleBasedRoute allowedRoles={['farmer']}><MarketPrices role="farmer"/></RoleBasedRoute>}/>
                 <Route path="farmer/my-farm" element={<RoleBasedRoute allowedRoles={['farmer']}><MyFarm/></RoleBasedRoute>}/>
                 <Route path="farmer/harvest-lots" element={<RoleBasedRoute allowedRoles={['farmer']}><HarvestLots role="farmer"/></RoleBasedRoute>}/>
+                <Route path="farmer/opportunities" element={<RoleBasedRoute allowedRoles={['farmer']}><Opportunities role="farmer"/></RoleBasedRoute>}/>
+                <Route path="farmer/nearby" element={<RoleBasedRoute allowedRoles={['farmer']}><Nearby/></RoleBasedRoute>}/>
                 
                 {/* Shop Manager Routes */}
                 <Route path="shop-manager" element={<RoleBasedRoute allowedRoles={['shop_manager']}><ShopManager /></RoleBasedRoute>} />
