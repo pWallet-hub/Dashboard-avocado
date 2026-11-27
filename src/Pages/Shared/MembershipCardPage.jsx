@@ -120,7 +120,7 @@ export default function MembershipCardPage({ role = 'farmer' }) {
           <section className="rounded-2xl bg-gradient-to-br from-slate-100 to-slate-50 p-4 ring-1 ring-slate-200 sm:p-5">
             <MembershipCard card={card} />
             <p className="mt-3 text-center text-xs text-slate-500">
-              Prints at real card size (85.6 × 54 mm), front then back. Choose “Save as PDF” in the print window to keep a copy.
+              Prints at real badge size (54 × 85.6 mm, fits a lanyard holder), front then back. Choose “Save as PDF” in the print window to keep a copy.
             </p>
           </section>
 
