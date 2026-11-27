@@ -1,16 +1,17 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   Sparkles, Plus, RefreshCw, Phone, Mail, ExternalLink, CalendarClock, MapPin, Users, Pencil, Trash2, Lock, Unlock, HandHeart, Search,
+  Target, CheckCircle2, List,
 } from 'lucide-react';
 import {
   listOpportunities, saveOpportunity, deleteOpportunity, listInterests, expressInterest, withdrawInterest,
-  OPPORTUNITY_TYPES, opportunityTypeLabel,
+  getMatches, getMatchingFarmers, MATCH_LEVELS, OPPORTUNITY_TYPES, opportunityTypeLabel,
 } from '../../services/opportunitiesService';
 import { GRADES, labelFor } from '../../services/marketPricesService';
 import { useToast } from '../../components/Ui/Toast';
 import { useConfirm } from '../../components/Ui/ConfirmDialog';
 import {
-  Page, PageHeader, Card, Badge, Button, Field, inputClass, textareaClass, EmptyState, Spinner, Dialog, Pagination, Table, Td,
+  Page, PageHeader, Card, Badge, Button, Field, inputClass, textareaClass, EmptyState, Spinner, Dialog, Pagination, Table, Td, Tabs,
 } from '../../components/Ui/kit';
 import { ALL_DISTRICTS, RWANDA_PROVINCES } from '../../utils/rwanda';
 import { formatDate, isoDay } from '../Farmer/farmerShared';
@@ -70,6 +71,29 @@ function Details({ o }) {
   );
 }
 
+/** Score pill from the matching engine, e.g. "92 · Excellent match". */
+function MatchScore({ score, level }) {
+  const m = MATCH_LEVELS[level] || MATCH_LEVELS.low;
+  return (
+    <Badge tone={m.tone} className="gap-1 font-semibold">
+      <Target className="h-3.5 w-3.5" /> {score} · {m.label}
+    </Badge>
+  );
+}
+
+function Reasons({ reasons = [], max = 4 }) {
+  if (!reasons.length) return null;
+  return (
+    <ul className="space-y-1 rounded-xl bg-slate-50 p-3 text-sm text-slate-700">
+      {reasons.slice(0, max).map((r) => (
+        <li key={r} className="flex gap-2"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-brand-600" />{r}</li>
+      ))}
+    </ul>
+  );
+}
+
+const kg = (n) => (n || n === 0 ? `${Math.round(n).toLocaleString()} kg` : '—');
+
 /**
  * Opportunities: buyer demand, export contracts, grants, loans, subsidised
  * inputs, trainings… Farmers browse the ones for their area and say they are
@@ -89,6 +113,32 @@ export default function Opportunities({ role = 'farmer' }) {
   const [form, setForm] = useState(null); // { id?, values }
   const [interestDialog, setInterestDialog] = useState(null); // farmer: { o, quantity_kg, message }
   const [interested, setInterested] = useState(null); // staff: { o, list, loading }
+  const [tab, setTab] = useState(staff ? 'all' : 'matches'); // farmer: matches | all
+  const [matches, setMatches] = useState({ loading: !staff, data: null });
+  const [finder, setFinder] = useState(null); // staff: { o, loading, data }
+
+  const loadMatches = useCallback(async () => {
+    if (staff) return;
+    setMatches((m) => ({ ...m, loading: true }));
+    try {
+      setMatches({ loading: false, data: await getMatches() });
+    } catch (error) {
+      toast.error(error.message);
+      setMatches({ loading: false, data: null });
+    }
+  }, [staff, toast]);
+
+  useEffect(() => { loadMatches(); }, [loadMatches]);
+
+  const findFarmers = async (o) => {
+    setFinder({ o, loading: true, data: null });
+    try {
+      setFinder({ o, loading: false, data: await getMatchingFarmers(o.id) });
+    } catch (error) {
+      toast.error(error.message);
+      setFinder(null);
+    }
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -193,6 +243,7 @@ export default function Opportunities({ role = 'farmer' }) {
       toast.success(o.my_interest ? 'Your interest was updated' : 'Sent! The organiser will contact you.');
       setInterestDialog(null);
       load();
+      loadMatches();
     } catch (error) {
       toast.error(error.message);
     } finally {
@@ -206,6 +257,7 @@ export default function Opportunities({ role = 'farmer' }) {
       await withdrawInterest(o.id);
       toast.success('Interest withdrawn');
       load();
+      loadMatches();
     } catch (error) {
       toast.error(error.message);
     }
@@ -224,11 +276,70 @@ export default function Opportunities({ role = 'farmer' }) {
         actions={
           <>
             {staff && <Button icon={Plus} onClick={() => openForm(null)}>Post opportunity</Button>}
-            <Button variant="secondary" icon={RefreshCw} onClick={load} loading={loading}>Refresh</Button>
+            <Button variant="secondary" icon={RefreshCw} onClick={() => { load(); loadMatches(); }} loading={loading}>Refresh</Button>
           </>
         }
       />
 
+      {!staff && (
+        <Tabs
+          value={tab}
+          onChange={setTab}
+          tabs={[
+            { id: 'matches', label: 'Best matches for you', icon: Target },
+            { id: 'all', label: 'All opportunities', icon: List },
+          ]}
+        />
+      )}
+
+      {!staff && tab === 'matches' && (
+        matches.loading && !matches.data ? (
+          <Card><Spinner label="Finding your best matches…" /></Card>
+        ) : !matches.data?.matches?.length ? (
+          <Card>
+            <EmptyState icon={Target} title="No matches right now" description="We match buyers, grants and trainings to your area, harvest and grade. You will be notified when something new fits you." />
+          </Card>
+        ) : (
+          <>
+            <p className="text-sm text-slate-600">
+              Ranked for you using your area{matches.data.farmer.district ? ` (${matches.data.farmer.district})` : ''},
+              {matches.data.farmer.ready_kg > 0 ? ` ${kg(matches.data.farmer.ready_kg)} harvested and unsold` : ` about ${kg(matches.data.farmer.expected_kg)} expected next harvest`}
+              {matches.data.farmer.local_farm_gate_price ? ` and the local farm-gate price (${Math.round(matches.data.farmer.local_farm_gate_price).toLocaleString()} RWF/kg)` : ''}.
+            </p>
+            <div className="grid gap-4 lg:grid-cols-2">
+              {matches.data.matches.map((m) => {
+                const o = m.opportunity;
+                return (
+                  <Card
+                    key={o.id}
+                    title={o.title}
+                    subtitle={`${opportunityTypeLabel(o.type)}${o.organization ? ` · ${o.organization}` : ''}`}
+                    actions={<div className="flex flex-wrap justify-end gap-1"><MatchScore score={m.score} level={m.level} /><DeadlineBadge deadline={o.deadline} /></div>}
+                  >
+                    <Reasons reasons={m.reasons} />
+                    <div className="mt-3"><Details o={o} /></div>
+                    <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3">
+                      {m.interested ? (
+                        <>
+                          <Badge tone="brand">You are interested</Badge>
+                          <Button size="sm" variant="secondary" onClick={() => setTab('all')}>Manage in All opportunities</Button>
+                        </>
+                      ) : (
+                        <>
+                          <span className="text-xs text-slate-500">{m.supply_pct ? `You cover about ${Math.min(m.supply_pct, 999)}% of the quantity` : ' '}</span>
+                          <Button size="sm" icon={HandHeart} onClick={() => setInterestDialog({ o, quantity_kg: m.supply_kg && o.quantity_kg ? Math.min(m.supply_kg, o.quantity_kg) : '', message: '' })}>I&apos;m interested</Button>
+                        </>
+                      )}
+                    </div>
+                  </Card>
+                );
+              })}
+            </div>
+          </>
+        )
+      )}
+
+      {(staff || tab === 'all') && (<>
       <Card>
         <div className="grid gap-3 sm:grid-cols-3">
           <div className="relative">
@@ -278,6 +389,7 @@ export default function Opportunities({ role = 'farmer' }) {
                 <Td><Badge tone={o.status === 'open' ? 'brand' : 'slate'} className="capitalize">{o.status}</Badge></Td>
                 <Td className="text-right">
                   <div className="flex justify-end gap-1">
+                    <button type="button" title="Find best-fit farmers" onClick={() => findFarmers(o)} className="inline-flex items-center gap-1 rounded-md px-2 py-1.5 text-xs font-medium text-brand-700 hover:bg-brand-50"><Target className="h-4 w-4" /> Find farmers</button>
                     <button type="button" title="Edit" onClick={() => openForm(o)} className="rounded-md p-1.5 text-slate-500 hover:bg-slate-100"><Pencil className="h-4 w-4" /></button>
                     <button type="button" title={o.status === 'open' ? 'Close' : 'Reopen'} onClick={() => toggleStatus(o)} className="rounded-md p-1.5 text-slate-500 hover:bg-slate-100">
                       {o.status === 'open' ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
@@ -323,6 +435,7 @@ export default function Opportunities({ role = 'farmer' }) {
           {pagination.totalPages > 1 && <Card padded={false}><Pagination page={page} totalPages={pagination.totalPages} total={pagination.total} onChange={setPage} /></Card>}
         </>
       )}
+      </>)}
 
       {/* Farmer: interest dialog */}
       {interestDialog && (
@@ -347,6 +460,44 @@ export default function Opportunities({ role = 'farmer' }) {
               <textarea className={textareaClass} maxLength={1000} value={interestDialog.message} onChange={(e) => setInterestDialog((d) => ({ ...d, message: e.target.value }))} placeholder="e.g. My Hass will be ready in two weeks" />
             </Field>
           </form>
+        </Dialog>
+      )}
+
+      {/* Staff: matching engine — best-fit farmers */}
+      {finder && (
+        <Dialog title="Best-fit farmers" subtitle={finder.o.title} onClose={() => setFinder(null)} size="lg">
+          {finder.loading ? (
+            <Spinner label="Matching farmers…" />
+          ) : !finder.data?.farmers?.length ? (
+            <EmptyState icon={Target} title="No good matches yet" description="No farmers in this area have enough supply or fit. Try widening the area or quantity." />
+          ) : (
+            <div className="space-y-3">
+              <p className="rounded-xl bg-brand-50 p-3 text-sm text-brand-900">
+                {finder.data.matched} of {finder.data.candidates} farmers in the area fit, with about {kg(finder.data.total_supply_kg)} between them.
+                {finder.data.quantity_kg ? (finder.data.farmers_needed_to_fill
+                  ? ` The top ${finder.data.farmers_needed_to_fill} can fill the ${kg(finder.data.quantity_kg)} order.`
+                  : ` Together they can't fill the ${kg(finder.data.quantity_kg)} order yet.`) : ''}
+              </p>
+              <div className="overflow-x-auto">
+                <Table head={['Farmer', 'Can supply', 'Fit and why', '']}>
+                  {finder.data.farmers.map((f) => (
+                    <tr key={f.user_id} className="align-top">
+                      <Td>
+                        <p className="font-medium text-slate-900">{f.full_name}</p>
+                        <p className="text-xs text-slate-500">{f.district || '—'}{f.trees ? ` · ${f.trees.toLocaleString()} trees` : ''}{f.verified ? ' · verified' : ''}</p>
+                      </Td>
+                      <Td>{f.supply_kg != null ? <>{kg(f.supply_kg)}<p className="text-xs text-slate-500">{f.ready_kg > 0 ? 'harvested' : 'expected'}</p></> : '—'}</Td>
+                      <Td>
+                        <MatchScore score={f.score} level={f.level} />
+                        <div className="mt-1 min-w-[14rem] max-w-sm whitespace-normal text-xs text-slate-600">{f.reasons.slice(0, 2).join(' · ')}</div>
+                      </Td>
+                      <Td className="text-right">{f.phone && <a href={`tel:${f.phone}`} className="inline-flex items-center gap-1 rounded-lg border border-slate-300 px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"><Phone className="h-3.5 w-3.5" /> Call</a>}</Td>
+                    </tr>
+                  ))}
+                </Table>
+              </div>
+            </div>
+          )}
         </Dialog>
       )}
 

@@ -83,3 +83,28 @@ export async function withdrawInterest(id) {
     throw new Error(errorMessage(error, 'Failed to withdraw interest'));
   }
 }
+
+/** Matching engine: opportunities ranked by fit for a farmer (own, or ?farmer_id for staff). */
+export async function getMatches(farmerId) {
+  try {
+    return extractData(await apiClient.get('/opportunities/matches', { params: cleanParams({ farmer_id: farmerId }) }));
+  } catch (error) {
+    throw new Error(errorMessage(error, 'Failed to load your best matches'));
+  }
+}
+
+/** Matching engine, reverse: best-fit farmers for one opportunity (staff). */
+export async function getMatchingFarmers(id, limit = 25) {
+  try {
+    return extractData(await apiClient.get(`/opportunities/${id}/matching-farmers`, { params: { limit } }));
+  } catch (error) {
+    throw new Error(errorMessage(error, 'Failed to find matching farmers'));
+  }
+}
+
+export const MATCH_LEVELS = {
+  excellent: { label: 'Excellent match', tone: 'brand' },
+  good: { label: 'Good match', tone: 'blue' },
+  fair: { label: 'Fair match', tone: 'amber' },
+  low: { label: 'Weak match', tone: 'slate' },
+};
