@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import logo from '../../assets/image/LOGO_-_Avocado_Society_of_Rwanda.png';
 
 const fmt = (value) => {
@@ -6,50 +7,54 @@ const fmt = (value) => {
   return Number.isNaN(d.getTime()) ? '—' : d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 };
 const year = (value) => (value ? new Date(value).getFullYear() : '—');
-
-const STATUS = {
-  active: { label: 'ACTIVE', dot: '#4ade80' },
-  expiring: { label: 'RENEW SOON', dot: '#fbbf24' },
-  expired: { label: 'EXPIRED', dot: '#fb7185' },
-  suspended: { label: 'SUSPENDED', dot: '#cbd5e1' },
-};
-
-/* Two looks: farmers (members) are avocado green, field agents (staff) are
-   deep teal-navy, so a staff card can never be mistaken for a member card. */
-const THEME = {
-  farmer: { kind: 'Member', kindRw: 'Umunyamuryango', title: 'Membership card', bg: 'radial-gradient(130% 150% at 100% 0%,#2f7a4f 0%,#155e3b 40%,#0b3d2e 78%,#082c21 100%)', head: 'rgba(0,0,0,.18)', accent: '#f1d77a', muted: 'rgba(209,250,229,.78)' },
-  agent: { kind: 'Field Agent', kindRw: 'Umukozi (VBA)', title: 'Staff ID card', bg: 'radial-gradient(130% 150% at 100% 0%,#1f5a6b 0%,#123f52 42%,#0b2a3b 80%,#071d2a 100%)', head: 'rgba(0,0,0,.22)', accent: '#f1d77a', muted: 'rgba(207,236,245,.78)' },
-};
-
 const hasPhoto = (p) => typeof p === 'string' && p.trim() && p !== 'null' && p !== 'undefined';
 
-/* Standard ID-1 card (85.6 × 54 mm, like a bank card). Sizes are in `em` of a
-   base font set from the card width, so the card scales on screen and prints
-   at its real size. Layout is a fixed 3-row grid (header / body / footer) so
-   no area stretches into empty space. */
+const STATUS = {
+  active: { label: 'ACTIVE', bg: '#dcfce7', fg: '#166534' },
+  expiring: { label: 'RENEW SOON', bg: '#fef3c7', fg: '#92400e' },
+  expired: { label: 'EXPIRED', bg: '#ffe4e6', fg: '#9f1239' },
+  suspended: { label: 'SUSPENDED', bg: '#e2e8f0', fg: '#334155' },
+};
+
+/* Members are avocado green; field agents (staff) are deep teal, so the two
+   cards can't be confused at a glance. */
+const THEME = {
+  farmer: { title: 'MEMBERSHIP CARD', titleRw: "Ikarita y'umunyamuryango", head: 'linear-gradient(115deg,#0b3d2e 0%,#14532d 55%,#1f7a45 100%)', accent: '#15803d', tint: '#f0fdf4', line: '#bbf7d0' },
+  agent: { title: 'STAFF ID CARD', titleRw: "Ikarita y'umukozi (VBA)", head: 'linear-gradient(115deg,#082f3d 0%,#0e4a5c 55%,#14708a 100%)', accent: '#0e7490', tint: '#ecfeff', line: '#a5f3fc' },
+};
+
+/* Standard ID-1 card (85.6 × 54 mm). Every size is in `em` of a base font
+   that follows the card's own width (container query), so the whole card
+   scales as one piece on any screen and prints at its real size. */
 const CARD_STYLE = `
-.asr-card{position:relative;width:100%;max-width:428px;aspect-ratio:85.6/54;font-size:clamp(9px,3.4vw,13.4px);border-radius:.95em;overflow:hidden;color:#fff;
-  display:grid;grid-template-rows:auto 1fr auto;box-shadow:0 16px 36px -18px rgba(4,30,24,.7),0 2px 5px rgba(0,0,0,.14);
-  -webkit-print-color-adjust:exact;print-color-adjust:exact;font-feature-settings:"tnum"}
-.asr-card .pattern{position:absolute;inset:0;opacity:.09;pointer-events:none}
-.asr-card .band{position:absolute;left:0;right:0;bottom:0;height:.32em;background:linear-gradient(90deg,#b8901c,#f1d77a 50%,#b8901c)}
-.asr-card .lbl{font-size:.56em;letter-spacing:.1em;text-transform:uppercase;line-height:1.15}
-.asr-card .val{font-size:.86em;font-weight:600;line-height:1.2}
+.asr-wrap{width:100%;max-width:560px;container-type:inline-size}
+.asr-card{position:relative;width:100%;aspect-ratio:85.6/54;font-size:3.1cqw;border-radius:.9em;overflow:hidden;background:#fff;color:#0f172a;
+  display:grid;grid-template-rows:auto 1fr auto;box-shadow:0 1px 2px rgba(15,23,42,.06),0 14px 34px -14px rgba(15,23,42,.35);outline:1px solid rgba(15,23,42,.08);
+  font-family:Inter,ui-sans-serif,system-ui,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact;font-feature-settings:"tnum"}
+.asr-card .wm{position:absolute;right:-4%;bottom:-22%;width:46%;opacity:.05;pointer-events:none}
+.asr-card .lbl{font-size:.5em;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#64748b;line-height:1.2}
+.asr-card .val{font-size:.8em;font-weight:600;line-height:1.25;color:#0f172a}
+.asr-card .name{font-weight:800;line-height:1.08;letter-spacing:-.01em;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
 @media print{
   @page{size:85.6mm 54mm;margin:0}
-  body *{visibility:hidden}
-  .asr-print-area,.asr-print-area *{visibility:visible}
-  .asr-print-area{position:absolute;left:0;top:0;display:block!important}
-  .asr-print-area .asr-card{width:85.6mm;max-width:none;font-size:3.2mm;border-radius:3mm;box-shadow:none;break-after:page;page-break-after:always}
+  html,body{margin:0!important;padding:0!important;background:#fff!important;width:85.6mm!important;min-height:0!important;height:auto!important}
+  body>*:not(.asr-print-root){display:none!important}
+  .asr-print-root{display:block!important}
+  .asr-print-root *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+  .asr-print-root .asr-wrap{max-width:none;width:85.6mm;height:54mm;overflow:hidden;break-inside:avoid;page-break-inside:avoid}
+  .asr-print-root .asr-wrap+.asr-wrap{break-before:page;page-break-before:always}
+  .asr-print-root .asr-card{width:85.6mm;height:54mm;font-size:2.65mm;border-radius:0;box-shadow:none;outline:none}
+}
+.asr-print-root{display:none}
 }`;
 
-function Pattern() {
-  // Avocado halves, drawn very faintly in the background.
+function Watermark() {
+  // Faint avocado half in the corner of the white body.
   return (
-    <svg className="pattern" viewBox="0 0 856 540" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-      <g fill="none" stroke="#fff" strokeWidth="6">
-        <ellipse cx="770" cy="430" rx="120" ry="160" transform="rotate(-25 770 430)" />
-        <circle cx="782" cy="460" r="52" />
+    <svg className="wm" viewBox="0 0 200 240" aria-hidden="true">
+      <g fill="none" stroke="#14532d" strokeWidth="10">
+        <path d="M100 10c40 0 70 60 80 110 12 60-25 110-80 110S8 180 20 120C30 70 60 10 100 10z" />
+        <circle cx="100" cy="150" r="42" />
       </g>
     </svg>
   );
@@ -58,49 +63,44 @@ function Pattern() {
 function Header({ t, status }) {
   const s = STATUS[status] || STATUS.active;
   return (
-    <div className="relative flex items-center gap-[.6em] px-[1em] py-[.55em]" style={{ background: t.head }}>
-      <img src={logo} alt="" className="h-[2.4em] w-[2.4em] shrink-0 rounded-[.45em] bg-white object-contain p-[.12em]" />
-      <div className="min-w-0 flex-1 leading-[1.15]">
-        <p className="truncate text-[.82em] font-bold uppercase tracking-[.1em]">Avocado Society of Rwanda</p>
-        <p className="truncate text-[.64em]" style={{ color: t.muted }}>{t.title} · {t.kindRw}</p>
-      </div>
-      <span className="inline-flex shrink-0 items-center gap-[.35em] rounded-full bg-black/25 px-[.6em] py-[.2em] text-[.58em] font-bold tracking-[.1em] ring-1 ring-white/20">
-        <span className="h-[.6em] w-[.6em] rounded-full" style={{ background: s.dot }} />{s.label}
+    <div className="relative flex items-center gap-[.6em] px-[1em] py-[.55em] text-white" style={{ background: t.head }}>
+      <span className="flex h-[2.5em] w-[2.5em] shrink-0 items-center justify-center rounded-full bg-white p-[.15em] shadow-sm">
+        <img src={logo} alt="" className="h-full w-full rounded-full object-contain" />
       </span>
+      <div className="min-w-0 flex-1 leading-[1.15]">
+        <p className="text-[.86em] font-extrabold uppercase tracking-[.08em]">Avocado Society of Rwanda</p>
+        <p className="truncate text-[.56em] font-semibold tracking-[.14em] text-white/80">{t.title} · <span className="font-medium normal-case tracking-normal">{t.titleRw}</span></p>
+      </div>
+      <span className="shrink-0 rounded-full px-[.65em] py-[.22em] text-[.54em] font-bold tracking-[.1em]" style={{ background: s.bg, color: s.fg }}>{s.label}</span>
     </div>
   );
 }
 
 function Photo({ card, t }) {
   return (
-    <div className="h-[7.6em] w-[6em] shrink-0 self-center overflow-hidden rounded-[.55em] bg-white/10 ring-[.12em] ring-white/35">
+    <div className="h-full w-[6.4em] shrink-0 overflow-hidden rounded-[.55em] ring-1 ring-slate-200" style={{ background: t.tint }}>
       {hasPhoto(card.photo) ? (
         <img src={card.photo} alt="" className="h-full w-full object-cover" crossOrigin="anonymous" />
       ) : (
-        <span className="flex h-full w-full items-center justify-center text-[2.6em] font-semibold" style={{ color: t.muted }}>
-          {(card.full_name || 'M').charAt(0).toUpperCase()}
+        <span className="flex h-full w-full items-center justify-center text-[2.8em] font-bold" style={{ color: t.accent }}>
+          {(card.full_name || 'M').trim().charAt(0).toUpperCase()}
         </span>
       )}
     </div>
   );
 }
 
-function Qr({ card, size = '6.6em' }) {
-  return (
-    <div className="shrink-0 self-center rounded-[.4em] bg-white p-[.2em]">
-      <img src={card.qr_code} alt="QR code to verify this card" style={{ width: size, height: size }} className="block" />
-    </div>
-  );
-}
-
-function Field({ label, children, t, className = '' }) {
+function Field({ label, children, className = '' }) {
   return (
     <div className={`min-w-0 ${className}`}>
-      <p className="lbl" style={{ color: t.muted }}>{label}</p>
+      <p className="lbl">{label}</p>
       <p className="val truncate">{children}</p>
     </div>
   );
 }
+
+/** Long names get a smaller size so the whole name fits on two lines. */
+const nameSize = (name = '') => (name.length > 34 ? '1.02em' : name.length > 22 ? '1.18em' : '1.4em');
 
 /** Front of the card. `card` is the object returned by /api/membership/… */
 export function CardFront({ card }) {
@@ -108,61 +108,68 @@ export function CardFront({ card }) {
   const t = agent ? THEME.agent : THEME.farmer;
   const s = STATUS[card.status] || STATUS.active;
   const place = [card.sector, card.district].filter(Boolean).join(', ') || '—';
-  const area = card.areas?.length ? card.areas.join(' · ') : place;
+  const area = card.areas?.length ? card.areas.join(', ') : place;
 
   return (
-    <div className="asr-card" style={{ background: t.bg }} role="img"
-      aria-label={`Avocado Society of Rwanda ${agent ? 'staff ID card' : 'membership card'} of ${card.full_name}, ${card.member_code}`}>
+    <div className="asr-wrap">
       <style>{CARD_STYLE}</style>
-      <Pattern />
-      <Header t={t} status={card.status} />
+      <div className="asr-card" role="img"
+        aria-label={`Avocado Society of Rwanda ${agent ? 'staff ID card' : 'membership card'} of ${card.full_name}, ${card.member_code}`}>
+        <Header t={t} status={card.status} />
 
-      <div className="relative flex min-h-0 items-center gap-[.85em] px-[1em] py-[.5em]">
-        <Photo card={card} t={t} />
-        <div className="flex min-w-0 flex-1 flex-col justify-center">
-          <p className="truncate text-[1.35em] font-bold leading-tight">{card.full_name}</p>
-          <p className="font-mono text-[.95em] font-semibold tracking-[.08em]" style={{ color: t.accent }}>{card.member_code}</p>
+        <div className="relative flex min-h-0 gap-[.85em] px-[1em] py-[.7em]">
+          <Watermark />
+          <Photo card={card} t={t} />
+          <div className="relative flex min-w-0 flex-1 flex-col justify-between">
+            <div>
+              <p className="lbl">Full name</p>
+              <p className="name" style={{ fontSize: nameSize(card.full_name) }} title={card.full_name}>{card.full_name}</p>
+            </div>
+            <div className="grid grid-cols-2 gap-x-[.7em] gap-y-[.35em]">
+              <div className="min-w-0">
+                <p className="lbl">{agent ? 'Staff No.' : 'Member No.'}</p>
+                <p className="font-mono text-[.9em] font-bold tracking-[.04em]" style={{ color: t.accent }}>{card.member_code}</p>
+              </div>
+              {agent ? <Field label="Role">{card.role_title || 'Field Agent (VBA)'}</Field> : <Field label="Location">{place}</Field>}
+              {agent ? (
+                <Field label="Area served" className="col-span-2">{area}</Field>
+              ) : (
+                <>
+                  <Field label="Trees · Farms">{Number(card.trees || 0).toLocaleString()} · {card.farms || 0}</Field>
+                  <Field label="Variety">{card.varieties?.length ? card.varieties.slice(0, 2).join(', ') : '—'}</Field>
+                </>
+              )}
+            </div>
+          </div>
+          <div className="relative flex shrink-0 flex-col items-center justify-center gap-[.25em]">
+            <img src={card.qr_code} alt="QR code to verify this card" className="h-[6.6em] w-[6.6em] rounded-[.3em] ring-1 ring-slate-200" />
+            <span className="text-[.46em] font-semibold uppercase tracking-[.12em] text-slate-500">Scan to verify</span>
+          </div>
+        </div>
+
+        <div className="relative grid grid-cols-3 gap-[.6em] border-t px-[1em] pb-[.55em] pt-[.4em]" style={{ background: t.tint, borderColor: t.line }}>
           {agent ? (
             <>
-              <p className="mt-[.15em] truncate text-[.8em] font-medium">{card.role_title || 'Field Agent (VBA)'}{card.specialization ? ` · ${card.specialization}` : ''}</p>
-              <Field label="Area served" t={t} className="mt-[.5em]">{area}</Field>
+              <Field label="Issued">{fmt(card.member_since)}</Field>
+              <Field label="Valid">While employed</Field>
+              <Field label="Status" className="text-right">{s.label === 'ACTIVE' ? 'Active staff' : s.label}</Field>
             </>
           ) : (
             <>
-              <p className="mt-[.15em] truncate text-[.8em]" style={{ color: t.muted }}>{place}</p>
-              <div className="mt-[.5em] grid grid-cols-3 gap-[.4em]">
-                <Field label="Trees" t={t}>{Number(card.trees || 0).toLocaleString()}</Field>
-                <Field label="Farms" t={t}>{card.farms || 0}</Field>
-                <Field label="Variety" t={t}>{card.varieties?.[0] || '—'}</Field>
-              </div>
+              <Field label="Valid from">{fmt(card.valid_from)}</Field>
+              <Field label="Valid until">{fmt(card.valid_until)}</Field>
+              <Field label="Member since" className="text-right">{year(card.member_since)}</Field>
             </>
           )}
+          <span className="absolute inset-x-0 bottom-0 h-[.22em]" style={{ background: 'linear-gradient(90deg,#b8901c,#f1d77a 50%,#b8901c)' }} />
         </div>
-        <Qr card={card} />
-      </div>
 
-      <div className="relative grid grid-cols-3 gap-[.5em] border-t border-white/15 px-[1em] pb-[.65em] pt-[.45em]">
-        {agent ? (
-          <>
-            <Field label="Issued" t={t}>{fmt(card.member_since)}</Field>
-            <Field label="Valid" t={t}>While employed</Field>
-            <Field label="Scan to verify" t={t} className="text-right">{s.label === 'ACTIVE' ? 'Active staff' : s.label}</Field>
-          </>
-        ) : (
-          <>
-            <Field label="Valid from" t={t}>{fmt(card.valid_from)}</Field>
-            <Field label="Valid until" t={t}>{fmt(card.valid_until)}</Field>
-            <Field label="Member since" t={t} className="text-right">{year(card.member_since)}</Field>
-          </>
+        {(card.status === 'expired' || card.status === 'suspended') && (
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+            <span className="-rotate-12 rounded-[.3em] border-[.18em] border-rose-600/70 bg-white/70 px-[.6em] text-[2.2em] font-black tracking-widest text-rose-600/80">{s.label}</span>
+          </div>
         )}
       </div>
-
-      {(card.status === 'expired' || card.status === 'suspended') && (
-        <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-          <span className="-rotate-12 rounded-[.3em] border-[.2em] border-rose-200/80 bg-rose-950/20 px-[.6em] text-[2.2em] font-black tracking-widest text-rose-100/85">{s.label}</span>
-        </div>
-      )}
-      <div className="band" />
     </div>
   );
 }
@@ -172,48 +179,64 @@ export function CardBack({ card }) {
   const agent = card.kind === 'agent';
   const t = agent ? THEME.agent : THEME.farmer;
   return (
-    <div className="asr-card" style={{ background: t.bg, gridTemplateRows: '1fr' }} role="img" aria-label="Back of the card">
+    <div className="asr-wrap">
       <style>{CARD_STYLE}</style>
-      <Pattern />
-      <div className="relative flex min-h-0 items-stretch gap-[1em] px-[1em] pb-[.9em] pt-[.85em]">
-        <div className="flex shrink-0 flex-col items-center justify-center gap-[.25em]">
-          <Qr card={card} size="10em" />
-          <span className="font-mono text-[.8em] font-semibold tracking-wider" style={{ color: t.accent }}>{card.member_code}</span>
-        </div>
-        <div className="flex min-w-0 flex-1 flex-col justify-between text-[.8em] leading-snug">
-          <div className="space-y-[.45em]">
-            <p className="text-[1.3em] font-bold leading-tight">Check this card</p>
-            <p style={{ color: t.muted }}>Scan the QR code with a phone camera. The ASR page shows {agent ? 'whether this person is an active field agent today' : 'whether the membership is valid today'}.</p>
-            <p style={{ color: t.muted }}>
-              {agent
-                ? 'This card identifies an Avocado Society of Rwanda field agent (VBA). It is personal and must be returned when leaving ASR.'
-                : 'This card is personal. It identifies a registered avocado grower and member of the Avocado Society of Rwanda.'}
-            </p>
-            <p style={{ color: t.muted }}>{agent ? 'If found, please return it to the ASR office.' : 'If found, please hand it to any ASR field agent (VBA).'}</p>
+      <div className="asr-card" role="img" aria-label="Back of the card" style={{ gridTemplateRows: 'auto 1fr' }}>
+        <div className="h-[.55em]" style={{ background: t.head }} />
+        <div className="relative flex min-h-0 gap-[1em] px-[1em] pb-[.9em] pt-[.8em]">
+          <Watermark />
+          <div className="relative flex shrink-0 flex-col items-center justify-center gap-[.3em]">
+            <img src={card.qr_code} alt="QR code to verify this card" className="h-[9.6em] w-[9.6em] rounded-[.4em] ring-1 ring-slate-200" />
+            <span className="font-mono text-[.78em] font-bold tracking-[.04em]" style={{ color: t.accent }}>{card.member_code}</span>
           </div>
-          <div className="flex items-end justify-between gap-[1em] pt-[.4em]">
-            <div className="min-w-0">
-              <p className="lbl" style={{ color: t.muted, fontSize: '.85em' }}>{agent ? 'Issued' : 'Valid until'}</p>
-              <p className="text-[1.15em] font-semibold">{fmt(agent ? card.member_since : card.valid_until)}</p>
+          <div className="relative flex min-w-0 flex-1 flex-col justify-between text-[.74em] leading-snug text-slate-600">
+            <div className="space-y-[.5em]">
+              <p className="text-[1.3em] font-extrabold text-slate-900">Check this card</p>
+              <p>Scan the QR code with a phone camera. The ASR page shows {agent ? 'whether this person is an active field agent today' : 'whether the membership is valid today'}.</p>
+              <p>
+                {agent
+                  ? 'This card identifies an Avocado Society of Rwanda field agent (VBA). It is personal and must be returned when leaving ASR.'
+                  : 'This card is personal. It identifies a registered avocado grower and member of the Avocado Society of Rwanda.'}
+              </p>
+              <p>{agent ? 'If found, please return it to the ASR office.' : 'If found, please hand it to any ASR field agent (VBA).'}</p>
             </div>
-            <div className="w-[9em] border-t border-white/50 pt-[.15em] text-center text-[.85em]" style={{ color: t.muted }}>
-              {agent ? 'Holder’s signature' : 'Member’s signature'}
+            <div className="flex items-end justify-between gap-[1em] pt-[.4em]">
+              <div>
+                <p className="lbl" style={{ fontSize: '.68em' }}>{agent ? 'Issued' : 'Valid until'}</p>
+                <p className="text-[1.1em] font-bold text-slate-900">{fmt(agent ? card.member_since : card.valid_until)}</p>
+              </div>
+              <div className="w-[10em] border-t border-slate-400 pt-[.2em] text-center text-[.85em] text-slate-500">
+                {agent ? 'Holder’s signature' : 'Member’s signature'}
+              </div>
             </div>
           </div>
         </div>
       </div>
-      <div className="band" />
     </div>
   );
 }
 
-/** Both sides: side by side on wide screens, stacked on phones (print: one side per page). */
+/**
+ * Both sides, front first. For printing, a second copy is placed directly
+ * under <body> and everything else is removed from the print layout (not just
+ * hidden), so the printout is exactly one card side per page — front, then
+ * back — at real card size, with colours.
+ */
 export default function MembershipCard({ card, showBack = true }) {
   if (!card) return null;
   return (
-    <div className="asr-print-area grid justify-items-center gap-4 2xl:grid-cols-2">
-      <CardFront card={card} />
-      {showBack && <CardBack card={card} />}
-    </div>
+    <>
+      <div className="flex flex-col items-center gap-5">
+        <CardFront card={card} />
+        {showBack && <CardBack card={card} />}
+      </div>
+      {typeof document !== 'undefined' && createPortal(
+        <div className="asr-print-root" aria-hidden="true">
+          <CardFront card={card} />
+          {showBack && <CardBack card={card} />}
+        </div>,
+        document.body
+      )}
+    </>
   );
 }
