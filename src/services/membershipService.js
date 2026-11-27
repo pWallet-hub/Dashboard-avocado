@@ -11,7 +11,16 @@ export async function getMyCard() {
   }
 }
 
-/** A farmer's card, for staff to print. */
+/** The signed-in agent's staff ID card. */
+export async function getMyAgentCard() {
+  try {
+    return extractData(await apiClient.get('/membership/agent/me'));
+  } catch (error) {
+    throw new Error(errorMessage(error, 'Failed to load your agent ID card'));
+  }
+}
+
+/** A farmer's card (or, for admins, an agent's staff card), for staff to print. */
 export async function getFarmerCard(userId) {
   try {
     return extractData(await apiClient.get(`/membership/${userId}/card`));

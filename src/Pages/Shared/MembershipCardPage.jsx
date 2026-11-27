@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { IdCard, Printer, Link2, ExternalLink, RefreshCw, ShieldCheck, CalendarClock, ScanLine, Store, RotateCcw, AlertTriangle } from 'lucide-react';
 import MembershipCard from '../../components/Profile/MembershipCard';
-import { getMyCard, getFarmerCard, renewMembership, MEMBERSHIP_STATUS } from '../../services/membershipService';
+import { getMyCard, getMyAgentCard, getFarmerCard, renewMembership, MEMBERSHIP_STATUS } from '../../services/membershipService';
 import { regenerateQRToken } from '../../services/profileAccessService';
 import { useToast } from '../../components/Ui/Toast';
 import { useConfirm } from '../../components/Ui/ConfirmDialog';
@@ -19,9 +19,11 @@ const STEPS = [
 ];
 
 /**
- * Membership card page.
+ * Membership / ID card page.
  *  - Farmer: /dashboard/farmer/membership-card (their own card)
- *  - Staff:  /dashboard/{admin|agent}/member-card/:userId (print, renew, replace)
+ *  - Agent:  /dashboard/agent/id-card (their own staff ID card, role="agent-self")
+ *  - Staff:  /dashboard/{admin|agent}/member-card/:userId (print, renew, replace).
+ *            Admins opening an agent get that agent's staff card.
  */
 export default function MembershipCardPage({ role = 'farmer' }) {
   const { userId } = useParams();
@@ -34,19 +36,20 @@ export default function MembershipCardPage({ role = 'farmer' }) {
   const load = useCallback(async () => {
     setState((s) => ({ ...s, loading: true, error: null }));
     try {
-      const card = staff ? await getFarmerCard(userId) : await getMyCard();
+      const card = staff ? await getFarmerCard(userId) : role === 'agent-self' ? await getMyAgentCard() : await getMyCard();
       setState({ loading: false, card });
     } catch (error) {
       setState({ loading: false, error: error.message });
     }
-  }, [staff, userId]);
+  }, [staff, role, userId]);
 
   useEffect(() => {
     load();
   }, [load]);
 
   const card = state.card;
-  const meta = card ? MEMBERSHIP_STATUS[card.status] || MEMBERSHIP_STATUS.active : null;
+  const agentCard = card?.kind === 'agent';
+  const meta = card ? (agentCard && card.status === 'active' ? { label: 'Active staff', tone: 'brand' } : MEMBERSHIP_STATUS[card.status] || MEMBERSHIP_STATUS.active) : null;
   const left = card ? daysLeft(card.valid_until) : null;
 
   const copyLink = async () => {
@@ -89,14 +92,19 @@ export default function MembershipCardPage({ role = 'farmer' }) {
     <Page>
       <PageHeader
         icon={IdCard}
-        title={staff ? 'Membership card' : 'My membership card'}
-        subtitle={staff ? 'Print, renew or replace a farmer’s Avocado Society of Rwanda card.' : 'Your Avocado Society of Rwanda card. Show it proudly when you sell your avocados.'}
+        title={role === 'agent-self' ? 'My ID card' : agentCard ? 'Agent ID card' : staff ? 'Membership card' : 'My membership card'}
+        subtitle={
+          role === 'agent-self' ? 'Your Avocado Society of Rwanda field agent card. Show it when you visit farmers.'
+            : agentCard ? 'Print or replace this field agent’s staff ID card.'
+            : staff ? 'Print, renew or replace a farmer’s Avocado Society of Rwanda card.'
+            : 'Your Avocado Society of Rwanda card. Show it proudly when you sell your avocados.'
+        }
         actions={
           card && (
             <>
               <Button icon={Printer} onClick={() => window.print()}>Print card</Button>
-              {staff && <Button variant="secondary" icon={CalendarClock} onClick={renew} loading={busy === 'renew'}>Renew 1 year</Button>}
-              {staff && <Button variant="secondary" icon={RotateCcw} onClick={replace} loading={busy === 'replace'}>Replace lost card</Button>}
+              {staff && !agentCard && <Button variant="secondary" icon={CalendarClock} onClick={renew} loading={busy === 'renew'}>Renew 1 year</Button>}
+              {(role === 'admin' || (staff && !agentCard)) && <Button variant="secondary" icon={RotateCcw} onClick={replace} loading={busy === 'replace'}>Replace lost card</Button>}
               <Button variant="secondary" icon={RefreshCw} onClick={load} loading={state.loading}>Refresh</Button>
             </>
           )
@@ -108,37 +116,44 @@ export default function MembershipCardPage({ role = 'farmer' }) {
       ) : state.error ? (
         <Card><ErrorState message={state.error} onRetry={load} /></Card>
       ) : card ? (
-        <div className="grid gap-6 lg:grid-cols-5">
-          <div className="space-y-4 lg:col-span-3">
-            <Card>
-              <MembershipCard card={card} />
-              <p className="mt-4 text-center text-xs text-slate-500">
-                Prints at the real card size (85.6 × 54 mm), front then back. In the print window choose “Save as PDF” to keep a copy on your phone.
-              </p>
-            </Card>
-          </div>
+        <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_22rem]">
+          <section className="rounded-2xl bg-gradient-to-br from-slate-100 to-slate-50 p-4 ring-1 ring-slate-200 sm:p-5">
+            <MembershipCard card={card} />
+            <p className="mt-3 text-center text-xs text-slate-500">
+              Prints at real card size (85.6 × 54 mm), front then back. Choose “Save as PDF” in the print window to keep a copy.
+            </p>
+          </section>
 
-          <div className="space-y-4 lg:col-span-2">
+          <div className="space-y-4">
             <Card title="Status">
               <div className="space-y-3 text-sm">
                 <div className="flex items-center justify-between">
-                  <span className="text-slate-500">Membership</span>
+                  <span className="text-slate-500">{agentCard ? 'Status' : 'Membership'}</span>
                   <Badge tone={meta.tone}>{meta.label}</Badge>
                 </div>
-                <div className="flex items-center justify-between"><span className="text-slate-500">Member number</span><span className="font-mono font-semibold text-slate-900">{card.member_code}</span></div>
-                <div className="flex items-center justify-between"><span className="text-slate-500">Valid until</span><span className="font-medium text-slate-900">{fmt(card.valid_until)}</span></div>
-                {left !== null && left >= 0 && <div className="flex items-center justify-between"><span className="text-slate-500">Days left</span><span className="font-medium text-slate-900">{left}</span></div>}
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-500">Profile</span>
-                  {card.profile_verified ? <Badge tone="brand"><ShieldCheck className="mr-1 h-3.5 w-3.5" />Verified by ASR</Badge> : <Badge tone="amber">Not yet verified</Badge>}
-                </div>
+                <div className="flex items-center justify-between"><span className="text-slate-500">{agentCard ? 'Staff number' : 'Member number'}</span><span className="font-mono font-semibold text-slate-900">{card.member_code}</span></div>
+                {agentCard ? (
+                  <>
+                    <div className="flex items-start justify-between gap-3"><span className="shrink-0 text-slate-500">Area served</span><span className="text-right font-medium text-slate-900">{card.areas?.length ? card.areas.join(', ') : '—'}</span></div>
+                    <div className="flex items-center justify-between"><span className="text-slate-500">Issued</span><span className="font-medium text-slate-900">{fmt(card.member_since)}</span></div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-center justify-between"><span className="text-slate-500">Valid until</span><span className="font-medium text-slate-900">{fmt(card.valid_until)}</span></div>
+                    {left !== null && left >= 0 && <div className="flex items-center justify-between"><span className="text-slate-500">Days left</span><span className="font-medium text-slate-900">{left}</span></div>}
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-500">Profile</span>
+                      {card.profile_verified ? <Badge tone="brand"><ShieldCheck className="mr-1 h-3.5 w-3.5" />Verified by ASR</Badge> : <Badge tone="amber">Not yet verified</Badge>}
+                    </div>
+                  </>
+                )}
                 {(card.status === 'expired' || card.status === 'expiring') && (
                   <p className="flex gap-2 rounded-lg bg-amber-50 p-3 text-amber-900 ring-1 ring-amber-200">
                     <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
                     {staff ? 'Renew the membership, then print the card again.' : 'Ask your VBA (field agent) to renew your membership, then print your card again.'}
                   </p>
                 )}
-                {!card.profile_verified && !staff && (
+                {!card.profile_verified && !staff && !agentCard && (
                   <p className="text-xs text-slate-500">
                     Complete your <Link to="/dashboard/farmer/profile" className="font-medium text-brand-700 hover:underline">profile</Link> and add a photo — your VBA verifies it on the next visit.
                   </p>
@@ -156,7 +171,7 @@ export default function MembershipCardPage({ role = 'farmer' }) {
               </div>
             </Card>
 
-            {!staff && (
+            {!staff && !agentCard && (
               <Card title="How to use your card">
                 <ul className="space-y-4">
                   {STEPS.map(({ icon: Icon, title, text }) => (

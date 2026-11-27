@@ -37,6 +37,7 @@ import {
   Sparkles,
   Building2,
   IdCard,
+  UserCog,
   Smartphone,
   MapPinOff,
 } from 'lucide-react';
@@ -78,6 +79,7 @@ export const NAV_SECTIONS = {
     {
       label: 'People',
       links: [
+        { to: '/dashboard/admin/all-users', icon: UserCog, text: 'All Users & Admins' },
         { to: '/dashboard/admin/users', icon: Users, text: 'Manage Growers' },
         { to: '/dashboard/admin/agents', icon: UserCheck, text: 'Manage Agents' },
         { to: '/dashboard/admin/shop-managers', icon: Store, text: 'Shop Managers' },
@@ -169,6 +171,7 @@ export const NAV_SECTIONS = {
         { to: '/dashboard/agent/Report', icon: FileText, text: 'Reports' },
         { to: '/dashboard/agent/Documents', icon: FileText, text: 'My Documents' },
         { to: '/dashboard/agent/profile', icon: User, text: 'Profile' },
+        { to: '/dashboard/agent/id-card', icon: IdCard, text: 'My ID Card' },
       ],
     },
   ],

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { TrendingUp, TrendingDown, Minus, RefreshCw, Plus, Trash2, X, LineChart as LineChartIcon } from 'lucide-react';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, Legend, CartesianGrid } from 'recharts';
-import { ALL_DISTRICTS } from '../../utils/rwanda';
+import { ALL_DISTRICTS, RWANDA_PROVINCES, RWANDA_DISTRICTS } from '../../utils/rwanda';
 import {
   PRICE_TYPES,
   GRADES,
@@ -19,9 +19,13 @@ import { useConfirm } from '../../components/Ui/ConfirmDialog';
 import { Page, PageHeader, Card, StatGrid, Badge, Button, Field, inputClass, EmptyState, Table, Td } from '../../components/Ui/kit';
 
 const LINE_COLORS = { farm_gate: '#15803d', wholesale: '#2563eb', retail: '#d97706', export: '#7c3aed' };
-const PROVINCES = ['Kigali City', 'Eastern Province', 'Northern Province', 'Southern Province', 'Western Province'];
+const VARIETIES = ['Hass', 'Fuerte', 'Ettinger', 'Local'];
 const rwf = (n) => (n === null || n === undefined ? '—' : `${Math.round(n).toLocaleString()} RWF`);
-const today = () => new Date().toISOString().slice(0, 10);
+// Local date (not UTC): in Rwanda (UTC+2) toISOString() is still "yesterday" until 02:00.
+const today = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
 
 const emptyForm = () => ({
   price_per_kg: '',
@@ -157,7 +161,7 @@ const MarketPrices = ({ role = 'farmer' }) => {
       <div className="grid grid-cols-1 gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:grid-cols-3">
         <Field label="Variety">
           <select className={input} value={filters.variety} onChange={(e) => setFilter('variety', e.target.value)} aria-label="Variety">
-            {['Hass', 'Fuerte', 'Ettinger', 'Local'].map((v) => (
+            {VARIETIES.map((v) => (
               <option key={v} value={v}>{v}</option>
             ))}
           </select>
@@ -200,16 +204,21 @@ const MarketPrices = ({ role = 'farmer' }) => {
                 </select>
               </Field>
               <Field label="Variety">
-                <input className={input} value={form.variety} onChange={(e) => setForm({ ...form, variety: e.target.value })} />
+                <select className={input} value={form.variety} onChange={(e) => setForm({ ...form, variety: e.target.value })}>
+                  {VARIETIES.map((v) => <option key={v} value={v}>{v}</option>)}
+                </select>
               </Field>
               <Field label="Province" required>
-                <select className={input} value={form.province} onChange={(e) => setForm({ ...form, province: e.target.value })}>
-                  {PROVINCES.map((p) => <option key={p} value={p}>{p}</option>)}
+                {/* Changing province clears the district so the two always match. */}
+                <select className={input} value={form.province} onChange={(e) => setForm({ ...form, province: e.target.value, district: '' })}>
+                  {RWANDA_PROVINCES.map((p) => <option key={p} value={p}>{p}</option>)}
                 </select>
               </Field>
               <Field label="District" required>
-                <input required className={input} value={form.district} placeholder="e.g. Rwamagana"
-                  onChange={(e) => setForm({ ...form, district: e.target.value })} />
+                <select required className={input} value={form.district} onChange={(e) => setForm({ ...form, district: e.target.value })}>
+                  <option value="">Choose a district…</option>
+                  {(RWANDA_DISTRICTS[form.province] || []).map((d) => <option key={d} value={d}>{d}</option>)}
+                </select>
               </Field>
               <Field label="Market / buyer">
                 <input className={input} value={form.market_name} placeholder="e.g. Rwamagana Market"

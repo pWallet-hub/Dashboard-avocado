@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { UserCheck, Plus, Search, Eye, Pencil, Trash2, Power, Users as UsersIcon, ClipboardCheck, MapPinned, KeyRound } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { UserCheck, Plus, Search, Eye, Pencil, Trash2, Power, IdCard, Users as UsersIcon, ClipboardCheck, MapPinned, KeyRound } from 'lucide-react';
 import { listUsersPage, createAgent, updateUser, deleteUser, updateUserStatus } from '../../services/usersService';
 import { getAgentProfileById, updateAgentProfileById } from '../../services/agent-information';
 import { getAgentAnalytics } from '../../services/analyticsService';
@@ -263,6 +264,7 @@ export default function Agents() {
                     <div className="flex justify-end gap-1">
                       <Button size="sm" variant="ghost" icon={Eye} aria-label={`View ${a.full_name}`} onClick={() => openView(a)} />
                       <Button size="sm" variant="ghost" icon={MapPinned} aria-label={`Assign area to ${a.full_name}`} title="Assign area" onClick={() => setAreaFor(a)} />
+                      <Link to={`/dashboard/admin/member-card/${a.id}`} title="Agent ID card" aria-label={`ID card of ${a.full_name}`} className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100"><IdCard className="h-4 w-4" /></Link>
                       <Button size="sm" variant="ghost" icon={Pencil} aria-label={`Edit ${a.full_name}`} onClick={() => openEdit(a)} />
                       <Button size="sm" variant="ghost" icon={Power} aria-label={`${a.status === 'active' ? 'Deactivate' : 'Reactivate'} ${a.full_name}`} onClick={() => toggleStatus(a)} />
                       <Button size="sm" variant="ghost" icon={Trash2} className="text-rose-600 hover:bg-rose-50" aria-label={`Delete ${a.full_name}`} onClick={() => remove(a)} />

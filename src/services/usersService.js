@@ -227,3 +227,10 @@ export async function listUsersPage(kind, options = {}) {
     pagination: response.data?.meta?.pagination || {},
   };
 }
+
+// Admin: set a new one-time password for another user. Returns { default_password }.
+export async function resetUserPassword(userId) {
+  if (!userId) throw new Error('User ID is required');
+  const response = await apiClient.post(`/users/${userId}/reset-password`);
+  return extractData(response);
+}

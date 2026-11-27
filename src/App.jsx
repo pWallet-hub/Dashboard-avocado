@@ -61,6 +61,7 @@ import Opportunities from './Pages/Shared/Opportunities';
 import Facilities from './Pages/Shared/Facilities';
 import Nearby from './Pages/Farmer/Nearby';
 import MembershipCardPage from './Pages/Shared/MembershipCardPage';
+import AllUsers from './Pages/Admin/AllUsers';
 import VerifyMember from './Pages/Verify/VerifyMember';
 import Surveys from './Pages/Shared/Surveys';
 import FarmerActivation from './Pages/Shared/FarmerActivation';
@@ -109,6 +110,7 @@ function App() {
                 {/* Admin Routes */}
                 <Route path="admin" element={<RoleBasedRoute allowedRoles={['admin']}><Admin /></RoleBasedRoute>} />
                 <Route path="admin/profile" element={<RoleBasedRoute allowedRoles={['admin']}><AdminProfile /></RoleBasedRoute>} />
+                <Route path="admin/all-users" element={<RoleBasedRoute allowedRoles={['admin']}><AllUsers /></RoleBasedRoute>} />
                 <Route path="admin/users" element={<RoleBasedRoute allowedRoles={['admin']}><Users /></RoleBasedRoute>} />
                 <Route path="admin/agents" element={<RoleBasedRoute allowedRoles={['admin']}><Agents/></RoleBasedRoute>} />
                 <Route path="admin/reports" element={<RoleBasedRoute allowedRoles={['admin']}><Reports/></RoleBasedRoute>} />
@@ -159,6 +161,7 @@ function App() {
                 <Route path="agent/harvest-lots" element={<RoleBasedRoute allowedRoles={['agent']}><HarvestLots role="agent"/></RoleBasedRoute>}/>
                 <Route path="agent/opportunities" element={<RoleBasedRoute allowedRoles={['agent']}><Opportunities role="agent"/></RoleBasedRoute>}/>
                 <Route path="agent/facilities" element={<RoleBasedRoute allowedRoles={['agent']}><Facilities role="agent"/></RoleBasedRoute>}/>
+                <Route path="agent/id-card" element={<RoleBasedRoute allowedRoles={['agent']}><MembershipCardPage role="agent-self"/></RoleBasedRoute>}/>
                 <Route path="agent/member-card/:userId" element={<RoleBasedRoute allowedRoles={['agent']}><MembershipCardPage role="agent"/></RoleBasedRoute>}/>
                 
                 {/* Farmer Routes */}
