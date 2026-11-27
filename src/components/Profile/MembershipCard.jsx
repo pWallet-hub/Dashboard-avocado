@@ -1,12 +1,15 @@
+import { useId } from 'react';
 import { createPortal } from 'react-dom';
 import logo from '../../assets/image/LOGO_-_Avocado_Society_of_Rwanda.png';
 
 /**
  * The one Avocado Society of Rwanda card, used everywhere a card is shown:
- * the card page (farmer / agent / staff), the farmer profile preview, and the
- * public QR check page. ID-1 size (85.6 × 54 mm), official-ID conventions:
- * guilloche security pattern, Rwanda colour stripe, framed portrait, labelled
- * fields, verification seal, and a signature strip on the back.
+ * the card page (farmer / agent / staff), the farmer profile preview and the
+ * public QR check page. ID-1 size (85.6 × 54 mm).
+ *
+ * Layout is a fixed grid where every area is filled: a coloured photo panel
+ * on the left, and on the right the name, coloured info tiles that stretch to
+ * the available height, the QR code and a solid date bar. No empty gaps.
  */
 
 const fmt = (value) => {
@@ -18,61 +21,62 @@ const year = (value) => (value ? new Date(value).getFullYear() : '—');
 const hasPhoto = (p) => typeof p === 'string' && p.trim() && p !== 'null' && p !== 'undefined';
 
 const STATUS = {
-  active: { label: 'ACTIVE', bg: '#dcfce7', fg: '#14532d', dot: '#16a34a' },
-  expiring: { label: 'RENEW SOON', bg: '#fef3c7', fg: '#78350f', dot: '#d97706' },
-  expired: { label: 'EXPIRED', bg: '#ffe4e6', fg: '#881337', dot: '#e11d48' },
-  suspended: { label: 'SUSPENDED', bg: '#e2e8f0', fg: '#1e293b', dot: '#64748b' },
+  active: { label: 'ACTIVE', bg: '#22c55e', fg: '#fff' },
+  expiring: { label: 'RENEW SOON', bg: '#f59e0b', fg: '#1f1300' },
+  expired: { label: 'EXPIRED', bg: '#e11d48', fg: '#fff' },
+  suspended: { label: 'SUSPENDED', bg: '#64748b', fg: '#fff' },
 };
 
-/* Members: avocado green. Field agents (staff): deep teal. */
+/* Members: avocado green with gold. Field agents (staff): deep teal with gold. */
 const THEME = {
   farmer: {
-    title: 'MEMBERSHIP CARD', titleRw: "IKARITA Y'UMUNYAMURYANGO",
-    head: 'linear-gradient(120deg,#062e21 0%,#0d4a2f 45%,#166534 80%,#1f7a45 100%)',
-    accent: '#166534', soft: '#f0fdf4', line: '#bbf7d0', ink: '#14532d',
+    title: 'MEMBERSHIP CARD', titleRw: "Ikarita y'umunyamuryango",
+    panel: 'linear-gradient(165deg,#0a3d28 0%,#11603a 55%,#1b7d47 100%)',
+    body: 'linear-gradient(135deg,#f3fbf4 0%,#e6f6e9 55%,#fdf8e6 100%)',
+    dark: '#0b3d28', accent: '#15803d',
+    tiles: ['#dcfce7', '#fef3c7', '#e0f2fe', '#fce7f3'], tileInk: ['#14532d', '#78350f', '#0c4a6e', '#831843'],
+    bar: 'linear-gradient(90deg,#0b3d28,#15803d)',
   },
   agent: {
-    title: 'STAFF IDENTITY CARD', titleRw: "IKARITA Y'UMUKOZI · VBA",
-    head: 'linear-gradient(120deg,#04222d 0%,#0a3b4a 45%,#0e5a6e 80%,#14708a 100%)',
-    accent: '#0e6377', soft: '#ecfeff', line: '#a5f3fc', ink: '#083344',
+    title: 'STAFF IDENTITY CARD', titleRw: "Ikarita y'umukozi · VBA",
+    panel: 'linear-gradient(165deg,#062b38 0%,#0b4a5d 55%,#11677e 100%)',
+    body: 'linear-gradient(135deg,#f0fbfd 0%,#e0f4f8 55%,#fdf8e6 100%)',
+    dark: '#062b38', accent: '#0e6377',
+    tiles: ['#cffafe', '#fef3c7', '#e0e7ff', '#dcfce7'], tileInk: ['#164e63', '#78350f', '#312e81', '#14532d'],
+    bar: 'linear-gradient(90deg,#062b38,#0e6377)',
   },
 };
 
-/* Guilloche: interlaced sine waves, the fine line pattern used on IDs and banknotes. */
-const GUILLOCHE = (() => {
-  const paths = [];
-  for (let k = 0; k < 14; k += 1) {
+/* Fine interlaced waves (guilloche), as on IDs and banknotes. */
+const WAVES = (() => {
+  const out = [];
+  for (let k = 0; k < 12; k += 1) {
     let d = '';
-    for (let x = 0; x <= 860; x += 10) {
-      const y = 70 + Math.sin((x / 860) * Math.PI * 4 + k * 0.45) * (28 + k * 2.2) + Math.sin((x / 860) * Math.PI * 11 + k) * 6;
-      d += `${x === 0 ? 'M' : 'L'}${x} ${y.toFixed(1)} `;
+    for (let y = 0; y <= 540; y += 12) {
+      const x = 130 + Math.sin((y / 540) * Math.PI * 3 + k * 0.5) * (40 + k * 4) + Math.sin((y / 540) * Math.PI * 9 + k) * 8;
+      d += `${y === 0 ? 'M' : 'L'}${x.toFixed(1)} ${y} `;
     }
-    paths.push(d);
+    out.push(d);
   }
-  return paths;
+  return out;
 })();
 
-function Guilloche({ className, color = '#fff', opacity = 0.14 }) {
+function Waves({ color = '#fff', opacity = 0.16 }) {
   return (
-    <svg className={className} viewBox="0 0 860 140" preserveAspectRatio="none" aria-hidden="true">
-      <g fill="none" stroke={color} strokeWidth="1.1" opacity={opacity}>
-        {GUILLOCHE.map((d) => <path key={d} d={d} />)}
-      </g>
+    <svg className="pointer-events-none absolute inset-0 h-full w-full" viewBox="0 0 260 540" preserveAspectRatio="none" aria-hidden="true">
+      <g fill="none" stroke={color} strokeWidth="1.2" opacity={opacity}>{WAVES.map((d) => <path key={d} d={d} />)}</g>
     </svg>
   );
 }
 
 const CARD_STYLE = `
 .asr-wrap{width:100%;max-width:580px;container-type:inline-size}
-.asr-card{position:relative;width:100%;aspect-ratio:85.6/54;font-size:3.05cqw;border-radius:.85em;overflow:hidden;background:#fff;color:#0f172a;
-  box-shadow:0 1px 2px rgba(15,23,42,.08),0 18px 40px -16px rgba(15,23,42,.38);outline:1px solid rgba(15,23,42,.10);
+.asr-card{position:relative;width:100%;aspect-ratio:85.6/54;font-size:3.05cqw;border-radius:.9em;overflow:hidden;color:#0f172a;
+  box-shadow:0 2px 4px rgba(15,23,42,.08),0 22px 44px -18px rgba(15,23,42,.45);
   font-family:Inter,ui-sans-serif,system-ui,sans-serif;font-feature-settings:"tnum";-webkit-print-color-adjust:exact;print-color-adjust:exact}
-.asr-card .g-abs{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
-.asr-card .lbl{font-size:.46em;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#64748b;line-height:1.25}
-.asr-card .val{font-size:.76em;font-weight:650;line-height:1.25;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.asr-card .nm{font-weight:800;line-height:1.06;letter-spacing:-.012em;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
-.asr-card .flag{display:flex;height:.3em}
-.asr-card .flag i{flex:1}
+.asr-card .lbl{font-size:.46em;font-weight:800;letter-spacing:.14em;text-transform:uppercase;line-height:1.2;opacity:.75}
+.asr-card .val{font-size:.86em;font-weight:750;line-height:1.15;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:break-word}
+.asr-card .nm{font-weight:800;line-height:1.05;letter-spacing:-.015em;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
 @media print{
   @page{size:85.6mm 54mm;margin:0}
   html,body{margin:0!important;padding:0!important;background:#fff!important;width:85.6mm!important;min-height:0!important;height:auto!important}
@@ -81,98 +85,73 @@ const CARD_STYLE = `
   .asr-print-root *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
   .asr-print-root .asr-wrap{max-width:none;width:85.6mm;height:54mm;overflow:hidden;break-inside:avoid;page-break-inside:avoid}
   .asr-print-root .asr-wrap+.asr-wrap{break-before:page;page-break-before:always}
-  .asr-print-root .asr-card{width:85.6mm;height:54mm;font-size:2.61mm;border-radius:0;box-shadow:none;outline:none}
+  .asr-print-root .asr-card{width:85.6mm;height:54mm;font-size:2.61mm;border-radius:0;box-shadow:none}
 }
 .asr-print-root{display:none}
 `;
-
 const Styles = () => <style>{CARD_STYLE}</style>;
 
-/** Rwanda flag colours: sky blue, yellow, green. */
-const FlagStripe = () => (
-  <div className="flag" aria-hidden="true"><i style={{ background: '#00a1de', flex: 2 }} /><i style={{ background: '#fad201' }} /><i style={{ background: '#20603d' }} /></div>
+/** Rwanda colours: sky blue, yellow, green. */
+const Flag = ({ className = '' }) => (
+  <div className={`flex ${className}`} aria-hidden="true">
+    <i className="block flex-[2]" style={{ background: '#00a1de' }} /><i className="block flex-1" style={{ background: '#fad201' }} /><i className="block flex-1" style={{ background: '#20603d' }} />
+  </div>
 );
 
-function Seal({ t, ok = true, label }) {
-  // Gold rosette seal, like the stamp on official documents.
-  const ring = ok ? '#b8901c' : '#9f1239';
+function Seal({ ok = true, label }) {
+  // Unique per instance: the print copy must not point at the (hidden) screen copy's gradient.
+  const id = `asr-seal-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
+  const ink = ok ? '#3f2d00' : '#4c0519';
   return (
     <svg viewBox="0 0 100 100" className="h-full w-full" aria-hidden="true">
       <defs>
-        <radialGradient id={`sg-${ok}`} cx="35%" cy="30%" r="75%">
-          <stop offset="0" stopColor={ok ? '#fff6cf' : '#ffe4e6'} />
-          <stop offset=".55" stopColor={ok ? '#f1d77a' : '#fda4af'} />
-          <stop offset="1" stopColor={ok ? '#b8901c' : '#be123c'} />
+        <radialGradient id={id} cx="35%" cy="30%" r="75%">
+          <stop offset="0" stopColor={ok ? '#fff6cf' : '#ffe4e6'} /><stop offset=".55" stopColor={ok ? '#f1d77a' : '#fda4af'} /><stop offset="1" stopColor={ok ? '#b8901c' : '#be123c'} />
         </radialGradient>
       </defs>
-      <g>
-        {Array.from({ length: 24 }, (_, i) => (
-          <circle key={i} cx={50 + 44 * Math.cos((i / 24) * 2 * Math.PI)} cy={50 + 44 * Math.sin((i / 24) * 2 * Math.PI)} r="6.5" fill={`url(#sg-${ok})`} />
-        ))}
-        <circle cx="50" cy="50" r="42" fill={`url(#sg-${ok})`} />
-        <circle cx="50" cy="50" r="34" fill="none" stroke={ring} strokeWidth="1.6" />
-        <text x="50" y="47" textAnchor="middle" fontSize="15" fontWeight="900" fill={ok ? t.ink : '#4c0519'} fontFamily="Inter,sans-serif">ASR</text>
-        <text x="50" y="62" textAnchor="middle" fontSize="8.5" fontWeight="800" letterSpacing="1" fill={ok ? t.ink : '#4c0519'} fontFamily="Inter,sans-serif">{label}</text>
-      </g>
+      {Array.from({ length: 24 }, (_, i) => (
+        <circle key={i} cx={50 + 44 * Math.cos((i / 24) * 2 * Math.PI)} cy={50 + 44 * Math.sin((i / 24) * 2 * Math.PI)} r="6.5" fill={`url(#${id})`} />
+      ))}
+      <circle cx="50" cy="50" r="42" fill={`url(#${id})`} />
+      <circle cx="50" cy="50" r="34" fill="none" stroke={ok ? '#9c7a12' : '#9f1239'} strokeWidth="1.6" />
+      <text x="50" y="48" textAnchor="middle" fontSize="16" fontWeight="900" fill={ink} fontFamily="Inter,sans-serif">ASR</text>
+      <text x="50" y="63" textAnchor="middle" fontSize="9" fontWeight="800" letterSpacing="1" fill={ink} fontFamily="Inter,sans-serif">{label}</text>
     </svg>
   );
 }
 
-function Header({ t, status }) {
-  const s = STATUS[status] || STATUS.active;
+function Photo({ card }) {
   return (
-    <div className="relative overflow-hidden px-[.95em] pb-[.5em] pt-[.5em] text-white" style={{ background: t.head }}>
-      <Guilloche className="g-abs" />
-      <div className="relative flex items-center gap-[.6em]">
-        <span className="flex h-[2.45em] w-[2.45em] shrink-0 items-center justify-center rounded-full bg-white p-[.14em] shadow-[0_0_0_.12em_rgba(241,215,122,.85)]">
-          <img src={logo} alt="" className="h-full w-full rounded-full object-contain" />
-        </span>
-        <div className="min-w-0 flex-1 leading-[1.12]">
-          <p className="text-[.9em] font-extrabold uppercase tracking-[.06em]">Avocado Society of Rwanda</p>
-          <p className="truncate text-[.5em] font-semibold tracking-[.16em] text-white/80">{t.title} · {t.titleRw}</p>
-        </div>
-        <span className="inline-flex shrink-0 items-center gap-[.35em] rounded-full px-[.6em] py-[.22em] text-[.5em] font-extrabold tracking-[.12em]" style={{ background: s.bg, color: s.fg }}>
-          <span className="h-[.62em] w-[.62em] rounded-full" style={{ background: s.dot }} />{s.label}
-        </span>
-      </div>
+    <div className="relative min-h-0 w-full flex-1 overflow-hidden rounded-[.5em] bg-white/15 ring-[.14em] ring-[#f1d77a]">
+      {hasPhoto(card.photo) ? (
+        <img src={card.photo} alt="" className="absolute inset-0 h-full w-full object-cover" crossOrigin="anonymous" />
+      ) : (
+        <svg viewBox="0 0 60 76" preserveAspectRatio="xMidYMax meet" className="absolute inset-0 h-full w-full" aria-hidden="true">
+          <circle cx="30" cy="28" r="13" fill="rgba(255,255,255,.55)" />
+          <path d="M4 76c2-18 13-26 26-26s24 8 26 26z" fill="rgba(255,255,255,.55)" />
+          <text x="30" y="33.5" textAnchor="middle" fontSize="15" fontWeight="800" fill="#0b3d28" fontFamily="Inter,sans-serif">{(card.full_name || 'M').trim().charAt(0).toUpperCase()}</text>
+        </svg>
+      )}
     </div>
   );
 }
 
-function Photo({ card, t }) {
+function Tile({ label, children, bg, ink, className = '', mono = false }) {
   return (
-    <div className="relative h-full w-[6.3em] shrink-0 rounded-[.45em] bg-white p-[.18em] shadow-[0_.15em_.5em_rgba(15,23,42,.18)] ring-1 ring-slate-200">
-      <div className="h-full w-full overflow-hidden rounded-[.32em]" style={{ background: `linear-gradient(160deg,${t.soft},#fff)` }}>
-        {hasPhoto(card.photo) ? (
-          <img src={card.photo} alt="" className="h-full w-full object-cover" crossOrigin="anonymous" />
-        ) : (
-          <svg viewBox="0 0 60 76" className="h-full w-full" aria-hidden="true">
-            <circle cx="30" cy="27" r="12" fill={t.line} />
-            <path d="M6 76c2-17 12-25 24-25s22 8 24 25z" fill={t.line} />
-            <text x="30" y="32" textAnchor="middle" fontSize="15" fontWeight="800" fill={t.accent} fontFamily="Inter,sans-serif">{(card.full_name || 'M').trim().charAt(0).toUpperCase()}</text>
-          </svg>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function Field({ label, children, className = '' }) {
-  return (
-    <div className={`min-w-0 ${className}`}>
+    <div className={`flex min-h-0 min-w-0 flex-col justify-center gap-[.1em] rounded-[.45em] px-[.55em] py-[.25em] ${className}`} style={{ background: bg, color: ink }}>
       <p className="lbl">{label}</p>
-      <p className="val">{children}</p>
+      <p className={`val ${mono ? 'font-mono tracking-[.04em]' : ''}`}>{children}</p>
     </div>
   );
 }
 
 /** Long names get a smaller size so the whole name fits on two lines. */
-const nameSize = (name = '') => (name.length > 34 ? '1em' : name.length > 22 ? '1.16em' : '1.38em');
+const nameSize = (name = '') => (name.length > 34 ? '.98em' : name.length > 22 ? '1.14em' : '1.36em');
 
 /**
  * Front of the card. `card` is the object from /api/membership/…
- * `variant="public"` is the QR check page: no QR code (the viewer just scanned
- * it) and no farm figures; a valid / not valid seal takes the QR's place.
+ * `variant="public"` (QR check page): a valid / not-valid seal replaces the QR
+ * and farm figures are not shown.
  */
 export function CardFront({ card, variant = 'full' }) {
   const agent = card.kind === 'agent';
@@ -183,84 +162,89 @@ export function CardFront({ card, variant = 'full' }) {
   const place = [card.sector, card.district].filter(Boolean).join(', ') || '—';
   const area = card.areas?.length ? card.areas.join(', ') : place;
 
+  const tiles = agent
+    ? [['Position', card.role_title || 'Field Agent (VBA)'], ['Area served', area], ['Issued', fmt(card.member_since)], ['Valid', 'While employed']]
+    : isPublic
+      ? [['Location', place], ['Profile', card.profile_verified ? 'Verified by ASR' : 'Registered'], ['Valid until', fmt(card.valid_until)], ['Member since', year(card.member_since)]]
+      : [['Location', place], ['Variety', card.varieties?.length ? card.varieties.slice(0, 2).join(', ') : '—'], ['Trees', Number(card.trees || 0).toLocaleString()], ['Farms', card.farms || 0]];
+
   return (
     <div className="asr-wrap">
       <Styles />
-      <div className="asr-card grid grid-rows-[auto_auto_1fr_auto]" role="img"
+      <div className="asr-card grid grid-cols-[31%_1fr]" role="img"
         aria-label={`Avocado Society of Rwanda ${agent ? 'staff identity card' : 'membership card'} of ${card.full_name}, ${card.member_code}`}>
-        <Header t={t} status={card.status} />
-        <FlagStripe />
-
-        <div className="relative flex min-h-0 gap-[.8em] px-[.95em] py-[.62em]">
-          <Guilloche className="g-abs" color={t.accent} opacity={0.06} />
-          <Photo card={card} t={t} />
-          <div className="relative flex min-w-0 flex-1 flex-col justify-between">
-            <div>
-              <p className="lbl">Full name · Amazina</p>
-              <p className="nm" style={{ fontSize: nameSize(card.full_name), color: '#0b1220' }} title={card.full_name}>{card.full_name}</p>
-            </div>
-            <div className="grid grid-cols-2 gap-x-[.7em] gap-y-[.32em]">
-              <div className="min-w-0">
-                <p className="lbl">{agent ? 'Staff No.' : 'Member No.'}</p>
-                <p className="font-mono text-[.88em] font-extrabold tracking-[.05em]" style={{ color: t.accent }}>{card.member_code}</p>
-              </div>
-              {agent ? <Field label="Position">{card.role_title || 'Field Agent (VBA)'}</Field> : <Field label="Location">{place}</Field>}
-              {agent ? (
-                <Field label="Area served" className="col-span-2">{area}</Field>
-              ) : isPublic ? (
-                <Field label="Profile" className="col-span-2">{card.profile_verified ? 'Farm and identity verified by ASR' : 'Registered grower'}</Field>
-              ) : (
-                <>
-                  <Field label="Trees · Farms">{Number(card.trees || 0).toLocaleString()} · {card.farms || 0}</Field>
-                  <Field label="Variety">{card.varieties?.length ? card.varieties.slice(0, 2).join(', ') : '—'}</Field>
-                </>
-              )}
-            </div>
+        {/* Left: colour panel with logo, photo and number */}
+        <div className="relative flex min-h-0 flex-col gap-[.45em] overflow-hidden px-[.7em] pb-[.75em] pt-[.6em] text-white" style={{ background: t.panel }}>
+          <Waves />
+          <div className="relative flex items-center gap-[.35em]">
+            <span className="flex h-[2.1em] w-[2.1em] shrink-0 items-center justify-center rounded-full bg-white p-[.12em] ring-[.12em] ring-[#f1d77a]">
+              <img src={logo} alt="" className="h-full w-full rounded-full object-contain" />
+            </span>
+            <p className="text-[.5em] font-extrabold leading-[1.15] tracking-[.08em]">AVOCADO<br />SOCIETY OF<br />RWANDA</p>
           </div>
-          <div className="relative flex w-[6.5em] shrink-0 flex-col items-center justify-center gap-[.22em]">
-            {isPublic || !card.qr_code ? (
-              <>
-                <div className="h-[6em] w-[6em]"><Seal t={t} ok={valid} label={valid ? 'VALID' : 'INVALID'} /></div>
-                <span className="text-[.44em] font-bold uppercase tracking-[.14em] text-slate-500">{valid ? 'Checked today' : 'Not valid today'}</span>
-              </>
-            ) : (
-              <>
-                <div className="rounded-[.35em] bg-white p-[.18em] ring-1 ring-slate-200">
-                  <img src={card.qr_code} alt="QR code to verify this card" className="block h-[5.9em] w-[5.9em]" />
-                </div>
-                <span className="text-[.44em] font-bold uppercase tracking-[.14em] text-slate-500">Scan to verify</span>
-              </>
-            )}
+          <Photo card={card} />
+          <div className="relative rounded-[.4em] bg-black/25 px-[.4em] py-[.22em] text-center">
+            <p className="text-[.42em] font-bold tracking-[.16em] text-[#f1d77a]">{agent ? 'STAFF NO.' : 'MEMBER NO.'}</p>
+            <p className="font-mono text-[.8em] font-extrabold tracking-[.06em]">{card.member_code}</p>
           </div>
+          <Flag className="absolute inset-x-0 bottom-0 h-[.28em]" />
         </div>
 
-        <div className="relative flex items-end gap-[.7em] border-t px-[.95em] pb-[.55em] pt-[.38em]" style={{ background: t.soft, borderColor: t.line }}>
-          <div className="grid min-w-0 flex-1 grid-cols-3 gap-[.6em]">
+        {/* Right: name, tiles, QR, dates */}
+        <div className="relative grid min-h-0 grid-rows-[auto_auto_1fr_auto]" style={{ background: t.body }}>
+          <div className="flex items-start justify-between gap-[.5em] px-[.75em] pt-[.6em]">
+            <div className="min-w-0 leading-[1.15]">
+              <p className="text-[.56em] font-extrabold tracking-[.14em]" style={{ color: t.accent }}>{t.title}</p>
+              <p className="truncate text-[.48em] font-semibold text-slate-500">{t.titleRw}</p>
+            </div>
+            <span className="shrink-0 rounded-full px-[.6em] py-[.2em] text-[.48em] font-extrabold tracking-[.12em] shadow-sm" style={{ background: s.bg, color: s.fg }}>{s.label}</span>
+          </div>
+
+          <div className="px-[.75em] pt-[.25em]">
+            <p className="nm" style={{ fontSize: nameSize(card.full_name), color: t.dark }} title={card.full_name}>{card.full_name}</p>
+          </div>
+
+          <div className="flex min-h-0 gap-[.45em] px-[.75em] py-[.45em]">
+            <div className="grid min-w-0 flex-1 grid-cols-2 grid-rows-2 gap-[.32em]">
+              {tiles.map(([label, value], i) => (
+                <Tile key={label} label={label} bg={t.tiles[i]} ink={t.tileInk[i]}>{value}</Tile>
+              ))}
+            </div>
+            <div className="flex w-[6.4em] shrink-0 flex-col items-center justify-center gap-[.15em] rounded-[.45em] bg-white p-[.3em] shadow-sm ring-1 ring-black/5">
+              {isPublic || !card.qr_code ? (
+                <div className="aspect-square w-full"><Seal ok={valid} label={valid ? 'VALID' : 'INVALID'} /></div>
+              ) : (
+                <img src={card.qr_code} alt="QR code to verify this card" className="aspect-square w-full" />
+              )}
+              <span className="text-[.4em] font-extrabold tracking-[.12em] text-slate-500">{isPublic ? (valid ? 'CHECKED TODAY' : 'NOT VALID') : 'SCAN TO VERIFY'}</span>
+            </div>
+          </div>
+
+          <div className="relative flex items-center gap-[.6em] px-[.75em] py-[.38em] text-white" style={{ background: t.bar }}>
             {agent ? (
-              <>
-                <Field label="Issued">{fmt(card.member_since)}</Field>
-                <Field label="Valid">WHILE EMPLOYED</Field>
-                <Field label="Status">{s.label === 'ACTIVE' ? 'ACTIVE STAFF' : s.label}</Field>
-              </>
+              <div className="min-w-0 flex-1">
+                <p className="text-[.42em] font-bold tracking-[.14em] text-[#f1d77a]">STATUS</p>
+                <p className="text-[.7em] font-extrabold">{valid ? 'ACTIVE FIELD AGENT' : s.label}</p>
+              </div>
             ) : (
               <>
-                {isPublic ? <Field label="Checked">{fmt(new Date())}</Field> : <Field label="Valid from">{fmt(card.valid_from)}</Field>}
-                <Field label="Valid until">{fmt(card.valid_until)}</Field>
-                <Field label="Member since">{year(card.member_since)}</Field>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[.42em] font-bold tracking-[.14em] text-[#f1d77a]">{isPublic ? 'STATUS' : 'VALID FROM'}</p>
+                  <p className="text-[.7em] font-extrabold">{isPublic ? (valid ? 'VALID MEMBER' : s.label) : fmt(card.valid_from)}</p>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[.42em] font-bold tracking-[.14em] text-[#f1d77a]">VALID UNTIL</p>
+                  <p className="text-[.7em] font-extrabold">{fmt(card.valid_until)}</p>
+                </div>
               </>
             )}
+            <div className="-my-[.6em] h-[2.5em] w-[2.5em] shrink-0 drop-shadow"><Seal ok={valid} label={agent ? 'STAFF' : 'MEMBER'} /></div>
           </div>
-          {!isPublic && (
-            <div className="-mt-[1.6em] h-[2.7em] w-[2.7em] shrink-0 drop-shadow-sm">
-              <Seal t={t} ok={valid} label={agent ? 'STAFF' : 'MEMBER'} />
-            </div>
-          )}
-          <span className="absolute inset-x-0 bottom-0 h-[.2em]" style={{ background: 'linear-gradient(90deg,#9c7a12,#f1d77a 30%,#fff3c4 50%,#f1d77a 70%,#9c7a12)' }} />
         </div>
 
         {(card.status === 'expired' || card.status === 'suspended') && (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-            <span className="-rotate-12 rounded-[.3em] border-[.18em] border-rose-600/70 bg-white/75 px-[.6em] text-[2.2em] font-black tracking-widest text-rose-600/80">{s.label}</span>
+            <span className="-rotate-12 rounded-[.3em] border-[.18em] border-rose-600/80 bg-white/80 px-[.6em] text-[2.2em] font-black tracking-widest text-rose-600">{s.label}</span>
           </div>
         )}
       </div>
@@ -268,49 +252,50 @@ export function CardFront({ card, variant = 'full' }) {
   );
 }
 
-/** Back of the card: verification, rules, signature strip. */
+/** Back of the card: verification steps and signature strip. */
 export function CardBack({ card }) {
   const agent = card.kind === 'agent';
   const t = agent ? THEME.agent : THEME.farmer;
+  const steps = [
+    ['Scan', 'Point any phone camera at the QR code.'],
+    ['Check', agent ? 'The ASR page shows if this agent is active today, with photo.' : 'The ASR page shows if the membership is valid today, with photo.'],
+    ['Return', agent ? 'Personal card. If found, return it to the ASR office.' : 'Personal card. If found, hand it to any ASR field agent (VBA).'],
+  ];
   return (
     <div className="asr-wrap">
       <Styles />
-      <div className="asr-card grid grid-rows-[auto_1fr_auto]" role="img" aria-label="Back of the card">
-        <div className="relative overflow-hidden px-[.95em] py-[.5em] text-white" style={{ background: t.head }}>
-          <Guilloche className="g-abs" />
-          <p className="relative text-[.52em] font-bold tracking-[.2em]">PROPERTY OF THE AVOCADO SOCIETY OF RWANDA</p>
-          <p className="relative text-[.44em] tracking-[.14em] text-white/75">IF FOUND, PLEASE RETURN TO {agent ? 'THE ASR OFFICE' : 'ANY ASR FIELD AGENT (VBA)'}</p>
+      <div className="asr-card grid grid-rows-[auto_1fr_auto]" role="img" aria-label="Back of the card" style={{ background: t.body }}>
+        <div className="relative overflow-hidden px-[.9em] py-[.45em] text-white" style={{ background: t.bar }}>
+          <p className="text-[.5em] font-extrabold tracking-[.18em]">PROPERTY OF THE AVOCADO SOCIETY OF RWANDA</p>
+          <p className="text-[.42em] font-semibold tracking-[.14em] text-[#f1d77a]">{agent ? 'STAFF IDENTITY CARD' : 'MEMBERSHIP CARD'} · {card.member_code}</p>
         </div>
 
-        <div className="relative flex min-h-0 gap-[.9em] px-[.95em] py-[.6em]">
-          <Guilloche className="g-abs" color={t.accent} opacity={0.05} />
-          <div className="relative flex shrink-0 flex-col items-center justify-center gap-[.25em]">
-            <div className="rounded-[.4em] bg-white p-[.2em] ring-1 ring-slate-200">
-              <img src={card.qr_code} alt="QR code to verify this card" className="block h-[8.4em] w-[8.4em]" />
-            </div>
-            <span className="font-mono text-[.72em] font-extrabold tracking-[.05em]" style={{ color: t.accent }}>{card.member_code}</span>
+        <div className="flex min-h-0 gap-[.6em] px-[.9em] py-[.55em]">
+          <div className="flex shrink-0 flex-col items-center justify-center rounded-[.5em] bg-white p-[.3em] shadow-sm ring-1 ring-black/5">
+            <img src={card.qr_code} alt="QR code to verify this card" className="block h-[8.2em] w-[8.2em]" />
+            <span className="font-mono text-[.62em] font-extrabold tracking-[.05em]" style={{ color: t.accent }}>{card.member_code}</span>
           </div>
-          <div className="relative flex min-w-0 flex-1 flex-col justify-between text-[.68em] leading-snug text-slate-600">
-            <div className="space-y-[.45em]">
-              <p className="text-[1.25em] font-extrabold text-slate-900">Verify this card</p>
-              <p>Scan the QR code with any phone camera. The official ASR page shows {agent ? 'whether this person is an active field agent today' : 'whether the membership is valid today'}, with the holder&apos;s photo.</p>
-              <p>{agent
-                ? 'This card identifies an ASR field agent (VBA). It is personal, not transferable, and must be returned when leaving ASR.'
-                : 'This card is personal and not transferable. It identifies a registered avocado grower and member of the Avocado Society of Rwanda.'}</p>
-            </div>
-            <div>
-              <p className="lbl" style={{ fontSize: '.68em' }}>{agent ? 'Holder’s signature' : 'Member’s signature'}</p>
-              <div className="mt-[.2em] h-[2.1em] rounded-[.25em] ring-1 ring-slate-300"
-                style={{ background: `repeating-linear-gradient(135deg,#fff 0 .35em,${t.soft} .35em .7em)` }} />
-            </div>
+          <div className="grid min-w-0 flex-1 grid-rows-3 gap-[.3em]">
+            {steps.map(([title, text], i) => (
+              <div key={title} className="flex min-h-0 items-center gap-[.45em] rounded-[.45em] px-[.5em]" style={{ background: t.tiles[i], color: t.tileInk[i] }}>
+                <span className="flex h-[1.6em] w-[1.6em] shrink-0 items-center justify-center rounded-full text-[.78em] font-black text-white" style={{ background: t.tileInk[i] }}>{i + 1}</span>
+                <div className="min-w-0 leading-[1.2]">
+                  <p className="text-[.66em] font-extrabold tracking-[.06em]">{title.toUpperCase()}</p>
+                  <p className="text-[.64em] font-medium">{text}</p>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
 
-        <div className="relative flex items-center justify-between border-t px-[.95em] pb-[.5em] pt-[.32em] text-[.5em] font-semibold tracking-[.12em] text-slate-500" style={{ background: t.soft, borderColor: t.line }}>
-          <span>{agent ? 'ISSUED' : 'VALID UNTIL'} <b className="ml-[.4em] text-slate-900">{fmt(agent ? card.member_since : card.valid_until)}</b></span>
-          <span>AVOCADO SOCIETY OF RWANDA · KIGALI</span>
-          <span className="absolute inset-x-0 bottom-0 h-[.3em]"><FlagStripe /></span>
+        <div className="px-[.9em] pb-[.75em]">
+          <div className="flex items-center gap-[.5em]">
+            <span className="shrink-0 text-[.44em] font-extrabold tracking-[.14em] text-slate-500">{agent ? 'HOLDER’S' : 'MEMBER’S'}<br />SIGNATURE</span>
+            <div className="h-[2em] flex-1 rounded-[.3em] ring-1 ring-slate-300" style={{ background: 'repeating-linear-gradient(135deg,#fff 0 .35em,#f1f5f9 .35em .7em)' }} />
+            <span className="shrink-0 text-right text-[.44em] font-extrabold tracking-[.14em] text-slate-500">{agent ? 'ISSUED' : 'VALID UNTIL'}<br /><b className="text-[1.4em] text-slate-900">{fmt(agent ? card.member_since : card.valid_until)}</b></span>
+          </div>
         </div>
+        <Flag className="absolute inset-x-0 bottom-0 h-[.3em]" />
       </div>
     </div>
   );
