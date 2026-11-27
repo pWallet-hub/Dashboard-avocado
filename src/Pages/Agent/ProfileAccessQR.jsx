@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { QrCode, RefreshCw, Search, KeyRound, Download, Copy, History, Users, Printer } from 'lucide-react';
 import { listFarmers } from '../../services/usersService';
 import { getUserQRCode, generateAccessKeyQRCode, regenerateQRToken, getActivityLog } from '../../services/profileAccessService';
@@ -31,6 +32,7 @@ const downloadDataUrl = (dataUrl, filename) => {
  */
 export default function ProfileAccessQR() {
   const toast = useToast();
+  const navigate = useNavigate();
   const confirm = useConfirm();
   const myId = localStorage.getItem('id');
 
@@ -145,24 +147,8 @@ export default function ProfileAccessQR() {
     }
   };
 
-  const printCard = () => {
-    const w = window.open('', '_blank', 'width=420,height=560');
-    if (!w) return toast.error('Allow pop-ups to print the card');
-    const doc = w.document;
-    doc.title = `QR card — ${selected.full_name}`;
-    const wrap = doc.createElement('div');
-    wrap.style.cssText = 'font-family:sans-serif;text-align:center;padding:24px';
-    const h = doc.createElement('h2');
-    h.textContent = selected.full_name;
-    const p = doc.createElement('p');
-    p.textContent = [selected.phone, location(selected)].filter(Boolean).join(' · ');
-    const img = doc.createElement('img');
-    img.src = qr.qr_image;
-    img.style.width = '280px';
-    img.onload = () => w.print();
-    wrap.append(h, p, img);
-    doc.body.appendChild(wrap);
-  };
+  // Print the official membership card (same design everywhere).
+  const printCard = () => navigate(`/dashboard/agent/member-card/${selected.id}`);
 
   return (
     <Page>
@@ -253,7 +239,7 @@ export default function ProfileAccessQR() {
                         <Button size="sm" variant="secondary" icon={Download} onClick={() => downloadDataUrl(qr.qr_image, `qr-${(selected.full_name || 'farmer').replace(/\W+/g, '-')}.png`)}>
                           Download PNG
                         </Button>
-                        <Button size="sm" variant="secondary" icon={Printer} onClick={printCard}>Print card</Button>
+                        <Button size="sm" variant="secondary" icon={Printer} onClick={printCard}>Print membership card</Button>
                       </div>
                     </div>
                   </div>
